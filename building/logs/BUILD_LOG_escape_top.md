@@ -528,3 +528,57 @@ P5/Phase II 状态推进为 `IN-PROGRESS / SHADOW-REPLAY-20D-DONE`。生产/live
 ### 当前结论
 
 P5 状态推进为 `IN-PROGRESS / SHADOW-252D-CORR-SENSITIVITY-DONE`。生产/live 开关仍保持关闭。下一步建议：把相关闸候选参数接入 backtest sensitivity，而非只看 shadow gross。
+
+## P5 Phase II Full Backtest Sensitivity 记录
+
+**升级时间**: 2026-06-01
+
+本次继续把相关闸候选从“shadow gross 敏感性”推进到“完整资金曲线 + walk-forward/PBO”验证。脚本仍为只读 shadow，不翻任何 live 开关。
+
+### 已实装内容
+
+- ✅ 新增 `scripts/phase2_full_backtest_sensitivity.py`
+  - 读取 `Backtest_FULL_2018_2026.json` 的历史评分行
+  - 每日跑一次统一 pipeline 风控缓存
+  - 对 `threshold=[92,100,110,120,130,140,150]` × `penalty=[0.70,0.80,0.90]` 做 21 场景完整资金曲线
+  - 输出 `PhaseII_Full_Backtest_Sensitivity.md/json`
+- ✅ 性能优化
+  - 场景 sizing 默认使用确定性的 `R3 × confidence × risk_gross` 上界投影
+  - 价格面板只构建一次
+  - 内部快速模拟器预计算日收益矩阵，避免二次复杂度回测
+  - 保留 `--exact-optimizer` 给小窗口 SLSQP 复核
+- ✅ Walk-forward 治理字段
+  - train-greedy PBO
+  - 每个固定参数的 OOS below-median share
+  - 每个固定参数的 mean OOS rank
+- ✅ 新增 `test_phase2_full_backtest_sensitivity.py`
+
+### Full Backtest Sensitivity 结果
+
+- rows evaluated: 2113
+- errors: 0
+- scenario count: 21
+- R3 violations: 0
+- baseline old backtest：Final $403,631.36 / CAGR 18.13% / MaxDD -27.60% / Sharpe 0.8818
+- review candidate `threshold=110 / penalty=0.70`：
+  - hit share: 39.71%
+  - avg gross: 0.8447
+  - min gross: 0.3595
+  - Final: $401,635.03
+  - CAGR: 18.06%
+  - MaxDD: -22.47%
+  - Sharpe: 1.0115
+  - DSR: 0.8791
+  - Fixed OOS below-median share: 0.3077
+  - Mean OOS rank: 8.7692 / 21
+- train-greedy PBO: 0.6154，说明逐窗口贪心选参仍然不可上线。
+
+### 验证结果
+
+- ✅ `python3 -m unittest hermes_escape_top.tests.test_phase2_full_backtest_sensitivity`：5 tests OK
+- ✅ `python3 -m unittest discover -s hermes_escape_top/tests`：252 tests OK
+- ✅ `python3 -m unittest discover -s tests`：11 tests OK（仅 urllib3/LibreSSL 环境警告）
+
+### 当前结论
+
+P5 状态推进为 `IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE`。`110/0.70` 可以作为 Phase III 前的 review candidate，但仍不能自动上线；Phase III scaler 替换仍需 dry-run 与人工开关。

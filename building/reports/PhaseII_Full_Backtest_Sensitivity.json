@@ -1,0 +1,800 @@
+{
+  "base_penalty": 0.7,
+  "base_threshold": 92,
+  "baseline_old_backtest": {
+    "cagr": 0.181291,
+    "final_value": 403631.357858,
+    "max_drawdown": -0.276045,
+    "sharpe": 0.881817,
+    "sortino": 1.115495,
+    "turnover": 326.682483
+  },
+  "errors": [],
+  "live_effect": "none",
+  "notes": [
+    "Shadow-only replay; no live config, feature flag, account state, or signal journal is changed.",
+    "Uses cached historical A/B/C/D score rows, then routes residual sleeve capital through the cached capital-routing decision for that day.",
+    "Default scenario sizing uses the deterministic R3/confidence/risk-gross upper-bound projection; pass --exact-optimizer for slow SLSQP spot checks.",
+    "The candidate is a review target only; Phase III scaler replacement remains locked until human dry-run gates pass."
+  ],
+  "review_candidate": {
+    "avg_gross": 0.844664,
+    "avg_gross_delta": -0.155336,
+    "binding_counts": {
+      "CONFIDENCE": 733,
+      "RISK_GROSS": 2384,
+      "ZERO": 3222
+    },
+    "fixed_oos_below_median_share": 0.307692,
+    "hit_count": 839,
+    "hit_share": 0.397066,
+    "max_abs_weight_delta": 0.169828,
+    "mean_oos_rank": 8.769231,
+    "min_gross": 0.359528,
+    "penalty": 0.7,
+    "r3_violations": 0,
+    "simulation": {
+      "cagr": 0.180592,
+      "deflated_sharpe": 0.879111,
+      "final_value": 401635.026198,
+      "max_drawdown": -0.224723,
+      "max_drawdown_end": "2023-04-26",
+      "max_drawdown_start": "2021-11-19",
+      "sharpe": 1.01155,
+      "sortino": 1.314086,
+      "turnover": 339.980202
+    },
+    "threshold": 110.0
+  },
+  "rows_evaluated": 2113,
+  "rows_loaded": 2113,
+  "scenarios": [
+    {
+      "avg_gross": 0.78028,
+      "avg_gross_delta": -0.21972,
+      "binding_counts": {
+        "CONFIDENCE": 387,
+        "RISK_GROSS": 2730,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.538462,
+      "hit_count": 1320,
+      "hit_share": 0.624704,
+      "max_abs_weight_delta": 0.182488,
+      "mean_oos_rank": 11.230769,
+      "min_gross": 0.359528,
+      "penalty": 0.7,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.145053,
+        "deflated_sharpe": 0.769582,
+        "final_value": 310871.382251,
+        "max_drawdown": -0.22874,
+        "max_drawdown_end": "2023-03-15",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 0.904371,
+        "sortino": 1.151172,
+        "turnover": 333.427619
+      },
+      "threshold": 92.0
+    },
+    {
+      "avg_gross": 0.839656,
+      "avg_gross_delta": -0.160344,
+      "binding_counts": {
+        "CONFIDENCE": 387,
+        "RISK_GROSS": 2730,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.307692,
+      "hit_count": 1320,
+      "hit_share": 0.624704,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 10.230769,
+      "min_gross": 0.41089,
+      "penalty": 0.8,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.168352,
+        "deflated_sharpe": 0.812606,
+        "final_value": 368042.57142,
+        "max_drawdown": -0.236001,
+        "max_drawdown_end": "2023-03-15",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 0.950655,
+        "sortino": 1.211858,
+        "turnover": 334.408325
+      },
+      "threshold": 92.0
+    },
+    {
+      "avg_gross": 0.899032,
+      "avg_gross_delta": -0.100968,
+      "binding_counts": {
+        "CONFIDENCE": 387,
+        "RISK_GROSS": 2730,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.384615,
+      "hit_count": 1320,
+      "hit_share": 0.624704,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 9.461538,
+      "min_gross": 0.457055,
+      "penalty": 0.9,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.191593,
+        "deflated_sharpe": 0.843585,
+        "final_value": 434101.514591,
+        "max_drawdown": -0.245042,
+        "max_drawdown_end": "2023-05-12",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 0.986306,
+        "sortino": 1.256066,
+        "turnover": 336.045984
+      },
+      "threshold": 92.0
+    },
+    {
+      "avg_gross": 0.813854,
+      "avg_gross_delta": -0.186146,
+      "binding_counts": {
+        "CONFIDENCE": 568,
+        "RISK_GROSS": 2549,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.384615,
+      "hit_count": 1069,
+      "hit_share": 0.505916,
+      "max_abs_weight_delta": 0.177409,
+      "mean_oos_rank": 9.153846,
+      "min_gross": 0.359528,
+      "penalty": 0.7,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.165817,
+        "deflated_sharpe": 0.847155,
+        "final_value": 361403.260713,
+        "max_drawdown": -0.244391,
+        "max_drawdown_end": "2023-03-15",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 0.970804,
+        "sortino": 1.261426,
+        "turnover": 336.400754
+      },
+      "threshold": 100.0
+    },
+    {
+      "avg_gross": 0.862039,
+      "avg_gross_delta": -0.137961,
+      "binding_counts": {
+        "CONFIDENCE": 568,
+        "RISK_GROSS": 2549,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.384615,
+      "hit_count": 1069,
+      "hit_share": 0.505916,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 8.461538,
+      "min_gross": 0.41089,
+      "penalty": 0.8,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.182358,
+        "deflated_sharpe": 0.861086,
+        "final_value": 406696.787929,
+        "max_drawdown": -0.246489,
+        "max_drawdown_end": "2023-03-15",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 0.991137,
+        "sortino": 1.279547,
+        "turnover": 336.450835
+      },
+      "threshold": 100.0
+    },
+    {
+      "avg_gross": 0.910223,
+      "avg_gross_delta": -0.089777,
+      "binding_counts": {
+        "CONFIDENCE": 568,
+        "RISK_GROSS": 2549,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.307692,
+      "hit_count": 1069,
+      "hit_share": 0.505916,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 9.076923,
+      "min_gross": 0.457055,
+      "penalty": 0.9,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.19868,
+        "deflated_sharpe": 0.866522,
+        "final_value": 456218.804718,
+        "max_drawdown": -0.250494,
+        "max_drawdown_end": "2023-05-12",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 1.005018,
+        "sortino": 1.287314,
+        "turnover": 337.06834
+      },
+      "threshold": 100.0
+    },
+    {
+      "avg_gross": 0.844664,
+      "avg_gross_delta": -0.155336,
+      "binding_counts": {
+        "CONFIDENCE": 733,
+        "RISK_GROSS": 2384,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.307692,
+      "hit_count": 839,
+      "hit_share": 0.397066,
+      "max_abs_weight_delta": 0.169828,
+      "mean_oos_rank": 8.769231,
+      "min_gross": 0.359528,
+      "penalty": 0.7,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.180592,
+        "deflated_sharpe": 0.879111,
+        "final_value": 401635.026198,
+        "max_drawdown": -0.224723,
+        "max_drawdown_end": "2023-04-26",
+        "max_drawdown_start": "2021-11-19",
+        "sharpe": 1.01155,
+        "sortino": 1.314086,
+        "turnover": 339.980202
+      },
+      "threshold": 110.0
+    },
+    {
+      "avg_gross": 0.882579,
+      "avg_gross_delta": -0.117421,
+      "binding_counts": {
+        "CONFIDENCE": 733,
+        "RISK_GROSS": 2384,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.307692,
+      "hit_count": 839,
+      "hit_share": 0.397066,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 8.615385,
+      "min_gross": 0.41089,
+      "penalty": 0.8,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.192289,
+        "deflated_sharpe": 0.881966,
+        "final_value": 436230.360991,
+        "max_drawdown": -0.231477,
+        "max_drawdown_end": "2023-04-26",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 1.016585,
+        "sortino": 1.312985,
+        "turnover": 338.710713
+      },
+      "threshold": 110.0
+    },
+    {
+      "avg_gross": 0.920493,
+      "avg_gross_delta": -0.079507,
+      "binding_counts": {
+        "CONFIDENCE": 733,
+        "RISK_GROSS": 2384,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.461538,
+      "hit_count": 839,
+      "hit_share": 0.397066,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 8.846154,
+      "min_gross": 0.457055,
+      "penalty": 0.9,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.203695,
+        "deflated_sharpe": 0.876973,
+        "final_value": 472466.654765,
+        "max_drawdown": -0.243212,
+        "max_drawdown_end": "2023-05-12",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 1.017092,
+        "sortino": 1.303328,
+        "turnover": 338.059431
+      },
+      "threshold": 110.0
+    },
+    {
+      "avg_gross": 0.871997,
+      "avg_gross_delta": -0.128003,
+      "binding_counts": {
+        "CONFIDENCE": 940,
+        "RISK_GROSS": 2177,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.461538,
+      "hit_count": 638,
+      "hit_share": 0.30194,
+      "max_abs_weight_delta": 0.169828,
+      "mean_oos_rank": 11.769231,
+      "min_gross": 0.359528,
+      "penalty": 0.7,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.184238,
+        "deflated_sharpe": 0.857002,
+        "final_value": 412148.242521,
+        "max_drawdown": -0.221463,
+        "max_drawdown_end": "2023-04-26",
+        "max_drawdown_start": "2021-11-08",
+        "sharpe": 0.997998,
+        "sortino": 1.283319,
+        "turnover": 344.517637
+      },
+      "threshold": 120.0
+    },
+    {
+      "avg_gross": 0.9008,
+      "avg_gross_delta": -0.0992,
+      "binding_counts": {
+        "CONFIDENCE": 940,
+        "RISK_GROSS": 2177,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.615385,
+      "hit_count": 638,
+      "hit_share": 0.30194,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 11.461538,
+      "min_gross": 0.41089,
+      "penalty": 0.8,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.194647,
+        "deflated_sharpe": 0.867621,
+        "final_value": 443512.062908,
+        "max_drawdown": -0.224974,
+        "max_drawdown_end": "2023-04-26",
+        "max_drawdown_start": "2021-11-08",
+        "sharpe": 1.007518,
+        "sortino": 1.292974,
+        "turnover": 341.987637
+      },
+      "threshold": 120.0
+    },
+    {
+      "avg_gross": 0.929604,
+      "avg_gross_delta": -0.070396,
+      "binding_counts": {
+        "CONFIDENCE": 940,
+        "RISK_GROSS": 2177,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.615385,
+      "hit_count": 638,
+      "hit_share": 0.30194,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 10.846154,
+      "min_gross": 0.457055,
+      "penalty": 0.9,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.204797,
+        "deflated_sharpe": 0.870083,
+        "final_value": 476103.869764,
+        "max_drawdown": -0.238253,
+        "max_drawdown_end": "2023-05-12",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 1.01248,
+        "sortino": 1.293491,
+        "turnover": 340.095828
+      },
+      "threshold": 120.0
+    },
+    {
+      "avg_gross": 0.889989,
+      "avg_gross_delta": -0.110011,
+      "binding_counts": {
+        "CONFIDENCE": 1071,
+        "RISK_GROSS": 2046,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.615385,
+      "hit_count": 507,
+      "hit_share": 0.239943,
+      "max_abs_weight_delta": 0.169828,
+      "mean_oos_rank": 11.846154,
+      "min_gross": 0.359528,
+      "penalty": 0.7,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.189987,
+        "deflated_sharpe": 0.864734,
+        "final_value": 429220.58416,
+        "max_drawdown": -0.228961,
+        "max_drawdown_end": "2023-04-26",
+        "max_drawdown_start": "2021-11-08",
+        "sharpe": 1.003107,
+        "sortino": 1.293024,
+        "turnover": 344.322928
+      },
+      "threshold": 130.0
+    },
+    {
+      "avg_gross": 0.912795,
+      "avg_gross_delta": -0.087205,
+      "binding_counts": {
+        "CONFIDENCE": 1071,
+        "RISK_GROSS": 2046,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.461538,
+      "hit_count": 507,
+      "hit_share": 0.239943,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 11.076923,
+      "min_gross": 0.41089,
+      "penalty": 0.8,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.198489,
+        "deflated_sharpe": 0.872134,
+        "final_value": 455611.513006,
+        "max_drawdown": -0.230018,
+        "max_drawdown_end": "2023-04-26",
+        "max_drawdown_start": "2021-11-08",
+        "sharpe": 1.010464,
+        "sortino": 1.298737,
+        "turnover": 341.708146
+      },
+      "threshold": 130.0
+    },
+    {
+      "avg_gross": 0.935601,
+      "avg_gross_delta": -0.064399,
+      "binding_counts": {
+        "CONFIDENCE": 1071,
+        "RISK_GROSS": 2046,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.615385,
+      "hit_count": 507,
+      "hit_share": 0.239943,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 10.615385,
+      "min_gross": 0.457055,
+      "penalty": 0.9,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.206735,
+        "deflated_sharpe": 0.872255,
+        "final_value": 482559.059451,
+        "max_drawdown": -0.240351,
+        "max_drawdown_end": "2023-05-12",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 1.013849,
+        "sortino": 1.296448,
+        "turnover": 339.800192
+      },
+      "threshold": 130.0
+    },
+    {
+      "avg_gross": 0.90656,
+      "avg_gross_delta": -0.09344,
+      "binding_counts": {
+        "CONFIDENCE": 1219,
+        "RISK_GROSS": 1898,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.692308,
+      "hit_count": 386,
+      "hit_share": 0.182679,
+      "max_abs_weight_delta": 0.169828,
+      "mean_oos_rank": 13.538462,
+      "min_gross": 0.359528,
+      "penalty": 0.7,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.188284,
+        "deflated_sharpe": 0.84147,
+        "final_value": 424101.029728,
+        "max_drawdown": -0.228961,
+        "max_drawdown_end": "2023-04-26",
+        "max_drawdown_start": "2021-11-08",
+        "sharpe": 0.979977,
+        "sortino": 1.260341,
+        "turnover": 346.864569
+      },
+      "threshold": 140.0
+    },
+    {
+      "avg_gross": 0.923843,
+      "avg_gross_delta": -0.076157,
+      "binding_counts": {
+        "CONFIDENCE": 1219,
+        "RISK_GROSS": 1898,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.692308,
+      "hit_count": 386,
+      "hit_share": 0.182679,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 12.923077,
+      "min_gross": 0.41089,
+      "penalty": 0.8,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.197299,
+        "deflated_sharpe": 0.85642,
+        "final_value": 451832.534989,
+        "max_drawdown": -0.233148,
+        "max_drawdown_end": "2023-04-26",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 0.995046,
+        "sortino": 1.27671,
+        "turnover": 343.49436
+      },
+      "threshold": 140.0
+    },
+    {
+      "avg_gross": 0.941125,
+      "avg_gross_delta": -0.058875,
+      "binding_counts": {
+        "CONFIDENCE": 1219,
+        "RISK_GROSS": 1898,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.692308,
+      "hit_count": 386,
+      "hit_share": 0.182679,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 11.769231,
+      "min_gross": 0.457055,
+      "penalty": 0.9,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.2061,
+        "deflated_sharpe": 0.864407,
+        "final_value": 480435.050268,
+        "max_drawdown": -0.244472,
+        "max_drawdown_end": "2023-05-12",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 1.006167,
+        "sortino": 1.285479,
+        "turnover": 340.821788
+      },
+      "threshold": 140.0
+    },
+    {
+      "avg_gross": 0.917043,
+      "avg_gross_delta": -0.082957,
+      "binding_counts": {
+        "CONFIDENCE": 1320,
+        "RISK_GROSS": 1797,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.769231,
+      "hit_count": 308,
+      "hit_share": 0.145764,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 14.538462,
+      "min_gross": 0.457055,
+      "penalty": 0.7,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.18323,
+        "deflated_sharpe": 0.803581,
+        "final_value": 409219.240641,
+        "max_drawdown": -0.251634,
+        "max_drawdown_end": "2023-05-12",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 0.943842,
+        "sortino": 1.202746,
+        "turnover": 343.111215
+      },
+      "threshold": 150.0
+    },
+    {
+      "avg_gross": 0.930831,
+      "avg_gross_delta": -0.069169,
+      "binding_counts": {
+        "CONFIDENCE": 1320,
+        "RISK_GROSS": 1797,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.692308,
+      "hit_count": 308,
+      "hit_share": 0.145764,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 13.923077,
+      "min_gross": 0.457055,
+      "penalty": 0.8,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.193836,
+        "deflated_sharpe": 0.830663,
+        "final_value": 440996.283487,
+        "max_drawdown": -0.252976,
+        "max_drawdown_end": "2023-05-12",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 0.970822,
+        "sortino": 1.237435,
+        "turnover": 341.204655
+      },
+      "threshold": 150.0
+    },
+    {
+      "avg_gross": 0.944619,
+      "avg_gross_delta": -0.055381,
+      "binding_counts": {
+        "CONFIDENCE": 1320,
+        "RISK_GROSS": 1797,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 0.692308,
+      "hit_count": 308,
+      "hit_share": 0.145764,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 12.846154,
+      "min_gross": 0.457055,
+      "penalty": 0.9,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.204304,
+        "deflated_sharpe": 0.851366,
+        "final_value": 474473.301658,
+        "max_drawdown": -0.254353,
+        "max_drawdown_end": "2023-05-12",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 0.993994,
+        "sortino": 1.265515,
+        "turnover": 339.901604
+      },
+      "threshold": 150.0
+    }
+  ],
+  "schema_version": "phase2-full-backtest-sensitivity-v1",
+  "source_backtest": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/reports/Backtest_FULL_2018_2026.json",
+  "walk_forward": {
+    "folds": [
+      {
+        "scenario_count": 21,
+        "test_end": "2020-07-02",
+        "test_start": "2020-01-03",
+        "train_best_oos_rank": 19,
+        "train_best_penalty": 0.7,
+        "train_best_threshold": 130.0,
+        "train_end": "2019-12-03",
+        "train_start": "2018-01-02"
+      },
+      {
+        "scenario_count": 21,
+        "test_end": "2020-12-31",
+        "test_start": "2020-07-06",
+        "train_best_oos_rank": 19,
+        "train_best_penalty": 0.7,
+        "train_best_threshold": 110.0,
+        "train_end": "2020-06-04",
+        "train_start": "2018-07-02"
+      },
+      {
+        "scenario_count": 21,
+        "test_end": "2021-07-02",
+        "test_start": "2021-01-04",
+        "train_best_oos_rank": 14,
+        "train_best_penalty": 0.7,
+        "train_best_threshold": 120.0,
+        "train_end": "2020-12-02",
+        "train_start": "2019-01-02"
+      },
+      {
+        "scenario_count": 21,
+        "test_end": "2022-01-03",
+        "test_start": "2021-07-06",
+        "train_best_oos_rank": 10,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 120.0,
+        "train_end": "2021-06-04",
+        "train_start": "2019-07-02"
+      },
+      {
+        "scenario_count": 21,
+        "test_end": "2022-07-01",
+        "test_start": "2022-01-03",
+        "train_best_oos_rank": 10,
+        "train_best_penalty": 0.7,
+        "train_best_threshold": 120.0,
+        "train_end": "2021-12-02",
+        "train_start": "2020-01-02"
+      },
+      {
+        "scenario_count": 21,
+        "test_end": "2023-01-03",
+        "test_start": "2022-07-05",
+        "train_best_oos_rank": 10,
+        "train_best_penalty": 0.7,
+        "train_best_threshold": 120.0,
+        "train_end": "2022-06-02",
+        "train_start": "2020-07-02"
+      },
+      {
+        "scenario_count": 21,
+        "test_end": "2023-07-03",
+        "test_start": "2023-01-03",
+        "train_best_oos_rank": 20,
+        "train_best_penalty": 0.7,
+        "train_best_threshold": 120.0,
+        "train_end": "2022-12-01",
+        "train_start": "2021-01-04"
+      },
+      {
+        "scenario_count": 21,
+        "test_end": "2024-01-03",
+        "test_start": "2023-07-03",
+        "train_best_oos_rank": 13,
+        "train_best_penalty": 0.7,
+        "train_best_threshold": 130.0,
+        "train_end": "2023-06-01",
+        "train_start": "2021-07-02"
+      },
+      {
+        "scenario_count": 21,
+        "test_end": "2024-07-03",
+        "test_start": "2024-01-03",
+        "train_best_oos_rank": 12,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 130.0,
+        "train_end": "2023-12-01",
+        "train_start": "2022-01-03"
+      },
+      {
+        "scenario_count": 21,
+        "test_end": "2025-01-03",
+        "test_start": "2024-07-03",
+        "train_best_oos_rank": 12,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 130.0,
+        "train_end": "2024-06-03",
+        "train_start": "2022-07-05"
+      },
+      {
+        "scenario_count": 21,
+        "test_end": "2025-07-03",
+        "test_start": "2025-01-03",
+        "train_best_oos_rank": 17,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 130.0,
+        "train_end": "2024-12-03",
+        "train_start": "2023-01-03"
+      },
+      {
+        "scenario_count": 21,
+        "test_end": "2026-01-02",
+        "test_start": "2025-07-03",
+        "train_best_oos_rank": 4,
+        "train_best_penalty": 0.7,
+        "train_best_threshold": 110.0,
+        "train_end": "2025-06-03",
+        "train_start": "2023-07-03"
+      },
+      {
+        "scenario_count": 21,
+        "test_end": "2026-05-29",
+        "test_start": "2026-01-05",
+        "train_best_oos_rank": 2,
+        "train_best_penalty": 0.7,
+        "train_best_threshold": 110.0,
+        "train_end": "2025-12-03",
+        "train_start": "2024-01-02"
+      }
+    ],
+    "note": "PBO is the share of folds where the train-best scenario lands below median OOS rank.",
+    "train_greedy_pbo": 0.615385
+  }
+}

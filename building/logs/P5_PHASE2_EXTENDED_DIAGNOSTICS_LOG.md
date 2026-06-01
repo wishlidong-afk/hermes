@@ -1,7 +1,7 @@
 # P5 Phase II Extended Diagnostics Log
 
 **时间**: 2026-06-01
-**范围**: Phase II shadow 扩窗与 EXTREME_CORR 敏感性诊断
+**范围**: Phase II shadow 扩窗、EXTREME_CORR 敏感性诊断、full-window backtest sensitivity
 **生产影响**: none，未翻 live 开关，未改实盘裁决参数
 
 ## 本次搭建内容
@@ -63,10 +63,57 @@
 
 ## 验收结论
 
-P5 状态推进为 `IN-PROGRESS / SHADOW-252D-CORR-SENSITIVITY-DONE`。
+P5 状态先推进为 `IN-PROGRESS / SHADOW-252D-CORR-SENSITIVITY-DONE`。
+
+## Full Backtest Sensitivity 追加
+
+新增 `scripts/phase2_full_backtest_sensitivity.py`，把相关闸候选接入 2018-01-02→2026-05-29 的完整资金曲线与 walk-forward 诊断。该脚本仍为只读 shadow：
+
+- 默认使用确定性的 `R3 × confidence × risk_gross` 上界投影，避免 21 个场景 × 2113 日重复 SLSQP；
+- 价格面板一次构建，内部快速模拟器预计算日收益矩阵；
+- 保留 `--exact-optimizer` 供小窗口慢速复核；
+- 输出 `PhaseII_Full_Backtest_Sensitivity.md/json`。
+
+### 结果摘要
+
+| 指标 | 结果 |
+|---|---:|
+| rows evaluated | 2113 |
+| errors | 0 |
+| scenario count | 21 |
+| R3 violations | 0 |
+| baseline final | $403,631.36 |
+| baseline CAGR | 18.13% |
+| baseline MaxDD | -27.60% |
+| baseline Sharpe | 0.8818 |
+
+Review candidate 仍为 `threshold=110 / penalty=0.70`：
+
+| 指标 | 结果 |
+|---|---:|
+| hit share | 39.71% |
+| avg gross | 0.8447 |
+| min gross | 0.3595 |
+| final value | $401,635.03 |
+| CAGR | 18.06% |
+| MaxDD | -22.47% |
+| Sharpe | 1.0115 |
+| DSR | 0.8791 |
+| fixed OOS below-median share | 0.3077 |
+| mean OOS rank | 8.7692 / 21 |
+
+治理解释：
+
+- `train-greedy PBO=0.6154`，说明逐窗口贪心选参明显过拟合，不得上线；
+- 固定候选 `110/0.70` 的 OOS below-median share 为 0.3077，作为固定规则比贪心选参健康；
+- 相比旧 baseline，候选 CAGR 基本持平（18.06% vs 18.13%），MaxDD 从 -27.60% 改善到 -22.47%，Sharpe 从 0.8818 提升到 1.0115。
+
+## 最终验收结论
+
+P5 状态推进为 `IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE`。
 
 ## 剩余风险
 
 - 当前 EXTREME_CORR 算法使用“下行相关 / 普通相关 × 100”与 92 阈值，配合 downside floor 后确实偏保守。
-- 敏感性脚本只是复算 penalty 层，没有重跑完整投资结果；正式参数变更必须纳入回测引擎。
-- Phase III 仍不可启动 live 替换；必须先完成风险预算参数校准。
+- full-window sensitivity 已完成，但默认使用快速上界投影；Phase III dry-run 前建议用 `--exact-optimizer` 抽样复核关键窗口。
+- Phase III 仍不可启动 live 替换；必须先完成 dry-run、人审与 feature flag 人工开关。

@@ -7,12 +7,12 @@
 
 ## 0. 现状一句话
 
-- **247 package tests OK + 11 golden tests OK**；missing MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。
+- **252 package tests OK + 11 golden tests OK**；missing MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。
 - **P0/P1/P2 全部完成**：合成历史 TE 4.67%；real-only CAGR 44.39% Sharpe 1.79；deployment PBO=0.1538。
 - **P4 整合地基 Phase 0–I + Pipeline 完成且已落地本地 `.hermes`**：12 个组件骨架（ConfidenceSpine/RiskEngine/SizingOptimizer/FactorLab/MarketContext/ValidationHarness/Governance/Sanitize/Failover/DriftMonitor/Pipeline/Config），E1–E30 全覆盖，7 道总闸全有结构性验证。
-- **P5 Phase II shadow 对照已跑通 252 日 + 相关闸敏感性**：rows=252、errors=0、R3 violations=0、max abs weight delta=0.1592、confidence NORMAL×252；`SizingOptimizer` 已接 `risk_state.gross_scaler`；`EXTREME_CORR` share 78.57%；review candidate 为 threshold=110 / penalty=0.70；live 开关未翻。
+- **P5 Phase II 已跑通 252 日 shadow + 相关闸敏感性 + 2113 日 full-window sensitivity**：full sensitivity errors=0、scenario count=21、R3 violations=0；review candidate 为 threshold=110 / penalty=0.70，CAGR 18.06%、MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077；live 开关未翻。
 - **Phase II–IV 计划就绪**：配置/feature flags/rollout plan/scaler migration guide 全部产出。
-- **下一步**：把相关闸候选参数接入 full backtest / walk-forward 校准 + 补 NEXT-1 剩余软数据。
+- **下一步**：对 `110/0.70` 做 exact optimizer 抽样复核 / dry-run，再考虑 Phase III；并行补 NEXT-1 剩余软数据。
 
 ---
 
@@ -23,12 +23,12 @@ P0  ✅ DONE — 合成历史接缝调整严格门控通过（TE 4.67%, corr 0.9
 P1  ✅ DONE — 全窗口回测（real-only CAGR 44.39%, Sharpe 1.79, DSR 1.66）
 P2  ✅ DONE — 稳定高原校准（EXIT=75, DEF_EXIT=65, deployment PBO=0.1538）
 P3  可启动 — 补 NEXT-1 剩余软数据（PCR/NAAIM/BTC funding-basis-DVOL）
-P4  ✅ Phase 0–I + Pipeline DONE — 12 组件 + 247 package tests + E1–E30 全覆盖
-P5  IN-PROGRESS — Phase II shadow 252 日 + corr sensitivity 已跑通，下一步 full backtest 校准
+P4  ✅ Phase 0–I + Pipeline DONE — 12 组件 + 252 package tests + E1–E30 全覆盖
+P5  IN-PROGRESS — Phase II shadow/corr/full-window sensitivity 已跑通，下一步 exact 抽样复核与 dry-run
 P6  后续 — Phase III 替换旧 scaler 链 → Phase IV 7 闸全通过
 ```
 
-> P0+P1+P2+P4 已完成并落地本地。P5 Phase II shadow 已有 252 日验收与相关闸候选；下一步优先把候选参数接入完整回测与 P3 软数据补全。
+> P0+P1+P2+P4 已完成并落地本地。P5 Phase II full-window sensitivity 已完成；下一步优先对 `110/0.70` 做 exact optimizer 抽样复核 / dry-run，并补 P3 软数据。
 
 ---
 
@@ -124,7 +124,8 @@ def validate_synth(real_df: pd.DataFrame, synth_df: pd.DataFrame,
 - P4 本地落地修复已完成：`integration_config` 路径、Python 3.9 日期、RiskEngine 下行相关/数值稳定、SizingOptimizer shrinkage、MarketContext 测试警告。
 - P5 Phase II shadow 对照已完成 252 日样本：`building/reports/PhaseII_Shadow_Compare.md/json`。
 - P5 相关闸敏感性已完成：`building/reports/PhaseII_Corr_Sensitivity.md/json`，review candidate 为 `threshold=110 / penalty=0.70`。
-- **下一步关键**：把相关闸候选接入 full backtest / walk-forward，再决定 Phase III 是否替换旧 scaler 链。R3 不变式仍为硬约束。
+- P5 full-window sensitivity 已完成：`building/reports/PhaseII_Full_Backtest_Sensitivity.md/json`；2113 rows、errors=0、21 scenarios、R3 violations=0；110/0.70 候选 MaxDD -22.47%、Sharpe 1.0115。
+- **下一步关键**：对 110/0.70 做 exact optimizer 抽样复核 / dry-run，再决定 Phase III 是否替换旧 scaler 链。R3 不变式仍为硬约束。
 
 ---
 
@@ -139,10 +140,10 @@ def validate_synth(real_df: pd.DataFrame, synth_df: pd.DataFrame,
 
 ---
 
-## 8. 完成 P0 后请回报
+## 8. 下一步回报格式
 
-1. FNGU/FNGS 重叠期校验数字（ret_corr / 年化 TE）——这决定合成段是否可信。
-2. 合成后回测可用的真实起点（FNGU 扩到了哪一年）。
-3. 全窗口 `Backtest_FULL` 里硬阀门在 2020-03 / 2022 等暴跌段的触发清单。
+1. `110/0.70` exact optimizer 抽样窗口、误差、是否仍保持 R3=0。
+2. dry-run 对照：旧 scaler vs Phase III sizing 的目标权重、路由、turnover、风险解释。
+3. P3 软数据进展：PCR/NAAIM/BTC funding-basis-DVOL 哪些已补、missing_weight 降了多少。
 
-> 一句话：**先把 FNGU 的历史补出来（P0），别的都先放一放。** 没有它，回测和校准都是在 15 个月的沙地上盖楼。
+> 一句话：**不要贪心上线。** P5 已证明固定 110/0.70 比默认 92/0.70 更均衡，但 Phase III 仍必须先过 exact 抽样、dry-run 和人审。

@@ -15,7 +15,7 @@
 | 12 镜像参考系统 | DONE | local only | n/a | IBKR 未接 | 2026-06-01 |
 | 13 元模型 | LOCKED | - | - | 标签解锁门未达 | - |
 | 14 WebUI 与可观测性 | PARTIAL | local only | n/a | 未接 IBKR drilldown | 2026-06-01 |
-| 15 集成、dry-run、切换 | **IN-PROGRESS / SHADOW-252D-CORR-SENSITIVITY-DONE** | local only | shadow passed | Phase II 252 日 shadow 与相关闸敏感性已跑通；live 开关保持关闭；待 full backtest 校准 | 2026-06-01 |
+| 15 集成、dry-run、切换 | **IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE** | local only | shadow + full sensitivity passed | Phase II 252 日 shadow、相关闸敏感性、2113 日 full-window sensitivity 已跑通；live 开关保持关闭 | 2026-06-01 |
 
 ## NEXT 工单进度
 
@@ -29,8 +29,8 @@
 | NEXT-4 向前软数据 | TODO | - | 可并行 |
 | NEXT-5 元模型 | LOCKED | - | 标签未达 |
 | NEXT-6 IBKR 对账 | TODO | - | greenfield |
-| P4 整合地基 | **DONE / PHASE0-I-PIPELINE-LOCAL-SYNCED** | 247 package tests OK + 11 golden tests OK | live 开关关闭 |
-| P5 Phase II Shadow | **IN-PROGRESS / SHADOW-252D-CORR-SENSITIVITY-DONE** | rows=252 / errors=0 / R3 violations=0 / max delta=0.1592 / NORMAL×252 / EXTREME_CORR 78.57% / review candidate 110/0.70 | 需把相关闸候选接入 full backtest/walk-forward |
+| P4 整合地基 | **DONE / PHASE0-I-PIPELINE-LOCAL-SYNCED** | 252 package tests OK + 11 golden tests OK | live 开关关闭 |
+| P5 Phase II Shadow | **IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE** | shadow rows=252；full rows=2113 / errors=0 / scenario count=21 / R3 violations=0 / review candidate 110/0.70：CAGR 18.06%、MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077 | 需 exact optimizer 抽样复核 + dry-run，人审后再进 Phase III |
 
 ## P4 整合地基进度
 
@@ -95,6 +95,8 @@
 | `reports/P5_PHASE2_SHADOW_COMPARE_LOG.md` | ✅ |
 | `scripts/phase2_corr_sensitivity.py` | ✅ |
 | `reports/PhaseII_Corr_Sensitivity.md/json` | ✅ |
+| `scripts/phase2_full_backtest_sensitivity.py` | ✅ |
+| `reports/PhaseII_Full_Backtest_Sensitivity.md/json` | ✅ |
 | `reports/P5_PHASE2_EXTENDED_DIAGNOSTICS_LOG.md` | ✅ |
 
 | 指标 | 结果 |
@@ -108,6 +110,23 @@
 | avg shadow gross | 0.7229 |
 | max abs weight delta | 0.1592 |
 | corr sensitivity review candidate | threshold=110 / penalty=0.70 |
+
+## P5 Full Backtest Sensitivity
+
+| 指标 | 结果 |
+|---|---:|
+| 回放窗口 | 2018-01-02 → 2026-05-29 |
+| rows evaluated | 2113 |
+| errors | 0 |
+| scenario count | 21 |
+| R3 violations | 0 |
+| review candidate | threshold=110 / penalty=0.70 |
+| candidate CAGR | 18.06% |
+| candidate MaxDD | -22.47% |
+| candidate Sharpe | 1.0115 |
+| candidate DSR | 0.8791 |
+| candidate fixed OOS below-median | 0.3077 |
+| train-greedy PBO | 0.6154 |
 
 ## 系统级 7 道总闸
 
@@ -128,7 +147,7 @@
 3. ~~Pipeline 接线~~ ✅
 4. ~~Phase II 20 日 shadow 对照~~ ✅
 5. ~~Phase II 252 日扩窗 + 相关闸敏感性~~ ✅
-6. **相关闸 full backtest 校准**：把 110/0.70、120/0.80 等候选接入完整回测与 walk-forward。
-7. **Phase III 统一处置**：风险预算校准后再替换旧 scaler 乘法链。
+6. ~~相关闸 full backtest 校准~~ ✅
+7. **Phase III 统一处置**：先做 exact optimizer 抽样复核 + dry-run，再替换旧 scaler 乘法链。
 8. **Phase IV 验证与治理**：实跑 PBO/CI/对抗验证。
 9. **补 NEXT-1 剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL。
