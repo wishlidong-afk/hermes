@@ -29,7 +29,7 @@
 | NEXT-4 向前软数据 | TODO | - | 可并行 |
 | NEXT-5 元模型 | LOCKED | - | 标签未达 |
 | NEXT-6 IBKR 对账 | TODO | - | greenfield |
-| P4 整合地基 | **DONE / PHASE0-I-PIPELINE-LOCAL-SYNCED** | 252 package tests OK + 11 golden tests OK | live 开关关闭 |
+| P4 整合地基 | **DONE / PHASE0-I-PIPELINE-LOCAL-SYNCED** | 253 package tests OK + 11 golden tests OK | live 开关关闭 |
 | P5 Phase II Shadow | **IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE** | shadow rows=252；full rows=2113 / errors=0 / scenario count=21 / R3 violations=0 / review candidate 110/0.70：CAGR 18.06%、MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077 | 需 exact optimizer 抽样复核 + dry-run，人审后再进 Phase III |
 
 ## P4 整合地基进度
@@ -97,6 +97,8 @@
 | `reports/PhaseII_Corr_Sensitivity.md/json` | ✅ |
 | `scripts/phase2_full_backtest_sensitivity.py` | ✅ |
 | `reports/PhaseII_Full_Backtest_Sensitivity.md/json` | ✅ |
+| `reports/PhaseII_Full_Backtest_Sensitivity_Exact_2022H1.md/json` | ✅ |
+| `reports/PhaseII_Full_Backtest_Sensitivity_Exact_2026YTD.md/json` | ✅ |
 | `reports/P5_PHASE2_EXTENDED_DIAGNOSTICS_LOG.md` | ✅ |
 
 | 指标 | 结果 |
@@ -127,6 +129,13 @@
 | candidate DSR | 0.8791 |
 | candidate fixed OOS below-median | 0.3077 |
 | train-greedy PBO | 0.6154 |
+
+## P5 Exact Optimizer Spot-check
+
+| 窗口 | exact/fast 是否一致 | rows | errors | R3 | 备注 |
+|---|---|---:|---:|---:|---|
+| 2022-01-03 → 2022-07-01 | ✅ | 125 | 0 | 0 | exact 与 fast 完全一致 |
+| 2026-01-05 → 2026-05-29 | ✅ | 101 | 0 | 0 | exact 与 fast 完全一致 |
 
 ## 系统级 7 道总闸
 

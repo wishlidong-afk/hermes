@@ -112,6 +112,26 @@ Review candidate 仍为 `threshold=110 / penalty=0.70`：
 
 P5 状态推进为 `IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE`。
 
+## Exact Optimizer Spot-check 追加
+
+为验证 full-window sensitivity 默认使用的快速上界投影是否偏离 SLSQP 精确优化，`phase2_full_backtest_sensitivity.py` 已新增：
+
+- `--start` / `--end` 日期过滤；
+- `--suffix` 独立输出文件后缀；
+- `--exact-optimizer` 慢速精确路径；
+- 对 date filter / suffix / fast simulator 的单测。
+
+抽样结果：
+
+| 窗口 | 模式 | rows | errors | R3 | Final | CAGR | MaxDD | Sharpe | Turnover |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2022-01-03→2022-07-01 | exact | 125 | 0 | 0 | $96,392.78 | -7.01% | -6.73% | -1.0068 | 2.0904 |
+| 2022-01-03→2022-07-01 | fast | 125 | 0 | 0 | $96,392.78 | -7.01% | -6.73% | -1.0068 | 2.0904 |
+| 2026-01-05→2026-05-29 | exact | 101 | 0 | 0 | $134,157.91 | 110.23% | -7.57% | 3.7111 | 26.6084 |
+| 2026-01-05→2026-05-29 | fast | 101 | 0 | 0 | $134,157.91 | 110.23% | -7.57% | 3.7111 | 26.6084 |
+
+两个窗口 exact 与 fast 指标完全一致，说明当前快速投影在这些窗口与 SLSQP 精确优化路径一致；Phase III 前仍建议继续抽样 2020 疫情段与 2024 牛市段。
+
 ## 剩余风险
 
 - 当前 EXTREME_CORR 算法使用“下行相关 / 普通相关 × 100”与 92 阈值，配合 downside floor 后确实偏保守。

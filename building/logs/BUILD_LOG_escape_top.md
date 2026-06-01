@@ -582,3 +582,33 @@ P5 状态推进为 `IN-PROGRESS / SHADOW-252D-CORR-SENSITIVITY-DONE`。生产/li
 ### 当前结论
 
 P5 状态推进为 `IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE`。`110/0.70` 可以作为 Phase III 前的 review candidate，但仍不能自动上线；Phase III scaler 替换仍需 dry-run 与人工开关。
+
+## P5 Exact Optimizer Spot-check 记录
+
+**升级时间**: 2026-06-01
+
+为验证 full-window sensitivity 默认使用的快速上界投影是否偏离 SLSQP 精确优化，本次给脚本补了 `--start/--end/--suffix/--exact-optimizer`，可对指定窗口生成独立报告，避免覆盖主报告。
+
+### 已实装内容
+
+- ✅ `phase2_full_backtest_sensitivity.py` 新增：
+  - `--start` / `--end` 日期过滤
+  - `--suffix` 独立输出文件后缀
+  - `exact_optimizer` 元数据落盘
+- ✅ 新增单测：
+  - date filter
+  - suffix sanitizer
+  - fast simulator 时序
+
+### 抽样窗口
+
+| 窗口 | 模式 | rows | errors | R3 | Final | CAGR | MaxDD | Sharpe | Turnover |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2022-01-03→2022-07-01 | exact | 125 | 0 | 0 | $96,392.78 | -7.01% | -6.73% | -1.0068 | 2.0904 |
+| 2022-01-03→2022-07-01 | fast | 125 | 0 | 0 | $96,392.78 | -7.01% | -6.73% | -1.0068 | 2.0904 |
+| 2026-01-05→2026-05-29 | exact | 101 | 0 | 0 | $134,157.91 | 110.23% | -7.57% | 3.7111 | 26.6084 |
+| 2026-01-05→2026-05-29 | fast | 101 | 0 | 0 | $134,157.91 | 110.23% | -7.57% | 3.7111 | 26.6084 |
+
+### 结论
+
+两个抽样窗口 exact 与 fast 指标完全一致，说明当前 `R3 × confidence × risk_gross` 快速投影在这些窗口与 SLSQP 精确优化路径一致。下一步仍建议扩大 exact spot-check 到 2020 疫情段与 2024 牛市段，再进入 dry-run 验收包。

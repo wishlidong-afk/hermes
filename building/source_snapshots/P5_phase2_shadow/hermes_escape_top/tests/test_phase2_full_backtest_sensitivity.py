@@ -7,8 +7,10 @@ from hermes_escape_top.core.contracts import ConfidenceState, Verdict
 from hermes_escape_top.core.backtest.simulator import DayDecision
 from hermes_escape_top.scripts.phase2_full_backtest_sensitivity import (
     _fast_project_targets,
+    _filter_rows_by_date,
     _returns_from_price_panel,
     _route_shadow_weights,
+    _safe_suffix,
     _scenario_gross,
     _simulate_fast_decisions,
 )
@@ -84,6 +86,15 @@ class Phase2FullBacktestSensitivityTests(unittest.TestCase):
 
         self.assertAlmostEqual(sim["equity_curve"]["2026-01-02"], 110000.0)
         self.assertAlmostEqual(sim["equity_curve"]["2026-01-03"], 104500.0)
+
+    def test_date_filter_and_suffix_helpers(self):
+        rows = [{"date": "2026-01-01"}, {"date": "2026-01-02"}, {"date": "2026-01-03"}]
+
+        filtered = _filter_rows_by_date(rows, start="2026-01-02", end="2026-01-03")
+
+        self.assertEqual([row["date"] for row in filtered], ["2026-01-02", "2026-01-03"])
+        self.assertEqual(_safe_suffix(" Exact 2022/H1 "), "_Exact_2022_H1")
+        self.assertEqual(_safe_suffix(""), "")
 
 
 if __name__ == "__main__":

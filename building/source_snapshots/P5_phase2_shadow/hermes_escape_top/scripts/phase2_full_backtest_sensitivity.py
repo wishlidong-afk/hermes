@@ -45,6 +45,9 @@ def run_phase2_full_backtest_sensitivity(
     penalties: Optional[List[float]] = None,
     limit: Optional[int] = None,
     exact_optimizer: bool = False,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    suffix: str = "",
 ) -> Dict[str, Any]:
     out_dir = out_dir or HERMES_ROOT / "reports"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -56,8 +59,12 @@ def run_phase2_full_backtest_sensitivity(
     rows = source.get("rows", [])
     if not rows:
         raise RuntimeError(f"No rows in {backtest_path}")
+    if start or end:
+        rows = _filter_rows_by_date(rows, start=start, end=end)
     if limit is not None:
         rows = rows[-max(1, int(limit)) :]
+    if not rows:
+        raise RuntimeError("No rows after date/limit filtering")
 
     base_cfg = load_config(CONFIG_PATH)
     pipeline_cfg = _pipeline_config()
@@ -94,6 +101,8 @@ def run_phase2_full_backtest_sensitivity(
         "source_backtest": str(backtest_path),
         "rows_loaded": len(rows),
         "rows_evaluated": len(replay_rows),
+        "date_filter": {"start": start, "end": end},
+        "exact_optimizer": bool(exact_optimizer),
         "errors": errors,
         "base_threshold": 92,
         "base_penalty": 0.70,
@@ -110,13 +119,35 @@ def run_phase2_full_backtest_sensitivity(
         ],
     }
 
-    json_path = out_dir / "PhaseII_Full_Backtest_Sensitivity.json"
-    md_path = out_dir / "PhaseII_Full_Backtest_Sensitivity.md"
+    safe_suffix = _safe_suffix(suffix)
+    json_path = out_dir / f"PhaseII_Full_Backtest_Sensitivity{safe_suffix}.json"
+    md_path = out_dir / f"PhaseII_Full_Backtest_Sensitivity{safe_suffix}.md"
     json_path.write_text(json.dumps(artifact, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     _write_report(artifact, md_path)
     print(f"Phase II full backtest sensitivity artifact: {json_path}")
     print(f"Phase II full backtest sensitivity report: {md_path}")
     return artifact
+
+
+def _filter_rows_by_date(rows: List[Dict[str, Any]], *, start: Optional[str], end: Optional[str]) -> List[Dict[str, Any]]:
+    start_ts = pd.Timestamp(start) if start else None
+    end_ts = pd.Timestamp(end) if end else None
+    out = []
+    for row in rows:
+        day = pd.Timestamp(str(row.get("date")))
+        if start_ts is not None and day < start_ts:
+            continue
+        if end_ts is not None and day > end_ts:
+            continue
+        out.append(row)
+    return out
+
+
+def _safe_suffix(suffix: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() or ch in {"_", "-"} else "_" for ch in str(suffix or "").strip())
+    if not cleaned:
+        return ""
+    return cleaned if cleaned.startswith("_") else f"_{cleaned}"
 
 
 def _pipeline_config() -> Dict[str, Any]:
@@ -565,6 +596,8 @@ def _write_report(artifact: Dict[str, Any], path: Path) -> None:
         f"Source: `{artifact['source_backtest']}`",
         f"Rows evaluated: {artifact['rows_evaluated']} / loaded {artifact['rows_loaded']}",
         f"Live effect: `{artifact['live_effect']}`",
+        f"Exact optimizer: `{artifact.get('exact_optimizer')}`",
+        f"Date filter: `{artifact.get('date_filter')}`",
         "",
         "## Baseline Old Backtest",
         "",
@@ -704,6 +737,9 @@ if __name__ == "__main__":
     parser.add_argument("--thresholds", default=None, help="Comma-separated thresholds, e.g. 92,110,120")
     parser.add_argument("--penalties", default=None, help="Comma-separated penalties, e.g. 0.7,0.8")
     parser.add_argument("--exact-optimizer", action="store_true", help="Use slow exact SLSQP optimizer for each scenario/day")
+    parser.add_argument("--start", default=None)
+    parser.add_argument("--end", default=None)
+    parser.add_argument("--suffix", default="")
     args = parser.parse_args()
     run_phase2_full_backtest_sensitivity(
         backtest_path=Path(args.backtest) if args.backtest else None,
@@ -711,4 +747,7 @@ if __name__ == "__main__":
         thresholds=_parse_float_list(args.thresholds) if args.thresholds else None,
         penalties=_parse_float_list(args.penalties) if args.penalties else None,
         exact_optimizer=bool(args.exact_optimizer),
+        start=args.start,
+        end=args.end,
+        suffix=args.suffix,
     )
