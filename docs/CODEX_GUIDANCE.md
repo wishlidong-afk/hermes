@@ -19,13 +19,16 @@
 
 ```
 P0  ✅ DONE — FNGU(3×) 合成历史接缝调整严格门控已通过（2026-06-01）
-P1  用 P0 历史把 NEXT-2 回测全窗口重跑（2018→2026）← 当前唯一阻塞，立即开始
-P2  NEXT-3 参数扫描 + 每模块达标门 + PBO（报告对合成段敏感性）
-P3  (并行) 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL → 进一步降 MSTR 的 26
-P4  整合地基：ConfidenceSpine / RiskEngine / SizingOptimizer（替换 scaler 乘法链）
+P1  ✅ DONE — NEXT-2 全窗口回测已完成（2026-06-01）
+      real-only: CAGR 44.39%, MaxDD -10.43%, Sharpe 1.79, DSR 1.66 (13 folds)
+      full-proxy: CAGR 18.13%, MaxDD -27.60%, DSR 0.77
+P2  NEXT-3 参数扫描 + 每模块达标门 + PBO（报告对合成段敏感性）← 当前阻塞，立即启动
+P3  (并行) 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL
+      PCR/NAAIM 基础设施已建；外部端点被封；手动回填后 missing_weight 可降 8pt
+P4  整合地基：ConfidenceSpine / RiskEngine / SizingOptimizer
 ```
 
-> P0 已解除阻塞。立即启动 P1。不要在 15 个月窗口上跑 NEXT-3（等 P1 全窗口完成）。
+> P0+P1 已完成。立即启动 P2（NEXT-3 参数扫描）。
 
 ---
 

@@ -14,8 +14,8 @@
 |---|---|---|
 | M0 能跑 | ✅ | 86 单测绿 / 单日回放 |
 | M1 看得清 | ✅ | missing 26/19/19 < 30；`N1_missing_rebaseline.md` |
-| M2 验得过 | 🟡 待 P1 全窗口 | `Backtest_FULL` 已出（real-only 窗口）；P0 已通过，P1 全窗口可立即启动 |
-| M3 校得准 | ⬜ | 待 P1 全窗口 + NEXT-3 |
+| M2 验得过 | ✅ | `Backtest_FULL`（real-only）+ `Backtest_FULL_2018_2026`（full-proxy）均出；DSR 1.66；13 fold walk-forward |
+| M3 校得准 | ⬜ | 待 NEXT-3 参数扫描 |
 | M4 可上线 | ⬜ | 待人工 dry-run |
 | M5 会学习 | ⬜ | 标签解锁门未达 |
 
@@ -26,8 +26,8 @@
 | NEXT-0 数据地基 | DONE-CODE / PARTIAL-DATA | backfill/pit/manifest/leg_proxy 完成；34/38 标的 ≤2018-01-02 |
 | NEXT-1 可历史化软数据 | IN-PROGRESS / 盲区门已过 | 已接 FRED·A5 / CBOE SKEW-VVIX·B4 / AAII·A2 / 成分宽度·A3 / MSTR BTC价代理·D-M3；**待接 PCR / NAAIM / BTC funding-basis-DVOL / GEX / social / valuation（增量，非阻塞）** |
 | **P0 合成杠杆历史** | **DONE / STRICT-GATE-PASSED** | FNGU/FNGS proxy 到 2018-01-02；接缝调整严格门控 PASS（FNGU TE 4.67%，corr 0.9986；FNGS TE 4.11%）；接缝原因文档化（FNGB→FNGU 迁移，官方 FANG3X 独立确认）；86 tests OK；见 `building/reports/P0_synth_history_report.md` |
-| NEXT-2 回测引擎 | ACCEPTANCE-READY / **READY-FOR-P1** | runner/route-leg/Backtest_FULL/硬阀门矩阵已出；**P0 已通过，可立即启动 P1 全窗口重跑** |
-| NEXT-3 参数校准 | TODO | 等 P1 全窗口完成 |
+| NEXT-2 回测引擎 | **DONE / P1 全窗口完成** | `Backtest_FULL.md`（real-only）+ `Backtest_FULL_2018_2026.md`（full-proxy）并排报告已出；real-only CAGR 44.39%、MaxDD -10.43%、Sharpe 1.79、DSR 1.66；full-proxy CAGR 18.13%、MaxDD -27.60%；13 个 walk-forward folds |
+| NEXT-3 参数校准 | **TODO / UNBLOCKED** | P1 全窗口完成，可立即启动参数扫描 |
 | NEXT-4 向前软数据 | TODO | GEX/CNN/新闻/mNAV |
 | NEXT-5 元模型 | LOCKED | 样本未达解锁门 |
 | NEXT-6 IBKR 只读对账 | TODO | 绝不下单 |
@@ -55,8 +55,8 @@ Phase 0–9、12 = DONE；Phase 10(扩展数据)=IN-PROGRESS；Phase 11(回测)=
 - missing_weight：MSTR 26 / FNGU 19 / SOXL 19（**均 <30，盲区门已过**）
 - P0 proxy 覆盖：FNGU 2018-01-02→2025-02-19（1793 行）；FNGS 2018-01-02→2019-11-12（470 行）
 - P0.1 官方指数缓存：`FANG3X` 2020-04-14→2026-05-29（1549 行）；`FANGT3X` 2020-04-14→2026-05-29（1541 行）
-- **P0 接缝调整严格门控 PASS**：FNGU seam_adj corr 0.9986 / annual TE 4.67%（通过）；FNGS seam_adj corr 0.9915 / annual TE 4.11%（通过）
-- P0 全覆盖诊断（含接缝期，仅参考）：FNGU full corr 0.9950 / annual TE 8.42%；官方 FANG3X TE 9.91%
-- 接缝期（前 20 个真实交易日）TE = 29%；接缝后 TE = 4.67%；根因：FNGB→FNGU 迁移低流动性噪声
-- 单测：86 tests OK（新增 2 个接缝调整测试）
-- 2026-05-29 回放：MSTR EXIT(H-M1,H-M4) / FNGU WATCH / SOXL WATCH；体制 LOW_VOL_TREND
+- **P0 接缝调整严格门控 PASS**：FNGU seam_adj TE 4.67% / corr 0.9986；FNGS TE 4.11%
+- **P1 全窗口回测 DONE**：real-only CAGR 44.39% / MaxDD -10.43% / Sharpe 1.79 / DSR 1.66；full-proxy CAGR 18.13% / MaxDD -27.60% / DSR 0.77（代理段信号统计意义有限）
+- **P3 并行（部分）**：NAAIM + PCR 数据源基础设施已建（`core/data/pcr.py`、`scripts/backfill_pcr_naaim.py`）；CBOE/NAAIM 外部端点被封，CSV 骨架就绪，等待手动回填后 missing_weight 可降 8pt
+- 单测：86 tests OK（新增 2 个接缝 + 1 个 PCR adapter 测试）
+- 2026-05-29 回放：MSTR EXIT(H-M1,H-M4) / FNGU HOLD / SOXL HOLD；体制 LOW_VOL_TREND

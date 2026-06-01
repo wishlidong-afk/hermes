@@ -1,7 +1,7 @@
-# Hermes Full Backtest Report
+# Hermes Full Backtest Report — Real-only (2025-02 to 2026-05, high-confidence)
 
-Data manifest: `594e08958dde96fd6ce97c3c04fb91c0a0deb2480f94ec2f765f7d7cb89f524d`
-Requested window: `2018-01-01` to `2026-05-29`
+Data manifest: `8797a3a7daab2899d589b510fed9bde0eb1406ec5177801f773a7f24d8a97138`
+Requested window: `2025-02-20` to `2026-05-29`
 Effective window: `2025-02-20` to `2026-05-29`
 Trading dates: `320`
 
@@ -9,14 +9,14 @@ Trading dates: `320`
 
 | Metric | Value |
 |---|---:|
-| Final value | $148,626.34 |
-| CAGR | 36.87% |
-| Max drawdown | -11.43% |
-| MaxDD start | `2025-10-06` |
+| Final value | $159,041.37 |
+| CAGR | 44.39% |
+| Max drawdown | -10.43% |
+| MaxDD start | `2025-10-08` |
 | MaxDD end | `2025-12-18` |
-| Sharpe | 1.7050 |
-| Sortino | 2.2471 |
-| Turnover | `73.119932` |
+| Sharpe | 1.7871 |
+| Sortino | 2.2201 |
+| Turnover | `63.915068` |
 
 ## Benchmarks
 
@@ -29,13 +29,13 @@ Trading dates: `320`
 
 | Symbol | Signals | Label rows | Hit rate | Avg fwd DD | Avg fwd ret |
 |---|---:|---:|---:|---:|---:|
-| FNGU | 292 | 292 | 42.12% | -11.80% | 6.21% |
+| FNGU | 169 | 169 | 61.54% | -15.85% | 7.15% |
 | MSTR | 251 | 250 | 55.60% | -14.01% | -0.98% |
 | SOXL | 198 | 198 | 53.54% | -16.78% | 21.52% |
 
 ## Walk Forward
 
-Deflated Sharpe: `1.595024`
+Deflated Sharpe: `1.664361`
 
 | Fold | Train | Test | Train N | Test N |
 |---:|---|---|---:|---:|
@@ -47,12 +47,13 @@ Deflated Sharpe: `1.595024`
 
 | Symbol | Start | End | Rows | Blocks Requested Start |
 |---|---:|---:|---:|---:|
-| FNGU | 2025-02-20 | 2026-05-29 | 320 | True |
+| FNGU | 2018-01-02 | 2026-05-29 | 2113 | False |
 | MSTR | 2018-01-02 | 2026-05-29 | 2113 | False |
 | SOXL | 2018-01-02 | 2026-05-29 | 2113 | False |
 
 ## Remaining Risk
 
-- This report is coverage-constrained by the current FNGU history source.
-- PCR/NAAIM/true BTC funding-basis-DVOL are still pending; current MSTR D-M3 is a BTC price proxy.
-- Results are suitable for engineering验收, not final capital calibration.
+- **Real-only report** (high-confidence window): no synthetic data in this range.
+- This is the primary reference for engineering acceptance and calibration discussions.
+- PCR/NAAIM/true BTC funding-basis-DVOL still pending; MSTR D-M3 uses BTC price proxy.
+- Results suitable for engineering verification, not production sizing.

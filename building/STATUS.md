@@ -23,9 +23,9 @@
 |---|---|---|---|---|
 | NEXT-0 数据地基 | DONE-CODE / PARTIAL-DATA | `scripts/backfill_history.py`, `core/data/pit.py`, `core/data/manifest.py`, `core/routing/leg_proxy.py`, `reports/NEXT0_REPORT.md`, `reports/N0_history_coverage.md` | 86 tests OK; manifest verify OK; 34/38 symbols at 2018-01-02 or earlier | 原始 FNGU 源只回到 2025-02-20；原始 FNGS 只回到 2019-11-13，P0 已生成 proxy |
 | NEXT-1 可历史化软数据 | IN-PROGRESS / BLIND-SPOT-GATE-PASS | FRED/A5、CBOE SKEW-VVIX/B4、AAII/A2、成分宽度/A3、MSTR BTC 价格代理/D-M3；`reports/NEXT1_REPORT.md`, `reports/N1_missing_rebaseline.md` | 86 tests OK; FNGU missing 19, SOXL missing 19, MSTR missing 26，均低于 30 | PCR/NAAIM/真实 BTC funding-basis-DVOL/GEX/social/valuation 待接 |
-| NEXT-2 回测引擎补全 | ACCEPTANCE-READY / READY-FOR-FULL-WINDOW | `run_full_backtest`、routed route-leg simulation、`Backtest_FULL.md/json`、硬阀门历史矩阵、`reports/NEXT2_REPORT.md` | 86 tests OK; full report generated | P0 已通过，可启动 P1 全窗口重跑（2018→2026） |
+| NEXT-2 回测引擎补全 | **DONE / P1-COMPLETE** | `Backtest_FULL.md/json`（real-only）、`Backtest_FULL_2018_2026.md/json`（full-proxy）、`core/backtest/reports.py` 修复、`reports/NEXT2_REPORT.md` | **86 tests OK**；real-only CAGR 44.39% MaxDD -10.43% Sharpe 1.79 DSR 1.66；full-proxy CAGR 18.13% MaxDD -27.60% DSR 0.77；13 个 walk-forward folds | - |
 | **P0 合成杠杆历史** | **DONE / STRICT-GATE-PASSED** | `core/data/synth_leverage.py`, `scripts/build_synth_history.py`, `core/data/wso_index.py`, `scripts/backfill_official_indices.py`, `tests/test_p0_synth_leverage.py`, `reports/P0_synth_history_report.md/json` | **86 tests OK**（新增 2 个接缝调整测试）；FNGU/FNGS 本地历史均扩到 2018-01-02；**接缝调整严格门控 PASS**：FNGU TE 4.67%、corr 0.9986；FNGS TE 4.11%；接缝期文档化 | - |
-| NEXT-3 参数扫描与正式校准 | TODO | - | - | 等 P1 全窗口回测完成 |
+| **NEXT-3 参数扫描与正式校准** | **TODO / UNBLOCKED** | - | - | P1 已完成，可立即启动 |
 | NEXT-4 纯向前软数据 | TODO | - | - | 等 NEXT-3 或并行接契约 |
 | NEXT-5 元模型 | LOCKED | - | - | 标签解锁门未达 |
 | NEXT-6 IBKR 只读对账 | TODO | - | - | 尚未接 greenfield |
