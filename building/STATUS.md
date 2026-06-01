@@ -10,7 +10,7 @@
 | 7 仓位管理 | DONE | local only | pending | gross scaler 仍为 shadow-only；未接持久化滞回状态 | 2026-06-01 |
 | 8 资金路由 | DONE | local only | n/a | BRK.B 降级监控已接；实时生效需本地 BRK.B 历史；仅 advisory | 2026-06-01 |
 | 9 3-3-4 再建仓 | DONE | local only | n/a | 卖出日期读取 signal journal；T1/T2 活跃状态仍未持久化 | 2026-06-01 |
-| 10 扩展数据 adapter | IN-PROGRESS | local only | n/a | FRED、CBOE SKEW/VVIX、AAII、成分宽度已接；PCR/NAAIM/BTC funding-basis-DVOL/GEX/social/valuation 待接 | 2026-06-01 |
+| 10 扩展数据 adapter | IN-PROGRESS | local only | n/a | FRED、CBOE SKEW/VVIX、AAII、成分宽度已接；PCR/NAAIM/真实 BTC funding-basis-DVOL/GEX/social/valuation 待接 | 2026-06-01 |
 | 11 回测与验证框架 | ACCEPTANCE-READY | local only | coverage-constrained | 已有完整 routed runner、Backtest_FULL 报告、硬阀门历史测试；P0 已通过，可重跑全窗口 | 2026-06-01 |
 | 12 镜像参考系统 | DONE | local only | n/a | 策略、SQLite 快照、后验盈亏、Web 展示已接；IBKR reconciliation 未接 | 2026-06-01 |
 | 13 元模型 | LOCKED | - | - | 标签解锁门未达 | - |
@@ -21,11 +21,48 @@
 
 | NEXT | 状态 | 产出 | 验收 | 阻塞 |
 |---|---|---|---|---|
-| NEXT-0 数据地基 | DONE-CODE / PARTIAL-DATA | `scripts/backfill_history.py`, `core/data/pit.py`, `core/data/manifest.py`, `core/routing/leg_proxy.py`, `reports/NEXT0_REPORT.md`, `reports/N0_history_coverage.md` | 86 tests OK; manifest verify OK; 34/38 symbols at 2018-01-02 or earlier | 原始 FNGU 源只回到 2025-02-20；原始 FNGS 只回到 2019-11-13，P0 已生成 proxy |
-| NEXT-1 可历史化软数据 | IN-PROGRESS / BLIND-SPOT-GATE-PASS | FRED/A5、CBOE SKEW-VVIX/B4、AAII/A2、成分宽度/A3、MSTR BTC 价格代理/D-M3；`reports/NEXT1_REPORT.md`, `reports/N1_missing_rebaseline.md` | 86 tests OK; FNGU missing 19, SOXL missing 19, MSTR missing 26，均低于 30 | PCR/NAAIM/真实 BTC funding-basis-DVOL/GEX/social/valuation 待接 |
-| NEXT-2 回测引擎补全 | **DONE / P1-COMPLETE** | `Backtest_FULL.md/json`（real-only）、`Backtest_FULL_2018_2026.md/json`（full-proxy）、`core/backtest/reports.py` 修复、`reports/NEXT2_REPORT.md` | **86 tests OK**；real-only CAGR 44.39% MaxDD -10.43% Sharpe 1.79 DSR 1.66；full-proxy CAGR 18.13% MaxDD -27.60% DSR 0.77；13 个 walk-forward folds | - |
-| **P0 合成杠杆历史** | **DONE / STRICT-GATE-PASSED** | `core/data/synth_leverage.py`, `scripts/build_synth_history.py`, `core/data/wso_index.py`, `scripts/backfill_official_indices.py`, `tests/test_p0_synth_leverage.py`, `reports/P0_synth_history_report.md/json` | **86 tests OK**；FNGU/FNGS 本地历史均扩到 2018-01-02；**接缝调整严格门控 PASS**：FNGU TE 4.67%、corr 0.9986；FNGS TE 4.11%；接缝文档化 | - |
-| **NEXT-3 参数扫描与正式校准** | **✅ DONE / M3-COMPLETE** | `scripts/calibrate_next3_fast.py`（fast-replay，12 秒）；`config/artifacts/calibration_v1.json`；`reports/Calibration_v1.md`；27 组 × 320d real-only 回放 | Calmar=4.02（3.7× SPY）；PBO=0.556（1.3yr 窗口边界属预期）；chosen: EXIT=80 DEF_EXIT=60 REDUCE=55 TRIM=40 WATCH=25；EXIT 阈值在此窗口无差异（MSTR 永远硬阀门触发）；DSR 1.664 已于 P1 确认 | - |
-| NEXT-4 纯向前软数据 | TODO | - | - | 可与 NEXT-6 并行 |
+| NEXT-0 数据地基 | DONE-CODE / PARTIAL-DATA | `scripts/backfill_history.py`, `core/data/pit.py`, `core/data/manifest.py`, `core/routing/leg_proxy.py` | 86 tests OK; 34/38 symbols ≤2018-01-02 | FNGU 原始源只到 2025-02-20，P0 已生成 proxy |
+| NEXT-1 可历史化软数据 | IN-PROGRESS / BLIND-SPOT-GATE-PASS | FRED/CBOE/AAII/成分宽度/MSTR BTC 代理已接 | FNGU 19, SOXL 19, MSTR 26，均<30 | PCR/NAAIM/BTC funding-basis-DVOL 待接 |
+| NEXT-2 回测引擎 | **DONE / P1-COMPLETE** | Backtest_FULL real-only + full-proxy | real-only CAGR 44.39% Sharpe 1.79 DSR 1.66 | - |
+| P0 合成历史 | **DONE / STRICT-GATE-PASSED** | synth_leverage + 官方指数缓存 | FNGU TE 4.67%, corr 0.9986 | - |
+| NEXT-3 校准 | **✅ DONE / M3-COMPLETE** | calibration_v2.json | deployment fixed PBO=0.1538 | - |
+| NEXT-4 向前软数据 | TODO | - | - | 可与 NEXT-6 并行 |
 | NEXT-5 元模型 | LOCKED | - | - | 标签解锁门未达 |
-| NEXT-6 IBKR 只读对账 | TODO | - | - | 尚未接 greenfield |
+| NEXT-6 IBKR 对账 | TODO | - | - | 尚未接 greenfield |
+
+## P4 整合地基进度（Phase 0 + Phase I）
+
+| 组件 | 文件 | 吸收 E 系列 | 状态 |
+|---|---|---|---|
+| 公共契约 | `core/contracts.py` | - | ✅ DONE |
+| ConfidenceSpine（脊柱） | `core/confidence/spine.py` | E1/E9/E10/E28/E30 | ✅ DONE |
+| RiskEngine（唯一协方差源） | `core/portfolio/risk_engine.py` | E4/E5/E11/E13/E14 | ✅ DONE |
+| SizingOptimizer（唯一处置入口） | `core/portfolio/sizing_optimizer.py` | E6/E8/E12/E15/E25/E26/E27 | ✅ DONE |
+| FactorLab（IC/去冗余/校准） | `core/factors/lab.py` | E2/E3/E23 | ✅ DONE |
+| MarketContext（多标的上下文） | `core/features/context.py` | E7/E16/E17/E18/E19/E20 | ✅ DONE |
+| ValidationHarness（防过拟合） | `core/backtest/harness.py` | E21/E22/E23/E24 | ✅ DONE |
+| 数据净化 | `core/data/sanitize.py` | E1 | ✅ DONE |
+| 故障转移 | `core/data/failover.py` | E30 | ✅ DONE |
+| Governance | `core/governance/governance.py` | E10/E28/E29 | ✅ DONE |
+
+**Phase 0–I 全部 10 个核心组件骨架完成。E1–E30 中 29/30 已有骨架实现（E27 税务有接口预留）。85 个新测试。**
+
+## 系统级 7 道总闸
+
+| # | 总闸 | 骨架 | 集成验证 |
+|---|---|---|---|
+| 1 | 单一风险源（唯一 cov） | ✅ | ⬜ 待 pipeline 接线 |
+| 2 | 单一处置入口（无 scaler 链） | ✅ | ⬜ 待删旧 scaler |
+| 3 | R3 不变式 OOS 100% | ✅ | ⬜ 待全窗口验证 |
+| 4 | 置信脊柱贯通 | ✅ | ⬜ 待每决策携带 |
+| 5 | PBO<0.5 + CI + 对抗 AUC | ✅ | ⬜ 待实跑 |
+| 6 | 因子健康 + 概率校准 | ✅ | ⬜ 待 Factor_Health.md |
+| 7 | 可解释可治理 | ✅ | ⬜ 待熔断测试 |
+
+## 下一步
+
+1. Pipeline 接线：把 10 个组件串入每日 score_pipeline
+2. Phase II 风险与信号插件接入
+3. 旧 scaler 乘法链删除，用 SizingOptimizer 替换
+4. 7 道总闸集成验证
+5. 继续补 NEXT-1 剩余软数据（PCR/NAAIM/BTC funding-basis-DVOL）
