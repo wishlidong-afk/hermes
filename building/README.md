@@ -144,11 +144,11 @@
 | Pipeline 接线 | ✅ DONE | 11 步统一数据流，7 道总闸结构验证 |
 | Phase II–IV 计划 | ✅ DONE | 配置 + feature flags + rollout plan + scaler migration guide |
 | P4 本地落地 | ✅ DONE | 远端 source snapshots 已同步到本地 `.hermes`，修复接口后 245 package tests OK |
-| Phase II 风险与信号 | ✅ SHADOW-20D-DONE | 最近 20 个交易日 shadow 对照：errors=0、R3 violations=0、confidence NORMAL×20 |
+| Phase II 风险与信号 | ✅ SHADOW-252D-CORR-SENSITIVITY-DONE | 252 日 shadow + 相关闸敏感性：errors=0、R3 violations=0、confidence NORMAL×252；review candidate 110/0.70 |
 | Phase III 统一处置 | TODO | 替换旧 scaler 链 |
 | Phase IV 验证与治理 | TODO | 7 闸全通过 |
 
-**当前最高优先任务**：Phase II shadow 扩窗解释与 `EXTREME_CORR` 风险预算校准 + 补 NEXT-1 剩余软数据。
+**当前最高优先任务**：把 Phase II 相关闸候选参数接入 full backtest / walk-forward 校准 + 补 NEXT-1 剩余软数据。
 
 ---
 

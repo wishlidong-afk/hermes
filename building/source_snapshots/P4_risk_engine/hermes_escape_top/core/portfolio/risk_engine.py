@@ -332,6 +332,9 @@ def build_risk_state(
     concentration_cap = risk_cfg.get("concentration_cap", {})
 
     explain: List[str] = []
+    corr_mean = 0.0
+    downside_corr_mean = 0.0
+    downside_corr_ratio_score = 0.0
 
     clean_leg_returns = {s: _clean_return_series(r) for s, r in leg_returns.items()}
     syms = sorted(clean_leg_returns.keys())
@@ -367,13 +370,13 @@ def build_risk_state(
     # Downside correlation + corr regime
     dc = downside_corr(joint_df, downside_q) if n_obs >= min_periods else np.eye(len(legs_reported))
     if n_obs >= min_periods:
-        dc_mean = _off_diag_mean(dc)
         corr_mean = _off_diag_mean(corr)
-        if dc_mean > 0:
-            ratio_pctl = dc_mean / max(corr_mean, 1e-6) * 100.0
-            if ratio_pctl >= extreme_pctl:
+        downside_corr_mean = _off_diag_mean(dc)
+        if downside_corr_mean > 0:
+            downside_corr_ratio_score = downside_corr_mean / max(corr_mean, 1e-6) * 100.0
+            if downside_corr_ratio_score >= extreme_pctl:
                 corr_regime = "EXTREME"
-            elif ratio_pctl >= elevated_pctl:
+            elif downside_corr_ratio_score >= elevated_pctl:
                 corr_regime = "ELEVATED"
 
     # Portfolio vol
@@ -391,6 +394,7 @@ def build_risk_state(
     vol_scaler = min(1.0, vol_budget / max(port_vol, 1e-12))
     cvar_scaler = min(1.0, cvar_budget / max(abs(cvar_val), 1e-12))
     gross = min(vol_scaler, cvar_scaler)
+    gross_before_corr_penalty = gross
     if corr_regime == "EXTREME":
         gross *= extreme_corr_penalty
         explain.append(f"EXTREME corr regime; penalty {extreme_corr_penalty}")
@@ -431,6 +435,13 @@ def build_risk_state(
         "vol_model": "har_rv" if n_obs >= min_periods else "ewma",
         "corr_model": "ewma_lw",
         "shrinkage_applied": True,
+        "corr_mean": round(float(corr_mean), 6),
+        "downside_corr_mean": round(float(downside_corr_mean), 6),
+        "downside_corr_ratio_score": round(float(downside_corr_ratio_score), 6),
+        "corr_extreme_threshold": extreme_pctl,
+        "corr_elevated_threshold": elevated_pctl,
+        "gross_before_corr_penalty": round(float(gross_before_corr_penalty), 6),
+        "extreme_corr_penalty": extreme_corr_penalty,
     }
 
     return RiskState(

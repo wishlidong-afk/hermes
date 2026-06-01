@@ -10,9 +10,9 @@
 - **245 package tests OK + 11 golden tests OK**；missing MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。
 - **P0/P1/P2 全部完成**：合成历史 TE 4.67%；real-only CAGR 44.39% Sharpe 1.79；deployment PBO=0.1538。
 - **P4 整合地基 Phase 0–I + Pipeline 完成且已落地本地 `.hermes`**：12 个组件骨架（ConfidenceSpine/RiskEngine/SizingOptimizer/FactorLab/MarketContext/ValidationHarness/Governance/Sanitize/Failover/DriftMonitor/Pipeline/Config），E1–E30 全覆盖，7 道总闸全有结构性验证。
-- **P5 Phase II shadow 对照已跑通 20 日**：rows=20、errors=0、R3 violations=0、max abs weight delta=0.2747、confidence NORMAL×20；live 开关未翻。
+- **P5 Phase II shadow 对照已跑通 252 日 + 相关闸敏感性**：rows=252、errors=0、R3 violations=0、confidence NORMAL×252；`EXTREME_CORR` share 78.57%；review candidate 为 threshold=110 / penalty=0.70；live 开关未翻。
 - **Phase II–IV 计划就绪**：配置/feature flags/rollout plan/scaler migration guide 全部产出。
-- **下一步**：Phase II shadow 扩窗解释与 `EXTREME_CORR` 风险预算校准 + 补 NEXT-1 剩余软数据。
+- **下一步**：把相关闸候选参数接入 full backtest / walk-forward 校准 + 补 NEXT-1 剩余软数据。
 
 ---
 
@@ -24,11 +24,11 @@ P1  ✅ DONE — 全窗口回测（real-only CAGR 44.39%, Sharpe 1.79, DSR 1.66�
 P2  ✅ DONE — 稳定高原校准（EXIT=75, DEF_EXIT=65, deployment PBO=0.1538）
 P3  可启动 — 补 NEXT-1 剩余软数据（PCR/NAAIM/BTC funding-basis-DVOL）
 P4  ✅ Phase 0–I + Pipeline DONE — 12 组件 + 245 package tests + E1–E30 全覆盖
-P5  IN-PROGRESS — Phase II shadow 对照 20 日已跑通，下一步扩窗 + EXTREME_CORR 校准
+P5  IN-PROGRESS — Phase II shadow 252 日 + corr sensitivity 已跑通，下一步 full backtest 校准
 P6  后续 — Phase III 替换旧 scaler 链 → Phase IV 7 闸全通过
 ```
 
-> P0+P1+P2+P4 已完成并落地本地。P5 Phase II shadow 已有 20 日验收结果；下一步优先扩窗解释风险收缩与 P3 软数据补全。
+> P0+P1+P2+P4 已完成并落地本地。P5 Phase II shadow 已有 252 日验收与相关闸候选；下一步优先把候选参数接入完整回测与 P3 软数据补全。
 
 ---
 
@@ -122,8 +122,9 @@ def validate_synth(real_df: pd.DataFrame, synth_df: pd.DataFrame,
 
 - 已完成公共契约、ConfidenceSpine、RiskEngine、SizingOptimizer、FactorLab、MarketContext、ValidationHarness、Governance、Sanitize/Failover、DriftMonitor、统一 Pipeline 与 integration config。
 - P4 本地落地修复已完成：`integration_config` 路径、Python 3.9 日期、RiskEngine 下行相关/数值稳定、SizingOptimizer shrinkage、MarketContext 测试警告。
-- P5 Phase II shadow 对照已完成 20 日样本：`building/reports/PhaseII_Shadow_Compare.md/json`。
-- **下一步关键**：扩展 shadow 窗口，解释 `EXTREME_CORR` 高频触发与 gross scaler 收缩，再决定 Phase III 是否替换旧 scaler 链。R3 不变式仍为硬约束。
+- P5 Phase II shadow 对照已完成 252 日样本：`building/reports/PhaseII_Shadow_Compare.md/json`。
+- P5 相关闸敏感性已完成：`building/reports/PhaseII_Corr_Sensitivity.md/json`，review candidate 为 `threshold=110 / penalty=0.70`。
+- **下一步关键**：把相关闸候选接入 full backtest / walk-forward，再决定 Phase III 是否替换旧 scaler 链。R3 不变式仍为硬约束。
 
 ---
 

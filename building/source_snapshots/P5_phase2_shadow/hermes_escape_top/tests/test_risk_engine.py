@@ -139,6 +139,9 @@ class TestBuildRiskState(unittest.TestCase):
         self.assertEqual(len(state.legs_reported), 3)
         self.assertEqual(len(state.legs_used), 3)
         self.assertIn(state.corr_regime, ("NORMAL", "ELEVATED", "EXTREME", "UNKNOWN"))
+        self.assertIn("corr_mean", state.estimator_meta)
+        self.assertIn("downside_corr_ratio_score", state.estimator_meta)
+        self.assertIn("gross_before_corr_penalty", state.estimator_meta)
 
     def test_high_vol_reduces_gross(self) -> None:
         high_vol = {s: r * 10 for s, r in self.leg_returns.items()}

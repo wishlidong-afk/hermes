@@ -53,7 +53,7 @@
 | ✅ P1 | NEXT-2 全窗口回测 | BUILD_TICKETS NEXT-2 | 已完成：real-only CAGR 44.39% Sharpe 1.79 |
 | ✅ P2 | NEXT-3 稳定高原校准 | BUILD_TICKETS NEXT-3 | 已完成：deployment PBO=0.1538 |
 | ✅ P4 | 整合地基 Phase 0–I + Pipeline | INTEGRATION Phase 0–I | **已完成并落地本地：12 组件 + 245 package tests OK + 11 golden tests OK + E1–E30 全覆盖 + 7 闸结构验证** |
-| **P5** | Phase II shadow 对照 | PHASE_II_IV_ROLLOUT_PLAN | **20 日样本已跑通**：rows=20、errors=0、R3 violations=0；下一步扩窗解释 `EXTREME_CORR` |
+| **P5** | Phase II shadow 对照 | PHASE_II_IV_ROLLOUT_PLAN | **252 日样本 + 相关闸敏感性已跑通**：rows=252、errors=0、R3 violations=0；review candidate threshold=110 / penalty=0.70 |
 | **P3** | 补 NEXT-1 剩余软数据 | BUILD_TICKETS NEXT-1 | PCR/NAAIM/BTC；可降 MSTR missing 8pt |
 | **P6** | Phase III 替换旧 scaler → Phase IV 7 闸全通过 | SCALER_MIGRATION_GUIDE | 依赖 P5 验收 |
 
@@ -73,7 +73,7 @@
 
 ## 起步指令（给 Codex / Claude）
 
-从 **P5（Phase II shadow 对照）** 继续：①把 shadow 窗口从 20 日扩到更长历史；②解释 `EXTREME_CORR` 高频触发与 shadow gross scaler 收缩；③形成 Phase III 前的风险预算参数校准建议；④并行补 P3 剩余软数据。
+从 **P5（Phase II shadow 对照）** 继续：①把 110/0.70、120/0.80 等相关闸候选接入完整 backtest sensitivity；②做 walk-forward/PBO 检查；③通过后再进入 Phase III scaler 替换；④并行补 P3 剩余软数据。
 
 同步推进 **P3**：补 PCR/NAAIM/BTC funding-basis-DVOL CSV，降 MSTR missing。
 

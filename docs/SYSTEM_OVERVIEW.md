@@ -12,7 +12,7 @@
 |---|---|
 | 文档版本 | v1.2 |
 | 更新时间 | 2026-06-01 |
-| 当前成熟度 | M3（P0/P1/P2 完成；**P4 Phase 0–I + Pipeline 完成并落地本地**：12 组件 + 245 package tests OK + 11 golden tests OK + E1–E30 全覆盖 + 7 闸结构验证；P5 Phase II 20 日 shadow 对照已跑通） |
+| 当前成熟度 | M3（P0/P1/P2 完成；**P4 Phase 0–I + Pipeline 完成并落地本地**：12 组件 + 245 package tests OK + 11 golden tests OK + E1–E30 全覆盖 + 7 闸结构验证；P5 Phase II 252 日 shadow + 相关闸敏感性已跑通） |
 | data_manifest_id | 待 NEXT-0 freeze 后填写 |
 | calibration 档案 | `building/reports/calibration_v2.json`；候选 `E75_D65_R50` |
 | 当前 missing_weight (MSTR/FNGU/SOXL) | 26 / 19 / 19（均 <30，盲区门已过） |

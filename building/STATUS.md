@@ -15,7 +15,7 @@
 | 12 镜像参考系统 | DONE | local only | n/a | IBKR 未接 | 2026-06-01 |
 | 13 元模型 | LOCKED | - | - | 标签解锁门未达 | - |
 | 14 WebUI 与可观测性 | PARTIAL | local only | n/a | 未接 IBKR drilldown | 2026-06-01 |
-| 15 集成、dry-run、切换 | **IN-PROGRESS / PHASEII-SHADOW-20D-DONE** | local only | shadow passed | Phase II 20 日 shadow 已跑通；live 开关保持关闭；待扩窗解释 `EXTREME_CORR` | 2026-06-01 |
+| 15 集成、dry-run、切换 | **IN-PROGRESS / SHADOW-252D-CORR-SENSITIVITY-DONE** | local only | shadow passed | Phase II 252 日 shadow 与相关闸敏感性已跑通；live 开关保持关闭；待 full backtest 校准 | 2026-06-01 |
 
 ## NEXT 工单进度
 
@@ -30,7 +30,7 @@
 | NEXT-5 元模型 | LOCKED | - | 标签未达 |
 | NEXT-6 IBKR 对账 | TODO | - | greenfield |
 | P4 整合地基 | **DONE / PHASE0-I-PIPELINE-LOCAL-SYNCED** | 245 package tests OK + 11 golden tests OK | live 开关关闭 |
-| P5 Phase II Shadow | **IN-PROGRESS / SHADOW-REPLAY-20D-DONE** | rows=20 / errors=0 / R3 violations=0 / max delta=0.2747 / NORMAL×20 | 需扩窗解释 `EXTREME_CORR` |
+| P5 Phase II Shadow | **IN-PROGRESS / SHADOW-252D-CORR-SENSITIVITY-DONE** | rows=252 / errors=0 / R3 violations=0 / NORMAL×252 / EXTREME_CORR 78.57% / review candidate 110/0.70 | 需把相关闸候选接入 full backtest/walk-forward |
 
 ## P4 整合地基进度
 
@@ -93,15 +93,20 @@
 | `scripts/phase2_shadow_compare.py` | ✅ |
 | `reports/PhaseII_Shadow_Compare.md/json` | ✅ |
 | `reports/P5_PHASE2_SHADOW_COMPARE_LOG.md` | ✅ |
+| `scripts/phase2_corr_sensitivity.py` | ✅ |
+| `reports/PhaseII_Corr_Sensitivity.md/json` | ✅ |
+| `reports/P5_PHASE2_EXTENDED_DIAGNOSTICS_LOG.md` | ✅ |
 
 | 指标 | 结果 |
 |---|---:|
-| 回放窗口 | 最近 20 个交易日 |
-| rows evaluated | 20 |
+| 回放窗口 | 最近 252 个交易日 |
+| rows evaluated | 252 |
 | errors | 0 |
 | R3 violations | 0 |
-| max abs weight delta | 0.2747 |
-| confidence mode | NORMAL × 20 |
+| confidence mode | NORMAL × 252 |
+| EXTREME_CORR share | 78.57% |
+| avg shadow gross | 0.7229 |
+| corr sensitivity review candidate | threshold=110 / penalty=0.70 |
 
 ## 系统级 7 道总闸
 
@@ -110,7 +115,7 @@
 | 1 | 单一风险源 | ✅ | ✅ test_gate1 |
 | 2 | 单一处置入口 | ✅ | ✅ test_gate2 |
 | 3 | R3 100% | ✅ | ✅ test_gate3 + test_r3_invariant；P5 shadow R3 violations=0 |
-| 4 | 置信脊柱贯通 | ✅ | ✅ test_gate4 + test_confidence_propagates；P5 shadow NORMAL×20 |
+| 4 | 置信脊柱贯通 | ✅ | ✅ test_gate4 + test_confidence_propagates；P5 shadow NORMAL×252 |
 | 5 | PBO<0.5+CI+对抗 | ✅ | ✅ test_gate5 (structural) |
 | 6 | 因子健康 | ✅ | ✅ test_gate6 (structural) |
 | 7 | 可解释可治理 | ✅ | ✅ test_gate7 + audit completeness |
@@ -121,7 +126,8 @@
 2. ~~Phase I 地基~~ ✅
 3. ~~Pipeline 接线~~ ✅
 4. ~~Phase II 20 日 shadow 对照~~ ✅
-5. **Phase II 扩窗**：扩大 shadow 窗口，解释 `EXTREME_CORR` 高频触发与 gross scaler 收缩来源。
-6. **Phase III 统一处置**：风险预算校准后再替换旧 scaler 乘法链。
-7. **Phase IV 验证与治理**：实跑 PBO/CI/对抗验证。
-8. **补 NEXT-1 剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL。
+5. ~~Phase II 252 日扩窗 + 相关闸敏感性~~ ✅
+6. **相关闸 full backtest 校准**：把 110/0.70、120/0.80 等候选接入完整回测与 walk-forward。
+7. **Phase III 统一处置**：风险预算校准后再替换旧 scaler 乘法链。
+8. **Phase IV 验证与治理**：实跑 PBO/CI/对抗验证。
+9. **补 NEXT-1 剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL。

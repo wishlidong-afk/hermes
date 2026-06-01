@@ -473,3 +473,53 @@ P4 状态推进为 `IN-PROGRESS / PHASE0-I-PIPELINE-LOCAL-SYNCED`。下一步建
 ### 当前结论
 
 P5/Phase II 状态推进为 `IN-PROGRESS / SHADOW-REPLAY-20D-DONE`。生产/live 开关仍保持关闭。下一步建议：扩展 shadow 窗口、解释 `EXTREME_CORR` 收缩来源，并在 Phase III 前完成风险预算参数校准。
+
+## P5 Phase II 扩窗与相关闸敏感性记录
+
+**升级时间**: 2026-06-01
+
+本次继续推进 P5，把 20 日 shadow 对照扩到 252 个交易日，并把 `EXTREME_CORR` 从一个黑盒标签拆成可解释指标：普通相关均值、下行相关均值、ratio score、惩罚前 gross、惩罚后 gross。
+
+### 已实装内容
+
+- ✅ `RiskEngine.estimator_meta` 新增相关闸解释字段：
+  - `corr_mean`
+  - `downside_corr_mean`
+  - `downside_corr_ratio_score`
+  - `corr_elevated_threshold`
+  - `corr_extreme_threshold`
+  - `gross_before_corr_penalty`
+  - `extreme_corr_penalty`
+- ✅ `scripts/phase2_shadow_compare.py` 升级：
+  - 252 日扩窗 replay
+  - Risk Bindings / Correlation Regimes 统计
+  - Corr Diagnostics
+  - Most Defensive Rows
+  - Interpretation 段落
+- ✅ 新增 `scripts/phase2_corr_sensitivity.py`
+  - 只读重算 correlation-regime penalty 层
+  - threshold × penalty 网格敏感性
+  - 输出 `PhaseII_Corr_Sensitivity.md/json`
+
+### 252 日 Shadow 结果
+
+- rows evaluated: 252
+- errors: 0
+- R3 violations: 0
+- confidence modes: NORMAL × 252
+- avg shadow gross: 0.7229
+- min shadow gross: 0.4111
+- EXTREME_CORR share: 78.57%
+- avg ordinary corr mean: 0.5135
+- avg downside corr mean: 0.5567
+- avg downside/ordinary ratio score: 115.2734
+
+### 相关闸敏感性
+
+- 当前默认 `threshold=92 / penalty=0.70`：hit share 78.57%，avg gross 0.7229。
+- 只读 review candidate `threshold=110 / penalty=0.70`：hit share 40.48%，avg gross 0.8273，min gross 0.5770。
+- 结论：当前 92 阈值偏保守，Phase III 前应以 110/0.70 或 120/0.80 作为校准候选进入完整回测，而不是直接上线。
+
+### 当前结论
+
+P5 状态推进为 `IN-PROGRESS / SHADOW-252D-CORR-SENSITIVITY-DONE`。生产/live 开关仍保持关闭。下一步建议：把相关闸候选参数接入 backtest sensitivity，而非只看 shadow gross。

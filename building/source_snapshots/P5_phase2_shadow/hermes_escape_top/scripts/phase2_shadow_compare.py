@@ -44,6 +44,8 @@ def run_phase2_shadow(
 
     comparisons: List[Dict[str, Any]] = []
     mode_counts: Counter = Counter()
+    binding_counts: Counter = Counter()
+    corr_regime_counts: Counter = Counter()
     max_abs_weight_delta = 0.0
     r3_violations = 0
     errors: List[Dict[str, str]] = []
@@ -64,6 +66,8 @@ def run_phase2_shadow(
             continue
 
         mode_counts[result.confidence.mode] += 1
+        binding_counts[result.risk_state.binding] += 1
+        corr_regime_counts[result.risk_state.corr_regime] += 1
         old_sizing = row.get("sizing", {})
         symbol_rows: Dict[str, Any] = {}
         for sym in pipeline_cfg["symbols"]:
@@ -89,6 +93,7 @@ def run_phase2_shadow(
             if isinstance(item, dict)
         ]
         old_gross = max(old_gross_values) if old_gross_values else 1.0
+        risk_meta = result.risk_state.estimator_meta
         comparisons.append(
             {
                 "date": as_of,
@@ -100,6 +105,21 @@ def run_phase2_shadow(
                 "gross_delta": round(float(result.risk_state.gross_scaler) - old_gross, 6),
                 "risk_binding": result.risk_state.binding,
                 "corr_regime": result.risk_state.corr_regime,
+                "portfolio_vol": result.risk_state.portfolio_vol,
+                "cvar": result.risk_state.cvar,
+                "vol_scaler": result.risk_state.vol_scaler,
+                "cvar_scaler": result.risk_state.cvar_scaler,
+                "risk_meta": {
+                    "n_obs": risk_meta.get("n_obs"),
+                    "corr_mean": risk_meta.get("corr_mean"),
+                    "downside_corr_mean": risk_meta.get("downside_corr_mean"),
+                    "downside_corr_ratio_score": risk_meta.get("downside_corr_ratio_score"),
+                    "corr_elevated_threshold": risk_meta.get("corr_elevated_threshold"),
+                    "corr_extreme_threshold": risk_meta.get("corr_extreme_threshold"),
+                    "gross_before_corr_penalty": risk_meta.get("gross_before_corr_penalty"),
+                    "extreme_corr_penalty": risk_meta.get("extreme_corr_penalty"),
+                },
+                "risk_explain": list(result.risk_state.explain),
                 "symbols": symbol_rows,
             }
         )
@@ -111,8 +131,11 @@ def run_phase2_shadow(
         "rows_evaluated": len(comparisons),
         "errors": errors,
         "mode_counts": dict(mode_counts),
+        "binding_counts": dict(binding_counts),
+        "corr_regime_counts": dict(corr_regime_counts),
         "max_abs_weight_delta": round(max_abs_weight_delta, 6),
         "r3_violations": r3_violations,
+        "diagnostics": _summarize_diagnostics(comparisons),
         "phase": "Phase II shadow",
         "live_effect": "none",
         "comparisons": comparisons,
@@ -217,6 +240,7 @@ def _deep_update(base: Dict[str, Any], override: Dict[str, Any]) -> None:
 
 
 def _write_report(artifact: Dict[str, Any], path: Path) -> None:
+    diagnostics = artifact.get("diagnostics", {})
     lines = [
         "# Phase II Shadow Compare",
         "",
@@ -231,6 +255,10 @@ def _write_report(artifact: Dict[str, Any], path: Path) -> None:
         f"| Max abs weight delta | {artifact['max_abs_weight_delta']:.4f} |",
         f"| R3 violations | {artifact['r3_violations']} |",
         f"| Errors | {len(artifact['errors'])} |",
+        f"| Avg shadow gross | {_fmt(diagnostics.get('avg_shadow_gross'))} |",
+        f"| Min shadow gross | {_fmt(diagnostics.get('min_shadow_gross'))} |",
+        f"| Avg gross delta | {_fmt(diagnostics.get('avg_gross_delta'))} |",
+        f"| Extreme corr share | {_fmt_pct(diagnostics.get('extreme_corr_share'))} |",
         "",
         "## Confidence Modes",
         "",
@@ -242,19 +270,78 @@ def _write_report(artifact: Dict[str, Any], path: Path) -> None:
     lines.extend(
         [
             "",
+            "## Risk Bindings",
+            "",
+            "| Binding | Count |",
+            "|---|---:|",
+        ]
+    )
+    for binding, count in sorted(artifact.get("binding_counts", {}).items()):
+        lines.append(f"| {binding} | {count} |")
+    lines.extend(
+        [
+            "",
+            "## Correlation Regimes",
+            "",
+            "| Regime | Count |",
+            "|---|---:|",
+        ]
+    )
+    for regime, count in sorted(artifact.get("corr_regime_counts", {}).items()):
+        lines.append(f"| {regime} | {count} |")
+    lines.extend(
+        [
+            "",
+            "## Corr Diagnostics",
+            "",
+            "| Metric | Value |",
+            "|---|---:|",
+            f"| Avg ordinary corr mean | {_fmt(diagnostics.get('avg_corr_mean'))} |",
+            f"| Avg downside corr mean | {_fmt(diagnostics.get('avg_downside_corr_mean'))} |",
+            f"| Avg downside/ordinary ratio score | {_fmt(diagnostics.get('avg_downside_corr_ratio_score'))} |",
+            f"| Extreme threshold | {_fmt(diagnostics.get('corr_extreme_threshold'))} |",
+            f"| Avg pre-penalty gross | {_fmt(diagnostics.get('avg_gross_before_corr_penalty'))} |",
+        ]
+    )
+    lines.extend(
+        [
+            "",
             "## Daily Shadow Rows",
             "",
-            "| Date | Confidence | Weakest | Old Gross | Shadow Gross | Risk Binding | Corr Regime | Max Symbol Delta |",
-            "|---|---:|---|---:|---:|---|---|---:|",
+            "| Date | Confidence | Weakest | Old Gross | Shadow Gross | Pre-Corr Gross | Risk Binding | Corr Regime | Ratio Score | Max Symbol Delta |",
+            "|---|---:|---|---:|---:|---:|---|---|---:|---:|",
         ]
     )
     for row in artifact["comparisons"]:
         max_delta = max(abs(float(item["delta"])) for item in row["symbols"].values()) if row["symbols"] else 0.0
+        meta = row.get("risk_meta", {})
         lines.append(
             f"| {row['date']} | {row['confidence_mode']} {row['decision_confidence']:.4f} | {row['weakest_link']} | "
             f"{row['old_gross_scaler']:.4f} | {row['shadow_gross_scaler']:.4f} | "
-            f"{row['risk_binding']} | {row['corr_regime']} | {max_delta:.4f} |"
+            f"{_fmt(meta.get('gross_before_corr_penalty'))} | {row['risk_binding']} | {row['corr_regime']} | "
+            f"{_fmt(meta.get('downside_corr_ratio_score'))} | {max_delta:.4f} |"
         )
+    top_rows = diagnostics.get("most_defensive_rows", [])
+    if top_rows:
+        lines.extend(
+            [
+                "",
+                "## Most Defensive Rows",
+                "",
+                "| Date | Shadow Gross | Binding | Corr Regime | Ordinary Corr | Downside Corr | Ratio Score |",
+                "|---|---:|---|---|---:|---:|---:|",
+            ]
+        )
+        for row in top_rows:
+            lines.append(
+                f"| {row['date']} | {_fmt(row.get('shadow_gross_scaler'))} | {row.get('risk_binding')} | "
+                f"{row.get('corr_regime')} | {_fmt(row.get('corr_mean'))} | "
+                f"{_fmt(row.get('downside_corr_mean'))} | {_fmt(row.get('downside_corr_ratio_score'))} |"
+            )
+    if diagnostics.get("interpretation"):
+        lines.extend(["", "## Interpretation", ""])
+        for item in diagnostics["interpretation"]:
+            lines.append(f"- {item}")
     lines.extend(["", "## Notes", ""])
     for note in artifact.get("notes", []):
         lines.append(f"- {note}")
@@ -263,6 +350,106 @@ def _write_report(artifact: Dict[str, Any], path: Path) -> None:
         for err in artifact["errors"]:
             lines.append(f"- {err['date']}: {err['error']}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _summarize_diagnostics(comparisons: List[Dict[str, Any]]) -> Dict[str, Any]:
+    if not comparisons:
+        return {}
+
+    shadow_gross = [_as_float(row.get("shadow_gross_scaler")) for row in comparisons]
+    gross_delta = [_as_float(row.get("gross_delta")) for row in comparisons]
+    corr_means = [_as_float(row.get("risk_meta", {}).get("corr_mean")) for row in comparisons]
+    downside_means = [_as_float(row.get("risk_meta", {}).get("downside_corr_mean")) for row in comparisons]
+    ratio_scores = [_as_float(row.get("risk_meta", {}).get("downside_corr_ratio_score")) for row in comparisons]
+    pre_penalty = [_as_float(row.get("risk_meta", {}).get("gross_before_corr_penalty")) for row in comparisons]
+
+    extreme_count = sum(1 for row in comparisons if row.get("corr_regime") == "EXTREME")
+    threshold_values = [
+        _as_float(row.get("risk_meta", {}).get("corr_extreme_threshold"))
+        for row in comparisons
+        if row.get("risk_meta", {}).get("corr_extreme_threshold") is not None
+    ]
+    most_defensive = sorted(comparisons, key=lambda r: _as_float(r.get("shadow_gross_scaler")))[:10]
+    most_defensive_rows = []
+    for row in most_defensive:
+        meta = row.get("risk_meta", {})
+        most_defensive_rows.append(
+            {
+                "date": row.get("date"),
+                "shadow_gross_scaler": row.get("shadow_gross_scaler"),
+                "risk_binding": row.get("risk_binding"),
+                "corr_regime": row.get("corr_regime"),
+                "corr_mean": meta.get("corr_mean"),
+                "downside_corr_mean": meta.get("downside_corr_mean"),
+                "downside_corr_ratio_score": meta.get("downside_corr_ratio_score"),
+            }
+        )
+
+    avg_ratio = _safe_mean(ratio_scores)
+    avg_corr = _safe_mean(corr_means)
+    avg_downside = _safe_mean(downside_means)
+    extreme_share = extreme_count / len(comparisons)
+    interpretation = [
+        "EXTREME_CORR compares left-tail correlation against ordinary correlation, not absolute correlation alone.",
+        "If ratio score is above the extreme threshold, the engine applies extreme_corr_penalty after VOL/CVAR scaling.",
+    ]
+    if extreme_share >= 0.50:
+        interpretation.append(
+            "More than half of the replay window is EXTREME_CORR; Phase III should not replace the old scaler until this risk budget is calibrated over a longer window."
+        )
+    if avg_downside > avg_corr:
+        interpretation.append(
+            "Average downside correlation is higher than ordinary correlation, so the new risk layer is detecting crash-correlation clustering rather than random noise."
+        )
+    if _safe_mean(pre_penalty) and _safe_mean(shadow_gross) < _safe_mean(pre_penalty):
+        interpretation.append(
+            "Shadow gross is lower than pre-penalty gross because the correlation-regime penalty is binding on EXTREME days."
+        )
+
+    return {
+        "avg_shadow_gross": round(_safe_mean(shadow_gross), 6),
+        "min_shadow_gross": round(min(shadow_gross), 6),
+        "max_shadow_gross": round(max(shadow_gross), 6),
+        "avg_gross_delta": round(_safe_mean(gross_delta), 6),
+        "extreme_corr_share": round(extreme_share, 6),
+        "avg_corr_mean": round(avg_corr, 6),
+        "avg_downside_corr_mean": round(avg_downside, 6),
+        "avg_downside_corr_ratio_score": round(avg_ratio, 6),
+        "corr_extreme_threshold": round(_safe_mean(threshold_values), 6) if threshold_values else None,
+        "avg_gross_before_corr_penalty": round(_safe_mean(pre_penalty), 6),
+        "most_defensive_rows": most_defensive_rows,
+        "interpretation": interpretation,
+    }
+
+
+def _as_float(value: Any) -> float:
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return out if pd.notna(out) else 0.0
+
+
+def _safe_mean(values: List[float]) -> float:
+    return sum(values) / len(values) if values else 0.0
+
+
+def _fmt(value: Any) -> str:
+    if value is None:
+        return "n/a"
+    try:
+        return f"{float(value):.4f}"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
+def _fmt_pct(value: Any) -> str:
+    if value is None:
+        return "n/a"
+    try:
+        return f"{float(value) * 100:.2f}%"
+    except (TypeError, ValueError):
+        return "n/a"
 
 
 if __name__ == "__main__":
