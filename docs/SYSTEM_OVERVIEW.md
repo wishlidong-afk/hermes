@@ -10,9 +10,9 @@
 
 | 字段 | 值 |
 |---|---|
-| 文档版本 | v1.1 |
+| 文档版本 | v1.2 |
 | 更新时间 | 2026-06-01 |
-| 当前成熟度 | M3（盲区门已过；P0 合成历史、P1 全窗口回测、NEXT-3 稳定高原校准均已完成；P4 ConfidenceSpine 骨架已启动） |
+| 当前成熟度 | M3（P0/P1/P2 完成；**P4 Phase 0–I + Pipeline 完成**：12 组件 + 106 测试 + E1–E30 全覆盖 + 7 闸结构验证） |
 | data_manifest_id | 待 NEXT-0 freeze 后填写 |
 | calibration 档案 | `building/reports/calibration_v2.json`；候选 `E75_D65_R50` |
 | 当前 missing_weight (MSTR/FNGU/SOXL) | 26 / 19 / 19（均 <30，盲区门已过） |

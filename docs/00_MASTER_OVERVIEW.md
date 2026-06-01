@@ -66,14 +66,13 @@ L5 组合层(RiskEngine 单一风险源 → SizingOptimizer 统一处置, R3不�
 
 | 维度 | 现状 |
 |---|---|
-| 成熟度 | **M3 实质达成**：流水线通、94 package tests OK + 11 golden tests OK；盲区门已过；NEXT-3 稳定高原校准通过 |
+| 成熟度 | **M3 实质达成**：94 package + 11 golden + 106 integration tests；盲区门已过；NEXT-3 稳定高原校准通过 |
 | missing_weight | **MSTR 26 / FNGU 19 / SOXL 19（均 <30，盲区升级已解除）** |
-| **P0 状态** | **✅ DONE / STRICT-GATE-PASSED** — FNGU 接缝调整 TE 4.67%（< 5%），corr 0.9986；P1 全窗口回测阻塞已解除 |
-| 已完成 | Phase 0–9、12 骨架；NEXT-0 数据地基；NEXT-1 已接 5 个可回溯软数据源；P0 合成历史；P1 全窗口回测；NEXT-3 稳定高原校准 |
-| 校准 | `E75_D65_R50`：EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20；deployment fixed PBO=0.1538；real-only rank=0.7692 |
-| 待办 | 其余软数据(PCR/NAAIM/BTC微观/GEX)增量补；RiskEngine / SizingOptimizer 整合地基 |
-| P4 进度 | 公共契约 + ConfidenceSpine 骨架已完成；尚未接 live pipeline |
-| 安全 | 只读、不下单；所有 live 开关默认关 |
+| 基线 | P0/P1/P2 全部 DONE：合成历史 TE 4.67%；real-only CAGR 44.39% Sharpe 1.79；deployment PBO=0.1538 |
+| 校准 | `E75_D65_R50`：EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20 |
+| **P4 整合** | **Phase 0–I + Pipeline DONE**：12 组件骨架（脊柱+4引擎+优化器+治理+净化+转移+漂移+Pipeline+Config）；E1–E30 全覆盖；7 闸结构验证通过 |
+| 待办 | Phase II shadow 对照（需本地接入）；补剩余软数据；Phase III/IV |
+| 安全 | 只读、不下单；所有 feature flags 默认 OFF |
 
 ---
 
@@ -81,11 +80,13 @@ L5 组合层(RiskEngine 单一风险源 → SizingOptimizer 统一处置, R3不�
 
 > 详见 `CODEX_GUIDANCE.md`（明确的下一步施工指引）。
 
-1. ~~**P0 合成杠杆历史**~~：✅ **DONE (2026-06-01)** — 接缝调整严格门控通过（FNGU TE 4.67%，corr 0.9986）。
-2. ~~**P1（NEXT-2 全窗口重跑）**~~：✅ **DONE** — real-only 与 full-proxy 并排报告已出。
-3. ~~**NEXT-3 校准**~~：✅ **DONE** — 稳定高原参数 `E75_D65_R50` 已通过 deployment fixed PBO 与回撤/真实窗口敏感性门控；train-greedy PBO 未过，仅作警报。
-4. **整合地基**：建 ConfidenceSpine / RiskEngine / SizingOptimizer，把组合/仓位从"乘法链"换成"单一风险源 + 约束优化"。→ `INTEGRATION_ARCHITECTURE.md` Phase 0–I
-5. **增量并行**：补 NEXT-1 剩余软数据（PCR/NAAIM/BTC funding-basis-DVOL，进一步降 MSTR 的 26）。
+1. ~~**P0 合成杠杆历史**~~：✅ DONE — TE 4.67%，corr 0.9986。
+2. ~~**P1 全窗口回测**~~：✅ DONE — real-only CAGR 44.39% Sharpe 1.79。
+3. ~~**NEXT-3 校准**~~：✅ DONE — deployment PBO=0.1538。
+4. ~~**P4 整合地基**~~：✅ **Phase 0–I + Pipeline DONE** — 12 组件 + 106 测试 + E1–E30 全覆盖 + 7 闸验证。详见 `building/reports/P4_INTEGRATION_PHASE0_I_REPORT.md`。
+5. **Phase II shadow 对照**：启用 risk_engine + confidence + context shadow 模式。→ `building/reports/PHASE_II_IV_ROLLOUT_PLAN.md`
+6. **补剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL → 降 MSTR missing。
+7. **Phase III/IV**：替换旧 scaler 链 → 7 闸全通过。
 
 完整次序与依赖见 `ROADMAP.md`；明确施工指引见 `CODEX_GUIDANCE.md`。
 

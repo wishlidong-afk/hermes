@@ -49,11 +49,13 @@
 
 | 顺位 | 任务 | 文档锚点 | 价值 |
 |---|---|---|---|
-| ✅ P0 | 合成杠杆历史严格门控 | CODEX_GUIDANCE P0 | 已完成：FNGU seam-adjusted TE 4.67%，corr 0.9986 |
-| ✅ P1 | NEXT-2 全窗口回测（real-only vs full-proxy 并排） | BUILD_TICKETS NEXT-2 | 已完成：full-proxy 2018-2026 报告已出 |
-| ✅ P2 | NEXT-3 参数扫描 + 稳定高原校准 | BUILD_TICKETS NEXT-3 | 已完成：deployment fixed PBO=0.1538 |
-| **P3** | 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL（进一步降 MSTR 的 26） | BUILD_TICKETS NEXT-1 | 当前优先质量增量 |
-| **P4** | 建 ConfidenceSpine / RiskEngine / SizingOptimizer，替换 scaler 乘法链 | INTEGRATION Phase 0–I | IN-PROGRESS：公共契约 + ConfidenceSpine 已完成 |
+| ✅ P0 | 合成杠杆历史严格门控 | CODEX_GUIDANCE P0 | 已完成：FNGU TE 4.67%，corr 0.9986 |
+| ✅ P1 | NEXT-2 全窗口回测 | BUILD_TICKETS NEXT-2 | 已完成：real-only CAGR 44.39% Sharpe 1.79 |
+| ✅ P2 | NEXT-3 稳定高原校准 | BUILD_TICKETS NEXT-3 | 已完成：deployment PBO=0.1538 |
+| ✅ P4 | 整合地基 Phase 0–I + Pipeline | INTEGRATION Phase 0–I | **已完成：12 组件 + 106 测试 + E1–E30 全覆盖 + 7 闸结构验证** |
+| **P5** | Phase II shadow 对照 | PHASE_II_IV_ROLLOUT_PLAN | 需要本地运行环境接入真实 store + scorer |
+| **P3** | 补 NEXT-1 剩余软数据 | BUILD_TICKETS NEXT-1 | PCR/NAAIM/BTC；可降 MSTR missing 8pt |
+| **P6** | Phase III 替换旧 scaler → Phase IV 7 闸全通过 | SCALER_MIGRATION_GUIDE | 依赖 P5 验收 |
 
 ---
 
@@ -69,8 +71,10 @@
 
 ---
 
-## 起步指令（给 Codex）
+## 起步指令（给 Codex / Claude）
 
-从 **P3 + P4** 开始，并回报：①PCR/NAAIM/BTC funding-basis-DVOL 是否可通过 CSV/adapter 接入；②ConfidenceSpine/RiskEngine/SizingOptimizer 的最小可运行骨架；③接入后 missing_weight、decision_confidence 与 R3 不变式验证结果。
+从 **P5（Phase II shadow 对照）** 开始：①把 `score_pipeline()` 接入本地运行环境的真实 store + scorer_fn + verdict_fn；②启用 `use_risk_engine + use_confidence_spine + use_market_context` 的 shadow 模式，对比输出；③回报 shadow RiskEngine gross_scaler vs 旧 scaler 差异、ConfidenceSpine mode 分布。
+
+同步推进 **P3**：补 PCR/NAAIM/BTC funding-basis-DVOL CSV，降 MSTR missing。
 
 > 安全：Codex 只做到"达标/DONE"为止；任何 `features.*`/`use_*` 翻 true 由人决定。
