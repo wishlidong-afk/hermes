@@ -43,15 +43,17 @@
 
 ---
 
-## 当前可立即开工（按价值排序）
+## 当前可立即开工（据真实进度重排，2026-06-01）
+
+> 现状：missing 已 <30（盲区门过），NEXT-0/1 代码就绪。**唯一阻塞是 FNGU 历史只到 2025-02 → 回测窗口仅 ~15 个月。** 明确施工指引见 `CODEX_GUIDANCE.md`。
 
 | 顺位 | 任务 | 文档锚点 | 价值 |
 |---|---|---|---|
-| 1 | 价格史回填 2018+ + 数据版本化 + PIT 对齐 | BUILD_TICKETS NEXT-0 | 一切回测/校准的前置 |
-| 2 | 接 FRED 净流动性 / CBOE VIX期限·SKEW·VVIX / PCR / AAII / NAAIM / BTC 微观 | BUILD_TICKETS NEXT-1 | **把 missing 砍到 <30，解除盲区升级** |
-| 3 | 完整规则回放 + walk-forward + 硬阀门历史触发 | BUILD_TICKETS NEXT-2 | 验得过 |
-| 4 | 参数扫描 + 每模块达标门 + 校准档案 | BUILD_TICKETS NEXT-3 | 校得准 |
-| 5 | 建 ConfidenceSpine / RiskEngine / SizingOptimizer，替换 scaler 乘法链 | INTEGRATION Phase 0–I | 整合地基 |
+| **P0** | **合成重建 FNGU(3×)/FNGS(1×) 的 2018+ 历史**（底层指数/成分 × 日重置杠杆公式，扩展 leg_proxy） | CODEX_GUIDANCE P0 | **唯一阻塞：解锁全窗口回测与校准** |
+| P1 | NEXT-2 用 P0 历史全窗口重跑（real-only vs full(含 proxy) 并排） | BUILD_TICKETS NEXT-2 | 验得过（真窗口） |
+| P2 | NEXT-3 参数扫描 + 每模块达标门 + PBO（报告对合成段敏感性） | BUILD_TICKETS NEXT-3 | 校得准 |
+| P3(并行) | 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL（进一步降 MSTR 的 26） | BUILD_TICKETS NEXT-1 | 质量增量，非阻塞 |
+| P4 | 建 ConfidenceSpine / RiskEngine / SizingOptimizer，替换 scaler 乘法链 | INTEGRATION Phase 0–I | 整合地基 |
 
 ---
 

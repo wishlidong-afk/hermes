@@ -62,27 +62,30 @@ L5 组合层(RiskEngine 单一风险源 → SizingOptimizer 统一处置, R3不�
 
 ---
 
-## 4. 当前状态（截至 2026-06-01）
+## 4. 当前状态（截至 2026-06-01，据 Codex 真实进度）
 
 | 维度 | 现状 |
 |---|---|
-| 成熟度 | **M0→M1 过渡**：流水线通、68 单测绿、单日回放有结果 |
-| 最大短板 | **missing_weight 42/31/31（>30 盲区升级中）** —— 系统在"蒙着 30%+ 仪表飞行" |
-| 已完成 | Phase 0–9、12、14（数据/特征/评分/硬阀门/裁决/组合/路由/再建仓/镜像/WebUI 骨架） |
-| 待办 | 软数据接入(降盲区)、2018→2026 回测、参数校准、E 系列整合 |
+| 成熟度 | **M1 实质达成**：流水线通、78 单测绿；盲区门已过 |
+| missing_weight | **MSTR 26 / FNGU 19 / SOXL 19（均 <30，盲区升级已解除）** |
+| **当前唯一关键瓶颈** | **FNGU 历史只回到 2025-02-20（FNGS 到 2019-11-13）→ 回测有效窗口仅 ~15 个月 → NEXT-3 校准在此数据上无效** |
+| 已完成 | Phase 0–9、12 骨架；NEXT-0 代码、NEXT-1 已接 5 个可回溯软数据源、NEXT-2 回测 runner 与报告（窗口受限） |
+| 待办 | **P0 合成 FNGU/FNGS 历史** → NEXT-2 全窗口重跑 → NEXT-3 校准；其余软数据(PCR/NAAIM/BTC微观/GEX)增量补 |
 | 安全 | 只读、不下单；所有 live 开关默认关 |
 
 ---
 
-## 5. 接下来建什么（最高价值优先）
+## 5. 接下来建什么（据真实进度重排，最高价值优先）
 
-1. **降盲区**：接入可历史化的免费软数据（FRED 净流动性 / CBOE VIX期限·SKEW·VVIX / PCR / AAII / NAAIM / BTC 资金费率·基差），把 missing_weight 砍到 <30。→ `BUILD_TICKETS.md` NEXT-1
-2. **回测**：价格史回填 2018+ → 完整规则回放 + walk-forward + 硬阀门历史触发。→ NEXT-2
-3. **校准**：参数扫描（选稳健高原非峰值）+ 每模块达标门 → 校准档案。→ NEXT-3
+> 详见 `CODEX_GUIDANCE.md`（明确的下一步施工指引）。
+
+1. **P0 合成杠杆历史（新增·最高优先·当前唯一阻塞）**：用底层指数/成分按"日重置杠杆"公式重建 FNGU(3×)、FNGS(1×) 的 2018+ 历史，扩展 `leg_proxy` 思路。**这是解锁全窗口回测与校准的唯一钥匙。**
+2. **NEXT-2 全窗口重跑**：P0 后把回测从 ~15 个月扩到 2018→2026，real-only 与 full(含 proxy) 并排报告。
+3. **NEXT-3 校准**：参数扫描（选稳健高原非峰值）+ 每模块达标门 + PBO；报告对合成段的敏感性。
 4. **整合地基**：建 ConfidenceSpine / RiskEngine / SizingOptimizer，把组合/仓位从"乘法链"换成"单一风险源 + 约束优化"。→ `INTEGRATION_ARCHITECTURE.md` Phase 0–I
-5. 之后逐步接 E 系列增强（安全 → 风险结构 → 预警 → 验证）。
+5. **增量并行**：补 NEXT-1 剩余软数据（PCR/NAAIM/BTC funding-basis-DVOL，进一步降 MSTR 的 26）。
 
-完整次序与依赖见 `ROADMAP.md`。
+完整次序与依赖见 `ROADMAP.md`；明确施工指引见 `CODEX_GUIDANCE.md`。
 
 ---
 
@@ -98,6 +101,7 @@ L5 组合层(RiskEngine 单一风险源 → SizingOptimizer 统一处置, R3不�
 README.md                          索引 + 阅读路线
 docs/
   00_MASTER_OVERVIEW.md            ← 你在这里（终极全貌）
+  CODEX_GUIDANCE.md                ★明确的下一步施工指引（Codex 先看这个）
   01_FUNCTIONAL_SPEC.md            功能规格（事实源：因子/硬阀门/路由/再建仓/镜像）
   SYSTEM_OVERVIEW.md               系统全景（L0–L10 / 达标标准 / 成熟度）
   BUILD_TICKETS.md                 基线 NEXT-0~6 函数级工单
