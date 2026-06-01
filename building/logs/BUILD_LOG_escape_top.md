@@ -678,3 +678,46 @@ P5 状态当时推进为 `IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE`。`110/0
 ### 当前结论
 
 P6 dry-run comparator 状态为 `DONE / HUMAN-GATE-READY`。候选链路没有 BLOCK/R3 硬伤，但 WARN 日期需要人工复核；live 开关继续保持关闭，不能自动上线。
+
+## P7 Phase III WARN Review 记录
+
+**升级时间**: 2026-06-02
+
+本次把 P6 的 124 个 WARN 做成可审阅的人审前分析包，目标是回答：WARN 是不是集中在可解释的风险体制里？候选链路相对旧链路有没有明显收益拖累？是否存在新的 BLOCK 级问题？
+
+### 已实装内容
+
+- ✅ 新增 `scripts/phase3_warn_review.py`
+- ✅ 新增 `tests/test_phase3_warn_review.py`
+- ✅ 新增 `reports/PhaseIII_WARN_Review.md/json`
+- ✅ 新增 `reports/P7_PHASE3_WARN_REVIEW_LOG.md`
+- ✅ 对 WARN 做原因分类、月份分布、最大差异日排序
+- ✅ 用本地价格面板计算 old route vs candidate route 的 1/5/10 交易日前瞻收益差
+
+### 结果摘要
+
+| 指标 | 结果 |
+|---|---:|
+| rows evaluated | 252 |
+| PASS | 128 |
+| WARN | 124 |
+| WARN share | 49.21% |
+| BLOCK | 0 |
+| EXTREME_CORR WARN | 102 |
+| ROUTE_LEG_DELTA WARN | 50 |
+| TURNOVER_DELTA WARN | 28 |
+| SYMBOL_DELTA WARN | 20 |
+| LOW_GROSS WARN | 16 |
+| WARN 1d candidate-old avg | -0.00% |
+| WARN 5d candidate-old avg | -0.05% |
+| WARN 10d candidate-old avg | -0.29% |
+
+### 验证结果
+
+- ✅ `python3 -m unittest hermes_escape_top.tests.test_phase3_warn_review`：4 tests OK
+- ✅ `python3 -m unittest discover -s hermes_escape_top/tests`：264 tests OK
+- ✅ `python3 -m unittest discover -s tests`：11 tests OK（仅 urllib3/LibreSSL 环境警告）
+
+### 当前结论
+
+P7 状态为 `DONE / WARN-REVIEW-PACK-DONE`。没有新增 R3/BLOCK 硬伤，但 WARN 10 日平均有轻微机会成本，readiness 仍为 `REVIEW_REQUIRED`；live promotion 继续保持 `BLOCKED`。

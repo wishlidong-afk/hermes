@@ -1,0 +1,3635 @@
+{
+  "candidate": {
+    "penalty": 0.7,
+    "threshold": 110.0
+  },
+  "category_forward_stats": {
+    "EXTREME_CORR": {
+      "avg_abs_turnover_delta": 0.044274,
+      "count": 102,
+      "forward_delta": {
+        "1": {
+          "count": 102,
+          "max": 0.028777,
+          "mean": -5.9e-05,
+          "median": -0.000192,
+          "min": -0.013499,
+          "positive_share": 0.401961
+        },
+        "10": {
+          "count": 102,
+          "max": 0.021556,
+          "mean": -0.002774,
+          "median": 0.0,
+          "min": -0.039576,
+          "positive_share": 0.431373
+        },
+        "5": {
+          "count": 102,
+          "max": 0.025266,
+          "mean": -0.000942,
+          "median": -0.000733,
+          "min": -0.021146,
+          "positive_share": 0.382353
+        }
+      }
+    },
+    "EXTREME_REGIME": {
+      "avg_abs_turnover_delta": 0.044274,
+      "count": 102,
+      "forward_delta": {
+        "1": {
+          "count": 102,
+          "max": 0.028777,
+          "mean": -5.9e-05,
+          "median": -0.000192,
+          "min": -0.013499,
+          "positive_share": 0.401961
+        },
+        "10": {
+          "count": 102,
+          "max": 0.021556,
+          "mean": -0.002774,
+          "median": 0.0,
+          "min": -0.039576,
+          "positive_share": 0.431373
+        },
+        "5": {
+          "count": 102,
+          "max": 0.025266,
+          "mean": -0.000942,
+          "median": -0.000733,
+          "min": -0.021146,
+          "positive_share": 0.382353
+        }
+      }
+    },
+    "LOW_GROSS": {
+      "avg_abs_turnover_delta": 0.106304,
+      "count": 16,
+      "forward_delta": {
+        "1": {
+          "count": 16,
+          "max": 0.028777,
+          "mean": 0.002587,
+          "median": 0.000314,
+          "min": -0.004713,
+          "positive_share": 0.5
+        },
+        "10": {
+          "count": 14,
+          "max": 0.017492,
+          "mean": -0.000984,
+          "median": -0.000861,
+          "min": -0.017236,
+          "positive_share": 0.5
+        },
+        "5": {
+          "count": 14,
+          "max": 0.025266,
+          "mean": 0.004861,
+          "median": 0.004726,
+          "min": -0.021146,
+          "positive_share": 0.642857
+        }
+      }
+    },
+    "ROUTE_LEG_DELTA": {
+      "avg_abs_turnover_delta": 0.047514,
+      "count": 50,
+      "forward_delta": {
+        "1": {
+          "count": 50,
+          "max": 0.028777,
+          "mean": -0.000144,
+          "median": -0.000842,
+          "min": -0.013499,
+          "positive_share": 0.42
+        },
+        "10": {
+          "count": 50,
+          "max": 0.021556,
+          "mean": -0.004672,
+          "median": -0.001589,
+          "min": -0.039576,
+          "positive_share": 0.48
+        },
+        "5": {
+          "count": 50,
+          "max": 0.025266,
+          "mean": -0.001161,
+          "median": -0.001119,
+          "min": -0.021146,
+          "positive_share": 0.48
+        }
+      }
+    },
+    "SYMBOL_DELTA": {
+      "avg_abs_turnover_delta": 0.078175,
+      "count": 20,
+      "forward_delta": {
+        "1": {
+          "count": 20,
+          "max": 0.028777,
+          "mean": 0.001017,
+          "median": 0.000139,
+          "min": -0.013499,
+          "positive_share": 0.55
+        },
+        "10": {
+          "count": 20,
+          "max": 0.021556,
+          "mean": 0.005236,
+          "median": 0.005703,
+          "min": -0.015277,
+          "positive_share": 0.85
+        },
+        "5": {
+          "count": 20,
+          "max": 0.025266,
+          "mean": 0.004999,
+          "median": 0.006634,
+          "min": -0.021146,
+          "positive_share": 0.65
+        }
+      }
+    },
+    "TURNOVER_DELTA": {
+      "avg_abs_turnover_delta": 0.181024,
+      "count": 28,
+      "forward_delta": {
+        "1": {
+          "count": 28,
+          "max": 0.011598,
+          "mean": 0.000574,
+          "median": -0.000188,
+          "min": -0.004713,
+          "positive_share": 0.392857
+        },
+        "10": {
+          "count": 28,
+          "max": 0.014202,
+          "mean": -0.002817,
+          "median": -0.000419,
+          "min": -0.039164,
+          "positive_share": 0.428571
+        },
+        "5": {
+          "count": 28,
+          "max": 0.019377,
+          "mean": -0.001548,
+          "median": -0.000785,
+          "min": -0.021146,
+          "positive_share": 0.392857
+        }
+      }
+    }
+  },
+  "gate_counts": {
+    "PASS": 128,
+    "WARN": 124
+  },
+  "live_effect": "none",
+  "lookaheads": [
+    1,
+    5,
+    10
+  ],
+  "notes": [
+    "Read-only human-gate helper; no live config, feature flag, account state, signal journal, or order routing is changed.",
+    "Forward returns use same-day route weights held over the next N trading days on the local price panel.",
+    "This report does not approve scaler migration.  It only organizes WARN evidence for human review."
+  ],
+  "pass_forward_stats": {
+    "1": {
+      "count": 127,
+      "max": 0.005755,
+      "mean": -3.1e-05,
+      "median": 0.0,
+      "min": -0.007694,
+      "positive_share": 0.433071
+    },
+    "10": {
+      "count": 120,
+      "max": 0.03249,
+      "mean": 0.000702,
+      "median": 0.0,
+      "min": -0.012934,
+      "positive_share": 0.391667
+    },
+    "5": {
+      "count": 125,
+      "max": 0.01935,
+      "mean": 0.000109,
+      "median": 0.0,
+      "min": -0.017387,
+      "positive_share": 0.384
+    }
+  },
+  "readiness": {
+    "blockers_or_review_items": [
+      "max turnover delta requires human review"
+    ],
+    "live_promotion": "BLOCKED",
+    "next_step": "Human-review WARN clusters and turnover outliers before scaler migration design.",
+    "status": "REVIEW_REQUIRED",
+    "warn_share": 0.492063
+  },
+  "reason_category_counts": {
+    "EXTREME_CORR": 102,
+    "EXTREME_REGIME": 102,
+    "LOW_GROSS": 16,
+    "ROUTE_LEG_DELTA": 50,
+    "SYMBOL_DELTA": 20,
+    "TURNOVER_DELTA": 28
+  },
+  "rows_evaluated": 252,
+  "schema_version": "phase3-warn-review-v1",
+  "source_comparator": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/reports/PhaseIII_Dry_Run_Comparator.json",
+  "top_warn_rows": {
+    "largest_abs_turnover_delta": [
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-04",
+        "forward_1d": {
+          "candidate": -0.009873,
+          "delta": 0.007548,
+          "old": -0.017421
+        },
+        "max_route_leg_delta": 0.280201,
+        "max_symbol_delta": 0.129323,
+        "reasons": [
+          "max symbol delta=0.1293",
+          "max route leg delta=0.2802",
+          "turnover delta=-0.4022",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.5825"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.582522,
+        "top_route_deltas": {
+          "BOXX": 0.280201,
+          "FNGU": -0.086216,
+          "SOXL": -0.129323
+        },
+        "top_target_deltas": {
+          "FNGU": -0.086216,
+          "MSTR": -0.064662,
+          "SOXL": -0.129323
+        },
+        "turnover_delta": -0.402232
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-07-14",
+        "forward_1d": {
+          "candidate": 0.00519,
+          "delta": -0.003135,
+          "old": 0.008325
+        },
+        "max_route_leg_delta": 0.247415,
+        "max_symbol_delta": 0.114191,
+        "reasons": [
+          "max symbol delta=0.1142",
+          "max route leg delta=0.2474",
+          "turnover delta=0.3165",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6343"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.634283,
+        "top_route_deltas": {
+          "BOXX": 0.247415,
+          "FNGU": -0.076128,
+          "SOXL": -0.114191
+        },
+        "top_target_deltas": {
+          "FNGU": -0.076128,
+          "MSTR": -0.057096,
+          "SOXL": -0.114191
+        },
+        "turnover_delta": 0.316486
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-28",
+        "forward_1d": {
+          "candidate": -0.023548,
+          "delta": 0.011598,
+          "old": -0.035146
+        },
+        "max_route_leg_delta": 0.158093,
+        "max_symbol_delta": 0.094856,
+        "reasons": [
+          "max route leg delta=0.1581",
+          "turnover delta=0.2930",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.158093,
+          "FNGU": -0.063237,
+          "SOXL": -0.094856
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063237,
+          "SOXL": -0.094856
+        },
+        "turnover_delta": 0.29304
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-05",
+        "forward_1d": {
+          "candidate": 0.013053,
+          "delta": -0.000237,
+          "old": 0.01329
+        },
+        "max_route_leg_delta": 0.008164,
+        "max_symbol_delta": 0.004665,
+        "reasons": [
+          "turnover delta=0.2910"
+        ],
+        "risk_binding": "NONE",
+        "scenario_gross": 1.0,
+        "top_route_deltas": {
+          "BOXX": 0.008164,
+          "FNGU": -0.004665,
+          "MSTR": -0.003499
+        },
+        "top_target_deltas": {
+          "FNGU": -0.004665,
+          "MSTR": -0.003499,
+          "SOXL": -0.002799
+        },
+        "turnover_delta": 0.291026
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-06",
+        "forward_1d": {
+          "candidate": 0.003388,
+          "delta": -0.003741,
+          "old": 0.007129
+        },
+        "max_route_leg_delta": 0.110714,
+        "max_symbol_delta": 0.063265,
+        "reasons": [
+          "turnover delta=0.2754",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.110714,
+          "FNGU": -0.063265,
+          "MSTR": -0.047449
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063265,
+          "MSTR": -0.047449,
+          "SOXL": -0.037959
+        },
+        "turnover_delta": 0.27542
+      },
+      {
+        "categories": [
+          "LOW_GROSS",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-10-15",
+        "forward_1d": {
+          "candidate": -0.001366,
+          "delta": 0.00082,
+          "old": -0.002187
+        },
+        "max_route_leg_delta": 0.08664,
+        "max_symbol_delta": 0.068746,
+        "reasons": [
+          "turnover delta=-0.2751",
+          "scenario gross=0.5939"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.59389,
+        "top_route_deltas": {
+          "BOXX": 0.08664,
+          "FNGU": -0.068746,
+          "SOXL": -0.017894
+        },
+        "top_target_deltas": {
+          "FNGU": -0.068746,
+          "SOXL": -0.017894
+        },
+        "turnover_delta": -0.275148
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2026-04-24",
+        "forward_1d": {
+          "candidate": -0.004565,
+          "delta": 0.003637,
+          "old": -0.008202
+        },
+        "max_route_leg_delta": 0.108072,
+        "max_symbol_delta": 0.099732,
+        "reasons": [
+          "turnover delta=-0.2582"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.675101,
+        "top_route_deltas": {
+          "BOXX": 0.108072,
+          "FNGU": -0.00834,
+          "SOXL": -0.099732
+        },
+        "top_target_deltas": {
+          "FNGU": -0.00834,
+          "SOXL": -0.099732
+        },
+        "turnover_delta": -0.258218
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-10-14",
+        "forward_1d": {
+          "candidate": 0.017402,
+          "delta": 0.004582,
+          "old": 0.012821
+        },
+        "max_route_leg_delta": 0.050934,
+        "max_symbol_delta": 0.05009,
+        "reasons": [
+          "turnover delta=-0.2404"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.910207,
+        "top_route_deltas": {
+          "BOXX": -0.050934,
+          "FNGU": 0.000844,
+          "SOXL": 0.05009
+        },
+        "top_target_deltas": {
+          "FNGU": 0.000844,
+          "SOXL": 0.05009
+        },
+        "turnover_delta": -0.240354
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-11-10",
+        "forward_1d": {
+          "candidate": -0.014465,
+          "delta": 0.002887,
+          "old": -0.017352
+        },
+        "max_route_leg_delta": 0.096378,
+        "max_symbol_delta": 0.058328,
+        "reasons": [
+          "turnover delta=-0.2270"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.692854,
+        "top_route_deltas": {
+          "BOXX": 0.096378,
+          "FNGU": -0.058328,
+          "SOXL": -0.03805
+        },
+        "top_target_deltas": {
+          "FNGU": -0.058328,
+          "SOXL": -0.03805
+        },
+        "turnover_delta": -0.22695
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-09-03",
+        "forward_1d": {
+          "candidate": 0.010119,
+          "delta": -0.004551,
+          "old": 0.01467
+        },
+        "max_route_leg_delta": 0.158077,
+        "max_symbol_delta": 0.094846,
+        "reasons": [
+          "max route leg delta=0.1581",
+          "turnover delta=-0.1897",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.158077,
+          "FNGU": -0.063231,
+          "SOXL": -0.094846
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063231,
+          "SOXL": -0.094846
+        },
+        "turnover_delta": -0.189686
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-25",
+        "forward_1d": {
+          "candidate": 0.00982,
+          "delta": -0.000193,
+          "old": 0.010012
+        },
+        "max_route_leg_delta": 0.01181,
+        "max_symbol_delta": 0.007086,
+        "reasons": [
+          "turnover delta=0.1856"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.999537,
+        "top_route_deltas": {
+          "BOXX": 0.01181,
+          "FNGU": -0.004724,
+          "SOXL": -0.007086
+        },
+        "top_target_deltas": {
+          "FNGU": -0.004724,
+          "SOXL": -0.007086
+        },
+        "turnover_delta": 0.185624
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-01",
+        "forward_1d": {
+          "candidate": 0.008828,
+          "delta": -0.003583,
+          "old": 0.012411
+        },
+        "max_route_leg_delta": 0.067697,
+        "max_symbol_delta": 0.041124,
+        "reasons": [
+          "turnover delta=-0.1392",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.067697,
+          "FNGU": -0.041124,
+          "SOXL": -0.037961
+        },
+        "top_target_deltas": {
+          "FNGU": -0.041124,
+          "SOXL": -0.037961
+        },
+        "turnover_delta": -0.139204
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-11-13",
+        "forward_1d": {
+          "candidate": -0.001527,
+          "delta": -0.000182,
+          "old": -0.001345
+        },
+        "max_route_leg_delta": 0.024082,
+        "max_symbol_delta": 0.024082,
+        "reasons": [
+          "turnover delta=-0.1372"
+        ],
+        "risk_binding": "NONE",
+        "scenario_gross": 1.0,
+        "top_route_deltas": {
+          "BOXX": -0.017028,
+          "DBMF": -0.007225,
+          "SOXL": 0.024082
+        },
+        "top_target_deltas": {
+          "FNGU": 0.000171,
+          "SOXL": 0.024082
+        },
+        "turnover_delta": -0.137182
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-10-10",
+        "forward_1d": {
+          "candidate": 0.012226,
+          "delta": -0.000226,
+          "old": 0.012452
+        },
+        "max_route_leg_delta": 0.00296,
+        "max_symbol_delta": 0.00296,
+        "reasons": [
+          "turnover delta=-0.1359"
+        ],
+        "risk_binding": "NONE",
+        "scenario_gross": 1.0,
+        "top_route_deltas": {
+          "BOXX": 0.00296,
+          "FNGU": -0.00296
+        },
+        "top_target_deltas": {
+          "FNGU": -0.00296
+        },
+        "turnover_delta": -0.135852
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-07",
+        "forward_1d": {
+          "candidate": 0.007482,
+          "delta": -0.004713,
+          "old": 0.012195
+        },
+        "max_route_leg_delta": 0.260673,
+        "max_symbol_delta": 0.120311,
+        "reasons": [
+          "max symbol delta=0.1203",
+          "max route leg delta=0.2607",
+          "turnover delta=0.1352",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6133"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.613254,
+        "top_route_deltas": {
+          "BOXX": 0.260673,
+          "FNGU": -0.080207,
+          "SOXL": -0.120311
+        },
+        "top_target_deltas": {
+          "FNGU": -0.080207,
+          "MSTR": -0.060155,
+          "SOXL": -0.120311
+        },
+        "turnover_delta": 0.135214
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-07-02",
+        "forward_1d": {
+          "candidate": 0.011011,
+          "delta": -0.002715,
+          "old": 0.013726
+        },
+        "max_route_leg_delta": 0.132427,
+        "max_symbol_delta": 0.06112,
+        "reasons": [
+          "turnover delta=0.1317"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.815523,
+        "top_route_deltas": {
+          "BOXX": 0.132427,
+          "FNGU": -0.040747,
+          "SOXL": -0.06112
+        },
+        "top_target_deltas": {
+          "FNGU": -0.040747,
+          "MSTR": -0.03056,
+          "SOXL": -0.06112
+        },
+        "turnover_delta": 0.131742
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2026-04-27",
+        "forward_1d": {
+          "candidate": -0.019169,
+          "delta": -0.00192,
+          "old": -0.017248
+        },
+        "max_route_leg_delta": 0.050155,
+        "max_symbol_delta": 0.048105,
+        "reasons": [
+          "turnover delta=-0.1301"
+        ],
+        "risk_binding": "NONE",
+        "scenario_gross": 1.0,
+        "top_route_deltas": {
+          "BOXX": -0.050155,
+          "FNGU": 0.048105,
+          "SOXL": 0.002929
+        },
+        "top_target_deltas": {
+          "FNGU": 0.048105,
+          "SOXL": 0.002929
+        },
+        "turnover_delta": -0.130141
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-07-08",
+        "forward_1d": {
+          "candidate": 0.01332,
+          "delta": -0.003317,
+          "old": 0.016637
+        },
+        "max_route_leg_delta": 0.130293,
+        "max_symbol_delta": 0.060135,
+        "reasons": [
+          "turnover delta=0.1295"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.818848,
+        "top_route_deltas": {
+          "BOXX": 0.130293,
+          "FNGU": -0.04009,
+          "SOXL": -0.060135
+        },
+        "top_target_deltas": {
+          "FNGU": -0.04009,
+          "MSTR": -0.030068,
+          "SOXL": -0.060135
+        },
+        "turnover_delta": 0.129464
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2026-04-15",
+        "forward_1d": {
+          "candidate": 0.009114,
+          "delta": 0.001035,
+          "old": 0.008079
+        },
+        "max_route_leg_delta": 0.033958,
+        "max_symbol_delta": 0.033958,
+        "reasons": [
+          "turnover delta=0.1291"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.964834,
+        "top_route_deltas": {
+          "BOXX": -0.033958,
+          "BRK.B": -0.021914,
+          "SOXL": 0.033958
+        },
+        "top_target_deltas": {
+          "FNGU": 0.021914,
+          "SOXL": 0.033958
+        },
+        "turnover_delta": 0.129084
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-21",
+        "forward_1d": {
+          "candidate": 0.009856,
+          "delta": -0.004249,
+          "old": 0.014104
+        },
+        "max_route_leg_delta": 0.063247,
+        "max_symbol_delta": 0.037948,
+        "reasons": [
+          "turnover delta=0.1265",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BRK.B": 0.063247,
+          "FNGU": -0.025299,
+          "SOXL": -0.037948
+        },
+        "top_target_deltas": {
+          "FNGU": -0.025299,
+          "SOXL": -0.037948
+        },
+        "turnover_delta": 0.126494
+      }
+    ],
+    "largest_candidate_benefit_1d": [
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-09",
+        "forward_1d": {
+          "candidate": -0.049778,
+          "delta": 0.028777,
+          "old": -0.078555
+        },
+        "max_route_leg_delta": 0.187585,
+        "max_symbol_delta": 0.112551,
+        "reasons": [
+          "max symbol delta=0.1126",
+          "max route leg delta=0.1876",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6394"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.6394,
+        "top_route_deltas": {
+          "BOXX": 0.187585,
+          "FNGU": -0.075034,
+          "SOXL": -0.112551
+        },
+        "top_target_deltas": {
+          "FNGU": -0.075034,
+          "SOXL": -0.112551
+        },
+        "turnover_delta": 0.043086
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-06",
+        "forward_1d": {
+          "candidate": -0.021121,
+          "delta": 0.014898,
+          "old": -0.03602
+        },
+        "max_route_leg_delta": 0.268849,
+        "max_symbol_delta": 0.124084,
+        "reasons": [
+          "max symbol delta=0.1241",
+          "max route leg delta=0.2688",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6001"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.600076,
+        "top_route_deltas": {
+          "BOXX": 0.268849,
+          "FNGU": -0.082723,
+          "SOXL": -0.124084
+        },
+        "top_target_deltas": {
+          "FNGU": -0.082723,
+          "MSTR": -0.062042,
+          "SOXL": -0.124084
+        },
+        "turnover_delta": 0.097836
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-28",
+        "forward_1d": {
+          "candidate": -0.023548,
+          "delta": 0.011598,
+          "old": -0.035146
+        },
+        "max_route_leg_delta": 0.158093,
+        "max_symbol_delta": 0.094856,
+        "reasons": [
+          "max route leg delta=0.1581",
+          "turnover delta=0.2930",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.158093,
+          "FNGU": -0.063237,
+          "SOXL": -0.094856
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063237,
+          "SOXL": -0.094856
+        },
+        "turnover_delta": 0.29304
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-07-31",
+        "forward_1d": {
+          "candidate": -0.023256,
+          "delta": 0.010655,
+          "old": -0.033912
+        },
+        "max_route_leg_delta": 0.1373,
+        "max_symbol_delta": 0.063272,
+        "reasons": [
+          "turnover delta=-0.1139",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.1373,
+          "FNGU": -0.063272,
+          "MSTR": -0.047454
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063272,
+          "MSTR": -0.047454,
+          "SOXL": -0.037963
+        },
+        "turnover_delta": -0.113888
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME"
+        ],
+        "date": "2026-03-02",
+        "forward_1d": {
+          "candidate": -0.018872,
+          "delta": 0.009163,
+          "old": -0.028035
+        },
+        "max_route_leg_delta": 0.061462,
+        "max_symbol_delta": 0.061462,
+        "reasons": [
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.061462,
+          "SOXL": -0.061462
+        },
+        "top_target_deltas": {
+          "SOXL": -0.061462
+        },
+        "turnover_delta": 0.075648
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME"
+        ],
+        "date": "2026-02-25",
+        "forward_1d": {
+          "candidate": -0.012451,
+          "delta": 0.008588,
+          "old": -0.021039
+        },
+        "max_route_leg_delta": 0.094566,
+        "max_symbol_delta": 0.094566,
+        "reasons": [
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.094566,
+          "SOXL": -0.094566
+        },
+        "top_target_deltas": {
+          "SOXL": -0.094566
+        },
+        "turnover_delta": -0.066196
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-08-18",
+        "forward_1d": {
+          "candidate": -0.017134,
+          "delta": 0.007813,
+          "old": -0.024946
+        },
+        "max_route_leg_delta": 0.158125,
+        "max_symbol_delta": 0.094875,
+        "reasons": [
+          "max route leg delta=0.1581",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.158125,
+          "FNGU": -0.06325,
+          "SOXL": -0.094875
+        },
+        "top_target_deltas": {
+          "FNGU": -0.06325,
+          "SOXL": -0.094875
+        },
+        "turnover_delta": 0.00265
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-07-30",
+        "forward_1d": {
+          "candidate": -0.016797,
+          "delta": 0.007773,
+          "old": -0.024569
+        },
+        "max_route_leg_delta": 0.205633,
+        "max_symbol_delta": 0.094907,
+        "reasons": [
+          "max route leg delta=0.2056",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.205633,
+          "FNGU": -0.063272,
+          "SOXL": -0.094907
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063272,
+          "MSTR": -0.047454,
+          "SOXL": -0.094907
+        },
+        "turnover_delta": 2e-05
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-04",
+        "forward_1d": {
+          "candidate": -0.009873,
+          "delta": 0.007548,
+          "old": -0.017421
+        },
+        "max_route_leg_delta": 0.280201,
+        "max_symbol_delta": 0.129323,
+        "reasons": [
+          "max symbol delta=0.1293",
+          "max route leg delta=0.2802",
+          "turnover delta=-0.4022",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.5825"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.582522,
+        "top_route_deltas": {
+          "BOXX": 0.280201,
+          "FNGU": -0.086216,
+          "SOXL": -0.129323
+        },
+        "top_target_deltas": {
+          "FNGU": -0.086216,
+          "MSTR": -0.064662,
+          "SOXL": -0.129323
+        },
+        "turnover_delta": -0.402232
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-14",
+        "forward_1d": {
+          "candidate": -0.014524,
+          "delta": 0.006873,
+          "old": -0.021397
+        },
+        "max_route_leg_delta": 0.158132,
+        "max_symbol_delta": 0.094879,
+        "reasons": [
+          "max route leg delta=0.1581",
+          "turnover delta=-0.1120",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.158132,
+          "FNGU": -0.063253,
+          "SOXL": -0.094879
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063253,
+          "SOXL": -0.094879
+        },
+        "turnover_delta": -0.111992
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-07-21",
+        "forward_1d": {
+          "candidate": -0.013593,
+          "delta": 0.00638,
+          "old": -0.019974
+        },
+        "max_route_leg_delta": 0.206713,
+        "max_symbol_delta": 0.095406,
+        "reasons": [
+          "max route leg delta=0.2067",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.698363,
+        "top_route_deltas": {
+          "BOXX": 0.206713,
+          "FNGU": -0.063604,
+          "SOXL": -0.095406
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063604,
+          "MSTR": -0.047703,
+          "SOXL": -0.095406
+        },
+        "turnover_delta": 0.022644
+      },
+      {
+        "categories": [
+          "LOW_GROSS"
+        ],
+        "date": "2026-05-11",
+        "forward_1d": {
+          "candidate": -0.017377,
+          "delta": 0.005754,
+          "old": -0.023131
+        },
+        "max_route_leg_delta": 0.116354,
+        "max_symbol_delta": 0.070045,
+        "reasons": [
+          "scenario gross=0.6091"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.609107,
+        "top_route_deltas": {
+          "BOXX": 0.116354,
+          "FNGU": -0.070045,
+          "SOXL": -0.046309
+        },
+        "top_target_deltas": {
+          "FNGU": -0.070045,
+          "SOXL": -0.046309
+        },
+        "turnover_delta": -0.021614
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME"
+        ],
+        "date": "2026-02-03",
+        "forward_1d": {
+          "candidate": 0.000881,
+          "delta": 0.005199,
+          "old": -0.004318
+        },
+        "max_route_leg_delta": 0.034359,
+        "max_symbol_delta": 0.034359,
+        "reasons": [
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BRK.B": 0.034359,
+          "SOXL": -0.034359
+        },
+        "top_target_deltas": {
+          "SOXL": -0.034359
+        },
+        "turnover_delta": -0.00368
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME"
+        ],
+        "date": "2026-01-07",
+        "forward_1d": {
+          "candidate": -0.0076,
+          "delta": 0.004819,
+          "old": -0.012419
+        },
+        "max_route_leg_delta": 0.094641,
+        "max_symbol_delta": 0.094641,
+        "reasons": [
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.094641,
+          "SOXL": -0.094641
+        },
+        "top_target_deltas": {
+          "SOXL": -0.094641
+        },
+        "turnover_delta": 0.0
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-10-14",
+        "forward_1d": {
+          "candidate": 0.017402,
+          "delta": 0.004582,
+          "old": 0.012821
+        },
+        "max_route_leg_delta": 0.050934,
+        "max_symbol_delta": 0.05009,
+        "reasons": [
+          "turnover delta=-0.2404"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.910207,
+        "top_route_deltas": {
+          "BOXX": -0.050934,
+          "FNGU": 0.000844,
+          "SOXL": 0.05009
+        },
+        "top_target_deltas": {
+          "FNGU": 0.000844,
+          "SOXL": 0.05009
+        },
+        "turnover_delta": -0.240354
+      },
+      {
+        "categories": [
+          "LOW_GROSS"
+        ],
+        "date": "2025-10-13",
+        "forward_1d": {
+          "candidate": -0.01521,
+          "delta": 0.004377,
+          "old": -0.019587
+        },
+        "max_route_leg_delta": 0.083527,
+        "max_symbol_delta": 0.067367,
+        "reasons": [
+          "scenario gross=0.5770"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.57702,
+        "top_route_deltas": {
+          "BOXX": 0.083527,
+          "FNGU": -0.067367,
+          "SOXL": -0.01616
+        },
+        "top_target_deltas": {
+          "FNGU": -0.067367,
+          "SOXL": -0.01616
+        },
+        "turnover_delta": 0.028522
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-22",
+        "forward_1d": {
+          "candidate": -0.00723,
+          "delta": 0.003755,
+          "old": -0.010985
+        },
+        "max_route_leg_delta": 0.22218,
+        "max_symbol_delta": 0.102545,
+        "reasons": [
+          "max symbol delta=0.1025",
+          "max route leg delta=0.2222",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.673994,
+        "top_route_deltas": {
+          "BOXX": 0.22218,
+          "FNGU": -0.068363,
+          "SOXL": -0.102545
+        },
+        "top_target_deltas": {
+          "FNGU": -0.068363,
+          "MSTR": -0.051272,
+          "SOXL": -0.102545
+        },
+        "turnover_delta": 0.030934
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-02",
+        "forward_1d": {
+          "candidate": -0.006524,
+          "delta": 0.003705,
+          "old": -0.010229
+        },
+        "max_route_leg_delta": 0.231452,
+        "max_symbol_delta": 0.106824,
+        "reasons": [
+          "max symbol delta=0.1068",
+          "max route leg delta=0.2315",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.658967,
+        "top_route_deltas": {
+          "BOXX": 0.231452,
+          "FNGU": -0.071216,
+          "SOXL": -0.106824
+        },
+        "top_target_deltas": {
+          "FNGU": -0.071216,
+          "MSTR": -0.053412,
+          "SOXL": -0.106824
+        },
+        "turnover_delta": 0.04008
+      },
+      {
+        "categories": [
+          "TURNOVER_DELTA"
+        ],
+        "date": "2026-04-24",
+        "forward_1d": {
+          "candidate": -0.004565,
+          "delta": 0.003637,
+          "old": -0.008202
+        },
+        "max_route_leg_delta": 0.108072,
+        "max_symbol_delta": 0.099732,
+        "reasons": [
+          "turnover delta=-0.2582"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.675101,
+        "top_route_deltas": {
+          "BOXX": 0.108072,
+          "FNGU": -0.00834,
+          "SOXL": -0.099732
+        },
+        "top_target_deltas": {
+          "FNGU": -0.00834,
+          "SOXL": -0.099732
+        },
+        "turnover_delta": -0.258218
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-07-17",
+        "forward_1d": {
+          "candidate": -0.006882,
+          "delta": 0.003564,
+          "old": -0.010446
+        },
+        "max_route_leg_delta": 0.216275,
+        "max_symbol_delta": 0.099819,
+        "reasons": [
+          "max route leg delta=0.2163",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.683313,
+        "top_route_deltas": {
+          "BOXX": 0.216275,
+          "FNGU": -0.066546,
+          "SOXL": -0.099819
+        },
+        "top_target_deltas": {
+          "FNGU": -0.066546,
+          "MSTR": -0.04991,
+          "SOXL": -0.099819
+        },
+        "turnover_delta": 0.024924
+      }
+    ],
+    "largest_candidate_drag_1d": [
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-07",
+        "forward_1d": {
+          "candidate": 0.025582,
+          "delta": -0.013499,
+          "old": 0.039081
+        },
+        "max_route_leg_delta": 0.169835,
+        "max_symbol_delta": 0.101901,
+        "reasons": [
+          "max symbol delta=0.1019",
+          "max route leg delta=0.1698",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.675744,
+        "top_route_deltas": {
+          "BOXX": 0.169835,
+          "FNGU": -0.067934,
+          "SOXL": -0.101901
+        },
+        "top_target_deltas": {
+          "FNGU": -0.067934,
+          "SOXL": -0.101901
+        },
+        "turnover_delta": 0.073944
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-09-17",
+        "forward_1d": {
+          "candidate": 0.025653,
+          "delta": -0.012044,
+          "old": 0.037697
+        },
+        "max_route_leg_delta": 0.158038,
+        "max_symbol_delta": 0.094823,
+        "reasons": [
+          "max route leg delta=0.1580",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.158038,
+          "FNGU": -0.063215,
+          "SOXL": -0.094823
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063215,
+          "SOXL": -0.094823
+        },
+        "turnover_delta": 1.6e-05
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-03",
+        "forward_1d": {
+          "candidate": 0.02195,
+          "delta": -0.01118,
+          "old": 0.03313
+        },
+        "max_route_leg_delta": 0.219931,
+        "max_symbol_delta": 0.101507,
+        "reasons": [
+          "max symbol delta=0.1015",
+          "max route leg delta=0.2199",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.677104,
+        "top_route_deltas": {
+          "BOXX": 0.219931,
+          "FNGU": -0.067671,
+          "SOXL": -0.101507
+        },
+        "top_target_deltas": {
+          "FNGU": -0.067671,
+          "MSTR": -0.050753,
+          "SOXL": -0.101507
+        },
+        "turnover_delta": 0.023042
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-08-11",
+        "forward_1d": {
+          "candidate": 0.021892,
+          "delta": -0.010702,
+          "old": 0.032594
+        },
+        "max_route_leg_delta": 0.214591,
+        "max_symbol_delta": 0.099042,
+        "reasons": [
+          "max route leg delta=0.2146",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.685824,
+        "top_route_deltas": {
+          "BOXX": 0.214591,
+          "FNGU": -0.066028,
+          "SOXL": -0.099042
+        },
+        "top_target_deltas": {
+          "FNGU": -0.066028,
+          "MSTR": -0.049521,
+          "SOXL": -0.099042
+        },
+        "turnover_delta": 0.037816
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME"
+        ],
+        "date": "2026-01-05",
+        "forward_1d": {
+          "candidate": 0.020473,
+          "delta": -0.009186,
+          "old": 0.029659
+        },
+        "max_route_leg_delta": 0.094645,
+        "max_symbol_delta": 0.094645,
+        "reasons": [
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.094645,
+          "SOXL": -0.094645
+        },
+        "top_target_deltas": {
+          "SOXL": -0.094645
+        },
+        "turnover_delta": -0.066252
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME"
+        ],
+        "date": "2026-01-27",
+        "forward_1d": {
+          "candidate": 0.015389,
+          "delta": -0.007463,
+          "old": 0.022852
+        },
+        "max_route_leg_delta": 0.094608,
+        "max_symbol_delta": 0.094608,
+        "reasons": [
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.094608,
+          "SOXL": -0.094608
+        },
+        "top_target_deltas": {
+          "SOXL": -0.094608
+        },
+        "turnover_delta": 8e-06
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME"
+        ],
+        "date": "2026-01-26",
+        "forward_1d": {
+          "candidate": 0.008005,
+          "delta": -0.006648,
+          "old": 0.014653
+        },
+        "max_route_leg_delta": 0.094612,
+        "max_symbol_delta": 0.094612,
+        "reasons": [
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.094612,
+          "SOXL": -0.094612
+        },
+        "top_target_deltas": {
+          "SOXL": -0.094612
+        },
+        "turnover_delta": 0.0
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-10-01",
+        "forward_1d": {
+          "candidate": 0.013029,
+          "delta": -0.006267,
+          "old": 0.019296
+        },
+        "max_route_leg_delta": 0.158,
+        "max_symbol_delta": 0.0948,
+        "reasons": [
+          "max route leg delta=0.1580",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.158,
+          "FNGU": -0.0632,
+          "SOXL": -0.0948
+        },
+        "top_target_deltas": {
+          "FNGU": -0.0632,
+          "SOXL": -0.0948
+        },
+        "turnover_delta": 0.0
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-09-09",
+        "forward_1d": {
+          "candidate": 0.011946,
+          "delta": -0.005824,
+          "old": 0.01777
+        },
+        "max_route_leg_delta": 0.158062,
+        "max_symbol_delta": 0.094837,
+        "reasons": [
+          "max route leg delta=0.1581",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.158062,
+          "FNGU": -0.063225,
+          "SOXL": -0.094837
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063225,
+          "SOXL": -0.094837
+        },
+        "turnover_delta": 1.6e-05
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-07-25",
+        "forward_1d": {
+          "candidate": 0.012184,
+          "delta": -0.005753,
+          "old": 0.017937
+        },
+        "max_route_leg_delta": 0.209517,
+        "max_symbol_delta": 0.0967,
+        "reasons": [
+          "max route leg delta=0.2095",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.693912,
+        "top_route_deltas": {
+          "BOXX": 0.209517,
+          "FNGU": -0.064467,
+          "SOXL": -0.0967
+        },
+        "top_target_deltas": {
+          "FNGU": -0.064467,
+          "MSTR": -0.04835,
+          "SOXL": -0.0967
+        },
+        "turnover_delta": 0.016216
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-09-30",
+        "forward_1d": {
+          "candidate": 0.010541,
+          "delta": -0.005461,
+          "old": 0.016001
+        },
+        "max_route_leg_delta": 0.158,
+        "max_symbol_delta": 0.0948,
+        "reasons": [
+          "max route leg delta=0.1580",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.158,
+          "FNGU": -0.0632,
+          "SOXL": -0.0948
+        },
+        "top_target_deltas": {
+          "FNGU": -0.0632,
+          "SOXL": -0.0948
+        },
+        "turnover_delta": 1.4e-05
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-09-12",
+        "forward_1d": {
+          "candidate": 0.010446,
+          "delta": -0.005137,
+          "old": 0.015583
+        },
+        "max_route_leg_delta": 0.158054,
+        "max_symbol_delta": 0.094832,
+        "reasons": [
+          "max route leg delta=0.1581",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.158054,
+          "FNGU": -0.063222,
+          "SOXL": -0.094832
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063222,
+          "SOXL": -0.094832
+        },
+        "turnover_delta": 0.0
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-07",
+        "forward_1d": {
+          "candidate": 0.007482,
+          "delta": -0.004713,
+          "old": 0.012195
+        },
+        "max_route_leg_delta": 0.260673,
+        "max_symbol_delta": 0.120311,
+        "reasons": [
+          "max symbol delta=0.1203",
+          "max route leg delta=0.2607",
+          "turnover delta=0.1352",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6133"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.613254,
+        "top_route_deltas": {
+          "BOXX": 0.260673,
+          "FNGU": -0.080207,
+          "SOXL": -0.120311
+        },
+        "top_target_deltas": {
+          "FNGU": -0.080207,
+          "MSTR": -0.060155,
+          "SOXL": -0.120311
+        },
+        "turnover_delta": 0.135214
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-09-03",
+        "forward_1d": {
+          "candidate": 0.010119,
+          "delta": -0.004551,
+          "old": 0.01467
+        },
+        "max_route_leg_delta": 0.158077,
+        "max_symbol_delta": 0.094846,
+        "reasons": [
+          "max route leg delta=0.1581",
+          "turnover delta=-0.1897",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.158077,
+          "FNGU": -0.063231,
+          "SOXL": -0.094846
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063231,
+          "SOXL": -0.094846
+        },
+        "turnover_delta": -0.189686
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-09-05",
+        "forward_1d": {
+          "candidate": 0.007041,
+          "delta": -0.004393,
+          "old": 0.011433
+        },
+        "max_route_leg_delta": 0.16506,
+        "max_symbol_delta": 0.099036,
+        "reasons": [
+          "max route leg delta=0.1651",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.685691,
+        "top_route_deltas": {
+          "BOXX": 0.16506,
+          "FNGU": -0.066024,
+          "SOXL": -0.099036
+        },
+        "top_target_deltas": {
+          "FNGU": -0.066024,
+          "SOXL": -0.099036
+        },
+        "turnover_delta": 0.0
+      },
+      {
+        "categories": [
+          "LOW_GROSS"
+        ],
+        "date": "2026-05-12",
+        "forward_1d": {
+          "candidate": 0.017356,
+          "delta": -0.004357,
+          "old": 0.021713
+        },
+        "max_route_leg_delta": 0.091995,
+        "max_symbol_delta": 0.066629,
+        "reasons": [
+          "scenario gross=0.6206"
+        ],
+        "risk_binding": "VOL",
+        "scenario_gross": 0.620616,
+        "top_route_deltas": {
+          "BOXX": 0.091995,
+          "FNGU": -0.066629,
+          "SOXL": -0.025366
+        },
+        "top_target_deltas": {
+          "FNGU": -0.066629,
+          "SOXL": -0.025366
+        },
+        "turnover_delta": -0.026186
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-09-04",
+        "forward_1d": {
+          "candidate": 0.009314,
+          "delta": -0.00434,
+          "old": 0.013655
+        },
+        "max_route_leg_delta": 0.16486,
+        "max_symbol_delta": 0.098916,
+        "reasons": [
+          "max route leg delta=0.1649",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.686113,
+        "top_route_deltas": {
+          "BOXX": 0.16486,
+          "FNGU": -0.065944,
+          "SOXL": -0.098916
+        },
+        "top_target_deltas": {
+          "FNGU": -0.065944,
+          "SOXL": -0.098916
+        },
+        "turnover_delta": 0.013566
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-21",
+        "forward_1d": {
+          "candidate": 0.009856,
+          "delta": -0.004249,
+          "old": 0.014104
+        },
+        "max_route_leg_delta": 0.063247,
+        "max_symbol_delta": 0.037948,
+        "reasons": [
+          "turnover delta=0.1265",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BRK.B": 0.063247,
+          "FNGU": -0.025299,
+          "SOXL": -0.037948
+        },
+        "top_target_deltas": {
+          "FNGU": -0.025299,
+          "SOXL": -0.037948
+        },
+        "turnover_delta": 0.126494
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-08-12",
+        "forward_1d": {
+          "candidate": 0.00592,
+          "delta": -0.00392,
+          "old": 0.009841
+        },
+        "max_route_leg_delta": 0.263681,
+        "max_symbol_delta": 0.121699,
+        "reasons": [
+          "max symbol delta=0.1217",
+          "max route leg delta=0.2637",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6085"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.608488,
+        "top_route_deltas": {
+          "BOXX": 0.263681,
+          "FNGU": -0.081133,
+          "SOXL": -0.121699
+        },
+        "top_target_deltas": {
+          "FNGU": -0.081133,
+          "MSTR": -0.060849,
+          "SOXL": -0.121699
+        },
+        "turnover_delta": 0.09818
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-06",
+        "forward_1d": {
+          "candidate": 0.003388,
+          "delta": -0.003741,
+          "old": 0.007129
+        },
+        "max_route_leg_delta": 0.110714,
+        "max_symbol_delta": 0.063265,
+        "reasons": [
+          "turnover delta=0.2754",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.7,
+        "top_route_deltas": {
+          "BOXX": 0.110714,
+          "FNGU": -0.063265,
+          "MSTR": -0.047449
+        },
+        "top_target_deltas": {
+          "FNGU": -0.063265,
+          "MSTR": -0.047449,
+          "SOXL": -0.037959
+        },
+        "turnover_delta": 0.27542
+      }
+    ],
+    "largest_route_delta": [
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-04",
+        "forward_1d": {
+          "candidate": -0.009873,
+          "delta": 0.007548,
+          "old": -0.017421
+        },
+        "max_route_leg_delta": 0.280201,
+        "max_symbol_delta": 0.129323,
+        "reasons": [
+          "max symbol delta=0.1293",
+          "max route leg delta=0.2802",
+          "turnover delta=-0.4022",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.5825"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.582522,
+        "top_route_deltas": {
+          "BOXX": 0.280201,
+          "FNGU": -0.086216,
+          "SOXL": -0.129323
+        },
+        "top_target_deltas": {
+          "FNGU": -0.086216,
+          "MSTR": -0.064662,
+          "SOXL": -0.129323
+        },
+        "turnover_delta": -0.402232
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-06",
+        "forward_1d": {
+          "candidate": -0.021121,
+          "delta": 0.014898,
+          "old": -0.03602
+        },
+        "max_route_leg_delta": 0.268849,
+        "max_symbol_delta": 0.124084,
+        "reasons": [
+          "max symbol delta=0.1241",
+          "max route leg delta=0.2688",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6001"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.600076,
+        "top_route_deltas": {
+          "BOXX": 0.268849,
+          "FNGU": -0.082723,
+          "SOXL": -0.124084
+        },
+        "top_target_deltas": {
+          "FNGU": -0.082723,
+          "MSTR": -0.062042,
+          "SOXL": -0.124084
+        },
+        "turnover_delta": 0.097836
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-08-12",
+        "forward_1d": {
+          "candidate": 0.00592,
+          "delta": -0.00392,
+          "old": 0.009841
+        },
+        "max_route_leg_delta": 0.263681,
+        "max_symbol_delta": 0.121699,
+        "reasons": [
+          "max symbol delta=0.1217",
+          "max route leg delta=0.2637",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6085"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.608488,
+        "top_route_deltas": {
+          "BOXX": 0.263681,
+          "FNGU": -0.081133,
+          "SOXL": -0.121699
+        },
+        "top_target_deltas": {
+          "FNGU": -0.081133,
+          "MSTR": -0.060849,
+          "SOXL": -0.121699
+        },
+        "turnover_delta": 0.09818
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-07",
+        "forward_1d": {
+          "candidate": 0.007482,
+          "delta": -0.004713,
+          "old": 0.012195
+        },
+        "max_route_leg_delta": 0.260673,
+        "max_symbol_delta": 0.120311,
+        "reasons": [
+          "max symbol delta=0.1203",
+          "max route leg delta=0.2607",
+          "turnover delta=0.1352",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6133"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.613254,
+        "top_route_deltas": {
+          "BOXX": 0.260673,
+          "FNGU": -0.080207,
+          "SOXL": -0.120311
+        },
+        "top_target_deltas": {
+          "FNGU": -0.080207,
+          "MSTR": -0.060155,
+          "SOXL": -0.120311
+        },
+        "turnover_delta": 0.135214
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-07-14",
+        "forward_1d": {
+          "candidate": 0.00519,
+          "delta": -0.003135,
+          "old": 0.008325
+        },
+        "max_route_leg_delta": 0.247415,
+        "max_symbol_delta": 0.114191,
+        "reasons": [
+          "max symbol delta=0.1142",
+          "max route leg delta=0.2474",
+          "turnover delta=0.3165",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6343"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.634283,
+        "top_route_deltas": {
+          "BOXX": 0.247415,
+          "FNGU": -0.076128,
+          "SOXL": -0.114191
+        },
+        "top_target_deltas": {
+          "FNGU": -0.076128,
+          "MSTR": -0.057096,
+          "SOXL": -0.114191
+        },
+        "turnover_delta": 0.316486
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-08-13",
+        "forward_1d": {
+          "candidate": -0.00207,
+          "delta": 0.001233,
+          "old": -0.003303
+        },
+        "max_route_leg_delta": 0.242649,
+        "max_symbol_delta": 0.111992,
+        "reasons": [
+          "max symbol delta=0.1120",
+          "max route leg delta=0.2426",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6416"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.641616,
+        "top_route_deltas": {
+          "BOXX": 0.242649,
+          "FNGU": -0.074661,
+          "SOXL": -0.111992
+        },
+        "top_target_deltas": {
+          "FNGU": -0.074661,
+          "MSTR": -0.055996,
+          "SOXL": -0.111992
+        },
+        "turnover_delta": 0.042064
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-15",
+        "forward_1d": {
+          "candidate": 0.000696,
+          "delta": -0.000294,
+          "old": 0.00099
+        },
+        "max_route_leg_delta": 0.235239,
+        "max_symbol_delta": 0.108572,
+        "reasons": [
+          "max symbol delta=0.1086",
+          "max route leg delta=0.2352",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.653467,
+        "top_route_deltas": {
+          "BOXX": 0.235239,
+          "FNGU": -0.072381,
+          "SOXL": -0.108572
+        },
+        "top_target_deltas": {
+          "FNGU": -0.072381,
+          "MSTR": -0.054286,
+          "SOXL": -0.108572
+        },
+        "turnover_delta": 0.024352
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-08-08",
+        "forward_1d": {
+          "candidate": -0.000399,
+          "delta": 0.000224,
+          "old": -0.000622
+        },
+        "max_route_leg_delta": 0.233499,
+        "max_symbol_delta": 0.107769,
+        "reasons": [
+          "max symbol delta=0.1078",
+          "max route leg delta=0.2335",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.656057,
+        "top_route_deltas": {
+          "BOXX": 0.233499,
+          "FNGU": -0.071846,
+          "SOXL": -0.107769
+        },
+        "top_target_deltas": {
+          "FNGU": -0.071846,
+          "MSTR": -0.053884,
+          "SOXL": -0.107769
+        },
+        "turnover_delta": 0.054348
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-02",
+        "forward_1d": {
+          "candidate": -0.006524,
+          "delta": 0.003705,
+          "old": -0.010229
+        },
+        "max_route_leg_delta": 0.231452,
+        "max_symbol_delta": 0.106824,
+        "reasons": [
+          "max symbol delta=0.1068",
+          "max route leg delta=0.2315",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.658967,
+        "top_route_deltas": {
+          "BOXX": 0.231452,
+          "FNGU": -0.071216,
+          "SOXL": -0.106824
+        },
+        "top_target_deltas": {
+          "FNGU": -0.071216,
+          "MSTR": -0.053412,
+          "SOXL": -0.106824
+        },
+        "turnover_delta": 0.04008
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-16",
+        "forward_1d": {
+          "candidate": 0.003091,
+          "delta": -0.001582,
+          "old": 0.004673
+        },
+        "max_route_leg_delta": 0.228737,
+        "max_symbol_delta": 0.105571,
+        "reasons": [
+          "max symbol delta=0.1056",
+          "max route leg delta=0.2287",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.663695,
+        "top_route_deltas": {
+          "BOXX": 0.228737,
+          "FNGU": -0.070381,
+          "SOXL": -0.105571
+        },
+        "top_target_deltas": {
+          "FNGU": -0.070381,
+          "MSTR": -0.052785,
+          "SOXL": -0.105571
+        },
+        "turnover_delta": 0.013004
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-28",
+        "forward_1d": {
+          "candidate": -0.001951,
+          "delta": 0.001122,
+          "old": -0.003073
+        },
+        "max_route_leg_delta": 0.224419,
+        "max_symbol_delta": 0.103578,
+        "reasons": [
+          "max symbol delta=0.1036",
+          "max route leg delta=0.2244",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.670435,
+        "top_route_deltas": {
+          "BOXX": 0.224419,
+          "FNGU": -0.069052,
+          "SOXL": -0.103578
+        },
+        "top_target_deltas": {
+          "FNGU": -0.069052,
+          "MSTR": -0.051789,
+          "SOXL": -0.103578
+        },
+        "turnover_delta": 0.029804
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-23",
+        "forward_1d": {
+          "candidate": 0.004255,
+          "delta": -0.002173,
+          "old": 0.006428
+        },
+        "max_route_leg_delta": 0.222764,
+        "max_symbol_delta": 0.102814,
+        "reasons": [
+          "max symbol delta=0.1028",
+          "max route leg delta=0.2228",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.673059,
+        "top_route_deltas": {
+          "BOXX": 0.222764,
+          "FNGU": -0.068543,
+          "SOXL": -0.102814
+        },
+        "top_target_deltas": {
+          "FNGU": -0.068543,
+          "MSTR": -0.051407,
+          "SOXL": -0.102814
+        },
+        "turnover_delta": 0.001168
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-22",
+        "forward_1d": {
+          "candidate": -0.00723,
+          "delta": 0.003755,
+          "old": -0.010985
+        },
+        "max_route_leg_delta": 0.22218,
+        "max_symbol_delta": 0.102545,
+        "reasons": [
+          "max symbol delta=0.1025",
+          "max route leg delta=0.2222",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.673994,
+        "top_route_deltas": {
+          "BOXX": 0.22218,
+          "FNGU": -0.068363,
+          "SOXL": -0.102545
+        },
+        "top_target_deltas": {
+          "FNGU": -0.068363,
+          "MSTR": -0.051272,
+          "SOXL": -0.102545
+        },
+        "turnover_delta": 0.030934
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-03",
+        "forward_1d": {
+          "candidate": 0.02195,
+          "delta": -0.01118,
+          "old": 0.03313
+        },
+        "max_route_leg_delta": 0.219931,
+        "max_symbol_delta": 0.101507,
+        "reasons": [
+          "max symbol delta=0.1015",
+          "max route leg delta=0.2199",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.677104,
+        "top_route_deltas": {
+          "BOXX": 0.219931,
+          "FNGU": -0.067671,
+          "SOXL": -0.101507
+        },
+        "top_target_deltas": {
+          "FNGU": -0.067671,
+          "MSTR": -0.050753,
+          "SOXL": -0.101507
+        },
+        "turnover_delta": 0.023042
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-18",
+        "forward_1d": {
+          "candidate": 0.005926,
+          "delta": -0.002857,
+          "old": 0.008784
+        },
+        "max_route_leg_delta": 0.218035,
+        "max_symbol_delta": 0.100631,
+        "reasons": [
+          "max symbol delta=0.1006",
+          "max route leg delta=0.2180",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.680541,
+        "top_route_deltas": {
+          "BOXX": 0.218035,
+          "FNGU": -0.067088,
+          "SOXL": -0.100631
+        },
+        "top_target_deltas": {
+          "FNGU": -0.067088,
+          "MSTR": -0.050316,
+          "SOXL": -0.100631
+        },
+        "turnover_delta": 0.00352
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-24",
+        "forward_1d": {
+          "candidate": -0.00255,
+          "delta": 0.001462,
+          "old": -0.004012
+        },
+        "max_route_leg_delta": 0.217625,
+        "max_symbol_delta": 0.100442,
+        "reasons": [
+          "max symbol delta=0.1004",
+          "max route leg delta=0.2176",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.681155,
+        "top_route_deltas": {
+          "BOXX": 0.217625,
+          "FNGU": -0.066962,
+          "SOXL": -0.100442
+        },
+        "top_target_deltas": {
+          "FNGU": -0.066962,
+          "MSTR": -0.050221,
+          "SOXL": -0.100442
+        },
+        "turnover_delta": 0.010278
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-07-17",
+        "forward_1d": {
+          "candidate": -0.006882,
+          "delta": 0.003564,
+          "old": -0.010446
+        },
+        "max_route_leg_delta": 0.216275,
+        "max_symbol_delta": 0.099819,
+        "reasons": [
+          "max route leg delta=0.2163",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.683313,
+        "top_route_deltas": {
+          "BOXX": 0.216275,
+          "FNGU": -0.066546,
+          "SOXL": -0.099819
+        },
+        "top_target_deltas": {
+          "FNGU": -0.066546,
+          "MSTR": -0.04991,
+          "SOXL": -0.099819
+        },
+        "turnover_delta": 0.024924
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-08-11",
+        "forward_1d": {
+          "candidate": 0.021892,
+          "delta": -0.010702,
+          "old": 0.032594
+        },
+        "max_route_leg_delta": 0.214591,
+        "max_symbol_delta": 0.099042,
+        "reasons": [
+          "max route leg delta=0.2146",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.685824,
+        "top_route_deltas": {
+          "BOXX": 0.214591,
+          "FNGU": -0.066028,
+          "SOXL": -0.099042
+        },
+        "top_target_deltas": {
+          "FNGU": -0.066028,
+          "MSTR": -0.049521,
+          "SOXL": -0.099042
+        },
+        "turnover_delta": 0.037816
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA"
+        ],
+        "date": "2025-07-25",
+        "forward_1d": {
+          "candidate": 0.012184,
+          "delta": -0.005753,
+          "old": 0.017937
+        },
+        "max_route_leg_delta": 0.209517,
+        "max_symbol_delta": 0.0967,
+        "reasons": [
+          "max route leg delta=0.2095",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.693912,
+        "top_route_deltas": {
+          "BOXX": 0.209517,
+          "FNGU": -0.064467,
+          "SOXL": -0.0967
+        },
+        "top_target_deltas": {
+          "FNGU": -0.064467,
+          "MSTR": -0.04835,
+          "SOXL": -0.0967
+        },
+        "turnover_delta": 0.016216
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-08",
+        "forward_1d": {
+          "candidate": -0.00221,
+          "delta": 0.00092,
+          "old": -0.003131
+        },
+        "max_route_leg_delta": 0.209128,
+        "max_symbol_delta": 0.125477,
+        "reasons": [
+          "max symbol delta=0.1255",
+          "max route leg delta=0.2091",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.5953"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.595309,
+        "top_route_deltas": {
+          "BOXX": 0.209128,
+          "FNGU": -0.083651,
+          "SOXL": -0.125477
+        },
+        "top_target_deltas": {
+          "FNGU": -0.083651,
+          "SOXL": -0.125477
+        },
+        "turnover_delta": 0.078586
+      }
+    ],
+    "largest_symbol_delta": [
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-04",
+        "forward_1d": {
+          "candidate": -0.009873,
+          "delta": 0.007548,
+          "old": -0.017421
+        },
+        "max_route_leg_delta": 0.280201,
+        "max_symbol_delta": 0.129323,
+        "reasons": [
+          "max symbol delta=0.1293",
+          "max route leg delta=0.2802",
+          "turnover delta=-0.4022",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.5825"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.582522,
+        "top_route_deltas": {
+          "BOXX": 0.280201,
+          "FNGU": -0.086216,
+          "SOXL": -0.129323
+        },
+        "top_target_deltas": {
+          "FNGU": -0.086216,
+          "MSTR": -0.064662,
+          "SOXL": -0.129323
+        },
+        "turnover_delta": -0.402232
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-08",
+        "forward_1d": {
+          "candidate": -0.00221,
+          "delta": 0.00092,
+          "old": -0.003131
+        },
+        "max_route_leg_delta": 0.209128,
+        "max_symbol_delta": 0.125477,
+        "reasons": [
+          "max symbol delta=0.1255",
+          "max route leg delta=0.2091",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.5953"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.595309,
+        "top_route_deltas": {
+          "BOXX": 0.209128,
+          "FNGU": -0.083651,
+          "SOXL": -0.125477
+        },
+        "top_target_deltas": {
+          "FNGU": -0.083651,
+          "SOXL": -0.125477
+        },
+        "turnover_delta": 0.078586
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-06",
+        "forward_1d": {
+          "candidate": -0.021121,
+          "delta": 0.014898,
+          "old": -0.03602
+        },
+        "max_route_leg_delta": 0.268849,
+        "max_symbol_delta": 0.124084,
+        "reasons": [
+          "max symbol delta=0.1241",
+          "max route leg delta=0.2688",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6001"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.600076,
+        "top_route_deltas": {
+          "BOXX": 0.268849,
+          "FNGU": -0.082723,
+          "SOXL": -0.124084
+        },
+        "top_target_deltas": {
+          "FNGU": -0.082723,
+          "MSTR": -0.062042,
+          "SOXL": -0.124084
+        },
+        "turnover_delta": 0.097836
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-08-12",
+        "forward_1d": {
+          "candidate": 0.00592,
+          "delta": -0.00392,
+          "old": 0.009841
+        },
+        "max_route_leg_delta": 0.263681,
+        "max_symbol_delta": 0.121699,
+        "reasons": [
+          "max symbol delta=0.1217",
+          "max route leg delta=0.2637",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6085"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.608488,
+        "top_route_deltas": {
+          "BOXX": 0.263681,
+          "FNGU": -0.081133,
+          "SOXL": -0.121699
+        },
+        "top_target_deltas": {
+          "FNGU": -0.081133,
+          "MSTR": -0.060849,
+          "SOXL": -0.121699
+        },
+        "turnover_delta": 0.09818
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-08-07",
+        "forward_1d": {
+          "candidate": 0.007482,
+          "delta": -0.004713,
+          "old": 0.012195
+        },
+        "max_route_leg_delta": 0.260673,
+        "max_symbol_delta": 0.120311,
+        "reasons": [
+          "max symbol delta=0.1203",
+          "max route leg delta=0.2607",
+          "turnover delta=0.1352",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6133"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.613254,
+        "top_route_deltas": {
+          "BOXX": 0.260673,
+          "FNGU": -0.080207,
+          "SOXL": -0.120311
+        },
+        "top_target_deltas": {
+          "FNGU": -0.080207,
+          "MSTR": -0.060155,
+          "SOXL": -0.120311
+        },
+        "turnover_delta": 0.135214
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA",
+          "TURNOVER_DELTA"
+        ],
+        "date": "2025-07-14",
+        "forward_1d": {
+          "candidate": 0.00519,
+          "delta": -0.003135,
+          "old": 0.008325
+        },
+        "max_route_leg_delta": 0.247415,
+        "max_symbol_delta": 0.114191,
+        "reasons": [
+          "max symbol delta=0.1142",
+          "max route leg delta=0.2474",
+          "turnover delta=0.3165",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6343"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.634283,
+        "top_route_deltas": {
+          "BOXX": 0.247415,
+          "FNGU": -0.076128,
+          "SOXL": -0.114191
+        },
+        "top_target_deltas": {
+          "FNGU": -0.076128,
+          "MSTR": -0.057096,
+          "SOXL": -0.114191
+        },
+        "turnover_delta": 0.316486
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-09",
+        "forward_1d": {
+          "candidate": -0.049778,
+          "delta": 0.028777,
+          "old": -0.078555
+        },
+        "max_route_leg_delta": 0.187585,
+        "max_symbol_delta": 0.112551,
+        "reasons": [
+          "max symbol delta=0.1126",
+          "max route leg delta=0.1876",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6394"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.6394,
+        "top_route_deltas": {
+          "BOXX": 0.187585,
+          "FNGU": -0.075034,
+          "SOXL": -0.112551
+        },
+        "top_target_deltas": {
+          "FNGU": -0.075034,
+          "SOXL": -0.112551
+        },
+        "turnover_delta": 0.043086
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "LOW_GROSS",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-08-13",
+        "forward_1d": {
+          "candidate": -0.00207,
+          "delta": 0.001233,
+          "old": -0.003303
+        },
+        "max_route_leg_delta": 0.242649,
+        "max_symbol_delta": 0.111992,
+        "reasons": [
+          "max symbol delta=0.1120",
+          "max route leg delta=0.2426",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME",
+          "scenario gross=0.6416"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.641616,
+        "top_route_deltas": {
+          "BOXX": 0.242649,
+          "FNGU": -0.074661,
+          "SOXL": -0.111992
+        },
+        "top_target_deltas": {
+          "FNGU": -0.074661,
+          "MSTR": -0.055996,
+          "SOXL": -0.111992
+        },
+        "turnover_delta": 0.042064
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-15",
+        "forward_1d": {
+          "candidate": 0.000696,
+          "delta": -0.000294,
+          "old": 0.00099
+        },
+        "max_route_leg_delta": 0.235239,
+        "max_symbol_delta": 0.108572,
+        "reasons": [
+          "max symbol delta=0.1086",
+          "max route leg delta=0.2352",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.653467,
+        "top_route_deltas": {
+          "BOXX": 0.235239,
+          "FNGU": -0.072381,
+          "SOXL": -0.108572
+        },
+        "top_target_deltas": {
+          "FNGU": -0.072381,
+          "MSTR": -0.054286,
+          "SOXL": -0.108572
+        },
+        "turnover_delta": 0.024352
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-09-18",
+        "forward_1d": {
+          "candidate": 0.000257,
+          "delta": 5.4e-05,
+          "old": 0.000203
+        },
+        "max_route_leg_delta": 0.18071,
+        "max_symbol_delta": 0.108426,
+        "reasons": [
+          "max symbol delta=0.1084",
+          "max route leg delta=0.1807",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.653575,
+        "top_route_deltas": {
+          "BOXX": 0.18071,
+          "FNGU": -0.072284,
+          "SOXL": -0.108426
+        },
+        "top_target_deltas": {
+          "FNGU": -0.072284,
+          "SOXL": -0.108426
+        },
+        "turnover_delta": 0.045344
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-08-08",
+        "forward_1d": {
+          "candidate": -0.000399,
+          "delta": 0.000224,
+          "old": -0.000622
+        },
+        "max_route_leg_delta": 0.233499,
+        "max_symbol_delta": 0.107769,
+        "reasons": [
+          "max symbol delta=0.1078",
+          "max route leg delta=0.2335",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.656057,
+        "top_route_deltas": {
+          "BOXX": 0.233499,
+          "FNGU": -0.071846,
+          "SOXL": -0.107769
+        },
+        "top_target_deltas": {
+          "FNGU": -0.071846,
+          "MSTR": -0.053884,
+          "SOXL": -0.107769
+        },
+        "turnover_delta": 0.054348
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-02",
+        "forward_1d": {
+          "candidate": -0.006524,
+          "delta": 0.003705,
+          "old": -0.010229
+        },
+        "max_route_leg_delta": 0.231452,
+        "max_symbol_delta": 0.106824,
+        "reasons": [
+          "max symbol delta=0.1068",
+          "max route leg delta=0.2315",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.658967,
+        "top_route_deltas": {
+          "BOXX": 0.231452,
+          "FNGU": -0.071216,
+          "SOXL": -0.106824
+        },
+        "top_target_deltas": {
+          "FNGU": -0.071216,
+          "MSTR": -0.053412,
+          "SOXL": -0.106824
+        },
+        "turnover_delta": 0.04008
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-16",
+        "forward_1d": {
+          "candidate": 0.003091,
+          "delta": -0.001582,
+          "old": 0.004673
+        },
+        "max_route_leg_delta": 0.228737,
+        "max_symbol_delta": 0.105571,
+        "reasons": [
+          "max symbol delta=0.1056",
+          "max route leg delta=0.2287",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.663695,
+        "top_route_deltas": {
+          "BOXX": 0.228737,
+          "FNGU": -0.070381,
+          "SOXL": -0.105571
+        },
+        "top_target_deltas": {
+          "FNGU": -0.070381,
+          "MSTR": -0.052785,
+          "SOXL": -0.105571
+        },
+        "turnover_delta": 0.013004
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-28",
+        "forward_1d": {
+          "candidate": -0.001951,
+          "delta": 0.001122,
+          "old": -0.003073
+        },
+        "max_route_leg_delta": 0.224419,
+        "max_symbol_delta": 0.103578,
+        "reasons": [
+          "max symbol delta=0.1036",
+          "max route leg delta=0.2244",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.670435,
+        "top_route_deltas": {
+          "BOXX": 0.224419,
+          "FNGU": -0.069052,
+          "SOXL": -0.103578
+        },
+        "top_target_deltas": {
+          "FNGU": -0.069052,
+          "MSTR": -0.051789,
+          "SOXL": -0.103578
+        },
+        "turnover_delta": 0.029804
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-23",
+        "forward_1d": {
+          "candidate": 0.004255,
+          "delta": -0.002173,
+          "old": 0.006428
+        },
+        "max_route_leg_delta": 0.222764,
+        "max_symbol_delta": 0.102814,
+        "reasons": [
+          "max symbol delta=0.1028",
+          "max route leg delta=0.2228",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.673059,
+        "top_route_deltas": {
+          "BOXX": 0.222764,
+          "FNGU": -0.068543,
+          "SOXL": -0.102814
+        },
+        "top_target_deltas": {
+          "FNGU": -0.068543,
+          "MSTR": -0.051407,
+          "SOXL": -0.102814
+        },
+        "turnover_delta": 0.001168
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-22",
+        "forward_1d": {
+          "candidate": -0.00723,
+          "delta": 0.003755,
+          "old": -0.010985
+        },
+        "max_route_leg_delta": 0.22218,
+        "max_symbol_delta": 0.102545,
+        "reasons": [
+          "max symbol delta=0.1025",
+          "max route leg delta=0.2222",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.673994,
+        "top_route_deltas": {
+          "BOXX": 0.22218,
+          "FNGU": -0.068363,
+          "SOXL": -0.102545
+        },
+        "top_target_deltas": {
+          "FNGU": -0.068363,
+          "MSTR": -0.051272,
+          "SOXL": -0.102545
+        },
+        "turnover_delta": 0.030934
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-07",
+        "forward_1d": {
+          "candidate": 0.025582,
+          "delta": -0.013499,
+          "old": 0.039081
+        },
+        "max_route_leg_delta": 0.169835,
+        "max_symbol_delta": 0.101901,
+        "reasons": [
+          "max symbol delta=0.1019",
+          "max route leg delta=0.1698",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.675744,
+        "top_route_deltas": {
+          "BOXX": 0.169835,
+          "FNGU": -0.067934,
+          "SOXL": -0.101901
+        },
+        "top_target_deltas": {
+          "FNGU": -0.067934,
+          "SOXL": -0.101901
+        },
+        "turnover_delta": 0.073944
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-10-03",
+        "forward_1d": {
+          "candidate": 0.02195,
+          "delta": -0.01118,
+          "old": 0.03313
+        },
+        "max_route_leg_delta": 0.219931,
+        "max_symbol_delta": 0.101507,
+        "reasons": [
+          "max symbol delta=0.1015",
+          "max route leg delta=0.2199",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.677104,
+        "top_route_deltas": {
+          "BOXX": 0.219931,
+          "FNGU": -0.067671,
+          "SOXL": -0.101507
+        },
+        "top_target_deltas": {
+          "FNGU": -0.067671,
+          "MSTR": -0.050753,
+          "SOXL": -0.101507
+        },
+        "turnover_delta": 0.023042
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-18",
+        "forward_1d": {
+          "candidate": 0.005926,
+          "delta": -0.002857,
+          "old": 0.008784
+        },
+        "max_route_leg_delta": 0.218035,
+        "max_symbol_delta": 0.100631,
+        "reasons": [
+          "max symbol delta=0.1006",
+          "max route leg delta=0.2180",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.680541,
+        "top_route_deltas": {
+          "BOXX": 0.218035,
+          "FNGU": -0.067088,
+          "SOXL": -0.100631
+        },
+        "top_target_deltas": {
+          "FNGU": -0.067088,
+          "MSTR": -0.050316,
+          "SOXL": -0.100631
+        },
+        "turnover_delta": 0.00352
+      },
+      {
+        "categories": [
+          "EXTREME_CORR",
+          "EXTREME_REGIME",
+          "ROUTE_LEG_DELTA",
+          "SYMBOL_DELTA"
+        ],
+        "date": "2025-07-24",
+        "forward_1d": {
+          "candidate": -0.00255,
+          "delta": 0.001462,
+          "old": -0.004012
+        },
+        "max_route_leg_delta": 0.217625,
+        "max_symbol_delta": 0.100442,
+        "reasons": [
+          "max symbol delta=0.1004",
+          "max route leg delta=0.2176",
+          "risk binding=EXTREME_CORR",
+          "corr regime=EXTREME"
+        ],
+        "risk_binding": "EXTREME_CORR",
+        "scenario_gross": 0.681155,
+        "top_route_deltas": {
+          "BOXX": 0.217625,
+          "FNGU": -0.066962,
+          "SOXL": -0.100442
+        },
+        "top_target_deltas": {
+          "FNGU": -0.066962,
+          "MSTR": -0.050221,
+          "SOXL": -0.100442
+        },
+        "turnover_delta": 0.010278
+      }
+    ]
+  },
+  "warn_forward_stats": {
+    "1": {
+      "count": 124,
+      "max": 0.028777,
+      "mean": -2.5e-05,
+      "median": -0.000193,
+      "min": -0.013499,
+      "positive_share": 0.395161
+    },
+    "10": {
+      "count": 122,
+      "max": 0.021556,
+      "mean": -0.002866,
+      "median": -0.000215,
+      "min": -0.039576,
+      "positive_share": 0.418033
+    },
+    "5": {
+      "count": 122,
+      "max": 0.025266,
+      "mean": -0.000498,
+      "median": -0.000449,
+      "min": -0.021146,
+      "positive_share": 0.409836
+    }
+  },
+  "warn_month_counts": {
+    "2025-07": 17,
+    "2025-08": 19,
+    "2025-09": 21,
+    "2025-10": 12,
+    "2025-11": 3,
+    "2026-01": 20,
+    "2026-02": 16,
+    "2026-03": 7,
+    "2026-04": 3,
+    "2026-05": 6
+  }
+}

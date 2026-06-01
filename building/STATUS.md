@@ -15,7 +15,7 @@
 | 12 镜像参考系统 | DONE | local only | n/a | IBKR 未接 | 2026-06-01 |
 | 13 元模型 | LOCKED | - | - | 标签解锁门未达 | - |
 | 14 WebUI 与可观测性 | PARTIAL | local only | n/a | 未接 IBKR drilldown | 2026-06-01 |
-| 15 集成、dry-run、切换 | **IN-PROGRESS / DRY-RUN-COMPARATOR-DONE** | local only | shadow + dry-run comparator passed | Phase II 252 日 shadow、相关闸敏感性、2113 日 full-window sensitivity 已跑通；Phase III 252 日 daily comparator：errors=0、R3=0、BLOCK=0；live 开关保持关闭 | 2026-06-02 |
+| 15 集成、dry-run、切换 | **IN-PROGRESS / WARN-REVIEW-PACK-DONE** | local only | shadow + WARN review passed | Phase II 252 日 shadow、相关闸敏感性、2113 日 full-window sensitivity 已跑通；Phase III 252 日 daily comparator：errors=0、R3=0、BLOCK=0；P7 WARN review：REVIEW_REQUIRED；live 开关保持关闭 | 2026-06-02 |
 
 ## NEXT 工单进度
 
@@ -29,9 +29,10 @@
 | NEXT-4 向前软数据 | TODO | - | 可并行 |
 | NEXT-5 元模型 | LOCKED | - | 标签未达 |
 | NEXT-6 IBKR 对账 | TODO | - | greenfield |
-| P4 整合地基 | **DONE / PHASE0-I-PIPELINE-LOCAL-SYNCED** | 260 package tests OK + 11 golden tests OK | live 开关关闭 |
+| P4 整合地基 | **DONE / PHASE0-I-PIPELINE-LOCAL-SYNCED** | 264 package tests OK + 11 golden tests OK | live 开关关闭 |
 | P5 Phase II Shadow | **DONE / DRY-RUN-PACKAGE-READY** | shadow rows=252；full rows=2113 / errors=0 / scenario count=21 / R3 violations=0 / review candidate 110/0.70：CAGR 18.06%、MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077；4 个 exact spot-check PASS | live 开关保持关闭 |
 | P6 Phase III dry-run comparator | **DONE / HUMAN-GATE-READY** | daily comparator rows=252 / errors=0 / R3 violations=0 / PASS=128 / WARN=124 / BLOCK=0 / avg old-new turnover 0.2244→0.2285 | 需人工审阅 WARN 日期；通过后才可设计 scaler migration |
+| P7 Phase III WARN review | **DONE / WARN-REVIEW-PACK-DONE** | WARN=124 / EXTREME_CORR=102 / WARN candidate-old avg：1d -0.00%、5d -0.05%、10d -0.29% / readiness=REVIEW_REQUIRED | live 开关保持关闭；需人工决定是否接受机会成本 |
 
 ## P4 整合地基进度
 
@@ -85,7 +86,7 @@
 |---|---|---|
 | JSON + Markdown + JSONL 导出 | `core/audit/exporter.py` | ✅ |
 
-**Phase 0–I 完整交付**：15 个组件 + E1–E30 全部 30/30 完整骨架 + 再建仓持久化 + 审计导出。远端 P4 source snapshots 已落地本地 `.hermes`，并修复 integration config 路径、Python 3.9 日期、RiskEngine 数值稳定、SizingOptimizer shrinkage 与 MarketContext 测试警告；当前 260 package tests OK + 11 golden tests OK。
+**Phase 0–I 完整交付**：15 个组件 + E1–E30 全部 30/30 完整骨架 + 再建仓持久化 + 审计导出。远端 P4 source snapshots 已落地本地 `.hermes`，并修复 integration config 路径、Python 3.9 日期、RiskEngine 数值稳定、SizingOptimizer shrinkage 与 MarketContext 测试警告；当前 264 package tests OK + 11 golden tests OK。
 
 ## P5 Phase II Shadow 对照
 
@@ -108,6 +109,10 @@
 | `tests/test_phase3_dry_run_compare.py` | ✅ |
 | `reports/PhaseIII_Dry_Run_Comparator.md/json` | ✅ |
 | `reports/P6_PHASE3_DRY_RUN_COMPARATOR_LOG.md` | ✅ |
+| `scripts/phase3_warn_review.py` | ✅ |
+| `tests/test_phase3_warn_review.py` | ✅ |
+| `reports/PhaseIII_WARN_Review.md/json` | ✅ |
+| `reports/P7_PHASE3_WARN_REVIEW_LOG.md` | ✅ |
 
 | 指标 | 结果 |
 |---|---:|
@@ -177,6 +182,22 @@
 | avg old turnover | 0.2244 |
 | avg new turnover | 0.2285 |
 
+## P7 Phase III WARN Review
+
+| 指标 | 结果 |
+|---|---:|
+| WARN rows | 124 |
+| WARN share | 49.21% |
+| EXTREME_CORR WARN | 102 |
+| ROUTE_LEG_DELTA WARN | 50 |
+| TURNOVER_DELTA WARN | 28 |
+| SYMBOL_DELTA WARN | 20 |
+| LOW_GROSS WARN | 16 |
+| WARN 1d candidate-old avg | -0.00% |
+| WARN 5d candidate-old avg | -0.05% |
+| WARN 10d candidate-old avg | -0.29% |
+| readiness | REVIEW_REQUIRED |
+
 ## 系统级 7 道总闸
 
 | # | 总闸 | 骨架 | Pipeline 结构验证 |
@@ -197,6 +218,6 @@
 4. ~~Phase II 20 日 shadow 对照~~ ✅
 5. ~~Phase II 252 日扩窗 + 相关闸敏感性~~ ✅
 6. ~~相关闸 full backtest 校准~~ ✅
-7. **Phase III 统一处置**：daily old-vs-new dry-run comparator 已完成；先人工审 WARN 日期，再决定是否替换旧 scaler 乘法链。
+7. **Phase III 统一处置**：daily old-vs-new comparator 与 WARN review pack 已完成；先人工决定是否接受 WARN 机会成本，再决定是否替换旧 scaler 乘法链。
 8. **Phase IV 验证与治理**：实跑 PBO/CI/对抗验证。
 9. **补 NEXT-1 剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL。

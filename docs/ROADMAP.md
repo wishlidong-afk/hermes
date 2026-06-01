@@ -8,7 +8,7 @@
 ## 总时间线
 
 ```text
-[已完成 M0/M1] Phase 0–9/12/14：数据/特征/评分(A-D)/硬阀门/裁决/组合/路由/再建仓/镜像/WebUI 骨架，260 package tests + 11 golden tests 绿
+[已完成 M0/M1] Phase 0–9/12/14：数据/特征/评分(A-D)/硬阀门/裁决/组合/路由/再建仓/镜像/WebUI 骨架，264 package tests + 11 golden tests 绿
       │
 [基线 → M1] NEXT-0 数据地基(价格史2018+/版本化/PIT) + NEXT-1 可历史化软数据 → missing<30
       │
@@ -24,7 +24,7 @@
            III 统一处置(E6/E8/E12/E15/E25/E26/E27)
            IV 验证与治理(E21/E22/E23/E24 + E9/E10/E28/E29)
       │
-[人工上线 M4] 逐个翻 features.*/use_*，daily comparator WARN 人审达标（人决定）
+[人工上线 M4] 逐个翻 features.*/use_*，P7 WARN 机会成本人审达标（人决定）
       │
 [学习 M5] NEXT-5 元模型解锁(标签≥300/正样本≥40/体制≥2) → p_act 校准达标
 [增强] NEXT-4 纯向前软数据(GEX/CNN/新闻/mNAV) · NEXT-6 IBKR 只读对账
@@ -52,11 +52,12 @@
 | ✅ P0 | 合成杠杆历史严格门控 | CODEX_GUIDANCE P0 | 已完成：FNGU TE 4.67%，corr 0.9986 |
 | ✅ P1 | NEXT-2 全窗口回测 | BUILD_TICKETS NEXT-2 | 已完成：real-only CAGR 44.39% Sharpe 1.79 |
 | ✅ P2 | NEXT-3 稳定高原校准 | BUILD_TICKETS NEXT-3 | 已完成：deployment PBO=0.1538 |
-| ✅ P4 | 整合地基 Phase 0–I + Pipeline | INTEGRATION Phase 0–I | **已完成并落地本地：12 组件 + 260 package tests OK + 11 golden tests OK + E1–E30 全覆盖 + 7 闸结构验证** |
+| ✅ P4 | 整合地基 Phase 0–I + Pipeline | INTEGRATION Phase 0–I | **已完成并落地本地：12 组件 + 264 package tests OK + 11 golden tests OK + E1–E30 全覆盖 + 7 闸结构验证** |
 | ✅ P5 | Phase II shadow/full sensitivity | PHASE_II_IV_ROLLOUT_PLAN | **252 日 shadow + 2113 日 full-window sensitivity 已跑通**：errors=0、R3 violations=0；review candidate 110/0.70，MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077 |
 | **P6** | Phase III daily comparator | SCALER_MIGRATION_GUIDE | **252 日 old-vs-new dry-run 已跑通**：errors=0、R3=0、PASS=128、WARN=124、BLOCK=0；待人工审 WARN |
+| **P7** | Phase III WARN review | SCALER_MIGRATION_GUIDE | **WARN review pack 已跑通**：EXTREME_CORR=102/124；WARN 10d candidate-old avg=-0.29%；readiness=REVIEW_REQUIRED |
 | **P3** | 补 NEXT-1 剩余软数据 | BUILD_TICKETS NEXT-1 | PCR/NAAIM/BTC；可降 MSTR missing 8pt |
-| **P7** | Phase III 替换旧 scaler → Phase IV 7 闸全通过 | SCALER_MIGRATION_GUIDE | 依赖 P6 人工验收 |
+| **P8** | Phase III 替换旧 scaler → Phase IV 7 闸全通过 | SCALER_MIGRATION_GUIDE | 依赖 P7 人工验收 |
 
 ---
 
@@ -74,7 +75,7 @@
 
 ## 起步指令（给 Codex / Claude）
 
-从 **P6 → P7 交界**继续：①人工审阅 110/0.70 daily comparator 的 WARN 日期；②确认换手差异是否可接受；③通过后再进入 Phase III scaler 替换设计；④并行补 P3 剩余软数据。
+从 **P7 → P8 交界**继续：①人工决定是否接受 WARN 机会成本；②若接受，再进入 Phase III scaler 替换设计；③若不接受，回 P5 参数网格围绕 EXTREME_CORR threshold/penalty 二次校准；④并行补 P3 剩余软数据。
 
 同步推进 **P3**：补 PCR/NAAIM/BTC funding-basis-DVOL CSV，降 MSTR missing。
 
