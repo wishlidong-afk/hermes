@@ -128,7 +128,7 @@
 
 | 里程碑 | 状态 | 关键数字 |
 |---|---|---|
-| M0 能跑 | ✅ | 245 package tests OK + 11 golden tests OK |
+| M0 能跑 | ✅ | 247 package tests OK + 11 golden tests OK |
 | M1 看得清 | ✅ | missing: MSTR 26 / FNGU 19 / SOXL 19，均 <30 |
 | M2 验得过 | ✅ | real-only CAGR 44.39% MaxDD -10.43% Sharpe 1.79 DSR 1.66 |
 | **M3 校得准** | **✅ 实质达成** | EXIT=75 DEF_EXIT=65 REDUCE=50；deployment PBO=0.1538 |
@@ -143,7 +143,7 @@
 | Phase I 地基 | ✅ DONE | 1 脊柱 + 4 引擎 + 1 优化器 + 治理 + 漂移监控 |
 | Pipeline 接线 | ✅ DONE | 11 步统一数据流，7 道总闸结构验证 |
 | Phase II–IV 计划 | ✅ DONE | 配置 + feature flags + rollout plan + scaler migration guide |
-| P4 本地落地 | ✅ DONE | 远端 source snapshots 已同步到本地 `.hermes`，修复接口后 245 package tests OK |
+| P4 本地落地 | ✅ DONE | 远端 source snapshots 已同步到本地 `.hermes`，修复接口后 247 package tests OK |
 | Phase II 风险与信号 | ✅ SHADOW-252D-CORR-SENSITIVITY-DONE | 252 日 shadow + 相关闸敏感性：errors=0、R3 violations=0、confidence NORMAL×252；review candidate 110/0.70 |
 | Phase III 统一处置 | TODO | 替换旧 scaler 链 |
 | Phase IV 验证与治理 | TODO | 7 闸全通过 |

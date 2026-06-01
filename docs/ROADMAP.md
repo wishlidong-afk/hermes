@@ -8,7 +8,7 @@
 ## 总时间线
 
 ```text
-[已完成 M0/M1] Phase 0–9/12/14：数据/特征/评分(A-D)/硬阀门/裁决/组合/路由/再建仓/镜像/WebUI 骨架，245 package tests + 11 golden tests 绿
+[已完成 M0/M1] Phase 0–9/12/14：数据/特征/评分(A-D)/硬阀门/裁决/组合/路由/再建仓/镜像/WebUI 骨架，247 package tests + 11 golden tests 绿
       │
 [基线 → M1] NEXT-0 数据地基(价格史2018+/版本化/PIT) + NEXT-1 可历史化软数据 → missing<30
       │
@@ -52,7 +52,7 @@
 | ✅ P0 | 合成杠杆历史严格门控 | CODEX_GUIDANCE P0 | 已完成：FNGU TE 4.67%，corr 0.9986 |
 | ✅ P1 | NEXT-2 全窗口回测 | BUILD_TICKETS NEXT-2 | 已完成：real-only CAGR 44.39% Sharpe 1.79 |
 | ✅ P2 | NEXT-3 稳定高原校准 | BUILD_TICKETS NEXT-3 | 已完成：deployment PBO=0.1538 |
-| ✅ P4 | 整合地基 Phase 0–I + Pipeline | INTEGRATION Phase 0–I | **已完成并落地本地：12 组件 + 245 package tests OK + 11 golden tests OK + E1–E30 全覆盖 + 7 闸结构验证** |
+| ✅ P4 | 整合地基 Phase 0–I + Pipeline | INTEGRATION Phase 0–I | **已完成并落地本地：12 组件 + 247 package tests OK + 11 golden tests OK + E1–E30 全覆盖 + 7 闸结构验证** |
 | **P5** | Phase II shadow 对照 | PHASE_II_IV_ROLLOUT_PLAN | **252 日样本 + 相关闸敏感性已跑通**：rows=252、errors=0、R3 violations=0；review candidate threshold=110 / penalty=0.70 |
 | **P3** | 补 NEXT-1 剩余软数据 | BUILD_TICKETS NEXT-1 | PCR/NAAIM/BTC；可降 MSTR missing 8pt |
 | **P6** | Phase III 替换旧 scaler → Phase IV 7 闸全通过 | SCALER_MIGRATION_GUIDE | 依赖 P5 验收 |

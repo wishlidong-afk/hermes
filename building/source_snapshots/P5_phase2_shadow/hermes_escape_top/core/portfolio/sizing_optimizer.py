@@ -158,19 +158,23 @@ def optimize_targets(
     if n == 0:
         return _empty_decision(confidence)
 
-    # Upper bounds from R3 + confidence shrinkage
+    # Upper bounds from R3 + confidence shrinkage + single risk gross scaler.
     rule_targets = np.array([verdicts[s].rule_target_weight for s in syms])
     conf_factor = max(0.0, min(1.0, confidence.decision_confidence))
-    upper_bounds = rule_targets * conf_factor
+    risk_gross_factor = max(0.0, min(1.0, float(risk_state.gross_scaler)))
+    confidence_bounds = rule_targets * conf_factor
+    upper_bounds = confidence_bounds * risk_gross_factor
 
     # Expected returns (simple proxy: base_mu from vol target inversion)
     mu = np.zeros(n)
     for i, s in enumerate(syms):
         lev = float(leverage_map.get(s, 1.0))
         vol_i = risk_state.leg_vol.get(s, 0.2)
-        # Shadow-mode proxy: keep the optimizer from collapsing every sleeve
-        # to zero before real expected-return models are wired in.
-        base_mu = vol_i * 2.0
+        # Shadow-mode proxy: until real alpha/expected-return models are wired
+        # in, keep expected return above the configured risk-aversion hurdle.
+        # Otherwise a downside-averse utility optimizer turns every high-vol
+        # HOLD sleeve into a near-zero target, which is a false liquidation.
+        base_mu = vol_i * max(2.0, dd_aversion + 1.0)
         mu[i] = expected_leg_return(s, vol_i, lev, 20.0, base_mu, sizing_cfg)
 
     # Covariance (from risk_state)
@@ -198,6 +202,8 @@ def optimize_targets(
             binding[s] = "ZERO"
         elif abs(w_opt[i] - rule_targets[i]) < 1e-6:
             binding[s] = "R3_RULE"
+        elif risk_gross_factor < 1.0 and abs(w_opt[i] - upper_bounds[i]) < 1e-6:
+            binding[s] = "RISK_GROSS"
         elif abs(w_opt[i] - upper_bounds[i]) < 1e-6:
             binding[s] = "CONFIDENCE"
         else:
@@ -226,6 +232,8 @@ def optimize_targets(
     notes: List[str] = []
     if confidence.mode == "DEGRADED":
         notes.append("confidence DEGRADED; weights shrunk significantly")
+    if risk_gross_factor < 1.0:
+        notes.append(f"risk gross scaler applied: {risk_gross_factor:.3f}")
     if risk_state.binding != "NONE":
         notes.append(f"risk binding: {risk_state.binding}")
 

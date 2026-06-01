@@ -500,12 +500,17 @@ P5/Phase II 状态推进为 `IN-PROGRESS / SHADOW-REPLAY-20D-DONE`。生产/live
   - 只读重算 correlation-regime penalty 层
   - threshold × penalty 网格敏感性
   - 输出 `PhaseII_Corr_Sensitivity.md/json`
+- ✅ SizingOptimizer 风险 gross 接线
+  - `risk_state.gross_scaler` 纳入仓位上限
+  - 新增 `RISK_GROSS` binding 标签
+  - shadow expected-return proxy 与 `dd_aversion` 对齐，避免 HOLD 袖套无 alpha 模型时被错误压到 0
 
 ### 252 日 Shadow 结果
 
 - rows evaluated: 252
 - errors: 0
 - R3 violations: 0
+- max abs weight delta: 0.1592
 - confidence modes: NORMAL × 252
 - avg shadow gross: 0.7229
 - min shadow gross: 0.4111

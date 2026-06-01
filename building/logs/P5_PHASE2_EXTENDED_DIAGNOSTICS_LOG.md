@@ -23,6 +23,10 @@
   - 只重算 correlation-regime penalty 层；
   - 对 `threshold=[92,100,110,120,130,140,150]` 与 `penalty=[0.70,0.80,0.90]` 做只读敏感性分析；
   - 输出 `PhaseII_Corr_Sensitivity.md/json`。
+- 修复 `SizingOptimizer` 的 shadow-mode 接线：
+  - `risk_state.gross_scaler` 现在会参与目标仓位上限；
+  - 绑定标签新增 `RISK_GROSS`；
+  - shadow expected-return proxy 与 `dd_aversion` 对齐，避免没有 alpha 模型时把 HOLD 袖套错误压到 0。
 
 ## 252 日 Shadow 结果
 
@@ -31,6 +35,7 @@
 | rows evaluated | 252 |
 | errors | 0 |
 | R3 violations | 0 |
+| max abs weight delta | 0.1592 |
 | confidence mode | NORMAL × 252 |
 | avg shadow gross | 0.7229 |
 | min shadow gross | 0.4111 |

@@ -5,15 +5,15 @@
 
 ## 一句话现状
 
-流水线通；**245 package tests OK + 11 golden tests OK**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
+流水线通；**247 package tests OK + 11 golden tests OK**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
 **P0 合成杠杆历史已通过严格接缝调整门控**；**P1 全窗口回测已完成**；**NEXT-3 参数校准 v2 已通过稳定高原门控**。当前候选参数为 `EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20`。Deployment fixed PBO=0.1538 PASS。系统达到 **M3 校得准**，但 live/生产开关仍保持关闭。
-**P4 整合地基 Phase 0–I + Pipeline 接线已完成并已落地本地 `.hermes`**：12 个组件（1 脊柱 + 4 引擎 + 1 优化器 + 治理 + 输入护栏 + 漂移监控 + 统一 Pipeline）全部骨架就绪，E1–E30 全覆盖，7 道系统级总闸全部有结构性验证；本地同步修复后 245 package tests OK。**P5 Phase II 252 日 shadow + 相关闸敏感性已跑通**：rows=252、errors=0、R3 violations=0、confidence NORMAL×252，review candidate 为 `threshold=110 / penalty=0.70`，live 开关仍关闭。
+**P4 整合地基 Phase 0–I + Pipeline 接线已完成并已落地本地 `.hermes`**：12 个组件（1 脊柱 + 4 引擎 + 1 优化器 + 治理 + 输入护栏 + 漂移监控 + 统一 Pipeline）全部骨架就绪，E1–E30 全覆盖，7 道系统级总闸全部有结构性验证；本地同步修复后 247 package tests OK。**P5 Phase II 252 日 shadow + 相关闸敏感性已跑通**：rows=252、errors=0、R3 violations=0、max abs weight delta=0.1592、confidence NORMAL×252，`SizingOptimizer` 已接 `risk_state.gross_scaler`，review candidate 为 `threshold=110 / penalty=0.70`，live 开关仍关闭。
 
 ## 成熟度
 
 | 等级 | 达成 | 证据 |
 |---|---|---|
-| M0 能跑 | ✅ | 245 package tests OK + 11 golden tests OK / 单日回放 |
+| M0 能跑 | ✅ | 247 package tests OK + 11 golden tests OK / 单日回放 |
 | M1 看得清 | ✅ | missing 26/19/19 < 30；`N1_missing_rebaseline.md` |
 | M2 验得过 | ✅ | `Backtest_FULL`（real-only）+ `Backtest_FULL_2018_2026`（full-proxy）均出；DSR 1.66；13 fold walk-forward |
 | M3 校得准 | ✅ | `Calibration_v2.md/json`；deployment fixed PBO=0.1538；full-proxy/real-only 门控通过 |
@@ -73,7 +73,7 @@ Phase 0–9、12 = DONE；Phase 10(扩展数据)=IN-PROGRESS；Phase 11(回测)=
 - **NEXT-3 校准 DONE**：chosen `E75_D65_R50`；full-proxy CAGR 17.54% / MaxDD -28.01% / Sharpe 0.86；real-only CAGR 42.48% / MaxDD -10.63% / Sharpe 1.73；deployment fixed PBO 0.1538；real-only rank 0.7692；train-greedy PBO 0.6154 为过拟合警报
 - **P3 并行（部分）**：NAAIM + PCR 数据源基础设施已建（`core/data/pcr.py`、`scripts/backfill_pcr_naaim.py`）；CBOE/NAAIM 外部端点被封，CSV 骨架就绪，等待手动回填后 missing_weight 可降 8pt
 - **P4 整合地基本地落地**：远端 `building/source_snapshots/P4_*` 已同步到本地 `.hermes`；修复 integration_config 路径、Python 3.9 日期、RiskEngine 下行相关/数值稳定、SizingOptimizer shrinkage、MarketContext 测试警告。
-- **P5 Phase II shadow 对照**：`PhaseII_Shadow_Compare.md/json` 已扩到 252 日；rows=252、errors=0、R3 violations=0、confidence NORMAL×252、EXTREME_CORR share=78.57%、avg shadow gross=0.7229。
+- **P5 Phase II shadow 对照**：`PhaseII_Shadow_Compare.md/json` 已扩到 252 日；rows=252、errors=0、R3 violations=0、max abs weight delta=0.1592、confidence NORMAL×252、EXTREME_CORR share=78.57%、avg shadow gross=0.7229。
 - **P5 相关闸敏感性**：`PhaseII_Corr_Sensitivity.md/json` 已生成；当前 92/0.70 hit share 78.57%，review candidate 110/0.70 hit share 40.48%、avg gross 0.8273；候选仍需 full backtest/walk-forward。
-- 单测：245 package tests OK；11 golden tests OK（v25 golden 已按 P0 当前数据地基重生）
+- 单测：247 package tests OK；11 golden tests OK（v25 golden 已按 P0 当前数据地基重生）
 - 2026-05-29 回放：MSTR EXIT(H-M1,H-M4) / FNGU HOLD / SOXL HOLD；体制 LOW_VOL_TREND

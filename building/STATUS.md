@@ -29,8 +29,8 @@
 | NEXT-4 向前软数据 | TODO | - | 可并行 |
 | NEXT-5 元模型 | LOCKED | - | 标签未达 |
 | NEXT-6 IBKR 对账 | TODO | - | greenfield |
-| P4 整合地基 | **DONE / PHASE0-I-PIPELINE-LOCAL-SYNCED** | 245 package tests OK + 11 golden tests OK | live 开关关闭 |
-| P5 Phase II Shadow | **IN-PROGRESS / SHADOW-252D-CORR-SENSITIVITY-DONE** | rows=252 / errors=0 / R3 violations=0 / NORMAL×252 / EXTREME_CORR 78.57% / review candidate 110/0.70 | 需把相关闸候选接入 full backtest/walk-forward |
+| P4 整合地基 | **DONE / PHASE0-I-PIPELINE-LOCAL-SYNCED** | 247 package tests OK + 11 golden tests OK | live 开关关闭 |
+| P5 Phase II Shadow | **IN-PROGRESS / SHADOW-252D-CORR-SENSITIVITY-DONE** | rows=252 / errors=0 / R3 violations=0 / max delta=0.1592 / NORMAL×252 / EXTREME_CORR 78.57% / review candidate 110/0.70 | 需把相关闸候选接入 full backtest/walk-forward |
 
 ## P4 整合地基进度
 
@@ -106,6 +106,7 @@
 | confidence mode | NORMAL × 252 |
 | EXTREME_CORR share | 78.57% |
 | avg shadow gross | 0.7229 |
+| max abs weight delta | 0.1592 |
 | corr sensitivity review candidate | threshold=110 / penalty=0.70 |
 
 ## 系统级 7 道总闸

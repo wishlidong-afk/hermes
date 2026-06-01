@@ -30,19 +30,19 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.190314,
+          "binding": "CONFIDENCE",
+          "delta": 0.004904,
           "old_target_weight": 0.190315,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195219,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003585,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146415,
           "status": "HOLD"
         },
         "SOXL": {
@@ -82,19 +82,19 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199559,
+          "binding": "CONFIDENCE",
+          "delta": -0.004341,
           "old_target_weight": 0.19956,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195219,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003585,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146415,
           "status": "HOLD"
         },
         "SOXL": {
@@ -134,19 +134,19 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "CONFIDENCE",
+          "delta": -0.004776,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195224,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003582,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146418,
           "status": "HOLD"
         },
         "SOXL": {
@@ -186,27 +186,27 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "CONFIDENCE",
+          "delta": -0.004772,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195228,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003579,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146421,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.110264,
+          "binding": "CONFIDENCE",
+          "delta": 0.006873,
           "old_target_weight": 0.110264,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.117137,
           "status": "REDUCE"
         }
       },
@@ -238,27 +238,27 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "CONFIDENCE",
+          "delta": -0.004772,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.195228,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003579,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146421,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.115013,
+          "binding": "CONFIDENCE",
+          "delta": 0.002123,
           "old_target_weight": 0.115014,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117137,
           "status": "REDUCE"
         }
       },
@@ -290,27 +290,27 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "CONFIDENCE",
+          "delta": -0.004767,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195233,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003575,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146425,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119519,
+          "binding": "CONFIDENCE",
+          "delta": -0.002379,
           "old_target_weight": 0.119519,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.11714,
           "status": "REDUCE"
         }
       },
@@ -342,27 +342,27 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "CONFIDENCE",
+          "delta": -0.004767,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195233,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003575,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146425,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "ZERO",
-          "delta": -0.12,
+          "binding": "CONFIDENCE",
+          "delta": -0.00286,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.11714,
           "status": "REDUCE"
         }
       },
@@ -394,27 +394,27 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "CONFIDENCE",
+          "delta": -0.004763,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195237,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003572,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146428,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "ZERO",
-          "delta": -0.12,
+          "binding": "CONFIDENCE",
+          "delta": -0.002858,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.117142,
           "status": "REDUCE"
         }
       },
@@ -446,27 +446,27 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "CONFIDENCE",
+          "delta": -0.004763,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195237,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003572,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146428,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "ZERO",
-          "delta": -0.12,
+          "binding": "CONFIDENCE",
+          "delta": -0.002858,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.117142,
           "status": "REDUCE"
         }
       },
@@ -498,27 +498,27 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "CONFIDENCE",
+          "delta": -0.004758,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.195242,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003569,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146431,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "CONFIDENCE",
+          "delta": -0.002855,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117145,
           "status": "REDUCE"
         }
       },
@@ -550,27 +550,27 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "CONFIDENCE",
+          "delta": -0.004754,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195246,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003565,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146435,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "ZERO",
-          "delta": -0.12,
+          "binding": "CONFIDENCE",
+          "delta": -0.002852,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.117148,
           "status": "REDUCE"
         }
       },
@@ -602,27 +602,27 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "CONFIDENCE",
+          "delta": -0.004754,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195246,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003565,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146435,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.12,
+          "binding": "CONFIDENCE",
+          "delta": -0.002852,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.117148,
           "status": "REDUCE"
         }
       },
@@ -656,27 +656,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063325,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136675,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047493,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102507,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "ZERO",
-          "delta": -0.12,
+          "binding": "RISK_GROSS",
+          "delta": -0.037995,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.082005,
           "status": "REDUCE"
         }
       },
@@ -710,27 +710,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.063325,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.136675,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047493,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102507,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037995,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082005,
           "status": "REDUCE"
         }
       },
@@ -764,27 +764,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063322,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136678,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047491,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102509,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "ZERO",
-          "delta": -0.12,
+          "binding": "RISK_GROSS",
+          "delta": -0.037993,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.082007,
           "status": "REDUCE"
         }
       },
@@ -818,11 +818,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063322,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136678,
           "status": "HOLD"
         },
         "MSTR": {
@@ -834,11 +834,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037993,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082007,
           "status": "REDUCE"
         }
       },
@@ -872,27 +872,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.063318,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.136682,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047489,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102511,
           "status": "WATCH"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037991,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082009,
           "status": "REDUCE"
         }
       },
@@ -924,27 +924,27 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "CONFIDENCE",
+          "delta": -0.004736,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.195264,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003552,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146448,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "CONFIDENCE",
+          "delta": -0.002842,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117158,
           "status": "REDUCE"
         }
       },
@@ -976,27 +976,27 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "CONFIDENCE",
+          "delta": -0.004736,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.195264,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003552,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146448,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "CONFIDENCE",
+          "delta": -0.002842,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117158,
           "status": "REDUCE"
         }
       },
@@ -1028,27 +1028,27 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "CONFIDENCE",
+          "delta": -0.004732,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.195268,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "CONFIDENCE",
+          "delta": -0.003549,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.146451,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.12,
+          "binding": "CONFIDENCE",
+          "delta": -0.002839,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.117161,
           "status": "REDUCE"
         }
       },
@@ -1082,27 +1082,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063312,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136688,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047484,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102516,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "ZERO",
-          "delta": -0.12,
+          "binding": "RISK_GROSS",
+          "delta": -0.037987,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.082013,
           "status": "REDUCE"
         }
       },
@@ -1136,27 +1136,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063309,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136691,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047482,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102518,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.12,
+          "binding": "RISK_GROSS",
+          "delta": -0.037985,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.082015,
           "status": "REDUCE"
         }
       },
@@ -1190,27 +1190,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.063309,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.136691,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047482,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102518,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037985,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082015,
           "status": "REDUCE"
         }
       },
@@ -1244,27 +1244,27 @@
       "shadow_gross_scaler": 0.570866,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.088523,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.111477,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.066392,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.083608,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.132784,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.167216,
           "status": "HOLD"
         }
       },
@@ -1298,27 +1298,27 @@
       "shadow_gross_scaler": 0.602233,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.082395,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.117605,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.061796,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.088204,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.123592,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.176408,
           "status": "HOLD"
         }
       },
@@ -1352,27 +1352,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063303,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136697,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047477,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102523,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.12,
+          "binding": "RISK_GROSS",
+          "delta": -0.037982,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.082018,
           "status": "REDUCE"
         }
       },
@@ -1406,27 +1406,27 @@
       "shadow_gross_scaler": 0.573194,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.088063,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.111937,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.066047,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.083953,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.132095,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.167905,
           "status": "HOLD"
         }
       },
@@ -1460,27 +1460,27 @@
       "shadow_gross_scaler": 0.584283,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.085898,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.114102,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.064423,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.085577,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.128846,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.171154,
           "status": "HOLD"
         }
       },
@@ -1514,27 +1514,27 @@
       "shadow_gross_scaler": 0.605151,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.08182,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.11818,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.061365,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.088635,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.122729,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.177271,
           "status": "HOLD"
         }
       },
@@ -1568,27 +1568,27 @@
       "shadow_gross_scaler": 0.618533,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.079206,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.120794,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.059405,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.090595,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.118809,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.181191,
           "status": "WATCH"
         }
       },
@@ -1622,27 +1622,27 @@
       "shadow_gross_scaler": 0.634284,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.076127,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.123873,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.057096,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.092904,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.114191,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.185809,
           "status": "HOLD"
         }
       },
@@ -1676,27 +1676,27 @@
       "shadow_gross_scaler": 0.653467,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.072381,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.127619,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.054286,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.095714,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.108572,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.191428,
           "status": "HOLD"
         }
       },
@@ -1730,27 +1730,27 @@
       "shadow_gross_scaler": 0.663695,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.070381,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.129619,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.052785,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.097215,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.105571,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.194429,
           "status": "HOLD"
         }
       },
@@ -1784,27 +1784,27 @@
       "shadow_gross_scaler": 0.683313,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.066546,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.133454,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.04991,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.10009,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.099819,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.200181,
           "status": "HOLD"
         }
       },
@@ -1838,27 +1838,27 @@
       "shadow_gross_scaler": 0.680541,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.067088,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.132912,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.050316,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.099684,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.100631,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.199369,
           "status": "HOLD"
         }
       },
@@ -1892,27 +1892,27 @@
       "shadow_gross_scaler": 0.698362,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.063604,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.136396,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047703,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102297,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.095406,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.204594,
           "status": "HOLD"
         }
       },
@@ -1946,27 +1946,27 @@
       "shadow_gross_scaler": 0.673994,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.068363,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.131637,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.051272,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.098728,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.102545,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.197455,
           "status": "HOLD"
         }
       },
@@ -2000,27 +2000,27 @@
       "shadow_gross_scaler": 0.673059,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.068543,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.131457,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.051407,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.098593,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.102814,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.197186,
           "status": "WATCH"
         }
       },
@@ -2054,27 +2054,27 @@
       "shadow_gross_scaler": 0.681155,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.066962,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133038,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.050221,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.099779,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.100442,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.199558,
           "status": "HOLD"
         }
       },
@@ -2108,27 +2108,27 @@
       "shadow_gross_scaler": 0.693912,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.064467,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.135533,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.04835,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.10165,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.0967,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.2033,
           "status": "HOLD"
         }
       },
@@ -2162,27 +2162,27 @@
       "shadow_gross_scaler": 0.670435,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.069052,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.130948,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.051789,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.098211,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.103579,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.196421,
           "status": "HOLD"
         }
       },
@@ -2216,27 +2216,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.063275,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.136725,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047456,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102544,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094912,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205088,
           "status": "HOLD"
         }
       },
@@ -2270,27 +2270,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.063272,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.136728,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047454,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102546,
           "status": "WATCH"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094907,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205093,
           "status": "HOLD"
         }
       },
@@ -2324,27 +2324,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.063272,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.136728,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047454,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102546,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037963,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082037,
           "status": "REDUCE"
         }
       },
@@ -2378,11 +2378,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.129999,
+          "binding": "RISK_GROSS",
+          "delta": -0.041124,
           "old_target_weight": 0.13,
           "rule_weight": 0.13,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.088876,
           "status": "TRIM"
         },
         "MSTR": {
@@ -2394,11 +2394,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037961,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082039,
           "status": "REDUCE"
         }
       },
@@ -2432,27 +2432,27 @@
       "shadow_gross_scaler": 0.582522,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.086216,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.113784,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.064662,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.085338,
           "status": "WATCH"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.129323,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.170677,
           "status": "HOLD"
         }
       },
@@ -2486,27 +2486,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.063265,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.136735,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047449,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102551,
           "status": "WATCH"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037959,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082041,
           "status": "REDUCE"
         }
       },
@@ -2540,27 +2540,27 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.063265,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.136735,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.047449,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.102551,
           "status": "WATCH"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037959,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082041,
           "status": "REDUCE"
         }
       },
@@ -2594,27 +2594,27 @@
       "shadow_gross_scaler": 0.613254,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.080207,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.119793,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.060155,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.089845,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.120311,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.179689,
           "status": "HOLD"
         }
       },
@@ -2648,27 +2648,27 @@
       "shadow_gross_scaler": 0.656057,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.071846,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.128154,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.053884,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.096116,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.107769,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.192231,
           "status": "HOLD"
         }
       },
@@ -2702,27 +2702,27 @@
       "shadow_gross_scaler": 0.685824,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.066028,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.133972,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.049521,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.100479,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.099042,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.200958,
           "status": "HOLD"
         }
       },
@@ -2756,27 +2756,27 @@
       "shadow_gross_scaler": 0.608488,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.081133,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.118867,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.06085,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.08915,
           "status": "WATCH"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.121699,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.178301,
           "status": "HOLD"
         }
       },
@@ -2810,27 +2810,27 @@
       "shadow_gross_scaler": 0.641616,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.074661,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.125339,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.055996,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.094004,
           "status": "WATCH"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.111992,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.188008,
           "status": "HOLD"
         }
       },
@@ -2864,11 +2864,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063253,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136747,
           "status": "HOLD"
         },
         "MSTR": {
@@ -2880,11 +2880,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094879,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205121,
           "status": "HOLD"
         }
       },
@@ -2918,11 +2918,11 @@
       "shadow_gross_scaler": 0.697299,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.06378,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.13622,
           "status": "HOLD"
         },
         "MSTR": {
@@ -2934,11 +2934,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.095671,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.204329,
           "status": "WATCH"
         }
       },
@@ -2972,11 +2972,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.06325,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.13675,
           "status": "HOLD"
         },
         "MSTR": {
@@ -2988,11 +2988,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094875,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205125,
           "status": "WATCH"
         }
       },
@@ -3026,11 +3026,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.129999,
+          "binding": "RISK_GROSS",
+          "delta": -0.041112,
           "old_target_weight": 0.13,
           "rule_weight": 0.13,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.088888,
           "status": "TRIM"
         },
         "MSTR": {
@@ -3042,11 +3042,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.194999,
+          "binding": "RISK_GROSS",
+          "delta": -0.061668,
           "old_target_weight": 0.195,
           "rule_weight": 0.195,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133332,
           "status": "TRIM"
         }
       },
@@ -3080,11 +3080,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.079999,
+          "binding": "RISK_GROSS",
+          "delta": -0.025299,
           "old_target_weight": 0.08,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.054701,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -3096,11 +3096,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037948,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082052,
           "status": "REDUCE"
         }
       },
@@ -3134,11 +3134,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.079999,
+          "binding": "RISK_GROSS",
+          "delta": -0.025299,
           "old_target_weight": 0.08,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.054701,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -3150,11 +3150,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037948,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082052,
           "status": "REDUCE"
         }
       },
@@ -3188,27 +3188,27 @@
       "shadow_gross_scaler": 0.566658,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.089294,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.110706,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.066971,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.083029,
           "status": "WATCH"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.133941,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.166059,
           "status": "HOLD"
         }
       },
@@ -3242,11 +3242,11 @@
       "shadow_gross_scaler": 0.699676,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063307,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136693,
           "status": "HOLD"
         },
         "MSTR": {
@@ -3258,11 +3258,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.09496,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.20504,
           "status": "HOLD"
         }
       },
@@ -3296,11 +3296,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.06324,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.13676,
           "status": "WATCH"
         },
         "MSTR": {
@@ -3312,11 +3312,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.09486,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.20514,
           "status": "HOLD"
         }
       },
@@ -3350,11 +3350,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.06324,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.13676,
           "status": "WATCH"
         },
         "MSTR": {
@@ -3366,11 +3366,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.09486,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.20514,
           "status": "HOLD"
         }
       },
@@ -3404,11 +3404,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063237,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136763,
           "status": "WATCH"
         },
         "MSTR": {
@@ -3420,11 +3420,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094856,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205144,
           "status": "HOLD"
         }
       },
@@ -3458,11 +3458,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.129999,
+          "binding": "RISK_GROSS",
+          "delta": -0.041102,
           "old_target_weight": 0.13,
           "rule_weight": 0.13,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.088898,
           "status": "TRIM"
         },
         "MSTR": {
@@ -3474,11 +3474,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.03794,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.08206,
           "status": "REDUCE"
         }
       },
@@ -3512,11 +3512,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.079999,
+          "binding": "RISK_GROSS",
+          "delta": -0.025294,
           "old_target_weight": 0.08,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.054706,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -3528,11 +3528,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.03794,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.08206,
           "status": "REDUCE"
         }
       },
@@ -3566,11 +3566,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063231,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136769,
           "status": "HOLD"
         },
         "MSTR": {
@@ -3582,11 +3582,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094846,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205154,
           "status": "WATCH"
         }
       },
@@ -3620,11 +3620,11 @@
       "shadow_gross_scaler": 0.686112,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.065944,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.134056,
           "status": "HOLD"
         },
         "MSTR": {
@@ -3636,11 +3636,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.098917,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.201083,
           "status": "WATCH"
         }
       },
@@ -3674,11 +3674,11 @@
       "shadow_gross_scaler": 0.685691,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.066024,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133976,
           "status": "HOLD"
         },
         "MSTR": {
@@ -3690,11 +3690,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.099035,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.200965,
           "status": "HOLD"
         }
       },
@@ -3728,11 +3728,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063228,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136772,
           "status": "HOLD"
         },
         "MSTR": {
@@ -3744,11 +3744,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094842,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205158,
           "status": "HOLD"
         }
       },
@@ -3782,11 +3782,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063225,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136775,
           "status": "HOLD"
         },
         "MSTR": {
@@ -3798,11 +3798,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094837,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205163,
           "status": "HOLD"
         }
       },
@@ -3836,11 +3836,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063225,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136775,
           "status": "HOLD"
         },
         "MSTR": {
@@ -3852,11 +3852,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094837,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205163,
           "status": "HOLD"
         }
       },
@@ -3890,11 +3890,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063222,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136778,
           "status": "HOLD"
         },
         "MSTR": {
@@ -3906,11 +3906,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094832,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205168,
           "status": "HOLD"
         }
       },
@@ -3944,11 +3944,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063222,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136778,
           "status": "HOLD"
         },
         "MSTR": {
@@ -3960,11 +3960,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094832,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205168,
           "status": "HOLD"
         }
       },
@@ -3998,11 +3998,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063218,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136782,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4014,11 +4014,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094828,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205172,
           "status": "HOLD"
         }
       },
@@ -4052,11 +4052,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063218,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136782,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4068,11 +4068,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094828,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205172,
           "status": "HOLD"
         }
       },
@@ -4106,11 +4106,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063215,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136785,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4122,11 +4122,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094823,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205177,
           "status": "HOLD"
         }
       },
@@ -4160,11 +4160,11 @@
       "shadow_gross_scaler": 0.653576,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.072284,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.127716,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4176,11 +4176,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.108426,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.191574,
           "status": "HOLD"
         }
       },
@@ -4214,11 +4214,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063212,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136788,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4230,11 +4230,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094818,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205182,
           "status": "WATCH"
         }
       },
@@ -4268,11 +4268,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063209,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136791,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4284,11 +4284,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094814,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205186,
           "status": "HOLD"
         }
       },
@@ -4322,11 +4322,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063209,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136791,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4338,11 +4338,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094814,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205186,
           "status": "HOLD"
         }
       },
@@ -4376,11 +4376,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063206,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136794,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4392,11 +4392,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094809,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205191,
           "status": "HOLD"
         }
       },
@@ -4430,11 +4430,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063206,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136794,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4446,11 +4446,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094809,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205191,
           "status": "HOLD"
         }
       },
@@ -4484,11 +4484,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063203,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136797,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4500,11 +4500,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094804,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205196,
           "status": "HOLD"
         }
       },
@@ -4538,11 +4538,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063203,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136797,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4554,11 +4554,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094804,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205196,
           "status": "HOLD"
         }
       },
@@ -4592,11 +4592,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.0632,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.1368,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4608,11 +4608,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.0948,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.2052,
           "status": "HOLD"
         }
       },
@@ -4646,11 +4646,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.0632,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.1368,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4662,11 +4662,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.0948,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.2052,
           "status": "HOLD"
         }
       },
@@ -4700,27 +4700,27 @@
       "shadow_gross_scaler": 0.658967,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.071216,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.128784,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.053412,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.096588,
           "status": "WATCH"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.106824,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.193176,
           "status": "HOLD"
         }
       },
@@ -4754,27 +4754,27 @@
       "shadow_gross_scaler": 0.677104,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.067671,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.132329,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.050753,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.099247,
           "status": "WATCH"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.101507,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.198493,
           "status": "HOLD"
         }
       },
@@ -4808,27 +4808,27 @@
       "shadow_gross_scaler": 0.600076,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.082722,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117278,
           "status": "HOLD"
         },
         "MSTR": {
-          "binding": "NONE",
-          "delta": -0.149999,
+          "binding": "RISK_GROSS",
+          "delta": -0.062042,
           "old_target_weight": 0.15,
           "rule_weight": 0.15,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.087958,
           "status": "HOLD"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.124084,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.175916,
           "status": "HOLD"
         }
       },
@@ -4862,11 +4862,11 @@
       "shadow_gross_scaler": 0.675744,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.067934,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.132066,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4878,11 +4878,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.101901,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.198099,
           "status": "HOLD"
         }
       },
@@ -4916,11 +4916,11 @@
       "shadow_gross_scaler": 0.595309,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.083651,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.116349,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4932,11 +4932,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.125477,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.174523,
           "status": "HOLD"
         }
       },
@@ -4970,11 +4970,11 @@
       "shadow_gross_scaler": 0.6394,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.075034,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.124966,
           "status": "HOLD"
         },
         "MSTR": {
@@ -4986,11 +4986,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.112551,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.187449,
           "status": "HOLD"
         }
       },
@@ -5024,11 +5024,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.129999,
+          "binding": "RISK_GROSS",
+          "delta": -0.041072,
           "old_target_weight": 0.13,
           "rule_weight": 0.13,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.088928,
           "status": "TRIM"
         },
         "MSTR": {
@@ -5076,11 +5076,11 @@
       "shadow_gross_scaler": 0.57702,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.180146,
+          "binding": "RISK_GROSS",
+          "delta": -0.067367,
           "old_target_weight": 0.180146,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.112779,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5092,11 +5092,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.185328,
+          "binding": "RISK_GROSS",
+          "delta": -0.01616,
           "old_target_weight": 0.185329,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.169169,
           "status": "WATCH"
         }
       },
@@ -5128,11 +5128,11 @@
       "shadow_gross_scaler": 0.910207,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.114791,
+          "binding": "RISK_GROSS",
+          "delta": 0.000844,
           "old_target_weight": 0.114792,
           "rule_weight": 0.13,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.115636,
           "status": "TRIM"
         },
         "MSTR": {
@@ -5144,11 +5144,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.123364,
+          "binding": "RISK_GROSS",
+          "delta": 0.05009,
           "old_target_weight": 0.123364,
           "rule_weight": 0.195,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.173454,
           "status": "TRIM"
         }
       },
@@ -5180,11 +5180,11 @@
       "shadow_gross_scaler": 0.59389,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.184824,
+          "binding": "RISK_GROSS",
+          "delta": -0.068746,
           "old_target_weight": 0.184825,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.116079,
           "status": "WATCH"
         },
         "MSTR": {
@@ -5196,11 +5196,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "ZERO",
-          "delta": -0.192013,
+          "binding": "RISK_GROSS",
+          "delta": -0.017894,
           "old_target_weight": 0.192013,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.174119,
           "status": "WATCH"
         }
       },
@@ -5232,11 +5232,11 @@
       "shadow_gross_scaler": 0.607422,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.193109,
+          "binding": "RISK_GROSS",
+          "delta": -0.074386,
           "old_target_weight": 0.19311,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.118724,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5248,11 +5248,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.202691,
+          "binding": "RISK_GROSS",
+          "delta": -0.024605,
           "old_target_weight": 0.202691,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.178086,
           "status": "WATCH"
         }
       },
@@ -5284,11 +5284,11 @@
       "shadow_gross_scaler": 0.739457,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.055466,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.144534,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5300,11 +5300,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.212394,
+          "binding": "RISK_GROSS",
+          "delta": 0.004408,
           "old_target_weight": 0.212394,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.216802,
           "status": "WATCH"
         }
       },
@@ -5336,11 +5336,11 @@
       "shadow_gross_scaler": 0.838543,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.191997,
+          "binding": "RISK_GROSS",
+          "delta": -0.028096,
           "old_target_weight": 0.191998,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.163902,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5352,11 +5352,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.220893,
+          "binding": "RISK_GROSS",
+          "delta": 0.024959,
           "old_target_weight": 0.220894,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.245853,
           "status": "WATCH"
         }
       },
@@ -5388,11 +5388,11 @@
       "shadow_gross_scaler": 0.882339,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.027534,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.172466,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5404,11 +5404,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.231248,
+          "binding": "RISK_GROSS",
+          "delta": 0.02745,
           "old_target_weight": 0.231249,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.258699,
           "status": "HOLD"
         }
       },
@@ -5440,11 +5440,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.195958,
+          "binding": "CONFIDENCE",
+          "delta": -0.000494,
           "old_target_weight": 0.195959,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195465,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5456,11 +5456,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.090924,
+          "binding": "CONFIDENCE",
+          "delta": 0.026354,
           "old_target_weight": 0.090925,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117279,
           "status": "REDUCE"
         }
       },
@@ -5492,11 +5492,11 @@
       "shadow_gross_scaler": 0.822348,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.039256,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.160744,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5508,11 +5508,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.229287,
+          "binding": "RISK_GROSS",
+          "delta": 0.011828,
           "old_target_weight": 0.229287,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.241115,
           "status": "WATCH"
         }
       },
@@ -5544,11 +5544,11 @@
       "shadow_gross_scaler": 0.8156,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.040575,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.159425,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5560,11 +5560,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.238315,
+          "binding": "RISK_GROSS",
+          "delta": 0.000822,
           "old_target_weight": 0.238315,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.239137,
           "status": "WATCH"
         }
       },
@@ -5596,11 +5596,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "CONFIDENCE",
+          "delta": -0.004527,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195473,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5612,11 +5612,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.095487,
+          "binding": "CONFIDENCE",
+          "delta": 0.021796,
           "old_target_weight": 0.095488,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117284,
           "status": "REDUCE"
         }
       },
@@ -5648,11 +5648,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "CONFIDENCE",
+          "delta": -0.004527,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195473,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5664,11 +5664,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.100049,
+          "binding": "CONFIDENCE",
+          "delta": 0.017234,
           "old_target_weight": 0.10005,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117284,
           "status": "REDUCE"
         }
       },
@@ -5702,11 +5702,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063165,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136835,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5718,11 +5718,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.104067,
+          "binding": "RISK_GROSS",
+          "delta": -0.021967,
           "old_target_weight": 0.104068,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082101,
           "status": "REDUCE"
         }
       },
@@ -5754,11 +5754,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.19596,
+          "binding": "CONFIDENCE",
+          "delta": -0.000483,
           "old_target_weight": 0.195961,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195478,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5770,11 +5770,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.104842,
+          "binding": "CONFIDENCE",
+          "delta": 0.012444,
           "old_target_weight": 0.104843,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117287,
           "status": "REDUCE"
         }
       },
@@ -5806,11 +5806,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "CONFIDENCE",
+          "delta": -0.004518,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195482,
           "status": "HOLD"
         },
         "MSTR": {
@@ -5822,11 +5822,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.110354,
+          "binding": "CONFIDENCE",
+          "delta": 0.006935,
           "old_target_weight": 0.110354,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.117289,
           "status": "REDUCE"
         }
       },
@@ -5860,11 +5860,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.08,
+          "binding": "RISK_GROSS",
+          "delta": -0.025265,
           "old_target_weight": 0.08,
           "rule_weight": 0.08,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.054735,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -5876,11 +5876,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.116069,
+          "binding": "RISK_GROSS",
+          "delta": -0.033967,
           "old_target_weight": 0.11607,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082103,
           "status": "REDUCE"
         }
       },
@@ -5912,11 +5912,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.07935,
+          "binding": "CONFIDENCE",
+          "delta": -0.001155,
           "old_target_weight": 0.07935,
           "rule_weight": 0.08,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.078195,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -5928,11 +5928,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.098328,
+          "binding": "CONFIDENCE",
+          "delta": 0.018963,
           "old_target_weight": 0.098329,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117292,
           "status": "REDUCE"
         }
       },
@@ -5964,11 +5964,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.08,
+          "binding": "CONFIDENCE",
+          "delta": -0.001805,
           "old_target_weight": 0.08,
           "rule_weight": 0.08,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.078195,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -5980,11 +5980,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.095396,
+          "binding": "CONFIDENCE",
+          "delta": 0.021895,
           "old_target_weight": 0.095397,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117292,
           "status": "REDUCE"
         }
       },
@@ -6016,11 +6016,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.13,
+          "binding": "CONFIDENCE",
+          "delta": -0.002931,
           "old_target_weight": 0.13,
           "rule_weight": 0.13,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.127069,
           "status": "TRIM"
         },
         "MSTR": {
@@ -6032,11 +6032,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.150668,
+          "binding": "CONFIDENCE",
+          "delta": 0.039935,
           "old_target_weight": 0.150669,
           "rule_weight": 0.195,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.190604,
           "status": "TRIM"
         }
       },
@@ -6068,11 +6068,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.13,
+          "binding": "CONFIDENCE",
+          "delta": -0.002931,
           "old_target_weight": 0.13,
           "rule_weight": 0.13,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.127069,
           "status": "TRIM"
         },
         "MSTR": {
@@ -6084,11 +6084,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.097266,
+          "binding": "CONFIDENCE",
+          "delta": 0.020028,
           "old_target_weight": 0.097267,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117295,
           "status": "REDUCE"
         }
       },
@@ -6120,11 +6120,11 @@
       "shadow_gross_scaler": 0.692854,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.193777,
+          "binding": "RISK_GROSS",
+          "delta": -0.058328,
           "old_target_weight": 0.193778,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.13545,
           "status": "HOLD"
         },
         "MSTR": {
@@ -6136,11 +6136,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.241225,
+          "binding": "RISK_GROSS",
+          "delta": -0.03805,
           "old_target_weight": 0.241225,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.203175,
           "status": "HOLD"
         }
       },
@@ -6172,11 +6172,11 @@
       "shadow_gross_scaler": 0.760443,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.051337,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.148663,
           "status": "HOLD"
         },
         "MSTR": {
@@ -6188,11 +6188,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.239677,
+          "binding": "RISK_GROSS",
+          "delta": -0.016682,
           "old_target_weight": 0.239677,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.222995,
           "status": "HOLD"
         }
       },
@@ -6224,11 +6224,11 @@
       "shadow_gross_scaler": 0.823612,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.038984,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.161016,
           "status": "HOLD"
         },
         "MSTR": {
@@ -6240,11 +6240,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.246878,
+          "binding": "RISK_GROSS",
+          "delta": -0.005354,
           "old_target_weight": 0.246878,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.241524,
           "status": "HOLD"
         }
       },
@@ -6276,11 +6276,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.126903,
+          "binding": "CONFIDENCE",
+          "delta": 0.000171,
           "old_target_weight": 0.126904,
           "rule_weight": 0.13,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.127075,
           "status": "TRIM"
         },
         "MSTR": {
@@ -6292,11 +6292,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.093218,
+          "binding": "CONFIDENCE",
+          "delta": 0.024082,
           "old_target_weight": 0.093218,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.1173,
           "status": "REDUCE"
         }
       },
@@ -6328,11 +6328,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.079999,
+          "binding": "CONFIDENCE",
+          "delta": -0.001798,
           "old_target_weight": 0.08,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.078202,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -6344,11 +6344,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.098813,
+          "binding": "CONFIDENCE",
+          "delta": 0.018489,
           "old_target_weight": 0.098814,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117303,
           "status": "REDUCE"
         }
       },
@@ -6650,11 +6650,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.062112,
+          "binding": "RISK_GROSS",
+          "delta": -0.007368,
           "old_target_weight": 0.062113,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.054745,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -6704,11 +6704,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.162129,
+          "binding": "RISK_GROSS",
+          "delta": -0.025267,
           "old_target_weight": 0.16213,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136863,
           "status": "WATCH"
         },
         "MSTR": {
@@ -6758,11 +6758,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.170434,
+          "binding": "RISK_GROSS",
+          "delta": -0.033569,
           "old_target_weight": 0.170435,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136866,
           "status": "WATCH"
         },
         "MSTR": {
@@ -6774,11 +6774,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.089043,
+          "binding": "RISK_GROSS",
+          "delta": -0.006924,
           "old_target_weight": 0.089043,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.082119,
           "status": "REDUCE"
         }
       },
@@ -6812,11 +6812,11 @@
       "shadow_gross_scaler": 0.511336,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.177172,
+          "binding": "RISK_GROSS",
+          "delta": -0.077194,
           "old_target_weight": 0.177172,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.099978,
           "status": "HOLD"
         },
         "MSTR": {
@@ -6828,11 +6828,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.229996,
+          "binding": "RISK_GROSS",
+          "delta": -0.08003,
           "old_target_weight": 0.229997,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.149967,
           "status": "WATCH"
         }
       },
@@ -6866,11 +6866,11 @@
       "shadow_gross_scaler": 0.520404,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.185699,
+          "binding": "RISK_GROSS",
+          "delta": -0.083946,
           "old_target_weight": 0.185699,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.101753,
           "status": "HOLD"
         },
         "MSTR": {
@@ -6882,11 +6882,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.242166,
+          "binding": "RISK_GROSS",
+          "delta": -0.089537,
           "old_target_weight": 0.242167,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.15263,
           "status": "HOLD"
         }
       },
@@ -6920,11 +6920,11 @@
       "shadow_gross_scaler": 0.592984,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.194575,
+          "binding": "RISK_GROSS",
+          "delta": -0.078632,
           "old_target_weight": 0.194576,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.115944,
           "status": "HOLD"
         },
         "MSTR": {
@@ -6936,11 +6936,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.249606,
+          "binding": "RISK_GROSS",
+          "delta": -0.075689,
           "old_target_weight": 0.249606,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.173917,
           "status": "HOLD"
         }
       },
@@ -6974,11 +6974,11 @@
       "shadow_gross_scaler": 0.581734,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.086253,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.113747,
           "status": "HOLD"
         },
         "MSTR": {
@@ -6990,11 +6990,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.257926,
+          "binding": "RISK_GROSS",
+          "delta": -0.087306,
           "old_target_weight": 0.257927,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.170621,
           "status": "HOLD"
         }
       },
@@ -7028,11 +7028,11 @@
       "shadow_gross_scaler": 0.6159,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.079572,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.120428,
           "status": "HOLD"
         },
         "MSTR": {
@@ -7044,11 +7044,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.267905,
+          "binding": "RISK_GROSS",
+          "delta": -0.087264,
           "old_target_weight": 0.267906,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.180642,
           "status": "HOLD"
         }
       },
@@ -7082,11 +7082,11 @@
       "shadow_gross_scaler": 0.637759,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.075295,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.124705,
           "status": "HOLD"
         },
         "MSTR": {
@@ -7098,11 +7098,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.283617,
+          "binding": "RISK_GROSS",
+          "delta": -0.096561,
           "old_target_weight": 0.283618,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.187057,
           "status": "HOLD"
         }
       },
@@ -7136,11 +7136,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.063125,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.136875,
           "status": "HOLD"
         },
         "MSTR": {
@@ -7152,11 +7152,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119468,
+          "binding": "RISK_GROSS",
+          "delta": -0.037344,
           "old_target_weight": 0.119469,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082125,
           "status": "REDUCE"
         }
       },
@@ -7190,11 +7190,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063122,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136878,
           "status": "HOLD"
         },
         "MSTR": {
@@ -7206,11 +7206,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037873,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082127,
           "status": "REDUCE"
         }
       },
@@ -7244,11 +7244,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.2,
+          "binding": "RISK_GROSS",
+          "delta": -0.063122,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.136878,
           "status": "HOLD"
         },
         "MSTR": {
@@ -7260,11 +7260,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037873,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082127,
           "status": "REDUCE"
         }
       },
@@ -7298,11 +7298,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.063119,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.136881,
           "status": "WATCH"
         },
         "MSTR": {
@@ -7314,11 +7314,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037871,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082129,
           "status": "REDUCE"
         }
       },
@@ -7352,11 +7352,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.13,
+          "binding": "RISK_GROSS",
+          "delta": -0.041027,
           "old_target_weight": 0.13,
           "rule_weight": 0.13,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.088973,
           "status": "TRIM"
         },
         "MSTR": {
@@ -7368,11 +7368,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.105424,
+          "binding": "RISK_GROSS",
+          "delta": -0.023296,
           "old_target_weight": 0.105425,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082129,
           "status": "REDUCE"
         }
       },
@@ -7406,11 +7406,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.079544,
+          "binding": "RISK_GROSS",
+          "delta": -0.02479,
           "old_target_weight": 0.079544,
           "rule_weight": 0.08,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.054754,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -7422,11 +7422,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.180654,
+          "binding": "RISK_GROSS",
+          "delta": -0.047193,
           "old_target_weight": 0.180655,
           "rule_weight": 0.195,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133462,
           "status": "TRIM"
         }
       },
@@ -7476,11 +7476,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.189958,
+          "binding": "RISK_GROSS",
+          "delta": -0.056497,
           "old_target_weight": 0.189959,
           "rule_weight": 0.195,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133462,
           "status": "TRIM"
         }
       },
@@ -7582,11 +7582,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.173175,
+          "binding": "RISK_GROSS",
+          "delta": -0.039711,
           "old_target_weight": 0.173176,
           "rule_weight": 0.195,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133465,
           "status": "TRIM"
         }
       },
@@ -7634,11 +7634,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.261265,
+          "binding": "CONFIDENCE",
+          "delta": 0.032071,
           "old_target_weight": 0.261266,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.293337,
           "status": "WATCH"
         }
       },
@@ -7686,11 +7686,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.272284,
+          "binding": "CONFIDENCE",
+          "delta": 0.021052,
           "old_target_weight": 0.272285,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.293337,
           "status": "HOLD"
         }
       },
@@ -7740,11 +7740,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.286202,
+          "binding": "RISK_GROSS",
+          "delta": -0.080862,
           "old_target_weight": 0.286203,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205341,
           "status": "HOLD"
         }
       },
@@ -7794,11 +7794,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094659,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205341,
           "status": "HOLD"
         }
       },
@@ -7848,11 +7848,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094655,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205345,
           "status": "HOLD"
         }
       },
@@ -7902,11 +7902,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094655,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205345,
           "status": "HOLD"
         }
       },
@@ -7956,11 +7956,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.09465,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.20535,
           "status": "HOLD"
         }
       },
@@ -8010,11 +8010,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.194999,
+          "binding": "RISK_GROSS",
+          "delta": -0.061522,
           "old_target_weight": 0.195,
           "rule_weight": 0.195,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133478,
           "status": "TRIM"
         }
       },
@@ -8064,11 +8064,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.194999,
+          "binding": "RISK_GROSS",
+          "delta": -0.061519,
           "old_target_weight": 0.195,
           "rule_weight": 0.195,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133481,
           "status": "TRIM"
         }
       },
@@ -8118,11 +8118,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094645,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205355,
           "status": "HOLD"
         }
       },
@@ -8172,11 +8172,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094641,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205359,
           "status": "HOLD"
         }
       },
@@ -8226,11 +8226,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094641,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205359,
           "status": "HOLD"
         }
       },
@@ -8280,11 +8280,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037854,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082146,
           "status": "REDUCE"
         }
       },
@@ -8334,11 +8334,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119078,
+          "binding": "RISK_GROSS",
+          "delta": -0.036933,
           "old_target_weight": 0.119079,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082146,
           "status": "REDUCE"
         }
       },
@@ -8388,11 +8388,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037852,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082148,
           "status": "REDUCE"
         }
       },
@@ -8442,11 +8442,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037852,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082148,
           "status": "REDUCE"
         }
       },
@@ -8496,11 +8496,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037851,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082149,
           "status": "REDUCE"
         }
       },
@@ -8550,11 +8550,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037851,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082149,
           "status": "REDUCE"
         }
       },
@@ -8604,11 +8604,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037849,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082151,
           "status": "REDUCE"
         }
       },
@@ -8658,11 +8658,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037849,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082151,
           "status": "REDUCE"
         }
       },
@@ -8712,11 +8712,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037847,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082153,
           "status": "REDUCE"
         }
       },
@@ -8766,11 +8766,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094617,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205383,
           "status": "WATCH"
         }
       },
@@ -8820,11 +8820,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094612,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205388,
           "status": "HOLD"
         }
       },
@@ -8874,11 +8874,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094612,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205388,
           "status": "HOLD"
         }
       },
@@ -8928,11 +8928,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094608,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205392,
           "status": "HOLD"
         }
       },
@@ -8982,11 +8982,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094608,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205392,
           "status": "HOLD"
         }
       },
@@ -9036,11 +9036,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037841,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082159,
           "status": "REDUCE"
         }
       },
@@ -9090,11 +9090,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.115754,
+          "binding": "RISK_GROSS",
+          "delta": -0.033596,
           "old_target_weight": 0.115755,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082159,
           "status": "REDUCE"
         }
       },
@@ -9144,11 +9144,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.118359,
+          "binding": "RISK_GROSS",
+          "delta": -0.036199,
           "old_target_weight": 0.11836,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082161,
           "status": "REDUCE"
         }
       },
@@ -9198,11 +9198,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.116519,
+          "binding": "RISK_GROSS",
+          "delta": -0.034359,
           "old_target_weight": 0.11652,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082161,
           "status": "REDUCE"
         }
       },
@@ -9252,11 +9252,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.101689,
+          "binding": "RISK_GROSS",
+          "delta": -0.019528,
           "old_target_weight": 0.10169,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082162,
           "status": "REDUCE"
         }
       },
@@ -9414,11 +9414,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.094023,
+          "binding": "RISK_GROSS",
+          "delta": -0.01186,
           "old_target_weight": 0.094024,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082164,
           "status": "REDUCE"
         }
       },
@@ -9468,11 +9468,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.098447,
+          "binding": "RISK_GROSS",
+          "delta": -0.016282,
           "old_target_weight": 0.098448,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082166,
           "status": "REDUCE"
         }
       },
@@ -9522,11 +9522,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.09997,
+          "binding": "RISK_GROSS",
+          "delta": -0.017805,
           "old_target_weight": 0.099971,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082166,
           "status": "REDUCE"
         }
       },
@@ -9576,11 +9576,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.098437,
+          "binding": "RISK_GROSS",
+          "delta": -0.01627,
           "old_target_weight": 0.098438,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082168,
           "status": "REDUCE"
         }
       },
@@ -9630,11 +9630,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.103258,
+          "binding": "RISK_GROSS",
+          "delta": -0.021091,
           "old_target_weight": 0.103259,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082168,
           "status": "REDUCE"
         }
       },
@@ -9684,11 +9684,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.10839,
+          "binding": "RISK_GROSS",
+          "delta": -0.026221,
           "old_target_weight": 0.108391,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.08217,
           "status": "REDUCE"
         }
       },
@@ -9738,11 +9738,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.113363,
+          "binding": "RISK_GROSS",
+          "delta": -0.031194,
           "old_target_weight": 0.113364,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.08217,
           "status": "REDUCE"
         }
       },
@@ -9792,11 +9792,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.118273,
+          "binding": "RISK_GROSS",
+          "delta": -0.036102,
           "old_target_weight": 0.118274,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082172,
           "status": "REDUCE"
         }
       },
@@ -9846,11 +9846,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037828,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082172,
           "status": "REDUCE"
         }
       },
@@ -9900,11 +9900,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.194999,
+          "binding": "RISK_GROSS",
+          "delta": -0.061471,
           "old_target_weight": 0.195,
           "rule_weight": 0.195,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133529,
           "status": "TRIM"
         }
       },
@@ -9954,11 +9954,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.194999,
+          "binding": "RISK_GROSS",
+          "delta": -0.061468,
           "old_target_weight": 0.195,
           "rule_weight": 0.195,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133532,
           "status": "TRIM"
         }
       },
@@ -10008,11 +10008,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.299999,
+          "binding": "RISK_GROSS",
+          "delta": -0.094566,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.205434,
           "status": "HOLD"
         }
       },
@@ -10062,11 +10062,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.194999,
+          "binding": "RISK_GROSS",
+          "delta": -0.061465,
           "old_target_weight": 0.195,
           "rule_weight": 0.195,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133535,
           "status": "TRIM"
         }
       },
@@ -10116,11 +10116,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119999,
+          "binding": "RISK_GROSS",
+          "delta": -0.037824,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082176,
           "status": "REDUCE"
         }
       },
@@ -10170,11 +10170,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.194999,
+          "binding": "RISK_GROSS",
+          "delta": -0.061462,
           "old_target_weight": 0.195,
           "rule_weight": 0.195,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133538,
           "status": "TRIM"
         }
       },
@@ -10278,11 +10278,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.107632,
+          "binding": "RISK_GROSS",
+          "delta": -0.025454,
           "old_target_weight": 0.107633,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082179,
           "status": "REDUCE"
         }
       },
@@ -10764,11 +10764,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.176985,
+          "binding": "RISK_GROSS",
+          "delta": -0.043432,
           "old_target_weight": 0.176986,
           "rule_weight": 0.195,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.133554,
           "status": "TRIM"
         }
       },
@@ -10818,11 +10818,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.114187,
+          "binding": "RISK_GROSS",
+          "delta": -0.031999,
           "old_target_weight": 0.114188,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082189,
           "status": "REDUCE"
         }
       },
@@ -10872,11 +10872,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.119627,
+          "binding": "RISK_GROSS",
+          "delta": -0.037439,
           "old_target_weight": 0.119628,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.082189,
           "status": "REDUCE"
         }
       },
@@ -11566,11 +11566,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.079815,
+          "binding": "CONFIDENCE",
+          "delta": 0.037613,
           "old_target_weight": 0.079816,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117429,
           "status": "REDUCE"
         }
       },
@@ -11618,11 +11618,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.208061,
+          "binding": "RISK_GROSS",
+          "delta": 0.057517,
           "old_target_weight": 0.208062,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.265579,
           "status": "HOLD"
         }
       },
@@ -11672,11 +11672,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.217571,
+          "binding": "RISK_GROSS",
+          "delta": -0.035389,
           "old_target_weight": 0.217572,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.182183,
           "status": "HOLD"
         }
       },
@@ -11724,11 +11724,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.228116,
+          "binding": "RISK_GROSS",
+          "delta": 0.030502,
           "old_target_weight": 0.228117,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.258619,
           "status": "WATCH"
         }
       },
@@ -11760,11 +11760,11 @@
       "shadow_gross_scaler": 0.759595,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.052215,
+          "binding": "RISK_GROSS",
+          "delta": 0.007252,
           "old_target_weight": 0.052216,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.059468,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -11776,11 +11776,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.238927,
+          "binding": "RISK_GROSS",
+          "delta": -0.015922,
           "old_target_weight": 0.238927,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.223005,
           "status": "HOLD"
         }
       },
@@ -11812,11 +11812,11 @@
       "shadow_gross_scaler": 0.964834,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.053622,
+          "binding": "RISK_GROSS",
+          "delta": 0.021914,
           "old_target_weight": 0.053622,
           "rule_weight": 0.08,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.075536,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -11828,11 +11828,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.249301,
+          "binding": "RISK_GROSS",
+          "delta": 0.033958,
           "old_target_weight": 0.249302,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.28326,
           "status": "HOLD"
         }
       },
@@ -11864,11 +11864,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.055971,
+          "binding": "CONFIDENCE",
+          "delta": 0.022319,
           "old_target_weight": 0.055972,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.078291,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -11880,11 +11880,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.104786,
+          "binding": "CONFIDENCE",
+          "delta": 0.01265,
           "old_target_weight": 0.104787,
           "rule_weight": 0.12,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.117437,
           "status": "REDUCE"
         }
       },
@@ -11918,11 +11918,11 @@
       "shadow_gross_scaler": 0.670766,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.058502,
+          "binding": "RISK_GROSS",
+          "delta": -0.005987,
           "old_target_weight": 0.058502,
           "rule_weight": 0.08,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.052515,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -11934,11 +11934,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.271924,
+          "binding": "RISK_GROSS",
+          "delta": -0.074994,
           "old_target_weight": 0.271925,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.196931,
           "status": "HOLD"
         }
       },
@@ -11972,11 +11972,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.057728,
+          "binding": "RISK_GROSS",
+          "delta": -0.002924,
           "old_target_weight": 0.057729,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.054805,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -11988,11 +11988,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.28405,
+          "binding": "RISK_GROSS",
+          "delta": -0.078531,
           "old_target_weight": 0.28405,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.205519,
           "status": "HOLD"
         }
       },
@@ -12026,11 +12026,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.059409,
+          "binding": "RISK_GROSS",
+          "delta": -0.004605,
           "old_target_weight": 0.05941,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.054805,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -12042,11 +12042,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.298014,
+          "binding": "RISK_GROSS",
+          "delta": -0.092495,
           "old_target_weight": 0.298014,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.205519,
           "status": "HOLD"
         }
       },
@@ -12078,11 +12078,11 @@
       "shadow_gross_scaler": 0.968971,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.056464,
+          "binding": "RISK_GROSS",
+          "delta": 0.0194,
           "old_target_weight": 0.056465,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.075865,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -12094,11 +12094,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "ZERO",
-          "delta": -0.3,
+          "binding": "RISK_GROSS",
+          "delta": -0.015506,
           "old_target_weight": 0.3,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.284494,
           "status": "HOLD"
         }
       },
@@ -12132,11 +12132,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.054699,
+          "binding": "RISK_GROSS",
+          "delta": 0.000106,
           "old_target_weight": 0.0547,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.054806,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -12148,11 +12148,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.12,
+          "binding": "RISK_GROSS",
+          "delta": -0.037791,
           "old_target_weight": 0.12,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.082209,
           "status": "REDUCE"
         }
       },
@@ -12186,11 +12186,11 @@
       "shadow_gross_scaler": 0.472571,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.140484,
+          "binding": "RISK_GROSS",
+          "delta": -0.047983,
           "old_target_weight": 0.140485,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.092502,
           "status": "WATCH"
         },
         "MSTR": {
@@ -12202,11 +12202,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.297949,
+          "binding": "RISK_GROSS",
+          "delta": -0.159197,
           "old_target_weight": 0.297949,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.138752,
           "status": "HOLD"
         }
       },
@@ -12240,11 +12240,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.147635,
+          "binding": "RISK_GROSS",
+          "delta": -0.010617,
           "old_target_weight": 0.147636,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.137019,
           "status": "WATCH"
         },
         "MSTR": {
@@ -12256,11 +12256,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.114516,
+          "binding": "RISK_GROSS",
+          "delta": -0.032305,
           "old_target_weight": 0.114516,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.082211,
           "status": "REDUCE"
         }
       },
@@ -12294,11 +12294,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.058653,
+          "binding": "RISK_GROSS",
+          "delta": -0.003845,
           "old_target_weight": 0.058654,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.054809,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -12310,11 +12310,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.09682,
+          "binding": "RISK_GROSS",
+          "delta": -0.014607,
           "old_target_weight": 0.09682,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.082213,
           "status": "REDUCE"
         }
       },
@@ -12348,11 +12348,11 @@
       "shadow_gross_scaler": 0.563576,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.061507,
+          "binding": "RISK_GROSS",
+          "delta": -0.017381,
           "old_target_weight": 0.061508,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.044127,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -12364,11 +12364,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.249498,
+          "binding": "RISK_GROSS",
+          "delta": -0.084022,
           "old_target_weight": 0.249498,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.165476,
           "status": "WATCH"
         }
       },
@@ -12402,11 +12402,11 @@
       "shadow_gross_scaler": 0.567926,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.064227,
+          "binding": "RISK_GROSS",
+          "delta": -0.01976,
           "old_target_weight": 0.064228,
           "rule_weight": 0.08,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.044468,
           "status": "REDUCE"
         },
         "MSTR": {
@@ -12418,11 +12418,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "ZERO",
-          "delta": -0.257661,
+          "binding": "RISK_GROSS",
+          "delta": -0.090908,
           "old_target_weight": 0.257661,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.166753,
           "status": "HOLD"
         }
       },
@@ -12456,11 +12456,11 @@
       "shadow_gross_scaler": 0.569951,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.166321,
+          "binding": "RISK_GROSS",
+          "delta": -0.054754,
           "old_target_weight": 0.166322,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.111568,
           "status": "HOLD"
         },
         "MSTR": {
@@ -12472,11 +12472,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.270331,
+          "binding": "RISK_GROSS",
+          "delta": -0.102979,
           "old_target_weight": 0.270331,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.167352,
           "status": "HOLD"
         }
       },
@@ -12510,11 +12510,11 @@
       "shadow_gross_scaler": 0.579644,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.174761,
+          "binding": "RISK_GROSS",
+          "delta": -0.061297,
           "old_target_weight": 0.174762,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.113465,
           "status": "HOLD"
         },
         "MSTR": {
@@ -12526,11 +12526,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.274716,
+          "binding": "RISK_GROSS",
+          "delta": -0.104518,
           "old_target_weight": 0.274716,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.170198,
           "status": "HOLD"
         }
       },
@@ -12564,11 +12564,11 @@
       "shadow_gross_scaler": 0.527978,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.182913,
+          "binding": "RISK_GROSS",
+          "delta": -0.07956,
           "old_target_weight": 0.182914,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.103354,
           "status": "HOLD"
         },
         "MSTR": {
@@ -12580,11 +12580,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.26211,
+          "binding": "RISK_GROSS",
+          "delta": -0.107079,
           "old_target_weight": 0.26211,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.155031,
           "status": "HOLD"
         }
       },
@@ -12618,11 +12618,11 @@
       "shadow_gross_scaler": 0.7,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.187235,
+          "binding": "RISK_GROSS",
+          "delta": -0.050208,
           "old_target_weight": 0.187236,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.137028,
           "status": "HOLD"
         },
         "MSTR": {
@@ -12634,11 +12634,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.098795,
+          "binding": "RISK_GROSS",
+          "delta": -0.016578,
           "old_target_weight": 0.098795,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.082217,
           "status": "REDUCE"
         }
       },
@@ -12672,11 +12672,11 @@
       "shadow_gross_scaler": 0.487632,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.192586,
+          "binding": "RISK_GROSS",
+          "delta": -0.097129,
           "old_target_weight": 0.192587,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.095458,
           "status": "HOLD"
         },
         "MSTR": {
@@ -12688,11 +12688,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.227198,
+          "binding": "RISK_GROSS",
+          "delta": -0.084011,
           "old_target_weight": 0.227198,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.143187,
           "status": "HOLD"
         }
       },
@@ -12726,11 +12726,11 @@
       "shadow_gross_scaler": 0.415805,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.181065,
+          "binding": "RISK_GROSS",
+          "delta": -0.099669,
           "old_target_weight": 0.181066,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.081397,
           "status": "HOLD"
         },
         "MSTR": {
@@ -12742,11 +12742,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.215186,
+          "binding": "RISK_GROSS",
+          "delta": -0.09309,
           "old_target_weight": 0.215186,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.122096,
           "status": "HOLD"
         }
       },
@@ -12780,11 +12780,11 @@
       "shadow_gross_scaler": 0.426375,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.189285,
+          "binding": "RISK_GROSS",
+          "delta": -0.105817,
           "old_target_weight": 0.189286,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.083469,
           "status": "HOLD"
         },
         "MSTR": {
@@ -12796,11 +12796,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.22517,
+          "binding": "RISK_GROSS",
+          "delta": -0.099967,
           "old_target_weight": 0.22517,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.125203,
           "status": "HOLD"
         }
       },
@@ -12834,11 +12834,11 @@
       "shadow_gross_scaler": 0.434431,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.188122,
+          "binding": "RISK_GROSS",
+          "delta": -0.103077,
           "old_target_weight": 0.188123,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.085046,
           "status": "HOLD"
         },
         "MSTR": {
@@ -12850,11 +12850,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.207607,
+          "binding": "RISK_GROSS",
+          "delta": -0.080039,
           "old_target_weight": 0.207607,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.127568,
           "status": "HOLD"
         }
       },
@@ -12888,11 +12888,11 @@
       "shadow_gross_scaler": 0.46811,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.193387,
+          "binding": "RISK_GROSS",
+          "delta": -0.101747,
           "old_target_weight": 0.193388,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.091641,
           "status": "HOLD"
         },
         "MSTR": {
@@ -12904,11 +12904,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.217085,
+          "binding": "RISK_GROSS",
+          "delta": -0.079624,
           "old_target_weight": 0.217085,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.137461,
           "status": "HOLD"
         }
       },
@@ -12942,11 +12942,11 @@
       "shadow_gross_scaler": 0.490106,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.199999,
+          "binding": "RISK_GROSS",
+          "delta": -0.104053,
           "old_target_weight": 0.2,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.095947,
           "status": "HOLD"
         },
         "MSTR": {
@@ -12958,11 +12958,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.226841,
+          "binding": "RISK_GROSS",
+          "delta": -0.082921,
           "old_target_weight": 0.226841,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.14392,
           "status": "HOLD"
         }
       },
@@ -12996,11 +12996,11 @@
       "shadow_gross_scaler": 0.497977,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.179187,
+          "binding": "RISK_GROSS",
+          "delta": -0.0817,
           "old_target_weight": 0.179188,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.097488,
           "status": "HOLD"
         },
         "MSTR": {
@@ -13012,11 +13012,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.204899,
+          "binding": "RISK_GROSS",
+          "delta": -0.058667,
           "old_target_weight": 0.204899,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.146232,
           "status": "HOLD"
         }
       },
@@ -13048,11 +13048,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.180791,
+          "binding": "CONFIDENCE",
+          "delta": 0.01498,
           "old_target_weight": 0.180792,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195772,
           "status": "HOLD"
         },
         "MSTR": {
@@ -13064,11 +13064,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.08157,
+          "binding": "CONFIDENCE",
+          "delta": 0.035893,
           "old_target_weight": 0.08157,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.117463,
           "status": "REDUCE"
         }
       },
@@ -13100,11 +13100,11 @@
       "shadow_gross_scaler": 1.0,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.184063,
+          "binding": "CONFIDENCE",
+          "delta": 0.011708,
           "old_target_weight": 0.184064,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.195772,
           "status": "HOLD"
         },
         "MSTR": {
@@ -13116,11 +13116,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.085674,
+          "binding": "CONFIDENCE",
+          "delta": 0.031789,
           "old_target_weight": 0.085674,
           "rule_weight": 0.12,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.117463,
           "status": "REDUCE"
         }
       },
@@ -13154,11 +13154,11 @@
       "shadow_gross_scaler": 0.468085,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.184536,
+          "binding": "RISK_GROSS",
+          "delta": -0.092896,
           "old_target_weight": 0.184536,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.09164,
           "status": "HOLD"
         },
         "MSTR": {
@@ -13170,11 +13170,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.204573,
+          "binding": "RISK_GROSS",
+          "delta": -0.067114,
           "old_target_weight": 0.204574,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.13746,
           "status": "HOLD"
         }
       },
@@ -13208,11 +13208,11 @@
       "shadow_gross_scaler": 0.490775,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.191934,
+          "binding": "RISK_GROSS",
+          "delta": -0.095853,
           "old_target_weight": 0.191935,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.096082,
           "status": "HOLD"
         },
         "MSTR": {
@@ -13224,11 +13224,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.215036,
+          "binding": "RISK_GROSS",
+          "delta": -0.070913,
           "old_target_weight": 0.215036,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.144123,
           "status": "HOLD"
         }
       },
@@ -13262,11 +13262,11 @@
       "shadow_gross_scaler": 0.520502,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.194433,
+          "binding": "RISK_GROSS",
+          "delta": -0.09253,
           "old_target_weight": 0.194434,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.101904,
           "status": "HOLD"
         },
         "MSTR": {
@@ -13278,11 +13278,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.223386,
+          "binding": "RISK_GROSS",
+          "delta": -0.070529,
           "old_target_weight": 0.223386,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.152857,
           "status": "HOLD"
         }
       },
@@ -13316,11 +13316,11 @@
       "shadow_gross_scaler": 0.411131,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.167912,
+          "binding": "RISK_GROSS",
+          "delta": -0.087421,
           "old_target_weight": 0.167913,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.080492,
           "status": "HOLD"
         },
         "MSTR": {
@@ -13332,11 +13332,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "ZERO",
-          "delta": -0.203049,
+          "binding": "RISK_GROSS",
+          "delta": -0.082312,
           "old_target_weight": 0.203049,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.120737,
           "status": "HOLD"
         }
       },
@@ -13370,11 +13370,11 @@
       "shadow_gross_scaler": 0.442716,
       "symbols": {
         "FNGU": {
-          "binding": "ZERO",
-          "delta": -0.175067,
+          "binding": "RISK_GROSS",
+          "delta": -0.08839,
           "old_target_weight": 0.175067,
           "rule_weight": 0.2,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.086677,
           "status": "HOLD"
         },
         "MSTR": {
@@ -13386,11 +13386,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.206434,
+          "binding": "RISK_GROSS",
+          "delta": -0.076419,
           "old_target_weight": 0.206435,
           "rule_weight": 0.3,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.130016,
           "status": "HOLD"
         }
       },
@@ -13424,11 +13424,11 @@
       "shadow_gross_scaler": 0.477938,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.181549,
+          "binding": "RISK_GROSS",
+          "delta": -0.087977,
           "old_target_weight": 0.18155,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.093573,
           "status": "HOLD"
         },
         "MSTR": {
@@ -13440,11 +13440,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.21698,
+          "binding": "RISK_GROSS",
+          "delta": -0.07662,
           "old_target_weight": 0.21698,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.14036,
           "status": "HOLD"
         }
       },
@@ -13478,11 +13478,11 @@
       "shadow_gross_scaler": 0.483596,
       "symbols": {
         "FNGU": {
-          "binding": "NONE",
-          "delta": -0.180135,
+          "binding": "RISK_GROSS",
+          "delta": -0.085455,
           "old_target_weight": 0.180136,
           "rule_weight": 0.2,
-          "shadow_target_weight": 1e-06,
+          "shadow_target_weight": 0.094681,
           "status": "HOLD"
         },
         "MSTR": {
@@ -13494,11 +13494,11 @@
           "status": "EXIT"
         },
         "SOXL": {
-          "binding": "NONE",
-          "delta": -0.226277,
+          "binding": "RISK_GROSS",
+          "delta": -0.084255,
           "old_target_weight": 0.226277,
           "rule_weight": 0.3,
-          "shadow_target_weight": 0.0,
+          "shadow_target_weight": 0.142022,
           "status": "HOLD"
         }
       },
@@ -13623,7 +13623,7 @@
   },
   "errors": [],
   "live_effect": "none",
-  "max_abs_weight_delta": 0.3,
+  "max_abs_weight_delta": 0.159197,
   "mode_counts": {
     "NORMAL": 252
   },

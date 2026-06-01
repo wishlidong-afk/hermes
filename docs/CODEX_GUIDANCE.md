@@ -7,10 +7,10 @@
 
 ## 0. 现状一句话
 
-- **245 package tests OK + 11 golden tests OK**；missing MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。
+- **247 package tests OK + 11 golden tests OK**；missing MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。
 - **P0/P1/P2 全部完成**：合成历史 TE 4.67%；real-only CAGR 44.39% Sharpe 1.79；deployment PBO=0.1538。
 - **P4 整合地基 Phase 0–I + Pipeline 完成且已落地本地 `.hermes`**：12 个组件骨架（ConfidenceSpine/RiskEngine/SizingOptimizer/FactorLab/MarketContext/ValidationHarness/Governance/Sanitize/Failover/DriftMonitor/Pipeline/Config），E1–E30 全覆盖，7 道总闸全有结构性验证。
-- **P5 Phase II shadow 对照已跑通 252 日 + 相关闸敏感性**：rows=252、errors=0、R3 violations=0、confidence NORMAL×252；`EXTREME_CORR` share 78.57%；review candidate 为 threshold=110 / penalty=0.70；live 开关未翻。
+- **P5 Phase II shadow 对照已跑通 252 日 + 相关闸敏感性**：rows=252、errors=0、R3 violations=0、max abs weight delta=0.1592、confidence NORMAL×252；`SizingOptimizer` 已接 `risk_state.gross_scaler`；`EXTREME_CORR` share 78.57%；review candidate 为 threshold=110 / penalty=0.70；live 开关未翻。
 - **Phase II–IV 计划就绪**：配置/feature flags/rollout plan/scaler migration guide 全部产出。
 - **下一步**：把相关闸候选参数接入 full backtest / walk-forward 校准 + 补 NEXT-1 剩余软数据。
 
@@ -23,7 +23,7 @@ P0  ✅ DONE — 合成历史接缝调整严格门控通过（TE 4.67%, corr 0.9
 P1  ✅ DONE — 全窗口回测（real-only CAGR 44.39%, Sharpe 1.79, DSR 1.66）
 P2  ✅ DONE — 稳定高原校准（EXIT=75, DEF_EXIT=65, deployment PBO=0.1538）
 P3  可启动 — 补 NEXT-1 剩余软数据（PCR/NAAIM/BTC funding-basis-DVOL）
-P4  ✅ Phase 0–I + Pipeline DONE — 12 组件 + 245 package tests + E1–E30 全覆盖
+P4  ✅ Phase 0–I + Pipeline DONE — 12 组件 + 247 package tests + E1–E30 全覆盖
 P5  IN-PROGRESS — Phase II shadow 252 日 + corr sensitivity 已跑通，下一步 full backtest 校准
 P6  后续 — Phase III 替换旧 scaler 链 → Phase IV 7 闸全通过
 ```
