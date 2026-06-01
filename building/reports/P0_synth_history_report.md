@@ -1,7 +1,7 @@
 # P0 Synthetic Leveraged History Report
 
 Generated: `2026-06-01`
-Data manifest: `80d347e87027cc45a6f6355dcbab46781c91f9e79601569bdb1a8be1ee28a213`
+Data manifest: `8797a3a7daab2899d589b510fed9bde0eb1406ec5177801f773a7f24d8a97138`
 Strict P0 gate: `NOT PASSED`
 
 ## Reconstruction Summary
@@ -26,6 +26,14 @@ This secondary diagnostic skips the first 20 real observations to reveal whether
 |---|---|---:|---:|---:|---:|---:|---:|
 | FNGU | 2025-03-20 to 2026-05-29 | 299 | 0.9986 | 4.67% | 23.13% | True | True |
 | FNGS | 2019-12-12 to 2026-05-29 | 1622 | 0.9915 | 4.11% | 2.40% | True | True |
+
+## Official 3x Index Diagnostic
+
+FNGU was also compared with the ICE-published NYSE FANG+ Daily 3x Leveraged Index (`FANG3X`) when a local `FANG3X.csv` cache is available. This is diagnostic only; it does not override the strict P0 gate above.
+
+| Symbol | Overlap | Obs | Return Corr | Annual TE | Max Abs Dev | Corr Gate | TE Gate |
+|---|---|---:|---:|---:|---:|---:|---:|
+| FNGU | 2025-02-20 to 2026-05-29 | 311 | 0.9927 | 9.91% | 26.90% | True | False |
 
 ## Gate Decision
 

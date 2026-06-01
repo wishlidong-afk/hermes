@@ -5,8 +5,8 @@
 
 ## 一句话现状
 
-流水线通、**82 单测绿**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
-**P0 合成杠杆历史代码与数据管线已搭建，FNGU/FNGS 本地历史均扩到 2018-01-02；但严格验收未放行：FNGU overlap 年化 TE 8.42% > 5%。** 因此 P1 全窗口回测与 NEXT-3 校准仍阻塞，下一步必须继续修 FNGU 合成跟踪误差。
+流水线通、**84 单测绿**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
+**P0 合成杠杆历史代码与数据管线已搭建，FNGU/FNGS 本地历史均扩到 2018-01-02；但严格验收未放行：FNGU overlap 年化 TE 8.42% > 5%。** P0.1 已接入 ICE/wallstreetONLINE `FANG3X/FANGT3X` 官方指数缓存与诊断，但 `FNGU vs FANG3X` 年化 TE 9.91%，不能替代严格 gate。因此 P1 全窗口回测与 NEXT-3 校准仍阻塞，下一步必须继续修 FNGU 合成跟踪误差。
 
 ## 成熟度
 
@@ -25,7 +25,7 @@
 |---|---|---|
 | NEXT-0 数据地基 | DONE-CODE / PARTIAL-DATA | backfill/pit/manifest/leg_proxy 完成；34/38 标的 ≤2018-01-02；P0 已给 FNGU/FNGS 生成 proxy 至 2018-01-02，但 FNGU TE 未过门 |
 | NEXT-1 可历史化软数据 | IN-PROGRESS / 盲区门已过 | 已接 FRED·A5 / CBOE SKEW-VVIX·B4 / AAII·A2 / 成分宽度·A3 / MSTR BTC价代理·D-M3；**待接 PCR / NAAIM / BTC funding-basis-DVOL / GEX / social / valuation（增量，非阻塞）** |
-| **P0 合成杠杆历史** | **CODE-DONE / STRICT-GATE-NOT-PASSED** | 已生成 FNGU/FNGS proxy 历史到 2018-01-02；FNGS 通过，FNGU corr 0.9950 但 TE 8.42% 未过 5% 门；见 `building/reports/P0_synth_history_report.md` |
+| **P0 合成杠杆历史** | **CODE-DONE / STRICT-GATE-NOT-PASSED** | 已生成 FNGU/FNGS proxy 历史到 2018-01-02；FNGS 通过，FNGU corr 0.9950 但 TE 8.42% 未过 5% 门；P0.1 官方 `FANG3X` 诊断 TE 9.91%，仍未解决；见 `building/reports/P0_synth_history_report.md` |
 | NEXT-2 回测引擎 | ACCEPTANCE-READY / P0-BLOCKED | runner/route-leg/Backtest_FULL/硬阀门矩阵已出；**需 P0 严格通过后重跑全窗口** |
 | NEXT-3 参数校准 | TODO | 等 P0 严格通过 + NEXT-2 全窗口 |
 | NEXT-4 向前软数据 | TODO | GEX/CNN/新闻/mNAV |
@@ -54,6 +54,8 @@ Phase 0–9、12 = DONE；Phase 10(扩展数据)=IN-PROGRESS；Phase 11(回测)=
 
 - missing_weight：MSTR 26 / FNGU 19 / SOXL 19（**均 <30，盲区门已过**）
 - P0 proxy 覆盖：FNGU 2018-01-02→2025-02-19（1793 行）；FNGS 2018-01-02→2019-11-12（470 行）
+- P0.1 官方指数缓存：`FANG3X` 2020-04-14→2026-05-29（1549 行）；`FANGT3X` 2020-04-14→2026-05-29（1541 行）
 - 严格验收：FNGU ret_corr 0.9950 / annual TE 8.42%（未过）；FNGS ret_corr 0.9914 / annual TE 4.12%（通过）
+- 官方指数诊断：FNGU vs `FANG3X` ret_corr 0.9927 / annual TE 9.91%（未过）
 - 回测有效窗口：正式校准仍按 2025-02-20 → 2026-05-29 视为高置信；2018+ proxy 窗口在 FNGU TE 修复前不得用于 P1/NEXT-3
 - 2026-05-29 回放：MSTR EXIT(H-M1,H-M4) / FNGU WATCH / SOXL WATCH；体制 LOW_VOL_TREND

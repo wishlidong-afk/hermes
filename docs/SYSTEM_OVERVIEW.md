@@ -12,7 +12,7 @@
 |---|---|
 | 文档版本 | v1.0 |
 | 更新时间 | 2026-06-01 |
-| 当前成熟度 | M1（盲区门已过；P0 合成质量仍阻塞 M2/M3） |
+| 当前成熟度 | M1（盲区门已过；P0 合成质量仍阻塞 M2/M3；P0.1 官方 FANG3X 诊断未放行） |
 | data_manifest_id | 待 NEXT-0 freeze 后填写 |
 | calibration 档案 | 未生成（NEXT-3 产出） |
 | 当前 missing_weight (MSTR/FNGU/SOXL) | 26 / 19 / 19（均 <30，盲区门已过） |
@@ -169,7 +169,7 @@ M5 会学习      : 元模型解锁 + p_act 校准达标                    ← 
 |---|---|---|---|
 | NEXT-0 | 数据地基：价格史2018+ / 数据版本化 / 时点对齐 | → M1 前置 | DONE-CODE / PARTIAL-DATA |
 | NEXT-1 | 可历史化软数据接入（FRED/CBOE/PCR/AAII/NAAIM/BTC微观），降盲区 | → M1 | IN-PROGRESS / 盲区门已过 |
-| P0 | 合成杠杆历史：FNGU/FNGS proxy 至 2018+ | → M2 前置 | CODE-DONE / STRICT-GATE-NOT-PASSED |
+| P0 | 合成杠杆历史：FNGU/FNGS proxy 至 2018+；官方 FANG3X/FANGT3X 缓存诊断 | → M2 前置 | CODE-DONE / STRICT-GATE-NOT-PASSED |
 | NEXT-2 | 回测引擎补全（2018→2026 + 成本 + walk-forward + 硬阀门历史触发） | → M2 | ACCEPTANCE-READY / P0 阻塞 |
 | NEXT-3 | 参数扫描与正式校准（稳健选参 + 每模块达标门） | → M3 | TODO |
 | NEXT-4 | 纯向前软数据（GEX/CNN/新闻/mNAV）+ dated 归档 | 增强 | TODO |

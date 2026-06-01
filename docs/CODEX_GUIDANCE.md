@@ -7,8 +7,9 @@
 
 ## 0. 现状一句话
 
-- **82 单测绿；missing 已降到 MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。**
+- **84 单测绿；missing 已降到 MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。**
 - **P0 代码与数据管线已搭建，但严格验收未放行。** FNGU/FNGS 历史均已扩到 2018-01-02；FNGS overlap 通过，FNGU ret_corr 0.9950 但年化 tracking error 8.42% > 5%。
+- **P0.1 官方指数源已接入诊断。** 已能缓存 ICE/wallstreetONLINE `FANG3X/FANGT3X`；但 `FNGU vs FANG3X` 年化 TE 9.91%，仍不能替代严格验收。
 - **当前唯一关键瓶颈从“没有 FNGU 历史”变成“FNGU 合成段严格跟踪误差未过门”。** 在此修复前，不能把 2018+ proxy 窗口用于 P1/NEXT-3 校准。
 - 后果：NEXT-2 代码就绪但"窗口受限"，**NEXT-3 在 15 个月数据上做参数校准等于过拟合噪音，无意义。**
 - 结论：**先解决 FNGU 历史，再谈回测/校准。** 这是当前唯一该做的第一件事。
@@ -35,11 +36,12 @@ P4  整合地基：ConfidenceSpine / RiskEngine / SizingOptimizer（替换 scale
 
 **当前 P0 执行结果（2026-06-01）**：
 
-- 已新增 `core/data/synth_leverage.py`、`scripts/build_synth_history.py`、`tests/test_p0_synth_leverage.py`。
+- 已新增 `core/data/synth_leverage.py`、`scripts/build_synth_history.py`、`core/data/wso_index.py`、`scripts/backfill_official_indices.py`、`tests/test_p0_synth_leverage.py`。
 - 已扩展 manifest 记录 proxy rows/date range/source；snapshot 已透传 `is_proxy` 来源。
 - 已生成 `reports/P0_synth_history_report.md/json`，并同步到 `building/reports/`。
 - FNGU proxy：2018-01-02→2025-02-19，1793 行；FNGS proxy：2018-01-02→2019-11-12，470 行。
 - 严格验收：FNGU ret_corr 0.9950 通过，annual TE 8.42% 未过；FNGS ret_corr 0.9914、annual TE 4.12% 通过。
+- 官方 3x 指数诊断：`FANG3X` 本地缓存覆盖 2020-04-14→2026-05-29；`FNGU vs FANG3X` ret_corr 0.9927、annual TE 9.91%，未解决 gate。
 - 结论：P0 暂为 `CODE-DONE / STRICT-GATE-NOT-PASSED`，不得启动 P1/NEXT-3。
 
 ### 2.1 新文件 `core/data/synth_leverage.py`

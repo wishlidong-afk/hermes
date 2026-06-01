@@ -2,6 +2,7 @@
   "FNGS": {
     "end_date": "2026-05-29",
     "leverage": 1.0,
+    "official_3x_validation": null,
     "path": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/data/history/FNGS.csv",
     "proxy_end": "2019-11-12",
     "proxy_rows": 470,
@@ -38,6 +39,17 @@
   "FNGU": {
     "end_date": "2026-05-29",
     "leverage": 3.0,
+    "official_3x_validation": {
+      "max_abs_dev": 0.26901235224101994,
+      "observations": 311,
+      "overlap_end": "2026-05-29",
+      "overlap_start": "2025-02-20",
+      "pass_corr": true,
+      "pass_tracking_error": false,
+      "passed": false,
+      "ret_corr": 0.9926885204620078,
+      "tracking_error_annual": 0.09905098073380833
+    },
     "path": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/data/history/FNGU.csv",
     "proxy_end": "2025-02-19",
     "proxy_rows": 1793,

@@ -22,8 +22,8 @@
 - 策略执行：已实现逃顶裁决、硬阀门、资金路由、镜像参考和回测 runner。
 - 回测窗口：高置信 real-only 窗口仍为 2025-02-20 至 2026-05-29；P0 已生成 2018+ proxy，但 FNGU 严格 TE 未过门，暂不得用于 P1/NEXT-3。
 - 回测结果：`Backtest_FULL.md` 中记录 Final Value、CAGR、Max Drawdown、Sharpe、Sortino 等核心指标。
-- 自动测试：本地最近一次验收为 82 tests passed。
-- P0 最新状态：合成杠杆历史代码/数据管线已建，82 tests passed；FNGU 严格 TE 未过 5% 门，P1/NEXT-3 仍阻塞。
+- 自动测试：本地最近一次验收为 84 tests passed。
+- P0 最新状态：合成杠杆历史代码/数据管线已建，84 tests passed；P0.1 已接 ICE/wallstreetONLINE `FANG3X/FANGT3X` 官方指数缓存与诊断；FNGU 严格 TE 未过 5% 门，官方 `FANG3X` 诊断也未过，P1/NEXT-3 仍阻塞。
 
 ## 线上线下同步维护规则
 

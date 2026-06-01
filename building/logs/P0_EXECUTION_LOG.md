@@ -20,6 +20,8 @@ Generated: `2026-06-01`
 - Added `core/data/synth_leverage.py`.
 - Added `scripts/build_synth_history.py`.
 - Added `tests/test_p0_synth_leverage.py`.
+- Added `core/data/wso_index.py` for wallstreetONLINE/ICE FANG+ daily leveraged index parsing.
+- Added `scripts/backfill_official_indices.py` to cache `FANG3X` and `FANGT3X` as versioned local history CSVs.
 - Updated `core/data/manifest.py` so manifests record proxy row count, proxy date range, and proxy sources.
 - Updated `core/data/market.py` so snapshots propagate `is_proxy` and source provenance into OHLCV and derived fields.
 - Generated `reports/P0_synth_history_report.md/json`.
@@ -58,6 +60,14 @@ Stable diagnostic skipping first 20 real observations:
 | FNGU | `0.9986` | `4.67%` | Diagnostic pass only |
 | FNGS | `0.9915` | `4.11%` | Passed |
 
+Official ICE 3x index diagnostic:
+
+| Symbol | Source | Return Corr | Annual TE | Gate |
+|---|---|---:|---:|---|
+| FNGU | `FANG3X` local cache from wallstreetONLINE/ICE | `0.9927` | `9.91%` | Corr passed, TE failed |
+
+Official-index finding: the public ICE 3x index cache is useful provenance, but it does **not** solve the strict FNGU gate. The remaining error is still concentrated in the first ~20 real observations after the 2025-02-20 FNGB/FNGU launch/ticker seam.
+
 Conclusion: P0 code and data plumbing are built, but strict FNGU tracking-error acceptance is not met. Per `CODEX_GUIDANCE.md`, P1/NEXT-2 full-window rerun and NEXT-3 calibration remain blocked until FNGU synthetic quality is improved or an alternative real/proxy source is approved.
 
 ## Tests
@@ -68,7 +78,7 @@ Command:
 PYTHONPATH=/Users/liweishi/.hermes/skills/investment/escape-top python3 -m unittest discover -s tests
 ```
 
-Result: `Ran 82 tests in 18.403s — OK`
+Latest result after official-index parser tests: `Ran 84 tests — OK`
 
 ## Next Required Action
 

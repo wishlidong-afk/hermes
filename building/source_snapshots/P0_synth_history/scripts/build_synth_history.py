@@ -30,6 +30,7 @@ class SynthBuildResult:
     proxy_end: Optional[str]
     validation: Dict[str, Any]
     validation_stable_skip20: Dict[str, Any]
+    official_3x_validation: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -98,6 +99,7 @@ def build_symbol(symbol: str, spec: Dict[str, Any], store: LocalStore, cfg: Dict
     validation = validate_synth(real_df, validation_proxy, (real_start, real_end))
     stable_start = real_df.index[min(20, len(real_df.index) - 1)].date().isoformat()
     validation_stable = validate_synth(real_df, validation_proxy, (stable_start, real_end))
+    official_validation = _official_3x_validation(symbol, real_df, store, real_start, real_end)
 
     proxy_mask = combined.get("is_proxy", pd.Series(False, index=combined.index)).astype(str).str.lower().isin({"true", "1", "yes"})
     proxy_dates = combined.index[proxy_mask]
@@ -116,6 +118,7 @@ def build_symbol(symbol: str, spec: Dict[str, Any], store: LocalStore, cfg: Dict
         proxy_end=proxy_dates.max().date().isoformat() if len(proxy_dates) else None,
         validation=validation,
         validation_stable_skip20=validation_stable,
+        official_3x_validation=official_validation,
     )
 
 
@@ -168,6 +171,21 @@ def write_report(results: Dict[str, SynthBuildResult], cfg: Dict[str, Any], outp
     for result in results.values():
         row = result.validation_stable_skip20
         lines.append(_validation_row(result.symbol, row))
+    official_rows = [result for result in results.values() if result.official_3x_validation]
+    if official_rows:
+        lines.extend(
+            [
+                "",
+                "## Official 3x Index Diagnostic",
+                "",
+                "FNGU was also compared with the ICE-published NYSE FANG+ Daily 3x Leveraged Index (`FANG3X`) when a local `FANG3X.csv` cache is available. This is diagnostic only; it does not override the strict P0 gate above.",
+                "",
+                "| Symbol | Overlap | Obs | Return Corr | Annual TE | Max Abs Dev | Corr Gate | TE Gate |",
+                "|---|---|---:|---:|---:|---:|---:|---:|",
+            ]
+        )
+        for result in official_rows:
+            lines.append(_validation_row(result.symbol, result.official_3x_validation or {}))
     lines.extend(
         [
             "",
@@ -228,6 +246,38 @@ def _short_rate_series(store: LocalStore) -> pd.Series:
         return pd.Series(dtype=float)
     returns = pd.to_numeric(bil["Close"], errors="coerce").pct_change()
     return returns.rolling(21, min_periods=5).mean().mul(252.0).clip(lower=0.0, upper=0.08).fillna(0.0)
+
+
+def _official_3x_validation(symbol: str, real_df: pd.DataFrame, store: LocalStore, real_start: str, real_end: str) -> Optional[Dict[str, Any]]:
+    if symbol != "FNGU":
+        return None
+    official = _real_only(store.load_history("FANG3X"))
+    if official.empty or "Close" not in official:
+        return None
+    common = real_df.index.intersection(official.index)
+    if len(common) < 3:
+        return None
+    close = pd.to_numeric(official.loc[common, "Close"], errors="coerce").dropna()
+    if close.empty:
+        return None
+    real_close = pd.to_numeric(real_df.loc[common, "Close"], errors="coerce").dropna()
+    anchor_common = real_close.index.intersection(close.index)
+    if len(anchor_common) < 3:
+        return None
+    anchor = float(real_close.loc[anchor_common].iloc[0])
+    scaled = close.loc[anchor_common] / float(close.loc[anchor_common].iloc[0]) * anchor
+    frame = pd.DataFrame(
+        {
+            "Open": scaled,
+            "High": scaled,
+            "Low": scaled,
+            "Close": scaled,
+            "Adj Close": scaled,
+            "Volume": 0.0,
+        },
+        index=scaled.index,
+    )
+    return validate_synth(real_df, frame, (real_start, real_end))
 
 
 def _real_only(frame: pd.DataFrame) -> pd.DataFrame:

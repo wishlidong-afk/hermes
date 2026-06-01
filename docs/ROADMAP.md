@@ -45,11 +45,11 @@
 
 ## 当前可立即开工（据真实进度重排，2026-06-01）
 
-> 现状：missing 已 <30（盲区门过），NEXT-0/1 代码就绪。P0 已把 FNGU/FNGS proxy 历史扩到 2018-01，但 **FNGU 严格 overlap 年化 TE 8.42% > 5%**，因此仍不能放行 P1/NEXT-3。明确施工指引见 `CODEX_GUIDANCE.md`。
+> 现状：missing 已 <30（盲区门过），NEXT-0/1 代码就绪。P0 已把 FNGU/FNGS proxy 历史扩到 2018-01，但 **FNGU 严格 overlap 年化 TE 8.42% > 5%**；P0.1 已接 ICE/wallstreetONLINE `FANG3X/FANGT3X` 官方指数诊断，`FNGU vs FANG3X` TE 9.91%，仍不能放行 P1/NEXT-3。明确施工指引见 `CODEX_GUIDANCE.md`。
 
 | 顺位 | 任务 | 文档锚点 | 价值 |
 |---|---|---|---|
-| **P0** | **修复 FNGU(3×) 合成历史严格跟踪误差**（当前代码/数据管线已建，FNGU annual TE 8.42% 未过 5% 门） | CODEX_GUIDANCE P0 | **唯一阻塞：解锁全窗口回测与校准** |
+| **P0** | **修复 FNGU(3×) 合成历史严格跟踪误差**（当前代码/数据管线已建，FNGU annual TE 8.42% 未过 5% 门；官方 FANG3X 诊断 TE 9.91%） | CODEX_GUIDANCE P0 | **唯一阻塞：解锁全窗口回测与校准** |
 | P1 | NEXT-2 用 P0 历史全窗口重跑（real-only vs full(含 proxy) 并排） | BUILD_TICKETS NEXT-2 | 验得过（真窗口） |
 | P2 | NEXT-3 参数扫描 + 每模块达标门 + PBO（报告对合成段敏感性） | BUILD_TICKETS NEXT-3 | 校得准 |
 | P3(并行) | 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL（进一步降 MSTR 的 26） | BUILD_TICKETS NEXT-1 | 质量增量，非阻塞 |

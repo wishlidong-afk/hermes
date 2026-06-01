@@ -4,7 +4,7 @@
 
 > 性质：只读风控/建议系统，**不下单**。覆盖标的 MSTR / FNGU / SOXL（逃顶）+ QQQ/FNGU、SOXX/SOXL、MSTR/QQQ（镜像）。
 
-> **Codex 从这里开始施工 →** [`docs/CODEX_GUIDANCE.md`](docs/CODEX_GUIDANCE.md)（明确的下一步：P0 合成管线已建，但 FNGU 年化 TE 8.42% 未过 5% 门，继续修 FNGU 合成质量）。
+> **Codex 从这里开始施工 →** [`docs/CODEX_GUIDANCE.md`](docs/CODEX_GUIDANCE.md)（明确的下一步：P0 合成管线已建，但 FNGU 年化 TE 8.42% 未过 5% 门；P0.1 官方 FANG3X 诊断 TE 9.91%，继续修 FNGU 合成质量）。
 
 ## 阅读路线（按顺序）
 

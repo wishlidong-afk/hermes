@@ -10,6 +10,7 @@ from hermes_escape_top.core.data.manifest import freeze_manifest
 from hermes_escape_top.core.data.market import MarketData
 from hermes_escape_top.core.data.store import LocalStore
 from hermes_escape_top.core.data.synth_leverage import equal_weight_basket, reconstruct_leveraged_history, validate_synth
+from hermes_escape_top.core.data.wso_index import fetch_wso_index, parse_wso_chart_payload
 
 
 def history(start: str, closes: list[float]) -> pd.DataFrame:
@@ -82,6 +83,31 @@ class P0SynthLeverageTest(unittest.TestCase):
             snap = MarketData(cfg, store).snapshot("AAA", "2026-01-01")
             self.assertTrue(snap.field("close").is_proxy)
             self.assertEqual(snap.field("close").source, "synth_2x_TEST")
+
+    def test_wso_index_payload_parser_skips_null_rows_and_dates_to_us_session(self) -> None:
+        payload = {
+            "data": [
+                [0, 100.0, 101.0, 99.0, 100.5, 0, 1586815200],
+                [1, None],
+                [2, 101.0, 103.0, 100.0, 102.5, 0, 1586901600],
+            ]
+        }
+        frame = parse_wso_chart_payload(payload, "FANG3X")
+        self.assertEqual(len(frame), 2)
+        self.assertEqual(frame.index.min().date().isoformat(), "2020-04-14")
+        self.assertAlmostEqual(float(frame["Close"].iloc[-1]), 102.5)
+
+    def test_fetch_wso_index_uses_declared_endpoint_without_live_network(self) -> None:
+        calls = []
+
+        def fake_get(url, params, headers):
+            calls.append((url, params, headers))
+            return {"data": [[0, 100.0, 101.0, 99.0, 100.5, 0, 1586815200]]}
+
+        result = fetch_wso_index("FANG3X", http_get=fake_get)
+        self.assertEqual(result.symbol, "FANG3X")
+        self.assertEqual(len(result.frame), 1)
+        self.assertEqual(calls[0][1]["q[instId]"], "341241317")
 
 
 if __name__ == "__main__":
