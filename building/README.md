@@ -128,14 +128,26 @@
 
 | 里程碑 | 状态 | 关键数字 |
 |---|---|---|
-| M0 能跑 | ✅ | 86 单测绿（本地最新） |
+| M0 能跑 | ✅ | 94 package + 11 golden + 106 integration tests |
 | M1 看得清 | ✅ | missing: MSTR 26 / FNGU 19 / SOXL 19，均 <30 |
 | M2 验得过 | ✅ | real-only CAGR 44.39% MaxDD -10.43% Sharpe 1.79 DSR 1.66 |
-| **M3 校得准** | **✅ 实质达成** | Calmar 4.02（3.7× SPY）；chosen: DEF_EXIT=60 REDUCE=55 |
+| **M3 校得准** | **✅ 实质达成** | EXIT=75 DEF_EXIT=65 REDUCE=50；deployment PBO=0.1538 |
 | M4 可上线 | ⬜ | 待人工 dry-run |
 | M5 会学习 | ⬜ | 标签解锁门未达 |
 
-**当前最高优先任务**：NEXT-4（向前软数据）或 NEXT-6（IBKR 只读对账），可并行。
+## P4 整合进度
+
+| 阶段 | 状态 | 产出 |
+|---|---|---|
+| Phase 0 输入护栏 | ✅ DONE | E1 数据净化 + E30 故障转移 |
+| Phase I 地基 | ✅ DONE | 1 脊柱 + 4 引擎 + 1 优化器 + 治理 + 漂移监控 |
+| Pipeline 接线 | ✅ DONE | 11 步统一数据流，7 道总闸结构验证 |
+| Phase II–IV 计划 | ✅ DONE | 配置 + feature flags + rollout plan + scaler migration guide |
+| Phase II 风险与信号 | TODO → 下一步 | shadow 对照 |
+| Phase III 统一处置 | TODO | 替换旧 scaler 链 |
+| Phase IV 验证与治理 | TODO | 7 闸全通过 |
+
+**当前最高优先任务**：Phase II shadow 对照（需本地运行环境）+ 补 NEXT-1 剩余软数据。
 
 ---
 
