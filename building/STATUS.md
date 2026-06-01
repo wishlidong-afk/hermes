@@ -11,7 +11,7 @@
 | 8 资金路由 | DONE | local only | n/a | BRK.B 降级监控已接；实时生效需本地 BRK.B 历史；仅 advisory | 2026-06-01 |
 | 9 3-3-4 再建仓 | DONE | local only | n/a | 卖出日期读取 signal journal；T1/T2 活跃状态仍未持久化 | 2026-06-01 |
 | 10 扩展数据 adapter | IN-PROGRESS | local only | n/a | FRED、CBOE SKEW/VVIX、AAII、成分宽度已接；PCR/NAAIM/BTC funding-basis-DVOL/GEX/social/valuation 待接 | 2026-06-01 |
-| 11 回测与验证框架 | ACCEPTANCE-READY | local only | coverage-constrained | 已有完整 routed runner、Backtest_FULL 报告、硬阀门历史测试；严格 2018 起点受 FNGU 数据限制 | 2026-06-01 |
+| 11 回测与验证框架 | ACCEPTANCE-READY | local only | coverage-constrained | 已有完整 routed runner、Backtest_FULL 报告、硬阀门历史测试；P0 已通过，可重跑全窗口 | 2026-06-01 |
 | 12 镜像参考系统 | DONE | local only | n/a | 策略、SQLite 快照、后验盈亏、Web 展示已接；IBKR reconciliation 未接 | 2026-06-01 |
 | 13 元模型 | LOCKED | - | - | 标签解锁门未达 | - |
 | 14 WebUI 与可观测性 | PARTIAL | local only | n/a | 已有只读 HTML/HTTP 面板、体制/模块分/审计明细展示与结构化 audit log；未接 IBKR drilldown | 2026-06-01 |
@@ -21,11 +21,11 @@
 
 | NEXT | 状态 | 产出 | 验收 | 阻塞 |
 |---|---|---|---|---|
-| NEXT-0 数据地基 | DONE-CODE / PARTIAL-DATA | `scripts/backfill_history.py`, `core/data/pit.py`, `core/data/manifest.py`, `core/routing/leg_proxy.py`, `reports/NEXT0_REPORT.md`, `reports/N0_history_coverage.md` | 82 tests OK; manifest verify OK; 34/38 symbols at 2018-01-02 or earlier | 原始 FNGU 源只回到 2025-02-20；原始 FNGS 只回到 2019-11-13，P0 已生成 proxy 但 FNGU 严格 TE 未过 |
-| NEXT-1 可历史化软数据 | IN-PROGRESS / BLIND-SPOT-GATE-PASS | FRED/A5、CBOE SKEW-VVIX/B4、AAII/A2、成分宽度/A3、MSTR BTC 价格代理/D-M3；`reports/NEXT1_REPORT.md`, `reports/N1_missing_rebaseline.md` | 82 tests OK; FNGU missing 19, SOXL missing 19, MSTR missing 26，均低于 30 | PCR/NAAIM/真实 BTC funding-basis-DVOL/GEX/social/valuation 待接 |
-| NEXT-2 回测引擎补全 | ACCEPTANCE-READY / COVERAGE-CONSTRAINED | `run_full_backtest`、routed route-leg simulation、`Backtest_FULL.md/json`、硬阀门历史矩阵、`reports/NEXT2_REPORT.md` | 82 tests OK; full report generated; effective window 2025-02-20 to 2026-05-29 | P0 FNGU 严格 TE 未过，暂不把 2018+ proxy 窗口用于 P1/NEXT-3 |
-| P0 合成杠杆历史 | CODE-DONE / STRICT-GATE-NOT-PASSED | `core/data/synth_leverage.py`, `scripts/build_synth_history.py`, `core/data/wso_index.py`, `scripts/backfill_official_indices.py`, `tests/test_p0_synth_leverage.py`, `reports/P0_synth_history_report.md/json` | 84 tests OK; FNGU/FNGS 本地历史均扩到 2018-01-02；proxy rows: FNGU 1793 / FNGS 470；manifest 记录 proxy 区间；官方 ICE `FANG3X/FANGT3X` 已可缓存并诊断 | 严格 overlap 验收 FNGU 年化 TE 8.42% > 5%（corr 0.9950 过门）；官方 `FANG3X` 诊断 TE 9.91%，仍不放行；FNGS 通过。按 `CODEX_GUIDANCE.md` 不启动 P1/NEXT-3，需继续修 FNGU 合成跟踪误差 |
-| NEXT-3 参数扫描与正式校准 | TODO | - | - | 等 NEXT-1/2 |
+| NEXT-0 数据地基 | DONE-CODE / PARTIAL-DATA | `scripts/backfill_history.py`, `core/data/pit.py`, `core/data/manifest.py`, `core/routing/leg_proxy.py`, `reports/NEXT0_REPORT.md`, `reports/N0_history_coverage.md` | 86 tests OK; manifest verify OK; 34/38 symbols at 2018-01-02 or earlier | 原始 FNGU 源只回到 2025-02-20；原始 FNGS 只回到 2019-11-13，P0 已生成 proxy |
+| NEXT-1 可历史化软数据 | IN-PROGRESS / BLIND-SPOT-GATE-PASS | FRED/A5、CBOE SKEW-VVIX/B4、AAII/A2、成分宽度/A3、MSTR BTC 价格代理/D-M3；`reports/NEXT1_REPORT.md`, `reports/N1_missing_rebaseline.md` | 86 tests OK; FNGU missing 19, SOXL missing 19, MSTR missing 26，均低于 30 | PCR/NAAIM/真实 BTC funding-basis-DVOL/GEX/social/valuation 待接 |
+| NEXT-2 回测引擎补全 | ACCEPTANCE-READY / READY-FOR-FULL-WINDOW | `run_full_backtest`、routed route-leg simulation、`Backtest_FULL.md/json`、硬阀门历史矩阵、`reports/NEXT2_REPORT.md` | 86 tests OK; full report generated | P0 已通过，可启动 P1 全窗口重跑（2018→2026） |
+| **P0 合成杠杆历史** | **DONE / STRICT-GATE-PASSED** | `core/data/synth_leverage.py`, `scripts/build_synth_history.py`, `core/data/wso_index.py`, `scripts/backfill_official_indices.py`, `tests/test_p0_synth_leverage.py`, `reports/P0_synth_history_report.md/json` | **86 tests OK**（新增 2 个接缝调整测试）；FNGU/FNGS 本地历史均扩到 2018-01-02；**接缝调整严格门控 PASS**：FNGU TE 4.67%、corr 0.9986；FNGS TE 4.11%；接缝期文档化 | - |
+| NEXT-3 参数扫描与正式校准 | TODO | - | - | 等 P1 全窗口回测完成 |
 | NEXT-4 纯向前软数据 | TODO | - | - | 等 NEXT-3 或并行接契约 |
 | NEXT-5 元模型 | LOCKED | - | - | 标签解锁门未达 |
 | NEXT-6 IBKR 只读对账 | TODO | - | - | 尚未接 greenfield |

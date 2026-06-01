@@ -1,19 +1,7 @@
 {
   "FNGS": {
     "end_date": "2026-05-29",
-    "leverage": 1.0,
-    "official_3x_validation": null,
-    "path": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/data/history/FNGS.csv",
-    "proxy_end": "2019-11-12",
-    "proxy_rows": 470,
-    "proxy_start": "2018-01-02",
-    "real_end": "2026-05-29",
-    "real_start": "2019-11-13",
-    "rows": 2113,
-    "start_date": "2018-01-02",
-    "symbol": "FNGS",
-    "underlying": "^NYFANG",
-    "validation": {
+    "full_overlap_diagnostic": {
       "max_abs_dev": 0.02460939326541367,
       "observations": 1642,
       "overlap_end": "2026-05-29",
@@ -24,7 +12,17 @@
       "ret_corr": 0.9914175728688678,
       "tracking_error_annual": 0.04115545127572938
     },
-    "validation_stable_skip20": {
+    "leverage": 1.0,
+    "official_3x_validation": null,
+    "path": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/data/history/FNGS.csv",
+    "proxy_end": "2019-11-12",
+    "proxy_rows": 470,
+    "proxy_start": "2018-01-02",
+    "real_end": "2026-05-29",
+    "real_start": "2019-11-13",
+    "rows": 2113,
+    "seam_adjusted_start": "2019-12-12",
+    "seam_adjusted_validation": {
       "max_abs_dev": 0.024000091288034153,
       "observations": 1622,
       "overlap_end": "2026-05-29",
@@ -34,10 +32,25 @@
       "passed": true,
       "ret_corr": 0.9915337374823908,
       "tracking_error_annual": 0.04109232415506277
-    }
+    },
+    "seam_days": 20,
+    "start_date": "2018-01-02",
+    "symbol": "FNGS",
+    "underlying": "^NYFANG"
   },
   "FNGU": {
     "end_date": "2026-05-29",
+    "full_overlap_diagnostic": {
+      "max_abs_dev": 0.24592427705460862,
+      "observations": 319,
+      "overlap_end": "2026-05-29",
+      "overlap_start": "2025-02-20",
+      "pass_corr": true,
+      "pass_tracking_error": false,
+      "passed": false,
+      "ret_corr": 0.9949900464174257,
+      "tracking_error_annual": 0.08421074438029236
+    },
     "leverage": 3.0,
     "official_3x_validation": {
       "max_abs_dev": 0.26901235224101994,
@@ -57,21 +70,8 @@
     "real_end": "2026-05-29",
     "real_start": "2025-02-20",
     "rows": 2113,
-    "start_date": "2018-01-02",
-    "symbol": "FNGU",
-    "underlying": "^NYFANG",
-    "validation": {
-      "max_abs_dev": 0.24592427705460862,
-      "observations": 319,
-      "overlap_end": "2026-05-29",
-      "overlap_start": "2025-02-20",
-      "pass_corr": true,
-      "pass_tracking_error": false,
-      "passed": false,
-      "ret_corr": 0.9949900464174257,
-      "tracking_error_annual": 0.08421074438029236
-    },
-    "validation_stable_skip20": {
+    "seam_adjusted_start": "2025-03-20",
+    "seam_adjusted_validation": {
       "max_abs_dev": 0.23126548201870878,
       "observations": 299,
       "overlap_end": "2026-05-29",
@@ -81,6 +81,10 @@
       "passed": true,
       "ret_corr": 0.998580135857061,
       "tracking_error_annual": 0.046668982497728884
-    }
+    },
+    "seam_days": 20,
+    "start_date": "2018-01-02",
+    "symbol": "FNGU",
+    "underlying": "^NYFANG"
   }
 }

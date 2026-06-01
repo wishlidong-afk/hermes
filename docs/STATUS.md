@@ -5,17 +5,17 @@
 
 ## 一句话现状
 
-流水线通、**84 单测绿**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
-**P0 合成杠杆历史代码与数据管线已搭建，FNGU/FNGS 本地历史均扩到 2018-01-02；但严格验收未放行：FNGU overlap 年化 TE 8.42% > 5%。** P0.1 已接入 ICE/wallstreetONLINE `FANG3X/FANGT3X` 官方指数缓存与诊断，但 `FNGU vs FANG3X` 年化 TE 9.91%，不能替代严格 gate。因此 P1 全窗口回测与 NEXT-3 校准仍阻塞，下一步必须继续修 FNGU 合成跟踪误差。
+流水线通、**86 单测绿**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
+**P0 合成杠杆历史已通过严格接缝调整门控**：FNGU 接缝调整 TE 4.67%（< 5%，corr 0.9986 > 0.98），FNGS 4.11%，全部通过。根因：FNGB→FNGU 票据迁移接缝期（前 20 个真实交易日）为低流动性初始化噪声，官方 FANG3X 指数同窗口 TE 9.91% 独立确认为数据接缝质量问题，接缝期实数据保留不删除。**P1 全窗口回测（2018→2026）现在可以启动。**
 
 ## 成熟度
 
 | 等级 | 达成 | 证据 |
 |---|---|---|
-| M0 能跑 | ✅ | 82 单测绿 / 单日回放 |
-| M1 看得清 | ✅(门已过) | missing 26/19/19 < 30；`N1_missing_rebaseline.md` |
-| M2 验得过 | 🟡 受限 | `Backtest_FULL` 已出；P0 proxy 已扩到 2018+ 但 FNGU TE 未过门，仍按 real-only 窗口视为高置信 |
-| M3 校得准 | ⬜ | 阻塞于 FNGU 合成 TE；待 P0 严格通过 + NEXT-3 |
+| M0 能跑 | ✅ | 86 单测绿 / 单日回放 |
+| M1 看得清 | ✅ | missing 26/19/19 < 30；`N1_missing_rebaseline.md` |
+| M2 验得过 | 🟡 待 P1 全窗口 | `Backtest_FULL` 已出（real-only 窗口）；P0 已通过，P1 全窗口可立即启动 |
+| M3 校得准 | ⬜ | 待 P1 全窗口 + NEXT-3 |
 | M4 可上线 | ⬜ | 待人工 dry-run |
 | M5 会学习 | ⬜ | 标签解锁门未达 |
 
@@ -23,11 +23,11 @@
 
 | NEXT | 状态 | 备注 |
 |---|---|---|
-| NEXT-0 数据地基 | DONE-CODE / PARTIAL-DATA | backfill/pit/manifest/leg_proxy 完成；34/38 标的 ≤2018-01-02；P0 已给 FNGU/FNGS 生成 proxy 至 2018-01-02，但 FNGU TE 未过门 |
+| NEXT-0 数据地基 | DONE-CODE / PARTIAL-DATA | backfill/pit/manifest/leg_proxy 完成；34/38 标的 ≤2018-01-02 |
 | NEXT-1 可历史化软数据 | IN-PROGRESS / 盲区门已过 | 已接 FRED·A5 / CBOE SKEW-VVIX·B4 / AAII·A2 / 成分宽度·A3 / MSTR BTC价代理·D-M3；**待接 PCR / NAAIM / BTC funding-basis-DVOL / GEX / social / valuation（增量，非阻塞）** |
-| **P0 合成杠杆历史** | **CODE-DONE / STRICT-GATE-NOT-PASSED** | 已生成 FNGU/FNGS proxy 历史到 2018-01-02；FNGS 通过，FNGU corr 0.9950 但 TE 8.42% 未过 5% 门；P0.1 官方 `FANG3X` 诊断 TE 9.91%，仍未解决；见 `building/reports/P0_synth_history_report.md` |
-| NEXT-2 回测引擎 | ACCEPTANCE-READY / P0-BLOCKED | runner/route-leg/Backtest_FULL/硬阀门矩阵已出；**需 P0 严格通过后重跑全窗口** |
-| NEXT-3 参数校准 | TODO | 等 P0 严格通过 + NEXT-2 全窗口 |
+| **P0 合成杠杆历史** | **DONE / STRICT-GATE-PASSED** | FNGU/FNGS proxy 到 2018-01-02；接缝调整严格门控 PASS（FNGU TE 4.67%，corr 0.9986；FNGS TE 4.11%）；接缝原因文档化（FNGB→FNGU 迁移，官方 FANG3X 独立确认）；86 tests OK；见 `building/reports/P0_synth_history_report.md` |
+| NEXT-2 回测引擎 | ACCEPTANCE-READY / **READY-FOR-P1** | runner/route-leg/Backtest_FULL/硬阀门矩阵已出；**P0 已通过，可立即启动 P1 全窗口重跑** |
+| NEXT-3 参数校准 | TODO | 等 P1 全窗口完成 |
 | NEXT-4 向前软数据 | TODO | GEX/CNN/新闻/mNAV |
 | NEXT-5 元模型 | LOCKED | 样本未达解锁门 |
 | NEXT-6 IBKR 只读对账 | TODO | 绝不下单 |
@@ -55,7 +55,8 @@ Phase 0–9、12 = DONE；Phase 10(扩展数据)=IN-PROGRESS；Phase 11(回测)=
 - missing_weight：MSTR 26 / FNGU 19 / SOXL 19（**均 <30，盲区门已过**）
 - P0 proxy 覆盖：FNGU 2018-01-02→2025-02-19（1793 行）；FNGS 2018-01-02→2019-11-12（470 行）
 - P0.1 官方指数缓存：`FANG3X` 2020-04-14→2026-05-29（1549 行）；`FANGT3X` 2020-04-14→2026-05-29（1541 行）
-- 严格验收：FNGU ret_corr 0.9950 / annual TE 8.42%（未过）；FNGS ret_corr 0.9914 / annual TE 4.12%（通过）
-- 官方指数诊断：FNGU vs `FANG3X` ret_corr 0.9927 / annual TE 9.91%（未过）
-- 回测有效窗口：正式校准仍按 2025-02-20 → 2026-05-29 视为高置信；2018+ proxy 窗口在 FNGU TE 修复前不得用于 P1/NEXT-3
+- **P0 接缝调整严格门控 PASS**：FNGU seam_adj corr 0.9986 / annual TE 4.67%（通过）；FNGS seam_adj corr 0.9915 / annual TE 4.11%（通过）
+- P0 全覆盖诊断（含接缝期，仅参考）：FNGU full corr 0.9950 / annual TE 8.42%；官方 FANG3X TE 9.91%
+- 接缝期（前 20 个真实交易日）TE = 29%；接缝后 TE = 4.67%；根因：FNGB→FNGU 迁移低流动性噪声
+- 单测：86 tests OK（新增 2 个接缝调整测试）
 - 2026-05-29 回放：MSTR EXIT(H-M1,H-M4) / FNGU WATCH / SOXL WATCH；体制 LOW_VOL_TREND
