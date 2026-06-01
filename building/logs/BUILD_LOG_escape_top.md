@@ -364,3 +364,34 @@ python3 scripts/score_engine.py --raw data/daily_raw_data_YYYY-MM-DD.json
 ### 当前结论
 
 NEXT-3 标记为 `DONE / M3-COMPLETE / STABLE-HIGHLAND-PASSED`。生产/live 开关仍保持关闭；不得采用逐窗口贪心最优参数上线。
+
+## P4 ConfidenceSpine 骨架记录
+
+**升级时间**: 2026-06-01
+
+本次继续从 P3/P4 后续施工中选择 P4 的最小可验收地基：公共契约 + 置信脊柱。该改造不改变当前评分/裁决结果，只为后续把数据质量、故障转移、漂移、脆弱度、多源分歧汇入统一 `decision_confidence` 做准备。
+
+### 已实装内容
+
+- ✅ 新增 `core/contracts.py`
+  - `Field`
+  - `Verdict`
+  - `ConfidenceState`
+  - `RiskState`
+  - `SizingDecision`
+- ✅ 新增 `core/confidence/spine.py`
+  - `compute_confidence(...) -> ConfidenceState`
+  - 组件：data/source/stale/drift/fragility/agreement
+  - 缺失子信号按 0.5 中性不确定处理并写 note，不默认为安全
+  - 模式输出：NORMAL / CAUTION / DEGRADED
+- ✅ 新增 `tests/test_confidence_spine.py`
+
+### 验证结果
+
+- ✅ `python3 -m unittest hermes_escape_top.tests.test_confidence_spine hermes_escape_top.tests.test_next3_calibration`：8 tests OK。
+- ✅ `python3 -m unittest discover -s hermes_escape_top/tests`：94 tests OK。
+- ✅ `python3 -m unittest discover -s tests`：11 tests OK。
+
+### 当前结论
+
+P4 状态推进为 `IN-PROGRESS / PHASE0-CONTRACTS-SPINE-DONE`。下一步建议：RiskEngine 最小骨架或将 `ConfidenceState` 透传到只读报告。

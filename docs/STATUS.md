@@ -5,14 +5,14 @@
 
 ## 一句话现状
 
-流水线通；**90 package tests OK + 11 golden tests OK**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
+流水线通；**94 package tests OK + 11 golden tests OK**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
 **P0 合成杠杆历史已通过严格接缝调整门控**；**P1 全窗口回测已完成**；**NEXT-3 参数校准 v2 已通过稳定高原门控**。当前候选参数为 `EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20`。Deployment fixed PBO=0.1538 PASS；train-greedy PBO=0.6154 未过，仅作为过拟合警报保留。系统达到 **M3 校得准**，但 live/生产开关仍保持关闭。
 
 ## 成熟度
 
 | 等级 | 达成 | 证据 |
 |---|---|---|
-| M0 能跑 | ✅ | 90 package tests OK + 11 golden tests OK / 单日回放 |
+| M0 能跑 | ✅ | 94 package tests OK + 11 golden tests OK / 单日回放 |
 | M1 看得清 | ✅ | missing 26/19/19 < 30；`N1_missing_rebaseline.md` |
 | M2 验得过 | ✅ | `Backtest_FULL`（real-only）+ `Backtest_FULL_2018_2026`（full-proxy）均出；DSR 1.66；13 fold walk-forward |
 | M3 校得准 | ✅ | `Calibration_v2.md/json`；deployment fixed PBO=0.1538；full-proxy/real-only 门控通过 |
@@ -40,7 +40,7 @@ Phase 0–9、12 = DONE；Phase 10(扩展数据)=IN-PROGRESS；Phase 11(回测)=
 
 | 组件 | 状态 |
 |---|---|
-| ConfidenceSpine / RiskEngine / FactorLab / MarketContext / ValidationHarness / SizingOptimizer / Governance | TODO（基线达 M3 后按 INTEGRATION Phase 0–IV 建） |
+| ConfidenceSpine / RiskEngine / FactorLab / MarketContext / ValidationHarness / SizingOptimizer / Governance | IN-PROGRESS：公共契约 + ConfidenceSpine 骨架已完成；RiskEngine/SizingOptimizer 待建 |
 
 ## E 系列增强（E1–E30）
 
@@ -59,5 +59,6 @@ Phase 0–9、12 = DONE；Phase 10(扩展数据)=IN-PROGRESS；Phase 11(回测)=
 - **P1 全窗口回测 DONE**：real-only CAGR 44.39% / MaxDD -10.43% / Sharpe 1.79 / DSR 1.66；full-proxy CAGR 18.13% / MaxDD -27.60% / DSR 0.77（代理段信号统计意义有限）
 - **NEXT-3 校准 DONE**：chosen `E75_D65_R50`；full-proxy CAGR 17.54% / MaxDD -28.01% / Sharpe 0.86；real-only CAGR 42.48% / MaxDD -10.63% / Sharpe 1.73；deployment fixed PBO 0.1538；real-only rank 0.7692；train-greedy PBO 0.6154 为过拟合警报
 - **P3 并行（部分）**：NAAIM + PCR 数据源基础设施已建（`core/data/pcr.py`、`scripts/backfill_pcr_naaim.py`）；CBOE/NAAIM 外部端点被封，CSV 骨架就绪，等待手动回填后 missing_weight 可降 8pt
-- 单测：90 package tests OK；11 golden tests OK（v25 golden 已按 P0 当前数据地基重生）
+- **P4 整合地基启动**：`core/contracts.py` + `core/confidence/spine.py` 已建；ConfidenceSpine 覆盖健康/故障转移/漂移/缺失信号；尚未接 live pipeline
+- 单测：94 package tests OK；11 golden tests OK（v25 golden 已按 P0 当前数据地基重生）
 - 2026-05-29 回放：MSTR EXIT(H-M1,H-M4) / FNGU HOLD / SOXL HOLD；体制 LOW_VOL_TREND

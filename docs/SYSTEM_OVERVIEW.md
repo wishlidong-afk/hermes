@@ -12,7 +12,7 @@
 |---|---|
 | 文档版本 | v1.1 |
 | 更新时间 | 2026-06-01 |
-| 当前成熟度 | M3（盲区门已过；P0 合成历史、P1 全窗口回测、NEXT-3 稳定高原校准均已完成） |
+| 当前成熟度 | M3（盲区门已过；P0 合成历史、P1 全窗口回测、NEXT-3 稳定高原校准均已完成；P4 ConfidenceSpine 骨架已启动） |
 | data_manifest_id | 待 NEXT-0 freeze 后填写 |
 | calibration 档案 | `building/reports/calibration_v2.json`；候选 `E75_D65_R50` |
 | 当前 missing_weight (MSTR/FNGU/SOXL) | 26 / 19 / 19（均 <30，盲区门已过） |
@@ -154,7 +154,7 @@ M5 会学习      : 元模型解锁 + p_act 校准达标                    ← 
 
 | 等级 | 是否达成 | 达成日期 | 证据(报告/档案) |
 |---|---|---|---|
-| M0 能跑 | 是 | 2026-06-01 | 90 package tests OK + 11 golden tests OK / 单日回放 |
+| M0 能跑 | 是 | 2026-06-01 | 94 package tests OK + 11 golden tests OK / 单日回放 |
 | M1 看得清 | 是 | 2026-06-01 | missing 26/19/19 < 30；`N1_missing_rebaseline.md` |
 | M2 验得过 | 是 | 2026-06-01 | `Backtest_FULL.md` + `Backtest_FULL_2018_2026.md`；13 fold walk-forward |
 | M3 校得准 | 是 | 2026-06-01 | `Calibration_v2.md/json`；deployment fixed PBO=0.1538；real-only rank=0.7692 |

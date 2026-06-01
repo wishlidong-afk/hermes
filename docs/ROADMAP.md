@@ -8,7 +8,7 @@
 ## 总时间线
 
 ```text
-[已完成 M0/M1] Phase 0–9/12/14：数据/特征/评分(A-D)/硬阀门/裁决/组合/路由/再建仓/镜像/WebUI 骨架，90 package tests + 11 golden tests 绿
+[已完成 M0/M1] Phase 0–9/12/14：数据/特征/评分(A-D)/硬阀门/裁决/组合/路由/再建仓/镜像/WebUI 骨架，94 package tests + 11 golden tests 绿
       │
 [基线 → M1] NEXT-0 数据地基(价格史2018+/版本化/PIT) + NEXT-1 可历史化软数据 → missing<30
       │
@@ -53,7 +53,7 @@
 | ✅ P1 | NEXT-2 全窗口回测（real-only vs full-proxy 并排） | BUILD_TICKETS NEXT-2 | 已完成：full-proxy 2018-2026 报告已出 |
 | ✅ P2 | NEXT-3 参数扫描 + 稳定高原校准 | BUILD_TICKETS NEXT-3 | 已完成：deployment fixed PBO=0.1538 |
 | **P3** | 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL（进一步降 MSTR 的 26） | BUILD_TICKETS NEXT-1 | 当前优先质量增量 |
-| **P4** | 建 ConfidenceSpine / RiskEngine / SizingOptimizer，替换 scaler 乘法链 | INTEGRATION Phase 0–I | 当前优先整合地基 |
+| **P4** | 建 ConfidenceSpine / RiskEngine / SizingOptimizer，替换 scaler 乘法链 | INTEGRATION Phase 0–I | IN-PROGRESS：公共契约 + ConfidenceSpine 已完成 |
 
 ---
 

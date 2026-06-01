@@ -25,7 +25,8 @@
 - 回测结果：`Backtest_FULL.md` 与 `Backtest_FULL_2018_2026.md` 并排记录核心指标；P1 已完成。
 - 参数校准：NEXT-3 已完成 v2 稳定高原校准，候选参数为 `EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20`。
 - 校准门控：Deployment fixed PBO=0.1538 PASS；full-proxy MaxDD=-28.01% PASS；real-only MaxDD=-10.63% PASS；real-only rank=0.7692 PASS。Train-greedy PBO=0.6154 未过，仅保留为过拟合警报。
-- 自动测试：本地最近一次验收为 `90 package tests OK + 11 golden tests OK`。
+- 整合地基：P4 已启动，公共契约与 ConfidenceSpine 骨架完成；尚未接 live pipeline。
+- 自动测试：本地最近一次验收为 `94 package tests OK + 11 golden tests OK`。
 - P0 最新状态：合成杠杆历史严格接缝调整门控已通过；P1/P2 阻塞已解除，NEXT-3 现为 `DONE / M3-COMPLETE / STABLE-HIGHLAND-PASSED`。
 
 ## 线上线下同步维护规则

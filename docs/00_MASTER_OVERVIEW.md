@@ -66,12 +66,13 @@ L5 组合层(RiskEngine 单一风险源 → SizingOptimizer 统一处置, R3不�
 
 | 维度 | 现状 |
 |---|---|
-| 成熟度 | **M3 实质达成**：流水线通、90 package tests OK + 11 golden tests OK；盲区门已过；NEXT-3 稳定高原校准通过 |
+| 成熟度 | **M3 实质达成**：流水线通、94 package tests OK + 11 golden tests OK；盲区门已过；NEXT-3 稳定高原校准通过 |
 | missing_weight | **MSTR 26 / FNGU 19 / SOXL 19（均 <30，盲区升级已解除）** |
 | **P0 状态** | **✅ DONE / STRICT-GATE-PASSED** — FNGU 接缝调整 TE 4.67%（< 5%），corr 0.9986；P1 全窗口回测阻塞已解除 |
 | 已完成 | Phase 0–9、12 骨架；NEXT-0 数据地基；NEXT-1 已接 5 个可回溯软数据源；P0 合成历史；P1 全窗口回测；NEXT-3 稳定高原校准 |
 | 校准 | `E75_D65_R50`：EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20；deployment fixed PBO=0.1538；real-only rank=0.7692 |
-| 待办 | 其余软数据(PCR/NAAIM/BTC微观/GEX)增量补；ConfidenceSpine / RiskEngine / SizingOptimizer 整合地基 |
+| 待办 | 其余软数据(PCR/NAAIM/BTC微观/GEX)增量补；RiskEngine / SizingOptimizer 整合地基 |
+| P4 进度 | 公共契约 + ConfidenceSpine 骨架已完成；尚未接 live pipeline |
 | 安全 | 只读、不下单；所有 live 开关默认关 |
 
 ---

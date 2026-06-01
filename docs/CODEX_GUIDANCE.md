@@ -7,7 +7,7 @@
 
 ## 0. 现状一句话
 
-- **90 package tests OK + 11 golden tests OK；missing 已降到 MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。**
+- **94 package tests OK + 11 golden tests OK；missing 已降到 MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。**
 - **P0 合成杠杆历史已通过严格接缝调整门控。** FNGU/FNGS 历史均已扩到 2018-01-02；接缝调整严格门控 PASS：FNGU TE 4.67%（< 5%），corr 0.9986（> 0.98）；FNGS TE 4.11%。
 - **根因已文档化**：FNGB→FNGU 票据迁移（2025-02-20）前 20 个真实交易日为低流动性初始化噪声；官方 FANG3X 指数同窗口 TE 9.91% 独立确认为接缝数据质量问题，不是模型缺陷。接缝期实数据保留在 CSV，仅排除在门控计算窗口外。
 - **P1 已完成**：real-only 与 full-proxy 全窗口报告已出。
@@ -28,7 +28,8 @@ P2  ✅ DONE — NEXT-3 参数扫描 + 稳定高原校准（2026-06-01）
       deployment fixed PBO=0.1538 PASS; train-greedy PBO=0.6154 仅作警报
 P3  当前可启动 — 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL
       PCR/NAAIM 基础设施已建；外部端点被封；手动回填后 missing_weight 可降 8pt
-P4  当前可启动 — 整合地基：ConfidenceSpine / RiskEngine / SizingOptimizer
+P4  IN-PROGRESS — 整合地基：ConfidenceSpine / RiskEngine / SizingOptimizer
+      公共契约 + ConfidenceSpine 骨架已完成；下一步 RiskEngine 或报告透传
 ```
 
 > P0+P1+P2 已完成。下一步优先 P3 软数据补全与 P4 整合地基。
@@ -123,7 +124,8 @@ def validate_synth(real_df: pd.DataFrame, synth_df: pd.DataFrame,
 
 ## 6. P4：整合地基（基线已达 M3，可启动）
 
-- 按 `INTEGRATION_ARCHITECTURE.md` Phase 0–I 建 ConfidenceSpine / RiskEngine / FactorLab / MarketContext / ValidationHarness 骨架 + SizingOptimizer。
+- 已完成公共契约 + ConfidenceSpine 骨架：`core/contracts.py`、`core/confidence/spine.py`、`tests/test_confidence_spine.py`。
+- 下一步按 `INTEGRATION_ARCHITECTURE.md` Phase 0–I 建 RiskEngine / FactorLab / MarketContext / ValidationHarness 骨架 + SizingOptimizer。
 - **关键**：把现有组合/仓位的"scaler 乘法链"换成 SizingOptimizer 的"单一风险源 + 约束优化"，R3 不变式作硬约束。
 
 ---
