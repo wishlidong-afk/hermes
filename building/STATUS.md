@@ -70,7 +70,19 @@
 |---|---|---|
 | Tax/Wash-Sale | `core/portfolio/tax.py` | ✅ |
 
-**Phase 0–I 完整交付：13 个组件 + 119 个新测试。E1–E30 全部 30/30 有完整骨架实现。**
+### Reentry State Tracker ✅ DONE
+
+| 组件 | 文件 | 状态 |
+|---|---|---|
+| 3-3-4 再建仓状态持久化 | `core/reentry/tracker.py` | ✅ |
+
+### Audit Exporter ✅ DONE
+
+| 组件 | 文件 | 状态 |
+|---|---|---|
+| JSON + Markdown + JSONL 导出 | `core/audit/exporter.py` | ✅ |
+
+**Phase 0–I 完整交付：15 个组件 + 140 个新测试。E1–E30 全部 30/30 完整骨架 + 再建仓持久化 + 审计导出。**
 
 ## 系统级 7 道总闸
 
