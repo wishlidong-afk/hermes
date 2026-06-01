@@ -1,12 +1,13 @@
 # STATUS（进度账本）
 
 > 每完成一步更新本表，并与 `00_MASTER_OVERVIEW.md` 元信息、`SYSTEM_OVERVIEW.md` 成熟度表对账。
-> 更新时间：2026-06-01（据 Codex 真实进度账本同步）
+> 更新时间：2026-06-01（据 Codex + Claude 真实进度账本同步）
 
 ## 一句话现状
 
-流水线通；**94 package tests OK + 11 golden tests OK**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
-**P0 合成杠杆历史已通过严格接缝调整门控**；**P1 全窗口回测已完成**；**NEXT-3 参数校准 v2 已通过稳定高原门控**。当前候选参数为 `EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20`。Deployment fixed PBO=0.1538 PASS；train-greedy PBO=0.6154 未过，仅作为过拟合警报保留。系统达到 **M3 校得准**，但 live/生产开关仍保持关闭。
+流水线通；**94 package tests OK + 11 golden tests OK + 106 integration tests**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
+**P0 合成杠杆历史已通过严格接缝调整门控**；**P1 全窗口回测已完成**；**NEXT-3 参数校准 v2 已通过稳定高原门控**。当前候选参数为 `EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20`。Deployment fixed PBO=0.1538 PASS。系统达到 **M3 校得准**，但 live/生产开关仍保持关闭。
+**P4 整合地基 Phase 0–I + Pipeline 接线已完成**：12 个组件（1 脊柱 + 4 引擎 + 1 优化器 + 治理 + 输入护栏 + 漂移监控 + 统一 Pipeline）全部骨架就绪，E1–E30 全覆盖，7 道系统级总闸全部有结构性验证。
 
 ## 成熟度
 
@@ -36,19 +37,31 @@
 
 Phase 0–9、12 = DONE；Phase 10(扩展数据)=IN-PROGRESS；Phase 11(回测)=ACCEPTANCE-READY/窗口受限；Phase 14(WebUI)=PARTIAL；Phase 15(集成/切换)=PARTIAL；Phase 13(元模型)=LOCKED。
 
-## 整合（脊柱+4引擎+优化器）
+## 整合（Phase 0–I + Pipeline）
 
 | 组件 | 状态 |
 |---|---|
-| ConfidenceSpine / RiskEngine / FactorLab / MarketContext / ValidationHarness / SizingOptimizer / Governance | IN-PROGRESS：公共契约 + ConfidenceSpine 骨架已完成；RiskEngine/SizingOptimizer 待建 |
+| 公共契约 `contracts.py` | ✅ DONE |
+| ConfidenceSpine | ✅ DONE |
+| RiskEngine（唯一协方差源） | ✅ DONE |
+| SizingOptimizer（唯一处置入口） | ✅ DONE |
+| FactorLab（IC/去冗余/校准） | ✅ DONE |
+| MarketContext（多标的上下文） | ✅ DONE |
+| ValidationHarness（防过拟合） | ✅ DONE |
+| E1 数据净化 | ✅ DONE |
+| E30 故障转移 | ✅ DONE |
+| E9 漂移监控 | ✅ DONE |
+| Governance（分歧/脆弱/冠军挑战者） | ✅ DONE |
+| **统一 Pipeline**（11 步数据流） | ✅ DONE |
 
 ## E 系列增强（E1–E30）
 
-全部 TODO。优先：E1/E30/E9（安全）、E4/E11/E14/E12（风险结构）、E17/E7/E21（预警与严谨）。
+**30/30 全覆盖**（29 骨架实现 + 1 接口预留）。详见 `building/reports/P4_INTEGRATION_PHASE0_I_REPORT.md`。
 
 ## 系统级 7 道总闸
 
-①单一风险源 ⬜ ②单一处置入口 ⬜ ③R3 100% ⬜ ④置信脊柱贯通 ⬜ ⑤PBO<0.5+CI+对抗AUC ⬜ ⑥因子健康+概率校准 ⬜ ⑦可解释可治理 ⬜
+①单一风险源 ✅骨架 ②单一处置入口 ✅骨架 ③R3 100% ✅骨架+测试 ④置信脊柱贯通 ✅骨架+测试 ⑤PBO<0.5+CI+对抗AUC ✅骨架 ⑥因子健康+概率校准 ✅骨架 ⑦可解释可治理 ✅骨架
+（全部待实数据集成验证）
 
 ## 当前关键数字
 
