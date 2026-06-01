@@ -5,19 +5,19 @@
 
 ## 一句话现状
 
-流水线通；**264 package tests OK + 11 golden tests OK**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
+流水线通；**270 package tests OK + 11 golden tests OK**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
 **P0 合成杠杆历史已通过严格接缝调整门控**；**P1 全窗口回测已完成**；**NEXT-3 参数校准 v2 已通过稳定高原门控**。当前候选参数为 `EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20`。Deployment fixed PBO=0.1538 PASS。系统达到 **M3 校得准**，但 live/生产开关仍保持关闭。
-**P4 整合地基 Phase 0–I + Pipeline 接线已完成并已落地本地 `.hermes`**：12 个组件（1 脊柱 + 4 引擎 + 1 优化器 + 治理 + 输入护栏 + 漂移监控 + 统一 Pipeline）全部骨架就绪，E1–E30 全覆盖，7 道系统级总闸全部有结构性验证；本地同步修复后 264 package tests OK。**P5 Phase II 252 日 shadow + 相关闸敏感性 + 2113 日 full-window sensitivity 已跑通**：full sensitivity errors=0、scenario count=21、R3 violations=0；review candidate 为 `threshold=110 / penalty=0.70`，CAGR 18.06%、MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077。**P6 Phase III daily comparator 已完成**：252 日 errors=0、R3=0、PASS=128、WARN=124、BLOCK=0。**P7 WARN review 已完成**：EXTREME_CORR=102/124；WARN 10d candidate-old avg=-0.29%；live 开关仍关闭。
+**P4 整合地基 Phase 0–I + Pipeline 接线已完成并已落地本地 `.hermes`**：12 个组件（1 脊柱 + 4 引擎 + 1 优化器 + 治理 + 输入护栏 + 漂移监控 + 统一 Pipeline）全部骨架就绪，E1–E30 全覆盖，7 道系统级总闸全部有结构性验证；本地同步修复后 270 package tests OK。**P5 Phase II 252 日 shadow + 相关闸敏感性 + 2113 日 full-window sensitivity 已跑通**：full sensitivity errors=0、scenario count=21、R3 violations=0；review candidate 为 `threshold=110 / penalty=0.70`，CAGR 18.06%、MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077。**P6/P7/P8 Phase III 人审包已完成**：P8 新 review candidate 为 `110/0.90`，WARN 10d opportunity cost 从 -0.29% 降至 -0.13%；live 开关仍关闭。
 
 ## 成熟度
 
 | 等级 | 达成 | 证据 |
 |---|---|---|
-| M0 能跑 | ✅ | 264 package tests OK + 11 golden tests OK / 单日回放 |
+| M0 能跑 | ✅ | 270 package tests OK + 11 golden tests OK / 单日回放 |
 | M1 看得清 | ✅ | missing 26/19/19 < 30；`N1_missing_rebaseline.md` |
 | M2 验得过 | ✅ | `Backtest_FULL`（real-only）+ `Backtest_FULL_2018_2026`（full-proxy）均出；DSR 1.66；13 fold walk-forward |
 | M3 校得准 | ✅ | `Calibration_v2.md/json`；deployment fixed PBO=0.1538；full-proxy/real-only 门控通过 |
-| M4 可上线 | ⬜ | daily comparator + WARN review 已完成，待人工决定是否接受机会成本 |
+| M4 可上线 | ⬜ | P8 候选 `110/0.90` 待 full-window + exact 复核 |
 | M5 会学习 | ⬜ | 标签解锁门未达 |
 
 ## 基线（NEXT 工单）
@@ -80,5 +80,6 @@ Phase 0–9、12 = DONE；Phase 10(扩展数据)=IN-PROGRESS；Phase 11(回测)=
 - **P5 dry-run acceptance pack**：`P5_DRY_RUN_ACCEPTANCE_PACK.md` 已生成；结论为“可进入 shadow dry-run 包，不可 live promotion”；下一步做 daily old-vs-new comparator。
 - **P6 Phase III dry-run comparator**：`PhaseIII_Dry_Run_Comparator.md/json` 已生成；252 rows、errors=0、R3=0、PASS=128、WARN=124、BLOCK=0；avg old/new turnover 0.2244/0.2285；最新日 2026-05-29 PASS。
 - **P7 Phase III WARN review**：`PhaseIII_WARN_Review.md/json` 已生成；WARN=124、EXTREME_CORR=102、WARN candidate-old avg：1d -0.00%、5d -0.05%、10d -0.29%；readiness=REVIEW_REQUIRED。
-- 单测：264 package tests OK；11 golden tests OK（v25 golden 已按 P0 当前数据地基重生）
+- **P8 Phase III WARN sensitivity**：`PhaseIII_WARN_Sensitivity.md/json` 已生成；24 场景；保留惩罚候选 `110/0.90`：WARN 10d -0.13%、max turnover delta 0.2886、R3=0、BLOCK=0。
+- 单测：270 package tests OK；11 golden tests OK（v25 golden 已按 P0 当前数据地基重生）
 - 2026-05-29 回放：MSTR EXIT(H-M1,H-M4) / FNGU HOLD / SOXL HOLD；体制 LOW_VOL_TREND

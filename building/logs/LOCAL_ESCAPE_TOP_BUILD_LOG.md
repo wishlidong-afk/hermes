@@ -721,3 +721,41 @@ P6 dry-run comparator 状态为 `DONE / HUMAN-GATE-READY`。候选链路没有 B
 ### 当前结论
 
 P7 状态为 `DONE / WARN-REVIEW-PACK-DONE`。没有新增 R3/BLOCK 硬伤，但 WARN 10 日平均有轻微机会成本，readiness 仍为 `REVIEW_REQUIRED`；live promotion 继续保持 `BLOCKED`。
+
+## P8 Phase III WARN Sensitivity 记录
+
+**升级时间**: 2026-06-02
+
+本次继续沿 P7 的机会成本问题，做 EXTREME_CORR threshold / penalty 二次 dry-run 网格审阅。目标不是上线，而是确认是否存在比 `110/0.70` 更适合进入下一轮 full-window 复核的候选。
+
+### 已实装内容
+
+- ✅ 新增 `scripts/phase3_warn_sensitivity.py`
+- ✅ 新增 `tests/test_phase3_warn_sensitivity.py`
+- ✅ 新增 `reports/PhaseIII_WARN_Sensitivity.md/json`
+- ✅ 新增 `reports/P8_PHASE3_WARN_SENSITIVITY_LOG.md`
+- ✅ 对 `threshold=[100,110,120,130,140,150]` 与 `penalty=[0.70,0.80,0.90,1.00]` 跑 24 场景 dry-run 人审网格
+- ✅ 新增 `NO_PENALTY_REVIEW` 标记，避免把 `penalty=1.00` 误读为正常防守候选
+
+### 结果摘要
+
+| 指标 | 当前 110/0.70 | P8 保留惩罚候选 110/0.90 |
+|---|---:|---:|
+| readiness | REVIEW_REQUIRED | REVIEW_READY |
+| R3 violations | 0 | 0 |
+| BLOCK | 0 | 0 |
+| WARN share | 49.21% | 48.81% |
+| EXTREME_CORR share | 40.48% | 40.48% |
+| WARN 10d candidate-old avg | -0.29% | -0.13% |
+| max turnover delta | 0.4022 | 0.2886 |
+| review score | 0.3888 | 0.1340 |
+
+### 验证结果
+
+- ✅ `python3 -m unittest hermes_escape_top.tests.test_phase3_warn_sensitivity`：6 tests OK
+- ✅ `python3 -m unittest discover -s hermes_escape_top/tests`：270 tests OK
+- ✅ `python3 -m unittest discover -s tests`：11 tests OK（仅 urllib3/LibreSSL 环境警告）
+
+### 当前结论
+
+P8 状态为 `DONE / WARN-SENSITIVITY-DONE`。`110/0.90` 是新的 review candidate，但必须先跑 full-window backtest sensitivity 与 exact spot-check；live promotion 继续 `BLOCKED`。

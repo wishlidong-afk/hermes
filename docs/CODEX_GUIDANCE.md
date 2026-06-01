@@ -7,14 +7,15 @@
 
 ## 0. 现状一句话
 
-- **264 package tests OK + 11 golden tests OK**；missing MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。
+- **270 package tests OK + 11 golden tests OK**；missing MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。
 - **P0/P1/P2 全部完成**：合成历史 TE 4.67%；real-only CAGR 44.39% Sharpe 1.79；deployment PBO=0.1538。
 - **P4 整合地基 Phase 0–I + Pipeline 完成且已落地本地 `.hermes`**：12 个组件骨架（ConfidenceSpine/RiskEngine/SizingOptimizer/FactorLab/MarketContext/ValidationHarness/Governance/Sanitize/Failover/DriftMonitor/Pipeline/Config），E1–E30 全覆盖，7 道总闸全有结构性验证。
 - **P5 Phase II 已跑通 252 日 shadow + 相关闸敏感性 + 2113 日 full-window sensitivity + 4 个 exact spot-check**：full sensitivity errors=0、scenario count=21、R3 violations=0；review candidate 为 threshold=110 / penalty=0.70，CAGR 18.06%、MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077；2020H1/2022H1/2024H1/2026YTD exact 与 fast 基本一致；live 开关未翻。
 - **P6 Phase III daily comparator 已完成**：252 日 old-vs-new dry-run rows=252、errors=0、R3=0、PASS=128、WARN=124、BLOCK=0；avg old/new turnover 0.2244/0.2285。
 - **P7 Phase III WARN review 已完成**：WARN=124、EXTREME_CORR=102、WARN candidate-old avg：1d -0.00%、5d -0.05%、10d -0.29%；readiness=REVIEW_REQUIRED。
+- **P8 Phase III WARN sensitivity 已完成**：24 场景；保留惩罚候选 `110/0.90`，WARN 10d candidate-old avg 从 -0.29% 改为 -0.13%，max turnover delta 从 0.4022 降至 0.2886，R3=0、BLOCK=0。
 - **Phase II–IV 计划就绪**：配置/feature flags/rollout plan/scaler migration guide 全部产出。
-- **下一步**：人工决定是否接受 P7 WARN 机会成本；若不接受则回 P5 参数网格二次校准；并行补 NEXT-1 剩余软数据。
+- **下一步**：对 `110/0.90` 跑 full-window backtest sensitivity 与 exact optimizer spot-check；并行补 NEXT-1 剩余软数据。
 
 ---
 
@@ -25,13 +26,14 @@ P0  ✅ DONE — 合成历史接缝调整严格门控通过（TE 4.67%, corr 0.9
 P1  ✅ DONE — 全窗口回测（real-only CAGR 44.39%, Sharpe 1.79, DSR 1.66）
 P2  ✅ DONE — 稳定高原校准（EXIT=75, DEF_EXIT=65, deployment PBO=0.1538）
 P3  可启动 — 补 NEXT-1 剩余软数据（PCR/NAAIM/BTC funding-basis-DVOL）
-P4  ✅ Phase 0–I + Pipeline DONE — 12 组件 + 264 package tests + E1–E30 全覆盖
+P4  ✅ Phase 0–I + Pipeline DONE — 12 组件 + 270 package tests + E1–E30 全覆盖
 P5  ✅ DONE — Phase II shadow/corr/full-window sensitivity + 4 个 exact spot-check + dry-run acceptance pack 已跑通
 P6  ✅ DONE — Phase III daily comparator 已完成
-P7  HUMAN-GATE-READY — WARN review pack 已完成，需人工接受机会成本后才可替换旧 scaler 链
+P7  ✅ DONE — WARN review pack 已完成
+P8  HUMAN-GATE-READY — WARN sensitivity 已完成，新候选 110/0.90 需 full-window + exact 复核
 ```
 
-> P0+P1+P2+P4 已完成并落地本地。P5 Phase II full-window sensitivity、4 个 exact spot-check、dry-run acceptance pack 已完成；P6 daily old-vs-new comparator 与 P7 WARN review 已完成，下一步优先人工决定是否接受机会成本，并补 P3 软数据。
+> P0+P1+P2+P4 已完成并落地本地。P5 Phase II full-window sensitivity、4 个 exact spot-check、dry-run acceptance pack 已完成；P6/P7/P8 Phase III 人审包已完成。下一步优先复核 `110/0.90` 的 full-window 与 exact，并补 P3 软数据。
 
 ---
 
@@ -132,7 +134,8 @@ def validate_synth(real_df: pd.DataFrame, synth_df: pd.DataFrame,
 - P5 dry-run acceptance pack 已完成，明确“可进入 shadow dry-run，不可 live promotion”。
 - P6 daily old-vs-new comparator 已完成：252 rows、errors=0、R3=0、PASS=128、WARN=124、BLOCK=0；avg old/new turnover 0.2244/0.2285。
 - P7 WARN review 已完成：WARN=124、EXTREME_CORR=102、WARN candidate-old avg 1d -0.00%、5d -0.05%、10d -0.29%，readiness=REVIEW_REQUIRED。
-- **下一步关键**：人工决定是否接受 WARN 机会成本，最后决定 Phase III 是否替换旧 scaler 链。R3 不变式仍为硬约束。
+- P8 WARN sensitivity 已完成：`110/0.90` 在保留相关惩罚前提下优于 `110/0.70` 的 P7 机会成本指标。
+- **下一步关键**：对 `110/0.90` 做 full-window backtest sensitivity 与 exact spot-check，最后决定 Phase III 是否替换旧 scaler 链。R3 不变式仍为硬约束。
 
 ---
 
@@ -149,7 +152,7 @@ def validate_synth(real_df: pd.DataFrame, synth_df: pd.DataFrame,
 
 ## 8. 下一步回报格式
 
-1. human-gate 决策：是否接受 P7 WARN 机会成本，或回 P5 参数网格二次校准。
+1. P8 复核：`110/0.90` full-window backtest sensitivity 与 exact optimizer spot-check。
 2. human-gate 验收：哪些 feature flag 仍保持 false，哪些只进入 shadow。
 3. P3 软数据进展：PCR/NAAIM/BTC funding-basis-DVOL 哪些已补、missing_weight 降了多少。
 
