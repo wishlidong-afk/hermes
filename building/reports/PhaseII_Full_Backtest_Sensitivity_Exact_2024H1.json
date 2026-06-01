@@ -1,0 +1,90 @@
+{
+  "base_penalty": 0.7,
+  "base_threshold": 92,
+  "baseline_old_backtest": {
+    "cagr": 0.181291,
+    "final_value": 403631.357858,
+    "max_drawdown": -0.276045,
+    "sharpe": 0.881817,
+    "sortino": 1.115495,
+    "turnover": 326.682483
+  },
+  "date_filter": {
+    "end": "2024-07-03",
+    "start": "2024-01-03"
+  },
+  "errors": [],
+  "exact_optimizer": true,
+  "live_effect": "none",
+  "notes": [
+    "Shadow-only replay; no live config, feature flag, account state, or signal journal is changed.",
+    "Uses cached historical A/B/C/D score rows, then routes residual sleeve capital through the cached capital-routing decision for that day.",
+    "Default scenario sizing uses the deterministic R3/confidence/risk-gross upper-bound projection; pass --exact-optimizer for slow SLSQP spot checks.",
+    "The candidate is a review target only; Phase III scaler replacement remains locked until human dry-run gates pass."
+  ],
+  "review_candidate": {
+    "avg_gross": 0.674555,
+    "avg_gross_delta": -0.325445,
+    "binding_counts": {
+      "CONFIDENCE": 9,
+      "RISK_GROSS": 292,
+      "ZERO": 77
+    },
+    "hit_count": 90,
+    "hit_share": 0.714286,
+    "max_abs_weight_delta": 0.146332,
+    "min_gross": 0.38452,
+    "penalty": 0.7,
+    "r3_violations": 0,
+    "simulation": {
+      "cagr": 0.99818,
+      "deflated_sharpe": 3.168152,
+      "final_value": 140828.271109,
+      "max_drawdown": -0.083757,
+      "max_drawdown_end": "2024-05-03",
+      "max_drawdown_start": "2024-03-27",
+      "sharpe": 3.199738,
+      "sortino": 6.205805,
+      "turnover": 19.748214
+    },
+    "threshold": 110.0
+  },
+  "rows_evaluated": 126,
+  "rows_loaded": 126,
+  "scenarios": [
+    {
+      "avg_gross": 0.674555,
+      "avg_gross_delta": -0.325445,
+      "binding_counts": {
+        "CONFIDENCE": 9,
+        "RISK_GROSS": 292,
+        "ZERO": 77
+      },
+      "hit_count": 90,
+      "hit_share": 0.714286,
+      "max_abs_weight_delta": 0.146332,
+      "min_gross": 0.38452,
+      "penalty": 0.7,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.99818,
+        "deflated_sharpe": 3.168152,
+        "final_value": 140828.271109,
+        "max_drawdown": -0.083757,
+        "max_drawdown_end": "2024-05-03",
+        "max_drawdown_start": "2024-03-27",
+        "sharpe": 3.199738,
+        "sortino": 6.205805,
+        "turnover": 19.748214
+      },
+      "threshold": 110.0
+    }
+  ],
+  "schema_version": "phase2-full-backtest-sensitivity-v1",
+  "source_backtest": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/reports/Backtest_FULL_2018_2026.json",
+  "walk_forward": {
+    "fixed_candidate_pbo": null,
+    "folds": [],
+    "train_greedy_pbo": null
+  }
+}

@@ -97,7 +97,9 @@
 | `reports/PhaseII_Corr_Sensitivity.md/json` | ✅ |
 | `scripts/phase2_full_backtest_sensitivity.py` | ✅ |
 | `reports/PhaseII_Full_Backtest_Sensitivity.md/json` | ✅ |
+| `reports/PhaseII_Full_Backtest_Sensitivity_Exact_2020H1.md/json` | ✅ |
 | `reports/PhaseII_Full_Backtest_Sensitivity_Exact_2022H1.md/json` | ✅ |
+| `reports/PhaseII_Full_Backtest_Sensitivity_Exact_2024H1.md/json` | ✅ |
 | `reports/PhaseII_Full_Backtest_Sensitivity_Exact_2026YTD.md/json` | ✅ |
 | `reports/P5_PHASE2_EXTENDED_DIAGNOSTICS_LOG.md` | ✅ |
 
@@ -134,7 +136,9 @@
 
 | 窗口 | exact/fast 是否一致 | rows | errors | R3 | 备注 |
 |---|---|---:|---:|---:|---|
+| 2020-01-03 → 2020-07-02 | ✅ | 126 | 0 | 0 | exact 与 fast 浮点级一致 |
 | 2022-01-03 → 2022-07-01 | ✅ | 125 | 0 | 0 | exact 与 fast 完全一致 |
+| 2024-01-03 → 2024-07-03 | ✅ | 126 | 0 | 0 | exact 与 fast 浮点级一致 |
 | 2026-01-05 → 2026-05-29 | ✅ | 101 | 0 | 0 | exact 与 fast 完全一致 |
 
 ## 系统级 7 道总闸

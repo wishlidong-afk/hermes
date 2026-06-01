@@ -144,11 +144,11 @@
 | Pipeline 接线 | ✅ DONE | 11 步统一数据流，7 道总闸结构验证 |
 | Phase II–IV 计划 | ✅ DONE | 配置 + feature flags + rollout plan + scaler migration guide |
 | P4 本地落地 | ✅ DONE | 远端 source snapshots 已同步到本地 `.hermes`，修复接口后 253 package tests OK |
-| Phase II 风险与信号 | ✅ FULL-BACKTEST-SENSITIVITY-DONE | 252 日 shadow + 相关闸敏感性 + 2113 日 full-window sensitivity + 2 个 exact spot-check：errors=0、R3 violations=0；review candidate 110/0.70，MaxDD -22.47%、Sharpe 1.0115 |
+| Phase II 风险与信号 | ✅ FULL-BACKTEST-SENSITIVITY-DONE | 252 日 shadow + 相关闸敏感性 + 2113 日 full-window sensitivity + 4 个 exact spot-check：errors=0、R3 violations=0；review candidate 110/0.70，MaxDD -22.47%、Sharpe 1.0115 |
 | Phase III 统一处置 | TODO | exact optimizer 抽样复核 + dry-run 后再替换旧 scaler 链 |
 | Phase IV 验证与治理 | TODO | 7 闸全通过 |
 
-**当前最高优先任务**：补 2020/2024 exact optimizer 抽样复核，随后做 dry-run，并并行补 NEXT-1 剩余软数据。
+**当前最高优先任务**：设计 dry-run 验收包，并并行补 NEXT-1 剩余软数据。
 
 ---
 
