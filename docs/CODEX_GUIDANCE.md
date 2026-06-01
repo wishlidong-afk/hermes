@@ -7,8 +7,9 @@
 
 ## 0. 现状一句话
 
-- **78 单测绿；missing 已降到 MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。**
-- **当前唯一关键瓶颈：FNGU 价格历史只回到 2025-02-20（FNGS 到 2019-11-13）。** 这把回测有效窗口压到约 15 个月（2025-02→2026-05），只覆盖一个体制。
+- **82 单测绿；missing 已降到 MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。**
+- **P0 代码与数据管线已搭建，但严格验收未放行。** FNGU/FNGS 历史均已扩到 2018-01-02；FNGS overlap 通过，FNGU ret_corr 0.9950 但年化 tracking error 8.42% > 5%。
+- **当前唯一关键瓶颈从“没有 FNGU 历史”变成“FNGU 合成段严格跟踪误差未过门”。** 在此修复前，不能把 2018+ proxy 窗口用于 P1/NEXT-3 校准。
 - 后果：NEXT-2 代码就绪但"窗口受限"，**NEXT-3 在 15 个月数据上做参数校准等于过拟合噪音，无意义。**
 - 结论：**先解决 FNGU 历史，再谈回测/校准。** 这是当前唯一该做的第一件事。
 
@@ -17,7 +18,7 @@
 ## 1. 优先级（严格按此顺序）
 
 ```
-P0  合成重建 FNGU(3×)/FNGS(1×) 的 2018+ 历史   ← 唯一阻塞，先做这个
+P0  修复并通过 FNGU(3×) 合成历史严格验收         ← 唯一阻塞，继续做这个
 P1  用 P0 历史把 NEXT-2 回测全窗口重跑（2018→2026）
 P2  NEXT-3 参数扫描 + 每模块达标门 + PBO（报告对合成段敏感性）
 P3  (并行) 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL → 进一步降 MSTR 的 26
@@ -31,6 +32,15 @@ P4  整合地基：ConfidenceSpine / RiskEngine / SizingOptimizer（替换 scale
 ## 2. P0 工单（最高优先，函数级）
 
 **目标**：把 FNGU、FNGS 缺失的早期历史用"底层指数/成分 + 日重置杠杆公式"合成出来，扩到 2018-01（或更早），并严格校验合成段与真实段在重叠期一致。这是 `leg_proxy.py`（路由腿代理）思路在**杠杆标的本体**上的延伸。
+
+**当前 P0 执行结果（2026-06-01）**：
+
+- 已新增 `core/data/synth_leverage.py`、`scripts/build_synth_history.py`、`tests/test_p0_synth_leverage.py`。
+- 已扩展 manifest 记录 proxy rows/date range/source；snapshot 已透传 `is_proxy` 来源。
+- 已生成 `reports/P0_synth_history_report.md/json`，并同步到 `building/reports/`。
+- FNGU proxy：2018-01-02→2025-02-19，1793 行；FNGS proxy：2018-01-02→2019-11-12，470 行。
+- 严格验收：FNGU ret_corr 0.9950 通过，annual TE 8.42% 未过；FNGS ret_corr 0.9914、annual TE 4.12% 通过。
+- 结论：P0 暂为 `CODE-DONE / STRICT-GATE-NOT-PASSED`，不得启动 P1/NEXT-3。
 
 ### 2.1 新文件 `core/data/synth_leverage.py`
 

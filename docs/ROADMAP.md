@@ -8,7 +8,7 @@
 ## 总时间线
 
 ```text
-[已完成 M0]  Phase 0–9/12/14：数据/特征/评分(A-D)/硬阀门/裁决/组合/路由/再建仓/镜像/WebUI 骨架，68 单测绿
+[已完成 M0/M1] Phase 0–9/12/14：数据/特征/评分(A-D)/硬阀门/裁决/组合/路由/再建仓/镜像/WebUI 骨架，82 单测绿
       │
 [基线 → M1] NEXT-0 数据地基(价格史2018+/版本化/PIT) + NEXT-1 可历史化软数据 → missing<30
       │
@@ -45,11 +45,11 @@
 
 ## 当前可立即开工（据真实进度重排，2026-06-01）
 
-> 现状：missing 已 <30（盲区门过），NEXT-0/1 代码就绪。**唯一阻塞是 FNGU 历史只到 2025-02 → 回测窗口仅 ~15 个月。** 明确施工指引见 `CODEX_GUIDANCE.md`。
+> 现状：missing 已 <30（盲区门过），NEXT-0/1 代码就绪。P0 已把 FNGU/FNGS proxy 历史扩到 2018-01，但 **FNGU 严格 overlap 年化 TE 8.42% > 5%**，因此仍不能放行 P1/NEXT-3。明确施工指引见 `CODEX_GUIDANCE.md`。
 
 | 顺位 | 任务 | 文档锚点 | 价值 |
 |---|---|---|---|
-| **P0** | **合成重建 FNGU(3×)/FNGS(1×) 的 2018+ 历史**（底层指数/成分 × 日重置杠杆公式，扩展 leg_proxy） | CODEX_GUIDANCE P0 | **唯一阻塞：解锁全窗口回测与校准** |
+| **P0** | **修复 FNGU(3×) 合成历史严格跟踪误差**（当前代码/数据管线已建，FNGU annual TE 8.42% 未过 5% 门） | CODEX_GUIDANCE P0 | **唯一阻塞：解锁全窗口回测与校准** |
 | P1 | NEXT-2 用 P0 历史全窗口重跑（real-only vs full(含 proxy) 并排） | BUILD_TICKETS NEXT-2 | 验得过（真窗口） |
 | P2 | NEXT-3 参数扫描 + 每模块达标门 + PBO（报告对合成段敏感性） | BUILD_TICKETS NEXT-3 | 校得准 |
 | P3(并行) | 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL（进一步降 MSTR 的 26） | BUILD_TICKETS NEXT-1 | 质量增量，非阻塞 |

@@ -21,9 +21,10 @@
 
 | NEXT | 状态 | 产出 | 验收 | 阻塞 |
 |---|---|---|---|---|
-| NEXT-0 数据地基 | DONE-CODE / PARTIAL-DATA | `scripts/backfill_history.py`, `core/data/pit.py`, `core/data/manifest.py`, `core/routing/leg_proxy.py`, `reports/NEXT0_REPORT.md`, `reports/N0_history_coverage.md` | 78 tests OK; manifest verify OK; 34/38 symbols at 2018-01-02 or earlier | FNGU 当前 yfinance 源只回到 2025-02-20；FNGS 只回到 2019-11-13 |
-| NEXT-1 可历史化软数据 | IN-PROGRESS / BLIND-SPOT-GATE-PASS | FRED/A5、CBOE SKEW-VVIX/B4、AAII/A2、成分宽度/A3、MSTR BTC 价格代理/D-M3；`reports/NEXT1_REPORT.md`, `reports/N1_missing_rebaseline.md` | 78 tests OK; FNGU missing 19, SOXL missing 19, MSTR missing 26，均低于 30 | PCR/NAAIM/真实 BTC funding-basis-DVOL/GEX/social/valuation 待接 |
-| NEXT-2 回测引擎补全 | ACCEPTANCE-READY / COVERAGE-CONSTRAINED | `run_full_backtest`、routed route-leg simulation、`Backtest_FULL.md/json`、硬阀门历史矩阵、`reports/NEXT2_REPORT.md` | 78 tests OK; full report generated; effective window 2025-02-20 to 2026-05-29 | 严格 2018-2026 仍受 FNGU 历史缺口阻塞；PCR/NAAIM/BTC真微观仍待接 |
+| NEXT-0 数据地基 | DONE-CODE / PARTIAL-DATA | `scripts/backfill_history.py`, `core/data/pit.py`, `core/data/manifest.py`, `core/routing/leg_proxy.py`, `reports/NEXT0_REPORT.md`, `reports/N0_history_coverage.md` | 82 tests OK; manifest verify OK; 34/38 symbols at 2018-01-02 or earlier | 原始 FNGU 源只回到 2025-02-20；原始 FNGS 只回到 2019-11-13，P0 已生成 proxy 但 FNGU 严格 TE 未过 |
+| NEXT-1 可历史化软数据 | IN-PROGRESS / BLIND-SPOT-GATE-PASS | FRED/A5、CBOE SKEW-VVIX/B4、AAII/A2、成分宽度/A3、MSTR BTC 价格代理/D-M3；`reports/NEXT1_REPORT.md`, `reports/N1_missing_rebaseline.md` | 82 tests OK; FNGU missing 19, SOXL missing 19, MSTR missing 26，均低于 30 | PCR/NAAIM/真实 BTC funding-basis-DVOL/GEX/social/valuation 待接 |
+| NEXT-2 回测引擎补全 | ACCEPTANCE-READY / COVERAGE-CONSTRAINED | `run_full_backtest`、routed route-leg simulation、`Backtest_FULL.md/json`、硬阀门历史矩阵、`reports/NEXT2_REPORT.md` | 82 tests OK; full report generated; effective window 2025-02-20 to 2026-05-29 | P0 FNGU 严格 TE 未过，暂不把 2018+ proxy 窗口用于 P1/NEXT-3 |
+| P0 合成杠杆历史 | CODE-DONE / STRICT-GATE-NOT-PASSED | `core/data/synth_leverage.py`, `scripts/build_synth_history.py`, `tests/test_p0_synth_leverage.py`, `reports/P0_synth_history_report.md/json` | 82 tests OK; FNGU/FNGS 本地历史均扩到 2018-01-02；proxy rows: FNGU 1793 / FNGS 470；manifest 记录 proxy 区间 | 严格 overlap 验收 FNGU 年化 TE 8.42% > 5%（corr 0.9950 过门）；FNGS 通过。按 `CODEX_GUIDANCE.md` 不启动 P1/NEXT-3，需继续修 FNGU 合成跟踪误差 |
 | NEXT-3 参数扫描与正式校准 | TODO | - | - | 等 NEXT-1/2 |
 | NEXT-4 纯向前软数据 | TODO | - | - | 等 NEXT-3 或并行接契约 |
 | NEXT-5 元模型 | LOCKED | - | - | 标签解锁门未达 |

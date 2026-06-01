@@ -12,10 +12,10 @@
 |---|---|
 | 文档版本 | v1.0 |
 | 更新时间 | 2026-06-01 |
-| 当前成熟度 | M0→M1 过渡（能跑，正在补数据降盲区） |
+| 当前成熟度 | M1（盲区门已过；P0 合成质量仍阻塞 M2/M3） |
 | data_manifest_id | 待 NEXT-0 freeze 后填写 |
 | calibration 档案 | 未生成（NEXT-3 产出） |
-| 当前 missing_weight (MSTR/FNGU/SOXL) | 42 / 31 / 31（>30，盲区升级中） |
+| 当前 missing_weight (MSTR/FNGU/SOXL) | 26 / 19 / 19（均 <30，盲区门已过） |
 | 安全状态 | 只读、不下单；所有 live 开关默认关 |
 
 ---
@@ -144,8 +144,8 @@
 ## 6. 成熟度阶梯（升级钥匙 = §3/§4 对应硬标准）
 
 ```text
-M0 能跑        : 流水线通、测试绿、单日回放有结果              [当前]
-M1 看得清      : missing<30、盲区解除、数据可回溯              ← NEXT-0/1
+M0 能跑        : 流水线通、测试绿、单日回放有结果
+M1 看得清      : missing<30、盲区解除、数据可回溯              [当前]
 M2 验得过      : 2018→2026回测 + walk-forward + 硬阀门历史触发  ← NEXT-2
 M3 校得准      : 参数入档(稳健选参) + 每模块达标门通过          ← NEXT-3
 M4 可上线      : 人逐个翻开关 + dry-run对照达标(shadow→live)   ← 人决定
@@ -154,9 +154,9 @@ M5 会学习      : 元模型解锁 + p_act 校准达标                    ← 
 
 | 等级 | 是否达成 | 达成日期 | 证据(报告/档案) |
 |---|---|---|---|
-| M0 能跑 | 是 | 2026-06-01 | 68 tests OK / 单日回放 |
-| M1 看得清 | 否 | - | 待 N1_missing_rebaseline.md |
-| M2 验得过 | 否 | - | 待 Backtest_FULL.md |
+| M0 能跑 | 是 | 2026-06-01 | 82 tests OK / 单日回放 |
+| M1 看得清 | 是 | 2026-06-01 | missing 26/19/19 < 30；`N1_missing_rebaseline.md` |
+| M2 验得过 | 受限 | - | `Backtest_FULL.md` 已出但 P0 FNGU TE 未过，2018+ proxy 暂不放行 |
 | M3 校得准 | 否 | - | 待 calibration_vX.json / Calibration_vX.md |
 | M4 可上线 | 否 | - | 待人工 dry-run 对照 |
 | M5 会学习 | 否 | - | 待 calibration_report.md(meta) |
@@ -167,9 +167,10 @@ M5 会学习      : 元模型解锁 + p_act 校准达标                    ← 
 
 | NEXT | 内容 | 目标成熟度 | 状态 |
 |---|---|---|---|
-| NEXT-0 | 数据地基：价格史2018+ / 数据版本化 / 时点对齐 | → M1 前置 | TODO |
-| NEXT-1 | 可历史化软数据接入（FRED/CBOE/PCR/AAII/NAAIM/BTC微观），降盲区 | → M1 | TODO |
-| NEXT-2 | 回测引擎补全（2018→2026 + 成本 + walk-forward + 硬阀门历史触发） | → M2 | TODO |
+| NEXT-0 | 数据地基：价格史2018+ / 数据版本化 / 时点对齐 | → M1 前置 | DONE-CODE / PARTIAL-DATA |
+| NEXT-1 | 可历史化软数据接入（FRED/CBOE/PCR/AAII/NAAIM/BTC微观），降盲区 | → M1 | IN-PROGRESS / 盲区门已过 |
+| P0 | 合成杠杆历史：FNGU/FNGS proxy 至 2018+ | → M2 前置 | CODE-DONE / STRICT-GATE-NOT-PASSED |
+| NEXT-2 | 回测引擎补全（2018→2026 + 成本 + walk-forward + 硬阀门历史触发） | → M2 | ACCEPTANCE-READY / P0 阻塞 |
 | NEXT-3 | 参数扫描与正式校准（稳健选参 + 每模块达标门） | → M3 | TODO |
 | NEXT-4 | 纯向前软数据（GEX/CNN/新闻/mNAV）+ dated 归档 | 增强 | TODO |
 | NEXT-5 | 元模型回放 backfill + 训练（解锁门） | → M5 | LOCKED |
