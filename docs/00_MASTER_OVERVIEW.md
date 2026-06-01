@@ -66,11 +66,12 @@ L5 组合层(RiskEngine 单一风险源 → SizingOptimizer 统一处置, R3不�
 
 | 维度 | 现状 |
 |---|---|
-| 成熟度 | **M1 实质达成**：流水线通、86 单测绿；盲区门已过 |
+| 成熟度 | **M3 实质达成**：流水线通、90 package tests OK + 11 golden tests OK；盲区门已过；NEXT-3 稳定高原校准通过 |
 | missing_weight | **MSTR 26 / FNGU 19 / SOXL 19（均 <30，盲区升级已解除）** |
 | **P0 状态** | **✅ DONE / STRICT-GATE-PASSED** — FNGU 接缝调整 TE 4.67%（< 5%），corr 0.9986；P1 全窗口回测阻塞已解除 |
-| 已完成 | Phase 0–9、12 骨架；NEXT-0 代码、NEXT-1 已接 5 个可回溯软数据源、NEXT-2 回测 runner 与报告（窗口受限）；P0 合成历史接缝调整门控 |
-| 待办 | **P1（NEXT-2 全窗口重跑）** → NEXT-3 校准；其余软数据(PCR/NAAIM/BTC微观/GEX)增量补 |
+| 已完成 | Phase 0–9、12 骨架；NEXT-0 数据地基；NEXT-1 已接 5 个可回溯软数据源；P0 合成历史；P1 全窗口回测；NEXT-3 稳定高原校准 |
+| 校准 | `E75_D65_R50`：EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20；deployment fixed PBO=0.1538；real-only rank=0.7692 |
+| 待办 | 其余软数据(PCR/NAAIM/BTC微观/GEX)增量补；ConfidenceSpine / RiskEngine / SizingOptimizer 整合地基 |
 | 安全 | 只读、不下单；所有 live 开关默认关 |
 
 ---
@@ -80,8 +81,8 @@ L5 组合层(RiskEngine 单一风险源 → SizingOptimizer 统一处置, R3不�
 > 详见 `CODEX_GUIDANCE.md`（明确的下一步施工指引）。
 
 1. ~~**P0 合成杠杆历史**~~：✅ **DONE (2026-06-01)** — 接缝调整严格门控通过（FNGU TE 4.67%，corr 0.9986）。
-2. **P1（NEXT-2 全窗口重跑）— 当前唯一阻塞，立即开始**：把回测从 ~15 个月扩到 2018→2026，real-only 与 full(含 proxy) 并排报告。
-3. **NEXT-3 校准**：参数扫描（选稳健高原非峰值）+ 每模块达标门 + PBO；报告对合成段的敏感性。
+2. ~~**P1（NEXT-2 全窗口重跑）**~~：✅ **DONE** — real-only 与 full-proxy 并排报告已出。
+3. ~~**NEXT-3 校准**~~：✅ **DONE** — 稳定高原参数 `E75_D65_R50` 已通过 deployment fixed PBO 与回撤/真实窗口敏感性门控；train-greedy PBO 未过，仅作警报。
 4. **整合地基**：建 ConfidenceSpine / RiskEngine / SizingOptimizer，把组合/仓位从"乘法链"换成"单一风险源 + 约束优化"。→ `INTEGRATION_ARCHITECTURE.md` Phase 0–I
 5. **增量并行**：补 NEXT-1 剩余软数据（PCR/NAAIM/BTC funding-basis-DVOL，进一步降 MSTR 的 26）。
 

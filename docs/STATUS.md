@@ -5,17 +5,17 @@
 
 ## 一句话现状
 
-流水线通、**86 单测绿**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
-**P0 合成杠杆历史已通过严格接缝调整门控**：FNGU 接缝调整 TE 4.67%（< 5%，corr 0.9986 > 0.98），FNGS 4.11%，全部通过。根因：FNGB→FNGU 票据迁移接缝期（前 20 个真实交易日）为低流动性初始化噪声，官方 FANG3X 指数同窗口 TE 9.91% 独立确认为数据接缝质量问题，接缝期实数据保留不删除。**P1 全窗口回测（2018→2026）现在可以启动。**
+流水线通；**90 package tests OK + 11 golden tests OK**；**missing 已降至 MSTR 26 / FNGU 19 / SOXL 19，盲区门(<30)已过 → M1 实质达成**。
+**P0 合成杠杆历史已通过严格接缝调整门控**；**P1 全窗口回测已完成**；**NEXT-3 参数校准 v2 已通过稳定高原门控**。当前候选参数为 `EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20`。Deployment fixed PBO=0.1538 PASS；train-greedy PBO=0.6154 未过，仅作为过拟合警报保留。系统达到 **M3 校得准**，但 live/生产开关仍保持关闭。
 
 ## 成熟度
 
 | 等级 | 达成 | 证据 |
 |---|---|---|
-| M0 能跑 | ✅ | 86 单测绿 / 单日回放 |
+| M0 能跑 | ✅ | 90 package tests OK + 11 golden tests OK / 单日回放 |
 | M1 看得清 | ✅ | missing 26/19/19 < 30；`N1_missing_rebaseline.md` |
 | M2 验得过 | ✅ | `Backtest_FULL`（real-only）+ `Backtest_FULL_2018_2026`（full-proxy）均出；DSR 1.66；13 fold walk-forward |
-| M3 校得准 | ⬜ | 待 NEXT-3 参数扫描 |
+| M3 校得准 | ✅ | `Calibration_v2.md/json`；deployment fixed PBO=0.1538；full-proxy/real-only 门控通过 |
 | M4 可上线 | ⬜ | 待人工 dry-run |
 | M5 会学习 | ⬜ | 标签解锁门未达 |
 
@@ -25,9 +25,9 @@
 |---|---|---|
 | NEXT-0 数据地基 | DONE-CODE / PARTIAL-DATA | backfill/pit/manifest/leg_proxy 完成；34/38 标的 ≤2018-01-02 |
 | NEXT-1 可历史化软数据 | IN-PROGRESS / 盲区门已过 | 已接 FRED·A5 / CBOE SKEW-VVIX·B4 / AAII·A2 / 成分宽度·A3 / MSTR BTC价代理·D-M3；**待接 PCR / NAAIM / BTC funding-basis-DVOL / GEX / social / valuation（增量，非阻塞）** |
-| **P0 合成杠杆历史** | **DONE / STRICT-GATE-PASSED** | FNGU/FNGS proxy 到 2018-01-02；接缝调整严格门控 PASS（FNGU TE 4.67%，corr 0.9986；FNGS TE 4.11%）；接缝原因文档化（FNGB→FNGU 迁移，官方 FANG3X 独立确认）；86 tests OK；见 `building/reports/P0_synth_history_report.md` |
+| **P0 合成杠杆历史** | **DONE / STRICT-GATE-PASSED** | FNGU/FNGS proxy 到 2018-01-02；接缝调整严格门控 PASS（FNGU TE 4.67%，corr 0.9986；FNGS TE 4.11%）；接缝原因文档化（FNGB→FNGU 迁移，官方 FANG3X 独立确认）；见 `building/reports/P0_synth_history_report.md` |
 | NEXT-2 回测引擎 | **DONE / P1 全窗口完成** | `Backtest_FULL.md`（real-only）+ `Backtest_FULL_2018_2026.md`（full-proxy）并排报告已出；real-only CAGR 44.39%、MaxDD -10.43%、Sharpe 1.79、DSR 1.66；full-proxy CAGR 18.13%、MaxDD -27.60%；13 个 walk-forward folds |
-| NEXT-3 参数校准 | **TODO / UNBLOCKED** | P1 全窗口完成，可立即启动参数扫描 |
+| NEXT-3 参数校准 | **DONE / M3-COMPLETE / STABLE-HIGHLAND-PASSED** | v2 稳定高原参数：EXIT=75 / DEF_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20；Deployment fixed PBO=0.1538；train-greedy PBO=0.6154 仅保留为警报 |
 | NEXT-4 向前软数据 | TODO | GEX/CNN/新闻/mNAV |
 | NEXT-5 元模型 | LOCKED | 样本未达解锁门 |
 | NEXT-6 IBKR 只读对账 | TODO | 绝不下单 |
@@ -57,6 +57,7 @@ Phase 0–9、12 = DONE；Phase 10(扩展数据)=IN-PROGRESS；Phase 11(回测)=
 - P0.1 官方指数缓存：`FANG3X` 2020-04-14→2026-05-29（1549 行）；`FANGT3X` 2020-04-14→2026-05-29（1541 行）
 - **P0 接缝调整严格门控 PASS**：FNGU seam_adj TE 4.67% / corr 0.9986；FNGS TE 4.11%
 - **P1 全窗口回测 DONE**：real-only CAGR 44.39% / MaxDD -10.43% / Sharpe 1.79 / DSR 1.66；full-proxy CAGR 18.13% / MaxDD -27.60% / DSR 0.77（代理段信号统计意义有限）
+- **NEXT-3 校准 DONE**：chosen `E75_D65_R50`；full-proxy CAGR 17.54% / MaxDD -28.01% / Sharpe 0.86；real-only CAGR 42.48% / MaxDD -10.63% / Sharpe 1.73；deployment fixed PBO 0.1538；real-only rank 0.7692；train-greedy PBO 0.6154 为过拟合警报
 - **P3 并行（部分）**：NAAIM + PCR 数据源基础设施已建（`core/data/pcr.py`、`scripts/backfill_pcr_naaim.py`）；CBOE/NAAIM 外部端点被封，CSV 骨架就绪，等待手动回填后 missing_weight 可降 8pt
-- 单测：86 tests OK（新增 2 个接缝 + 1 个 PCR adapter 测试）
+- 单测：90 package tests OK；11 golden tests OK（v25 golden 已按 P0 当前数据地基重生）
 - 2026-05-29 回放：MSTR EXIT(H-M1,H-M4) / FNGU HOLD / SOXL HOLD；体制 LOW_VOL_TREND

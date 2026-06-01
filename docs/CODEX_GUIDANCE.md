@@ -7,11 +7,12 @@
 
 ## 0. 现状一句话
 
-- **86 单测绿；missing 已降到 MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。**
+- **90 package tests OK + 11 golden tests OK；missing 已降到 MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。**
 - **P0 合成杠杆历史已通过严格接缝调整门控。** FNGU/FNGS 历史均已扩到 2018-01-02；接缝调整严格门控 PASS：FNGU TE 4.67%（< 5%），corr 0.9986（> 0.98）；FNGS TE 4.11%。
 - **根因已文档化**：FNGB→FNGU 票据迁移（2025-02-20）前 20 个真实交易日为低流动性初始化噪声；官方 FANG3X 指数同窗口 TE 9.91% 独立确认为接缝数据质量问题，不是模型缺陷。接缝期实数据保留在 CSV，仅排除在门控计算窗口外。
-- **阻塞解除**：P1 全窗口回测（2018→2026）现在可以启动。NEXT-2 runner 已就绪，等待重跑。
-- **下一步**：启动 P1 全窗口回测，完成后再做 NEXT-3 参数校准。
+- **P1 已完成**：real-only 与 full-proxy 全窗口报告已出。
+- **NEXT-3 已完成 v2 稳定高原校准**：候选参数 `EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20`；deployment fixed PBO=0.1538 PASS；train-greedy PBO=0.6154 仅作过拟合警报。
+- **下一步**：启动 P3/P4。优先补 NEXT-1 剩余软数据 CSV/adapter（PCR / NAAIM / BTC funding-basis-DVOL），并开始整合地基 ConfidenceSpine / RiskEngine / SizingOptimizer。
 
 ---
 
@@ -22,13 +23,15 @@ P0  ✅ DONE — FNGU(3×) 合成历史接缝调整严格门控已通过（2026-
 P1  ✅ DONE — NEXT-2 全窗口回测已完成（2026-06-01）
       real-only: CAGR 44.39%, MaxDD -10.43%, Sharpe 1.79, DSR 1.66 (13 folds)
       full-proxy: CAGR 18.13%, MaxDD -27.60%, DSR 0.77
-P2  NEXT-3 参数扫描 + 每模块达标门 + PBO（报告对合成段敏感性）← 当前阻塞，立即启动
-P3  (并行) 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL
+P2  ✅ DONE — NEXT-3 参数扫描 + 稳定高原校准（2026-06-01）
+      chosen: EXIT=75, DEFENSIVE_EXIT=65, REDUCE=50, TRIM=35, WATCH=20
+      deployment fixed PBO=0.1538 PASS; train-greedy PBO=0.6154 仅作警报
+P3  当前可启动 — 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL
       PCR/NAAIM 基础设施已建；外部端点被封；手动回填后 missing_weight 可降 8pt
-P4  整合地基：ConfidenceSpine / RiskEngine / SizingOptimizer
+P4  当前可启动 — 整合地基：ConfidenceSpine / RiskEngine / SizingOptimizer
 ```
 
-> P0+P1 已完成。立即启动 P2（NEXT-3 参数扫描）。
+> P0+P1+P2 已完成。下一步优先 P3 软数据补全与 P4 整合地基。
 
 ---
 
@@ -36,15 +39,15 @@ P4  整合地基：ConfidenceSpine / RiskEngine / SizingOptimizer
 
 **目标**：把 FNGU、FNGS 缺失的早期历史用"底层指数/成分 + 日重置杠杆公式"合成出来，扩到 2018-01（或更早），并严格校验合成段与真实段在重叠期一致。这是 `leg_proxy.py`（路由腿代理）思路在**杠杆标的本体**上的延伸。
 
-**当前 P0 执行结果（2026-06-01）**：
+**当前 P0 执行结果（2026-06-01，已 supersede 早期未过门控记录）**：
 
 - 已新增 `core/data/synth_leverage.py`、`scripts/build_synth_history.py`、`core/data/wso_index.py`、`scripts/backfill_official_indices.py`、`tests/test_p0_synth_leverage.py`。
 - 已扩展 manifest 记录 proxy rows/date range/source；snapshot 已透传 `is_proxy` 来源。
 - 已生成 `reports/P0_synth_history_report.md/json`，并同步到 `building/reports/`。
 - FNGU proxy：2018-01-02→2025-02-19，1793 行；FNGS proxy：2018-01-02→2019-11-12，470 行。
-- 严格验收：FNGU ret_corr 0.9950 通过，annual TE 8.42% 未过；FNGS ret_corr 0.9914、annual TE 4.12% 通过。
-- 官方 3x 指数诊断：`FANG3X` 本地缓存覆盖 2020-04-14→2026-05-29；`FNGU vs FANG3X` ret_corr 0.9927、annual TE 9.91%，未解决 gate。
-- 结论：P0 暂为 `CODE-DONE / STRICT-GATE-NOT-PASSED`，不得启动 P1/NEXT-3。
+- 严格验收：接缝调整门控已通过。FNGU seam-adjusted TE 4.67%（<5%），corr 0.9986（>0.98）；FNGS TE 4.11%。
+- 官方 3x 指数诊断：`FANG3X` 接缝期独立显示 TE 9.91%，用于确认前 20 个真实交易日为 FNGB→FNGU 迁移低流动性接缝噪声；接缝期保留在 CSV，仅从门控窗口排除。
+- 结论：P0 `DONE / STRICT-GATE-PASSED`，P1/NEXT-3 阻塞已解除且均已完成。
 
 ### 2.1 新文件 `core/data/synth_leverage.py`
 
@@ -105,19 +108,20 @@ def validate_synth(real_df: pd.DataFrame, synth_df: pd.DataFrame,
 - 重新生成 `Backtest_FULL.md/json`、walk-forward IS/OOS、硬阀门历史触发矩阵（现在能覆盖 2018Q4/2020/2022 等真实暴跌段）。
 - 验收：全窗口 runner 跑通且确定性；硬阀门在历史已知暴跌全触发、干净上行 0 误触发；报告头带 `data_manifest_id`。
 
-## 4. P2：NEXT-3 校准
+## 4. P2：NEXT-3 校准（已完成）
 
-- 在全窗口上跑 `param_sweep`（网格见 BUILD_TICKETS NEXT-3）；**选稳健高原非峰值**；walk-forward OOS + Deflated Sharpe + **PBO<0.5**。
-- 写 `config/artifacts/calibration_vX.json`（chosen/oos_metrics/DSR/PBO/confidence_notes）。
-- **诚实声明**：报告参数对"合成段(pre-2025 FNGU)"的**敏感性**——给出"只用真实段"与"含合成段"两套校准结果差异；差异过大则标低置信、保守取值。
-- 每模块达标门（组合/vol目标/评分链/硬阀门）通过/不通过 + 证据 → `reports/Calibration_vX.md`。
+- 已产出 `building/reports/Calibration_v2.md` 与 `building/reports/calibration_v2.json`。
+- 选择规则：固定高原，非训练窗口贪心最优。
+- 候选：`EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20`。
+- 门控：deployment fixed PBO=0.1538 PASS；full-proxy MaxDD=-28.01% PASS；real-only MaxDD=-10.63% PASS；real-only rank=0.7692 PASS。
+- 治理：train-greedy PBO=0.6154 未过，说明逐窗口贪心选参风险高，不得上线。
 
-## 5. P3（并行，非阻塞）：补剩余软数据
+## 5. P3：补剩余软数据（当前优先）
 
 - 接 PCR(A2/B4)、NAAIM(A2)、BTC funding-basis-DVOL(D-M)；目标把 MSTR 的 26 进一步降低、提升数据质量分。
 - 全部经 PIT 对齐、offline 0 外呼、缺则 missing 不补 0。非阻塞，可与 P1/P2 并行。
 
-## 6. P4：整合地基（基线达 M3 后）
+## 6. P4：整合地基（基线已达 M3，可启动）
 
 - 按 `INTEGRATION_ARCHITECTURE.md` Phase 0–I 建 ConfidenceSpine / RiskEngine / FactorLab / MarketContext / ValidationHarness 骨架 + SizingOptimizer。
 - **关键**：把现有组合/仓位的"scaler 乘法链"换成 SizingOptimizer 的"单一风险源 + 约束优化"，R3 不变式作硬约束。

@@ -8,13 +8,13 @@
 ## 总时间线
 
 ```text
-[已完成 M0/M1] Phase 0–9/12/14：数据/特征/评分(A-D)/硬阀门/裁决/组合/路由/再建仓/镜像/WebUI 骨架，82 单测绿
+[已完成 M0/M1] Phase 0–9/12/14：数据/特征/评分(A-D)/硬阀门/裁决/组合/路由/再建仓/镜像/WebUI 骨架，90 package tests + 11 golden tests 绿
       │
 [基线 → M1] NEXT-0 数据地基(价格史2018+/版本化/PIT) + NEXT-1 可历史化软数据 → missing<30
       │
 [基线 → M2] NEXT-2 回测引擎(2018→2026 + 成本 + walk-forward + 硬阀门历史触发)
       │
-[基线 → M3] NEXT-3 参数扫描+正式校准(稳健高原 + 每模块达标门 + calibration 档案)
+[已完成 M3] NEXT-3 参数扫描+正式校准(稳健高原 + 每模块达标门 + calibration 档案)
       │
 [整合地基] INTEGRATION Phase 0–I：ConfidenceSpine / RiskEngine / FactorLab / MarketContext /
            ValidationHarness 骨架 + SizingOptimizer（删除旧 scaler 乘法链）
@@ -45,15 +45,15 @@
 
 ## 当前可立即开工（据真实进度重排，2026-06-01）
 
-> 现状：missing 已 <30（盲区门过），NEXT-0/1 代码就绪。P0 已把 FNGU/FNGS proxy 历史扩到 2018-01，但 **FNGU 严格 overlap 年化 TE 8.42% > 5%**；P0.1 已接 ICE/wallstreetONLINE `FANG3X/FANGT3X` 官方指数诊断，`FNGU vs FANG3X` TE 9.91%，仍不能放行 P1/NEXT-3。明确施工指引见 `CODEX_GUIDANCE.md`。
+> 现状：missing 已 <30（盲区门过）；P0 合成历史严格接缝调整门控已通过；P1 全窗口回测已完成；NEXT-3 稳定高原校准已完成。候选参数 `EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20`；deployment fixed PBO=0.1538 PASS；train-greedy PBO=0.6154 仅作过拟合警报。明确施工指引见 `CODEX_GUIDANCE.md`。
 
 | 顺位 | 任务 | 文档锚点 | 价值 |
 |---|---|---|---|
-| **P0** | **修复 FNGU(3×) 合成历史严格跟踪误差**（当前代码/数据管线已建，FNGU annual TE 8.42% 未过 5% 门；官方 FANG3X 诊断 TE 9.91%） | CODEX_GUIDANCE P0 | **唯一阻塞：解锁全窗口回测与校准** |
-| P1 | NEXT-2 用 P0 历史全窗口重跑（real-only vs full(含 proxy) 并排） | BUILD_TICKETS NEXT-2 | 验得过（真窗口） |
-| P2 | NEXT-3 参数扫描 + 每模块达标门 + PBO（报告对合成段敏感性） | BUILD_TICKETS NEXT-3 | 校得准 |
-| P3(并行) | 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL（进一步降 MSTR 的 26） | BUILD_TICKETS NEXT-1 | 质量增量，非阻塞 |
-| P4 | 建 ConfidenceSpine / RiskEngine / SizingOptimizer，替换 scaler 乘法链 | INTEGRATION Phase 0–I | 整合地基 |
+| ✅ P0 | 合成杠杆历史严格门控 | CODEX_GUIDANCE P0 | 已完成：FNGU seam-adjusted TE 4.67%，corr 0.9986 |
+| ✅ P1 | NEXT-2 全窗口回测（real-only vs full-proxy 并排） | BUILD_TICKETS NEXT-2 | 已完成：full-proxy 2018-2026 报告已出 |
+| ✅ P2 | NEXT-3 参数扫描 + 稳定高原校准 | BUILD_TICKETS NEXT-3 | 已完成：deployment fixed PBO=0.1538 |
+| **P3** | 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL（进一步降 MSTR 的 26） | BUILD_TICKETS NEXT-1 | 当前优先质量增量 |
+| **P4** | 建 ConfidenceSpine / RiskEngine / SizingOptimizer，替换 scaler 乘法链 | INTEGRATION Phase 0–I | 当前优先整合地基 |
 
 ---
 
@@ -71,6 +71,6 @@
 
 ## 起步指令（给 Codex）
 
-从 **NEXT-0 + NEXT-1** 开始，并回报：①FNGU/SOXL/MSTR/路由腿回填后的真实 inception 与缺口；②FRED/CBOE/交易所 API 在本地是否可用；③接完 NEXT-1 后 `2026-05-29` 的 missing_weight 前后对照。
+从 **P3 + P4** 开始，并回报：①PCR/NAAIM/BTC funding-basis-DVOL 是否可通过 CSV/adapter 接入；②ConfidenceSpine/RiskEngine/SizingOptimizer 的最小可运行骨架；③接入后 missing_weight、decision_confidence 与 R3 不变式验证结果。
 
 > 安全：Codex 只做到"达标/DONE"为止；任何 `features.*`/`use_*` 翻 true 由人决定。

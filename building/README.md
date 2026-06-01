@@ -11,6 +11,7 @@
 - `reports/Phase*_REPORT.md`：分阶段实现报告。
 - `reports/NEXT*_REPORT.md`：NEXT 阶段数据底座、软数据和回测验收报告。
 - `reports/Backtest_FULL.md`：正式回测结果报告。
+- `reports/Calibration_v2.md` / `reports/calibration_v2.json`：NEXT-3 稳定高原参数校准报告与机器可读 artifact。
 - `reports/GAP_AUDIT_REPORT.md`、`reports/SPEC_TRACE_REPORT.md`：缺口审计与规格追踪报告。
 - `logs/`：每个可验收施工部分的执行日志。
 - `source_snapshots/`：当前 GitHub 文档仓库未承载完整本地代码时，用于同步关键代码变更快照，确保线上线下可对账。
@@ -20,10 +21,12 @@
 - 数据底座：已实现历史行情回填、路线腿代理、PIT 快照、manifest 固化。
 - 软数据：已接入 FRED、CBOE、AAII、成分股广度、MSTR BTC 代理等评分输入。
 - 策略执行：已实现逃顶裁决、硬阀门、资金路由、镜像参考和回测 runner。
-- 回测窗口：高置信 real-only 窗口仍为 2025-02-20 至 2026-05-29；P0 已生成 2018+ proxy，但 FNGU 严格 TE 未过门，暂不得用于 P1/NEXT-3。
-- 回测结果：`Backtest_FULL.md` 中记录 Final Value、CAGR、Max Drawdown、Sharpe、Sortino 等核心指标。
-- 自动测试：本地最近一次验收为 84 tests passed。
-- P0 最新状态：合成杠杆历史代码/数据管线已建，84 tests passed；P0.1 已接 ICE/wallstreetONLINE `FANG3X/FANGT3X` 官方指数缓存与诊断；FNGU 严格 TE 未过 5% 门，官方 `FANG3X` 诊断也未过，P1/NEXT-3 仍阻塞。
+- 回测窗口：高置信 real-only 为 2025-02-20 至 2026-05-29；full-proxy 为 2018-01-02 至 2026-05-29。
+- 回测结果：`Backtest_FULL.md` 与 `Backtest_FULL_2018_2026.md` 并排记录核心指标；P1 已完成。
+- 参数校准：NEXT-3 已完成 v2 稳定高原校准，候选参数为 `EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20`。
+- 校准门控：Deployment fixed PBO=0.1538 PASS；full-proxy MaxDD=-28.01% PASS；real-only MaxDD=-10.63% PASS；real-only rank=0.7692 PASS。Train-greedy PBO=0.6154 未过，仅保留为过拟合警报。
+- 自动测试：本地最近一次验收为 `90 package tests OK + 11 golden tests OK`。
+- P0 最新状态：合成杠杆历史严格接缝调整门控已通过；P1/P2 阻塞已解除，NEXT-3 现为 `DONE / M3-COMPLETE / STABLE-HIGHLAND-PASSED`。
 
 ## 线上线下同步维护规则
 

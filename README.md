@@ -4,14 +4,14 @@
 
 > 性质：只读风控/建议系统，**不下单**。覆盖标的 MSTR / FNGU / SOXL（逃顶）+ QQQ/FNGU、SOXX/SOXL、MSTR/QQQ（镜像）。
 
-> **Codex 从这里开始施工 →** [`docs/CODEX_GUIDANCE.md`](docs/CODEX_GUIDANCE.md)（明确的下一步：P0 合成管线已建，但 FNGU 年化 TE 8.42% 未过 5% 门；P0.1 官方 FANG3X 诊断 TE 9.91%，继续修 FNGU 合成质量）。
+> **Codex 从这里开始施工 →** [`docs/CODEX_GUIDANCE.md`](docs/CODEX_GUIDANCE.md)（当前：P0 合成历史、P1 全窗口回测、NEXT-3 稳定高原校准均已完成；下一步优先 P3 软数据补全与 P4 ConfidenceSpine/RiskEngine/SizingOptimizer 整合地基）。
 
 ## 阅读路线（按顺序）
 
 | # | 文件 | 作用 | 读者 |
 |---|---|---|---|
 | 0 | [`docs/00_MASTER_OVERVIEW.md`](docs/00_MASTER_OVERVIEW.md) | **终极全貌**：是什么/架构/三层演进/现状/下一步/安全红线 | 先读这个 |
-| ★ | [`docs/CODEX_GUIDANCE.md`](docs/CODEX_GUIDANCE.md) | **明确施工指引**：P0~P4 优先级 + P0 函数级工单（FNGU 合成历史） | Codex 动手前必读 |
+| ★ | [`docs/CODEX_GUIDANCE.md`](docs/CODEX_GUIDANCE.md) | **明确施工指引**：P0~P2 已完成，P3/P4 当前施工优先级 | Codex 动手前必读 |
 | 1 | [`docs/01_FUNCTIONAL_SPEC.md`](docs/01_FUNCTIONAL_SPEC.md) | **功能规格（事实源）**：A/B/C/D 因子、硬阀门、缺数据、裁决、路由、再建仓、镜像 | 想知道"系统怎么判" |
 | 2 | [`docs/SYSTEM_OVERVIEW.md`](docs/SYSTEM_OVERVIEW.md) | **系统全景**：L0–L10 十层架构、数据流、达标标准、成熟度阶梯 | 想看架构 |
 | 3 | [`docs/BUILD_TICKETS.md`](docs/BUILD_TICKETS.md) | **基线施工**：NEXT-0~6 函数级工单（到 M3/M4） | 要动手建基线 |

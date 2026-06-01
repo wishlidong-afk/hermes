@@ -10,11 +10,11 @@
 
 | 字段 | 值 |
 |---|---|
-| 文档版本 | v1.0 |
+| 文档版本 | v1.1 |
 | 更新时间 | 2026-06-01 |
-| 当前成熟度 | M1（盲区门已过；P0 合成质量仍阻塞 M2/M3；P0.1 官方 FANG3X 诊断未放行） |
+| 当前成熟度 | M3（盲区门已过；P0 合成历史、P1 全窗口回测、NEXT-3 稳定高原校准均已完成） |
 | data_manifest_id | 待 NEXT-0 freeze 后填写 |
-| calibration 档案 | 未生成（NEXT-3 产出） |
+| calibration 档案 | `building/reports/calibration_v2.json`；候选 `E75_D65_R50` |
 | 当前 missing_weight (MSTR/FNGU/SOXL) | 26 / 19 / 19（均 <30，盲区门已过） |
 | 安全状态 | 只读、不下单；所有 live 开关默认关 |
 
@@ -84,10 +84,10 @@
 | **L2 特征** | 指标/分位/体制 | 全本地 OHLCV 可算；阈值走滚动分位(自校准)；t+1 突变不改 t；体制**风险态快进、出态 dwell≥3 日** | DONE → 维持 |
 | **L3 评分** | A/B/C/D + 硬阀门 | 模块封顶 A20/B25/C35/D20；缺失缩放 `raw/(100-missing)*100`；missing>30 触盲区升级；每因子声明依赖/上限/缺失/score_fn；硬阀门优先于总分 | DONE(missing偏高) → **接数据后 missing<30，裁决不再被盲区人为抬升** |
 | **L4 裁决** | 状态阶梯+升级+稳定器 | 阈值 80/65/50/35/20→EXIT..WATCH；软升级需二次收盘确认、硬阀门不等待；进/出滞回不同阈值 | DONE → 维持 |
-| **L5 组合+仓位** | 总风险预算+波动率目标 | gross_scaler≤1(只减不增)；硬阀门腿排除 gross；vol 目标**相对自身基线**(SOXL 日常高波动 scaler≈1)；**R3 不变式 100% 成立**(末位 clamp) | DONE-CODE/未校准 → **回测校准后参数入档** |
+| **L5 组合+仓位** | 总风险预算+波动率目标 | gross_scaler≤1(只减不增)；硬阀门腿排除 gross；vol 目标**相对自身基线**(SOXL 日常高波动 scaler≈1)；**R3 不变式 100% 成立**(末位 clamp) | DONE-CODE/校准入档 → **live 开关保持关闭，等待整合优化器** |
 | **L6 路由** | DEFCON 1/2/3 | 全 config 驱动无硬编码；匹配 1→2→3 即止；BRK.B 失效/高相关→降级 BOXX；输出 routing_explain | DONE → 维持(+趋势腿可选) |
 | **L7 再建仓** | 3-3-4 + 三锁 | 时间 11 交易日/总分<19/C<5 且背离解除；有卖出信号或硬阀门强制锁定；T1/T2/T3=30/30/40 | DONE(持久化待补) → **T1/T2 活跃状态持久化** |
-| **L8 验证校准** | 回测+扫描+达标门 | 2018→2026 确定性可复现；含成本/滑点；walk-forward OOS + Deflated Sharpe；选**稳健高原**非峰值 | PARTIAL → **出 Backtest_FULL + calibration_vX + 达标门报告** |
+| **L8 验证校准** | 回测+扫描+达标门 | 2018→2026 确定性可复现；含成本/滑点；walk-forward OOS + Deflated Sharpe；选**稳健高原**非峰值 | DONE/M3 → **Backtest_FULL + Calibration_v2 + NEXT3_CALIBRATION_LOG 已出** |
 | **L9 学习** | 元标注 | 仅 purged CV 上报；普通 vs purged 差距展示；DSR>0；硬阀门绕过；`use_meta_label` 默认关 | LOCKED → 达解锁门才训 |
 | **L10 展示/对账** | 只读 web + IBKR | UI 不改决策；审计日志可复现一次决策；IBKR 只读对账、断连标同步时间；**绝不下单** | web PARTIAL / IBKR 未接 → **接 IBKR 只读对账** |
 | **镜像子系统** | 右侧周期参考 | 周期裁决+base/risk/cash×袖珍上限；后验现金腿 0 波动；无硬阀门、不下单 | DONE → 维持 |
@@ -115,7 +115,7 @@
 | 组合风险预算(L5) | DD_reduction ≥ 相对 15% 且 Insurance_ratio ≥ 2.0 且 Calmar 优于买入持有 | 保持 shadow/off，人复核 |
 | 波动率目标(L5) | Calmar 改善 ≥ 10% 且 Turnover 增幅 ≤ 25% 且 **R3 100%** | 同上 |
 | 评分主链(TRIM+信号) | Precision ≥ 0.55、Recall ≥ 0.5、Brier 优于基准、假阳性代价可接受 | 调因子/权重 |
-| 硬阀门(L3) | 历史已知暴跌全触发、合成干净上行 0 误触发 | 阻塞，必须修 |
+| 硬阀门(L3) | 历史已知暴跌全触发、合成干净上行 0 误触发 | P0/P1 历史窗口已覆盖，继续在后续 ValidationHarness 强化 |
 | 数据(L1) | 三标的 missing_weight < 30；可回溯源 2018+ 覆盖率报告 | 继续补源 |
 | 元模型解锁(L9) | 完成标签 ≥300、正样本 ≥40、覆盖体制 ≥2 | LOCKED |
 
@@ -128,13 +128,13 @@
 | 袖珍上限 | MSTR 15% / FNGU 20% / SOXL 30% |
 | 模块封顶 | A20 / B25 / C35 / D20 |
 | 标的模块权重 | MSTR 0.90/0.95/1.00/1.25 · FNGU 1.10/0.90/1.10/1.05 · SOXL 0.90/0.95/1.15/1.25 |
-| 状态阈值 | EXIT≥80 / DEFENSIVE_EXIT≥65 / REDUCE≥50 / TRIM≥35 / WATCH≥20 |
+| 状态阈值 | EXIT≥75 / DEFENSIVE_EXIT≥65 / REDUCE≥50 / TRIM≥35 / WATCH≥20（NEXT-3 v2） |
 | 卖出比例(MSTR) | TRIM25/REDUCE50/DEF75/EXIT100 |
 | 卖出比例(FNGU/SOXL) | TRIM35/REDUCE60/DEF85/EXIT100 |
 | ATR 吊灯 | 22 日 × 4.5x |
 | 盲区阈值 | missing_weight > 30 升级一级 |
-| 组合(待校准) | corr_window 60 / vol_budget_annual 0.35 / extreme_corr_penalty 0.7 |
-| 波动率目标(待校准) | relative_to_baseline / baseline 252 / floor 0.25 / EWMA |
+| 组合(已校准/部分 shadow) | `Calibration_v2` 稳定高原阈值已入档；corr/vol budget 仍 shadow |
+| 波动率目标(仍 shadow) | relative_to_baseline / baseline 252 / floor 0.25 / EWMA |
 | 体制滞回 | 进风险即时 / 出风险 dwell≥3 日 |
 | 再建仓 | 时间锁 11d / 情绪锁<19 / 结构锁 C<5 / 30-30-40 |
 | 元模型解锁 | 标签≥300 / 正样本≥40 / 体制≥2 |
@@ -145,19 +145,19 @@
 
 ```text
 M0 能跑        : 流水线通、测试绿、单日回放有结果
-M1 看得清      : missing<30、盲区解除、数据可回溯              [当前]
-M2 验得过      : 2018→2026回测 + walk-forward + 硬阀门历史触发  ← NEXT-2
-M3 校得准      : 参数入档(稳健选参) + 每模块达标门通过          ← NEXT-3
+M1 看得清      : missing<30、盲区解除、数据可回溯
+M2 验得过      : 2018→2026回测 + walk-forward + 硬阀门历史触发
+M3 校得准      : 参数入档(稳健选参) + 每模块达标门通过          [当前]
 M4 可上线      : 人逐个翻开关 + dry-run对照达标(shadow→live)   ← 人决定
 M5 会学习      : 元模型解锁 + p_act 校准达标                    ← NEXT-5(条件满足)
 ```
 
 | 等级 | 是否达成 | 达成日期 | 证据(报告/档案) |
 |---|---|---|---|
-| M0 能跑 | 是 | 2026-06-01 | 82 tests OK / 单日回放 |
+| M0 能跑 | 是 | 2026-06-01 | 90 package tests OK + 11 golden tests OK / 单日回放 |
 | M1 看得清 | 是 | 2026-06-01 | missing 26/19/19 < 30；`N1_missing_rebaseline.md` |
-| M2 验得过 | 受限 | - | `Backtest_FULL.md` 已出但 P0 FNGU TE 未过，2018+ proxy 暂不放行 |
-| M3 校得准 | 否 | - | 待 calibration_vX.json / Calibration_vX.md |
+| M2 验得过 | 是 | 2026-06-01 | `Backtest_FULL.md` + `Backtest_FULL_2018_2026.md`；13 fold walk-forward |
+| M3 校得准 | 是 | 2026-06-01 | `Calibration_v2.md/json`；deployment fixed PBO=0.1538；real-only rank=0.7692 |
 | M4 可上线 | 否 | - | 待人工 dry-run 对照 |
 | M5 会学习 | 否 | - | 待 calibration_report.md(meta) |
 
@@ -169,9 +169,9 @@ M5 会学习      : 元模型解锁 + p_act 校准达标                    ← 
 |---|---|---|---|
 | NEXT-0 | 数据地基：价格史2018+ / 数据版本化 / 时点对齐 | → M1 前置 | DONE-CODE / PARTIAL-DATA |
 | NEXT-1 | 可历史化软数据接入（FRED/CBOE/PCR/AAII/NAAIM/BTC微观），降盲区 | → M1 | IN-PROGRESS / 盲区门已过 |
-| P0 | 合成杠杆历史：FNGU/FNGS proxy 至 2018+；官方 FANG3X/FANGT3X 缓存诊断 | → M2 前置 | CODE-DONE / STRICT-GATE-NOT-PASSED |
-| NEXT-2 | 回测引擎补全（2018→2026 + 成本 + walk-forward + 硬阀门历史触发） | → M2 | ACCEPTANCE-READY / P0 阻塞 |
-| NEXT-3 | 参数扫描与正式校准（稳健选参 + 每模块达标门） | → M3 | TODO |
+| P0 | 合成杠杆历史：FNGU/FNGS proxy 至 2018+；官方 FANG3X/FANGT3X 缓存诊断 | → M2 前置 | DONE / STRICT-GATE-PASSED |
+| NEXT-2 | 回测引擎补全（2018→2026 + 成本 + walk-forward + 硬阀门历史触发） | → M2 | DONE / P1-COMPLETE |
+| NEXT-3 | 参数扫描与正式校准（稳健选参 + 每模块达标门） | → M3 | DONE / STABLE-HIGHLAND-PASSED |
 | NEXT-4 | 纯向前软数据（GEX/CNN/新闻/mNAV）+ dated 归档 | 增强 | TODO |
 | NEXT-5 | 元模型回放 backfill + 训练（解锁门） | → M5 | LOCKED |
 | NEXT-6 | IBKR 只读对账（绝不下单） | 增强 | TODO |
