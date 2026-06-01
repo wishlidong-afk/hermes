@@ -7,29 +7,26 @@
 
 ## 0. 现状一句话
 
-- **94 package tests OK + 11 golden tests OK；missing 已降到 MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。**
-- **P0 合成杠杆历史已通过严格接缝调整门控。** FNGU/FNGS 历史均已扩到 2018-01-02；接缝调整严格门控 PASS：FNGU TE 4.67%（< 5%），corr 0.9986（> 0.98）；FNGS TE 4.11%。
-- **根因已文档化**：FNGB→FNGU 票据迁移（2025-02-20）前 20 个真实交易日为低流动性初始化噪声；官方 FANG3X 指数同窗口 TE 9.91% 独立确认为接缝数据质量问题，不是模型缺陷。接缝期实数据保留在 CSV，仅排除在门控计算窗口外。
-- **P1 已完成**：real-only 与 full-proxy 全窗口报告已出。
-- **NEXT-3 已完成 v2 稳定高原校准**：候选参数 `EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20`；deployment fixed PBO=0.1538 PASS；train-greedy PBO=0.6154 仅作过拟合警报。
-- **下一步**：启动 P3/P4。优先补 NEXT-1 剩余软数据 CSV/adapter（PCR / NAAIM / BTC funding-basis-DVOL），并开始整合地基 ConfidenceSpine / RiskEngine / SizingOptimizer。
+- **94 package tests OK + 11 golden tests OK + 106 integration tests**；missing MSTR 26 / FNGU 19 / SOXL 19 → 盲区门(<30)已过，M1 实质达成。
+- **P0/P1/P2 全部完成**：合成历史 TE 4.67%；real-only CAGR 44.39% Sharpe 1.79；deployment PBO=0.1538。
+- **P4 整合地基 Phase 0–I + Pipeline 完成**：12 个组件骨架（ConfidenceSpine/RiskEngine/SizingOptimizer/FactorLab/MarketContext/ValidationHarness/Governance/Sanitize/Failover/DriftMonitor/Pipeline/Config），E1–E30 全覆盖，7 道总闸全有结构性验证。
+- **Phase II–IV 计划就绪**：配置/feature flags/rollout plan/scaler migration guide 全部产出。
+- **下一步**：Phase II shadow 对照（需本地运行环境接入真实 store + scorer）+ 补 NEXT-1 剩余软数据。
 
 ---
 
 ## 1. 优先级（严格按此顺序）
 
 ```
-P0  ✅ DONE — FNGU(3×) 合成历史接缝调整严格门控已通过（2026-06-01）
-P1  ✅ DONE — NEXT-2 全窗口回测已完成（2026-06-01）
-      real-only: CAGR 44.39%, MaxDD -10.43%, Sharpe 1.79, DSR 1.66 (13 folds)
-      full-proxy: CAGR 18.13%, MaxDD -27.60%, DSR 0.77
-P2  ✅ DONE — NEXT-3 参数扫描 + 稳定高原校准（2026-06-01）
-      chosen: EXIT=75, DEFENSIVE_EXIT=65, REDUCE=50, TRIM=35, WATCH=20
-      deployment fixed PBO=0.1538 PASS; train-greedy PBO=0.6154 仅作警报
-P3  当前可启动 — 补 NEXT-1 剩余软数据：PCR / NAAIM / BTC funding-basis-DVOL
-      PCR/NAAIM 基础设施已建；外部端点被封；手动回填后 missing_weight 可降 8pt
-P4  IN-PROGRESS — 整合地基：ConfidenceSpine / RiskEngine / SizingOptimizer
-      公共契约 + ConfidenceSpine 骨架已完成；下一步 RiskEngine 或报告透传
+P0  ✅ DONE — 合成历史接缝调整严格门控通过（TE 4.67%, corr 0.9986）
+P1  ✅ DONE — 全窗口回测（real-only CAGR 44.39%, Sharpe 1.79, DSR 1.66）
+P2  ✅ DONE — 稳定高原校准（EXIT=75, DEF_EXIT=65, deployment PBO=0.1538）
+P3  可启动 — 补 NEXT-1 剩余软数据（PCR/NAAIM/BTC funding-basis-DVOL）
+P4  ✅ Phase 0–I + Pipeline DONE — 12 组件 + 106 测试 + E1–E30 全覆盖
+      Phase II–IV 计划已出，等待本地接入
+P5  当前优先 — Phase II shadow 对照：启用 risk_engine + confidence + context
+      需要本地运行环境接入真实 store + scorer_fn
+P6  后续 — Phase III 替换旧 scaler 链 → Phase IV 7 闸全通过
 ```
 
 > P0+P1+P2 已完成。下一步优先 P3 软数据补全与 P4 整合地基。
