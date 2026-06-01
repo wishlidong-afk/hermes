@@ -12,7 +12,7 @@
 - **P4 整合地基 Phase 0–I + Pipeline 完成且已落地本地 `.hermes`**：12 个组件骨架（ConfidenceSpine/RiskEngine/SizingOptimizer/FactorLab/MarketContext/ValidationHarness/Governance/Sanitize/Failover/DriftMonitor/Pipeline/Config），E1–E30 全覆盖，7 道总闸全有结构性验证。
 - **P5 Phase II 已跑通 252 日 shadow + 相关闸敏感性 + 2113 日 full-window sensitivity + 4 个 exact spot-check**：full sensitivity errors=0、scenario count=21、R3 violations=0；review candidate 为 threshold=110 / penalty=0.70，CAGR 18.06%、MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077；2020H1/2022H1/2024H1/2026YTD exact 与 fast 基本一致；live 开关未翻。
 - **Phase II–IV 计划就绪**：配置/feature flags/rollout plan/scaler migration guide 全部产出。
-- **下一步**：设计 dry-run 验收包，再考虑 Phase III；并行补 NEXT-1 剩余软数据。
+- **下一步**：实现 daily old-vs-new dry-run comparator，再考虑 Phase III；并行补 NEXT-1 剩余软数据。
 
 ---
 
@@ -24,11 +24,11 @@ P1  ✅ DONE — 全窗口回测（real-only CAGR 44.39%, Sharpe 1.79, DSR 1.66�
 P2  ✅ DONE — 稳定高原校准（EXIT=75, DEF_EXIT=65, deployment PBO=0.1538）
 P3  可启动 — 补 NEXT-1 剩余软数据（PCR/NAAIM/BTC funding-basis-DVOL）
 P4  ✅ Phase 0–I + Pipeline DONE — 12 组件 + 253 package tests + E1–E30 全覆盖
-P5  IN-PROGRESS — Phase II shadow/corr/full-window sensitivity + 4 个 exact spot-check 已跑通，下一步 dry-run 验收包
+P5  IN-PROGRESS — Phase II shadow/corr/full-window sensitivity + 4 个 exact spot-check + dry-run acceptance pack 已跑通，下一步 daily comparator
 P6  后续 — Phase III 替换旧 scaler 链 → Phase IV 7 闸全通过
 ```
 
-> P0+P1+P2+P4 已完成并落地本地。P5 Phase II full-window sensitivity 与 4 个 exact spot-check 已完成；下一步优先做 dry-run 验收包，并补 P3 软数据。
+> P0+P1+P2+P4 已完成并落地本地。P5 Phase II full-window sensitivity、4 个 exact spot-check、dry-run acceptance pack 已完成；下一步优先做 daily old-vs-new comparator，并补 P3 软数据。
 
 ---
 
@@ -126,7 +126,8 @@ def validate_synth(real_df: pd.DataFrame, synth_df: pd.DataFrame,
 - P5 相关闸敏感性已完成：`building/reports/PhaseII_Corr_Sensitivity.md/json`，review candidate 为 `threshold=110 / penalty=0.70`。
 - P5 full-window sensitivity 已完成：`building/reports/PhaseII_Full_Backtest_Sensitivity.md/json`；2113 rows、errors=0、21 scenarios、R3 violations=0；110/0.70 候选 MaxDD -22.47%、Sharpe 1.0115。
 - P5 exact spot-check 已完成 2020H1 / 2022H1 / 2024H1 / 2026YTD 四窗，exact 与 fast 仅有浮点级微差，R3=0。
-- **下一步关键**：做 dry-run 验收包，最后决定 Phase III 是否替换旧 scaler 链。R3 不变式仍为硬约束。
+- P5 dry-run acceptance pack 已完成，明确“可进入 shadow dry-run，不可 live promotion”。
+- **下一步关键**：实现 daily old-vs-new comparator，最后决定 Phase III 是否替换旧 scaler 链。R3 不变式仍为硬约束。
 
 ---
 

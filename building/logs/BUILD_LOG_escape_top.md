@@ -616,3 +616,14 @@ P5 状态推进为 `IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE`。`110/0.70` �
 ### 结论
 
 四个抽样窗口（2020 疫情、2022 压力、2024 牛市、2026 近端）exact 与 fast 仅有浮点级微差，R3 全部为 0，说明当前 `R3 × confidence × risk_gross` 快速投影在代表窗口与 SLSQP 精确优化路径一致。下一步可进入 dry-run 验收包设计。
+
+## P5 Dry-run Acceptance Pack 记录
+
+**升级时间**: 2026-06-01
+
+- ✅ 新增 `reports/P5_DRY_RUN_ACCEPTANCE_PACK.md`
+- ✅ 汇总 baseline vs 110/0.70 candidate
+- ✅ 汇总 walk-forward governance、exact spot-check、human gate checklist
+- ✅ 明确结论：可进入 shadow dry-run package，不可 live promotion
+
+下一步：实现 daily old-vs-new dry-run comparator，逐日输出旧 scaler 与 P5 candidate 的 target weights、routing、turnover delta、risk binding reason 与 PASS/WARN/BLOCK。

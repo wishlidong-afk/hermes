@@ -77,5 +77,6 @@ Phase 0–9、12 = DONE；Phase 10(扩展数据)=IN-PROGRESS；Phase 11(回测)=
 - **P5 相关闸敏感性**：`PhaseII_Corr_Sensitivity.md/json` 已生成；当前 92/0.70 hit share 78.57%，review candidate 110/0.70 hit share 40.48%、avg gross 0.8273。
 - **P5 full-window sensitivity**：`PhaseII_Full_Backtest_Sensitivity.md/json` 已生成；2113 rows、errors=0、21 scenarios、R3 violations=0；review candidate 110/0.70：CAGR 18.06%、MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077；train-greedy PBO=0.6154 继续作为“不得贪心选参”警报。
 - **P5 exact spot-check**：2020H1、2022H1、2024H1、2026YTD 四个窗口 exact optimizer 与 fast projection 仅有浮点级微差；四窗 errors=0、R3=0。
+- **P5 dry-run acceptance pack**：`P5_DRY_RUN_ACCEPTANCE_PACK.md` 已生成；结论为“可进入 shadow dry-run 包，不可 live promotion”；下一步做 daily old-vs-new comparator。
 - 单测：253 package tests OK；11 golden tests OK（v25 golden 已按 P0 当前数据地基重生）
 - 2026-05-29 回放：MSTR EXIT(H-M1,H-M4) / FNGU HOLD / SOXL HOLD；体制 LOW_VOL_TREND

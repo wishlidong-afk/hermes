@@ -136,6 +136,16 @@ P5 状态推进为 `IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE`。
 
 四个代表窗口 exact 与 fast 仅有浮点级微差，R3 全部为 0，说明当前快速投影在代表窗口与 SLSQP 精确优化路径一致；下一步可进入 dry-run 验收包设计。
 
+## Dry-run Acceptance Pack
+
+新增 `P5_DRY_RUN_ACCEPTANCE_PACK.md`：
+
+- 汇总 baseline vs 110/0.70 candidate；
+- 汇总 walk-forward governance、exact spot-check、human gate checklist；
+- 明确结论：可进入 shadow dry-run package，不可 live promotion。
+
+下一步是实现 daily old-vs-new dry-run comparator，逐日输出旧 scaler 与 P5 candidate 的 target weights、routing、turnover delta、risk binding reason 与 PASS/WARN/BLOCK。
+
 ## 剩余风险
 
 - 当前 EXTREME_CORR 算法使用“下行相关 / 普通相关 × 100”与 92 阈值，配合 downside floor 后确实偏保守。

@@ -101,6 +101,7 @@
 | `reports/PhaseII_Full_Backtest_Sensitivity_Exact_2022H1.md/json` | ✅ |
 | `reports/PhaseII_Full_Backtest_Sensitivity_Exact_2024H1.md/json` | ✅ |
 | `reports/PhaseII_Full_Backtest_Sensitivity_Exact_2026YTD.md/json` | ✅ |
+| `reports/P5_DRY_RUN_ACCEPTANCE_PACK.md` | ✅ |
 | `reports/P5_PHASE2_EXTENDED_DIAGNOSTICS_LOG.md` | ✅ |
 
 | 指标 | 结果 |
@@ -141,6 +142,17 @@
 | 2024-01-03 → 2024-07-03 | ✅ | 126 | 0 | 0 | exact 与 fast 浮点级一致 |
 | 2026-01-05 → 2026-05-29 | ✅ | 101 | 0 | 0 | exact 与 fast 完全一致 |
 
+## P5 Dry-run Acceptance Pack
+
+| Gate | Status |
+|---|---|
+| P5 candidate ready for shadow dry-run | ✅ |
+| Live promotion | BLOCKED |
+| R3 invariant | PASS |
+| Exact spot-check | PASS |
+| Daily old-vs-new dry-run comparator | TODO |
+| Turnover review | TODO |
+
 ## 系统级 7 道总闸
 
 | # | 总闸 | 骨架 | Pipeline 结构验证 |
@@ -161,6 +173,6 @@
 4. ~~Phase II 20 日 shadow 对照~~ ✅
 5. ~~Phase II 252 日扩窗 + 相关闸敏感性~~ ✅
 6. ~~相关闸 full backtest 校准~~ ✅
-7. **Phase III 统一处置**：先做 exact optimizer 抽样复核 + dry-run，再替换旧 scaler 乘法链。
+7. **Phase III 统一处置**：先做 daily old-vs-new dry-run comparator，再替换旧 scaler 乘法链。
 8. **Phase IV 验证与治理**：实跑 PBO/CI/对抗验证。
 9. **补 NEXT-1 剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL。

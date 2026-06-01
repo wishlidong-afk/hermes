@@ -145,10 +145,10 @@
 | Phase II–IV 计划 | ✅ DONE | 配置 + feature flags + rollout plan + scaler migration guide |
 | P4 本地落地 | ✅ DONE | 远端 source snapshots 已同步到本地 `.hermes`，修复接口后 253 package tests OK |
 | Phase II 风险与信号 | ✅ FULL-BACKTEST-SENSITIVITY-DONE | 252 日 shadow + 相关闸敏感性 + 2113 日 full-window sensitivity + 4 个 exact spot-check：errors=0、R3 violations=0；review candidate 110/0.70，MaxDD -22.47%、Sharpe 1.0115 |
-| Phase III 统一处置 | TODO | exact optimizer 抽样复核 + dry-run 后再替换旧 scaler 链 |
+| Phase III 统一处置 | TODO | dry-run acceptance pack 已生成；下一步 daily old-vs-new comparator |
 | Phase IV 验证与治理 | TODO | 7 闸全通过 |
 
-**当前最高优先任务**：设计 dry-run 验收包，并并行补 NEXT-1 剩余软数据。
+**当前最高优先任务**：实现 daily old-vs-new dry-run comparator，并并行补 NEXT-1 剩余软数据。
 
 ---
 
