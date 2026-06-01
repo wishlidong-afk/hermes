@@ -110,7 +110,7 @@ Review candidate 仍为 `threshold=110 / penalty=0.70`：
 
 ## 最终验收结论
 
-P5 状态推进为 `IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE`。
+P5 状态当时推进为 `IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE`；该状态随后已由 P6 dry-run comparator 补齐为 `DONE / DRY-RUN-PACKAGE-READY`。
 
 ## Exact Optimizer Spot-check 追加
 
@@ -144,7 +144,7 @@ P5 状态推进为 `IN-PROGRESS / FULL-BACKTEST-SENSITIVITY-DONE`。
 - 汇总 walk-forward governance、exact spot-check、human gate checklist；
 - 明确结论：可进入 shadow dry-run package，不可 live promotion。
 
-下一步是实现 daily old-vs-new dry-run comparator，逐日输出旧 scaler 与 P5 candidate 的 target weights、routing、turnover delta、risk binding reason 与 PASS/WARN/BLOCK。
+后续状态：daily old-vs-new comparator 已在 P6 完成，252 日结果为 errors=0、R3=0、PASS=128、WARN=124、BLOCK=0。下一步是人工审阅 WARN 日期。
 
 ## 剩余风险
 

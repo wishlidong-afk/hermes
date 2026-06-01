@@ -62,17 +62,17 @@ L5 组合层(RiskEngine 单一风险源 → SizingOptimizer 统一处置, R3不�
 
 ---
 
-## 4. 当前状态（截至 2026-06-01，据 Codex 真实进度）
+## 4. 当前状态（截至 2026-06-02，据 Codex 真实进度）
 
 | 维度 | 现状 |
 |---|---|
-| 成熟度 | **M3 实质达成**：253 package tests OK + 11 golden tests OK；盲区门已过；NEXT-3 稳定高原校准通过；P4 已落地本地 `.hermes`；P5 Phase II shadow/corr/full-window sensitivity 已跑通 |
+| 成熟度 | **M3 实质达成**：260 package tests OK + 11 golden tests OK；盲区门已过；NEXT-3 稳定高原校准通过；P4 已落地本地 `.hermes`；P5 Phase II shadow/corr/full-window sensitivity 已跑通；P6 daily comparator 已完成 |
 | missing_weight | **MSTR 26 / FNGU 19 / SOXL 19（均 <30，盲区升级已解除）** |
 | 基线 | P0/P1/P2 全部 DONE：合成历史 TE 4.67%；real-only CAGR 44.39% Sharpe 1.79；deployment PBO=0.1538 |
 | 校准 | `E75_D65_R50`：EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20 |
 | **P4 整合** | **Phase 0–I + Pipeline DONE**：12 组件骨架（脊柱+4引擎+优化器+治理+净化+转移+漂移+Pipeline+Config）；E1–E30 全覆盖；7 闸结构验证通过 |
 | **P5 Shadow** | **Phase II 252 日 shadow + 2113 日 full-window sensitivity 已跑通**：full sensitivity errors=0、R3 violations=0；相关闸 review candidate 110/0.70，MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077 |
-| 待办 | exact optimizer 抽样复核；dry-run；补剩余软数据；Phase III/IV |
+| 待办 | 人工审 P6 WARN；补剩余软数据；通过后再设计 Phase III/IV scaler migration |
 | 安全 | 只读、不下单；所有 feature flags 默认 OFF |
 
 ---
@@ -84,10 +84,11 @@ L5 组合层(RiskEngine 单一风险源 → SizingOptimizer 统一处置, R3不�
 1. ~~**P0 合成杠杆历史**~~：✅ DONE — TE 4.67%，corr 0.9986。
 2. ~~**P1 全窗口回测**~~：✅ DONE — real-only CAGR 44.39% Sharpe 1.79。
 3. ~~**NEXT-3 校准**~~：✅ DONE — deployment PBO=0.1538。
-4. ~~**P4 整合地基**~~：✅ **Phase 0–I + Pipeline DONE** — 12 组件 + 253 package tests OK + 11 golden tests OK + E1–E30 全覆盖 + 7 闸验证，并已同步落地本地 `.hermes`。详见 `building/reports/P4_INTEGRATION_PHASE0_I_REPORT.md` 与 `building/logs/P4_LOCAL_SNAPSHOT_SYNC_LOG.md`。
+4. ~~**P4 整合地基**~~：✅ **Phase 0–I + Pipeline DONE** — 12 组件 + 260 package tests OK + 11 golden tests OK + E1–E30 全覆盖 + 7 闸验证，并已同步落地本地 `.hermes`。详见 `building/reports/P4_INTEGRATION_PHASE0_I_REPORT.md` 与 `building/logs/P4_LOCAL_SNAPSHOT_SYNC_LOG.md`。
 5. ~~**Phase II shadow/full sensitivity**~~：✅ 252 日样本 + 相关闸敏感性 + 2113 日 full-window sensitivity 已跑通。→ `building/reports/PhaseII_Shadow_Compare.md`、`building/reports/PhaseII_Corr_Sensitivity.md`、`building/reports/PhaseII_Full_Backtest_Sensitivity.md`
-6. **补剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL → 降 MSTR missing。
-7. **Phase III/IV**：exact 抽样复核 + dry-run 后替换旧 scaler 链 → 7 闸全通过。
+6. ~~**P6 Phase III daily comparator**~~：✅ **HUMAN-GATE-READY** — 252 日 old-vs-new dry-run：errors=0、R3=0、PASS=128、WARN=124、BLOCK=0；live 开关仍关闭。
+7. **补剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL → 降 MSTR missing。
+8. **Phase III/IV**：人工审 P6 WARN 后再替换旧 scaler 链 → 7 闸全通过。
 
 完整次序与依赖见 `ROADMAP.md`；明确施工指引见 `CODEX_GUIDANCE.md`。
 

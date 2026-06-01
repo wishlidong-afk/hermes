@@ -70,13 +70,13 @@ Interpretation: the fast `R3 × confidence × risk_gross` projection used by the
 | `features.use_sizing_optimizer` live promotion | BLOCKED | human approval required |
 | R3 invariant | PASS | all P5 reports show 0 violations |
 | Exact spot-check | PASS | four windows checked |
-| Dry-run output parity | TODO | compare daily old vs new target weights |
-| Turnover review | TODO | candidate turnover higher than baseline |
+| Dry-run output parity | PASS | `PhaseIII_Dry_Run_Comparator.md/json`: rows=252, errors=0, R3=0, BLOCK=0 |
+| Turnover review | WARN | avg old/new turnover 0.2244/0.2285; max turnover delta 0.4022 requires human review |
 | Data confidence | TODO | P3 soft data still incomplete |
 
 ## Next Build Step
 
-Create a Phase III dry-run comparator that emits, for each replay day:
+Human-review the Phase III dry-run comparator WARN rows before any scaler migration.  The comparator now emits, for each replay day:
 
 1. old target weights and routed legs;
 2. P5 candidate target weights and routed legs;

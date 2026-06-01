@@ -1,0 +1,381 @@
+{
+  "candidate": {
+    "penalty": 0.7,
+    "threshold": 110.0
+  },
+  "daily_rows": [
+    {
+      "binding_constraints": {
+        "FNGU": "RISK_GROSS",
+        "MSTR": "ZERO",
+        "SOXL": "RISK_GROSS"
+      },
+      "date": "2026-05-22",
+      "gate": {
+        "reasons": [
+          "within dry-run tolerance"
+        ],
+        "status": "PASS"
+      },
+      "new_route_leg_weights": {
+        "BOXX": 0.486056,
+        "BRK.B": 0.15,
+        "FNGU": 0.145578,
+        "SOXL": 0.218366
+      },
+      "new_targets": {
+        "FNGU": 0.145578,
+        "MSTR": 0.0,
+        "SOXL": 0.218366
+      },
+      "old_route_leg_weights": {
+        "BOXX": 0.43218,
+        "BRK.B": 0.15,
+        "FNGU": 0.194434,
+        "SOXL": 0.223386
+      },
+      "old_targets": {
+        "FNGU": 0.194434,
+        "MSTR": 0.0,
+        "SOXL": 0.223386
+      },
+      "r3_symbols": [],
+      "risk": {
+        "corr_regime": "ELEVATED",
+        "pre_corr_gross": 0.743574,
+        "ratio_score": 97.659773,
+        "risk_binding": "VOL",
+        "scenario_gross": 0.743574
+      },
+      "route_leg_deltas": {
+        "BOXX": 0.053876,
+        "BRK.B": 0.0,
+        "FNGU": -0.048856,
+        "SOXL": -0.00502
+      },
+      "rule_weights": {
+        "FNGU": 0.2,
+        "MSTR": 0.0,
+        "SOXL": 0.3
+      },
+      "target_deltas": {
+        "FNGU": -0.048856,
+        "MSTR": 0.0,
+        "SOXL": -0.00502
+      },
+      "turnover": {
+        "delta": 0.0,
+        "new": 1.0,
+        "old": 1.0
+      }
+    },
+    {
+      "binding_constraints": {
+        "FNGU": "RISK_GROSS",
+        "MSTR": "ZERO",
+        "SOXL": "RISK_GROSS"
+      },
+      "date": "2026-05-26",
+      "gate": {
+        "reasons": [
+          "scenario gross=0.5873"
+        ],
+        "status": "WARN"
+      },
+      "new_route_leg_weights": {
+        "BOXX": 0.56253,
+        "BRK.B": 0.15,
+        "FNGU": 0.114988,
+        "SOXL": 0.172482
+      },
+      "new_targets": {
+        "FNGU": 0.114988,
+        "MSTR": 0.0,
+        "SOXL": 0.172482
+      },
+      "old_route_leg_weights": {
+        "BOXX": 0.479038,
+        "BRK.B": 0.15,
+        "FNGU": 0.167913,
+        "SOXL": 0.203049
+      },
+      "old_targets": {
+        "FNGU": 0.167913,
+        "MSTR": 0.0,
+        "SOXL": 0.203049
+      },
+      "r3_symbols": [],
+      "risk": {
+        "corr_regime": "ELEVATED",
+        "pre_corr_gross": 0.587329,
+        "ratio_score": 100.794124,
+        "risk_binding": "VOL",
+        "scenario_gross": 0.587329
+      },
+      "route_leg_deltas": {
+        "BOXX": 0.083492,
+        "BRK.B": 0.0,
+        "FNGU": -0.052925,
+        "SOXL": -0.030567
+      },
+      "rule_weights": {
+        "FNGU": 0.2,
+        "MSTR": 0.0,
+        "SOXL": 0.3
+      },
+      "target_deltas": {
+        "FNGU": -0.052925,
+        "MSTR": 0.0,
+        "SOXL": -0.030567
+      },
+      "turnover": {
+        "delta": 0.059232,
+        "new": 0.152948,
+        "old": 0.093716
+      }
+    },
+    {
+      "binding_constraints": {
+        "FNGU": "RISK_GROSS",
+        "MSTR": "ZERO",
+        "SOXL": "RISK_GROSS"
+      },
+      "date": "2026-05-27",
+      "gate": {
+        "reasons": [
+          "scenario gross=0.6325"
+        ],
+        "status": "WARN"
+      },
+      "new_route_leg_weights": {
+        "BOXX": 0.540438,
+        "BRK.B": 0.15,
+        "FNGU": 0.123825,
+        "SOXL": 0.185737
+      },
+      "new_targets": {
+        "FNGU": 0.123825,
+        "MSTR": 0.0,
+        "SOXL": 0.185737
+      },
+      "old_route_leg_weights": {
+        "BOXX": 0.468498,
+        "BRK.B": 0.15,
+        "FNGU": 0.175067,
+        "SOXL": 0.206435
+      },
+      "old_targets": {
+        "FNGU": 0.175067,
+        "MSTR": 0.0,
+        "SOXL": 0.206435
+      },
+      "r3_symbols": [],
+      "risk": {
+        "corr_regime": "ELEVATED",
+        "pre_corr_gross": 0.632451,
+        "ratio_score": 104.66954,
+        "risk_binding": "VOL",
+        "scenario_gross": 0.632451
+      },
+      "route_leg_deltas": {
+        "BOXX": 0.07194,
+        "BRK.B": 0.0,
+        "FNGU": -0.051242,
+        "SOXL": -0.020698
+      },
+      "rule_weights": {
+        "FNGU": 0.2,
+        "MSTR": 0.0,
+        "SOXL": 0.3
+      },
+      "target_deltas": {
+        "FNGU": -0.051242,
+        "MSTR": 0.0,
+        "SOXL": -0.020698
+      },
+      "turnover": {
+        "delta": 0.023104,
+        "new": 0.044184,
+        "old": 0.02108
+      }
+    },
+    {
+      "binding_constraints": {
+        "FNGU": "RISK_GROSS",
+        "MSTR": "ZERO",
+        "SOXL": "RISK_GROSS"
+      },
+      "date": "2026-05-28",
+      "gate": {
+        "reasons": [
+          "within dry-run tolerance"
+        ],
+        "status": "PASS"
+      },
+      "new_route_leg_weights": {
+        "BOXX": 0.51581,
+        "BRK.B": 0.15,
+        "FNGU": 0.133676,
+        "SOXL": 0.200514
+      },
+      "new_targets": {
+        "FNGU": 0.133676,
+        "MSTR": 0.0,
+        "SOXL": 0.200514
+      },
+      "old_route_leg_weights": {
+        "BOXX": 0.45147,
+        "BRK.B": 0.15,
+        "FNGU": 0.18155,
+        "SOXL": 0.21698
+      },
+      "old_targets": {
+        "FNGU": 0.18155,
+        "MSTR": 0.0,
+        "SOXL": 0.21698
+      },
+      "r3_symbols": [],
+      "risk": {
+        "corr_regime": "ELEVATED",
+        "pre_corr_gross": 0.682768,
+        "ratio_score": 107.695803,
+        "risk_binding": "VOL",
+        "scenario_gross": 0.682768
+      },
+      "route_leg_deltas": {
+        "BOXX": 0.06434,
+        "BRK.B": 0.0,
+        "FNGU": -0.047874,
+        "SOXL": -0.016466
+      },
+      "rule_weights": {
+        "FNGU": 0.2,
+        "MSTR": 0.0,
+        "SOXL": 0.3
+      },
+      "target_deltas": {
+        "FNGU": -0.047874,
+        "MSTR": 0.0,
+        "SOXL": -0.016466
+      },
+      "turnover": {
+        "delta": 0.0152,
+        "new": 0.049256,
+        "old": 0.034056
+      }
+    },
+    {
+      "binding_constraints": {
+        "FNGU": "RISK_GROSS",
+        "MSTR": "ZERO",
+        "SOXL": "RISK_GROSS"
+      },
+      "date": "2026-05-29",
+      "gate": {
+        "reasons": [
+          "within dry-run tolerance"
+        ],
+        "status": "PASS"
+      },
+      "new_route_leg_weights": {
+        "BOXX": 0.511853,
+        "BRK.B": 0.15,
+        "FNGU": 0.135259,
+        "SOXL": 0.202888
+      },
+      "new_targets": {
+        "FNGU": 0.135259,
+        "MSTR": 0.0,
+        "SOXL": 0.202888
+      },
+      "old_route_leg_weights": {
+        "BOXX": 0.443587,
+        "BRK.B": 0.15,
+        "FNGU": 0.180136,
+        "SOXL": 0.226277
+      },
+      "old_targets": {
+        "FNGU": 0.180136,
+        "MSTR": 0.0,
+        "SOXL": 0.226277
+      },
+      "r3_symbols": [],
+      "risk": {
+        "corr_regime": "ELEVATED",
+        "pre_corr_gross": 0.690852,
+        "ratio_score": 107.968603,
+        "risk_binding": "VOL",
+        "scenario_gross": 0.690852
+      },
+      "route_leg_deltas": {
+        "BOXX": 0.068266,
+        "BRK.B": 0.0,
+        "FNGU": -0.044877,
+        "SOXL": -0.023389
+      },
+      "rule_weights": {
+        "FNGU": 0.2,
+        "MSTR": 0.0,
+        "SOXL": 0.3
+      },
+      "target_deltas": {
+        "FNGU": -0.044877,
+        "MSTR": 0.0,
+        "SOXL": -0.023389
+      },
+      "turnover": {
+        "delta": -0.01068,
+        "new": 0.007914,
+        "old": 0.018594
+      }
+    }
+  ],
+  "date_filter": {
+    "days": 5,
+    "end": null,
+    "start": null
+  },
+  "errors": [],
+  "human_gate_thresholds": {
+    "block_on_r3_violation": true,
+    "route_gross_tolerance": 0.0001,
+    "warn_abs_turnover_delta": 0.1,
+    "warn_max_route_leg_delta": 0.15,
+    "warn_max_symbol_delta": 0.1,
+    "warn_risk_binding": [
+      "EXTREME_CORR"
+    ],
+    "warn_scenario_gross_below": 0.65
+  },
+  "live_effect": "none",
+  "notes": [
+    "Read-only dry run; no live config, feature flag, account state, or signal journal is changed.",
+    "Old route weights come from cached backtest rows; new route weights use the Phase II review candidate and cached routing decision.",
+    "BLOCK means invariant failure; WARN means human review required before any scaler migration; PASS is informational only.",
+    "The candidate remains shadow-only until daily comparator, turnover review, and human gate all pass."
+  ],
+  "rows_evaluated": 5,
+  "rows_loaded": 5,
+  "schema_version": "phase3-dry-run-comparator-v1",
+  "source_backtest": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/reports/Backtest_FULL_2018_2026.json",
+  "summary": {
+    "avg_abs_turnover_delta": 0.021643,
+    "avg_max_abs_symbol_delta": 0.049155,
+    "avg_new_turnover": 0.25086,
+    "avg_old_turnover": 0.233489,
+    "binding_counts": {
+      "VOL": 5
+    },
+    "corr_regime_counts": {
+      "ELEVATED": 5
+    },
+    "gate_counts": {
+      "PASS": 3,
+      "WARN": 2
+    },
+    "max_abs_route_leg_delta": 0.083492,
+    "max_abs_symbol_delta": 0.052925,
+    "max_abs_turnover_delta": 0.059232,
+    "r3_violations": 0
+  }
+}

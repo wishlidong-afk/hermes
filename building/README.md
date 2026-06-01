@@ -124,15 +124,15 @@
 
 ---
 
-## 当前验收快照（2026-06-01）
+## 当前验收快照（2026-06-02）
 
 | 里程碑 | 状态 | 关键数字 |
 |---|---|---|
-| M0 能跑 | ✅ | 253 package tests OK + 11 golden tests OK |
+| M0 能跑 | ✅ | 260 package tests OK + 11 golden tests OK |
 | M1 看得清 | ✅ | missing: MSTR 26 / FNGU 19 / SOXL 19，均 <30 |
 | M2 验得过 | ✅ | real-only CAGR 44.39% MaxDD -10.43% Sharpe 1.79 DSR 1.66 |
 | **M3 校得准** | **✅ 实质达成** | EXIT=75 DEF_EXIT=65 REDUCE=50；deployment PBO=0.1538 |
-| M4 可上线 | ⬜ | 待人工 dry-run |
+| M4 可上线 | ⬜ | daily comparator 已完成，待人工审 WARN |
 | M5 会学习 | ⬜ | 标签解锁门未达 |
 
 ## P4 整合进度
@@ -143,12 +143,12 @@
 | Phase I 地基 | ✅ DONE | 1 脊柱 + 4 引擎 + 1 优化器 + 治理 + 漂移监控 |
 | Pipeline 接线 | ✅ DONE | 11 步统一数据流，7 道总闸结构验证 |
 | Phase II–IV 计划 | ✅ DONE | 配置 + feature flags + rollout plan + scaler migration guide |
-| P4 本地落地 | ✅ DONE | 远端 source snapshots 已同步到本地 `.hermes`，修复接口后 253 package tests OK |
-| Phase II 风险与信号 | ✅ FULL-BACKTEST-SENSITIVITY-DONE | 252 日 shadow + 相关闸敏感性 + 2113 日 full-window sensitivity + 4 个 exact spot-check：errors=0、R3 violations=0；review candidate 110/0.70，MaxDD -22.47%、Sharpe 1.0115 |
-| Phase III 统一处置 | TODO | dry-run acceptance pack 已生成；下一步 daily old-vs-new comparator |
+| P4 本地落地 | ✅ DONE | 远端 source snapshots 已同步到本地 `.hermes`，修复接口后 260 package tests OK |
+| Phase II 风险与信号 | ✅ DRY-RUN-PACKAGE-READY | 252 日 shadow + 相关闸敏感性 + 2113 日 full-window sensitivity + 4 个 exact spot-check：errors=0、R3 violations=0；review candidate 110/0.70，MaxDD -22.47%、Sharpe 1.0115 |
+| Phase III 统一处置 | ✅ DRY-RUN-COMPARATOR-DONE | 252 日 daily comparator：errors=0、R3=0、PASS=128、WARN=124、BLOCK=0；下一步人工审 WARN |
 | Phase IV 验证与治理 | TODO | 7 闸全通过 |
 
-**当前最高优先任务**：实现 daily old-vs-new dry-run comparator，并并行补 NEXT-1 剩余软数据。
+**当前最高优先任务**：人工审阅 Phase III daily comparator 的 WARN 日期，并并行补 NEXT-1 剩余软数据。
 
 ---
 
