@@ -66,12 +66,13 @@ L5 组合层(RiskEngine 单一风险源 → SizingOptimizer 统一处置, R3不�
 
 | 维度 | 现状 |
 |---|---|
-| 成熟度 | **M3 实质达成**：94 package + 11 golden + 106 integration tests；盲区门已过；NEXT-3 稳定高原校准通过 |
+| 成熟度 | **M3 实质达成**：245 package tests OK + 11 golden tests OK；盲区门已过；NEXT-3 稳定高原校准通过；P4 已落地本地 `.hermes`；P5 Phase II 20 日 shadow 对照已跑通 |
 | missing_weight | **MSTR 26 / FNGU 19 / SOXL 19（均 <30，盲区升级已解除）** |
 | 基线 | P0/P1/P2 全部 DONE：合成历史 TE 4.67%；real-only CAGR 44.39% Sharpe 1.79；deployment PBO=0.1538 |
 | 校准 | `E75_D65_R50`：EXIT=75 / DEFENSIVE_EXIT=65 / REDUCE=50 / TRIM=35 / WATCH=20 |
 | **P4 整合** | **Phase 0–I + Pipeline DONE**：12 组件骨架（脊柱+4引擎+优化器+治理+净化+转移+漂移+Pipeline+Config）；E1–E30 全覆盖；7 闸结构验证通过 |
-| 待办 | Phase II shadow 对照（需本地接入）；补剩余软数据；Phase III/IV |
+| **P5 Shadow** | **Phase II 20 日 shadow 已跑通**：rows=20、errors=0、R3 violations=0、confidence NORMAL×20；多数日 `EXTREME_CORR`，待扩窗校准 |
+| 待办 | Phase II shadow 扩窗解释；补剩余软数据；Phase III/IV |
 | 安全 | 只读、不下单；所有 feature flags 默认 OFF |
 
 ---
@@ -83,8 +84,8 @@ L5 组合层(RiskEngine 单一风险源 → SizingOptimizer 统一处置, R3不�
 1. ~~**P0 合成杠杆历史**~~：✅ DONE — TE 4.67%，corr 0.9986。
 2. ~~**P1 全窗口回测**~~：✅ DONE — real-only CAGR 44.39% Sharpe 1.79。
 3. ~~**NEXT-3 校准**~~：✅ DONE — deployment PBO=0.1538。
-4. ~~**P4 整合地基**~~：✅ **Phase 0–I + Pipeline DONE** — 12 组件 + 106 测试 + E1–E30 全覆盖 + 7 闸验证。详见 `building/reports/P4_INTEGRATION_PHASE0_I_REPORT.md`。
-5. **Phase II shadow 对照**：启用 risk_engine + confidence + context shadow 模式。→ `building/reports/PHASE_II_IV_ROLLOUT_PLAN.md`
+4. ~~**P4 整合地基**~~：✅ **Phase 0–I + Pipeline DONE** — 12 组件 + 245 package tests OK + 11 golden tests OK + E1–E30 全覆盖 + 7 闸验证，并已同步落地本地 `.hermes`。详见 `building/reports/P4_INTEGRATION_PHASE0_I_REPORT.md` 与 `building/logs/P4_LOCAL_SNAPSHOT_SYNC_LOG.md`。
+5. **Phase II shadow 对照**：✅ 20 日样本已跑通；下一步扩窗解释 `EXTREME_CORR` 与 gross scaler 收缩。→ `building/reports/PhaseII_Shadow_Compare.md`
 6. **补剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL → 降 MSTR missing。
 7. **Phase III/IV**：替换旧 scaler 链 → 7 闸全通过。
 

@@ -395,3 +395,81 @@ NEXT-3 标记为 `DONE / M3-COMPLETE / STABLE-HIGHLAND-PASSED`。生产/live 开
 ### 当前结论
 
 P4 状态推进为 `IN-PROGRESS / PHASE0-CONTRACTS-SPINE-DONE`。下一步建议：RiskEngine 最小骨架或将 `ConfidenceState` 透传到只读报告。
+
+## P4 GitHub 快照本地落地记录
+
+**升级时间**: 2026-06-01
+
+本次根据 GitHub `wishlidong-afk/hermes` 最新 `building/source_snapshots/P4_*`，把远端已经写入 building 的 P4 Phase 0-I + Pipeline 快照真正同步到本地 `.hermes` 实现，并修到全测试通过。
+
+### 已同步组件
+
+- ✅ Audit exporter
+- ✅ Drift monitor
+- ✅ FactorLab
+- ✅ Governance
+- ✅ Input guardrails：sanitize / failover
+- ✅ MarketContext
+- ✅ Integration config
+- ✅ Unified pipeline
+- ✅ Reentry tracker
+- ✅ RiskEngine
+- ✅ SizingOptimizer
+- ✅ Tax awareness
+- ✅ ValidationHarness
+
+### 本地兼容修复
+
+- ✅ `integration_config` 从 `hermes_escape_top/config/integration_config.py` 调整为 `hermes_escape_top/integration_config.py`，避免和既有 `config.py` 模块冲突。
+- ✅ Python 3.9 日期字面量修复：`date(2026, 06, 1)` → `date(2026, 6, 1)`。
+- ✅ `RiskEngine.downside_corr` 使用 full-sample correlation 作为尾部相关的保守 floor。
+- ✅ `SizingOptimizer` shadow-mode expected-return proxy 调整，确保 confidence shrinkage 可被测试验证，且 R3 clamp 仍保持。
+- ✅ `MarketContext` 测试改用 `.loc`，消除 pandas chained assignment 警告。
+
+### 验证结果
+
+- ✅ 焦点测试：49 tests OK。
+- ✅ 包内全量：244 tests OK。
+- ✅ golden 回放：11 tests OK。
+
+### 当前结论
+
+P4 状态推进为 `IN-PROGRESS / PHASE0-I-PIPELINE-LOCAL-SYNCED`。下一步建议：跑 Phase II shadow 对照，将 `core/pipeline.py` 接真实 store/scorer，产出 shadow-vs-current 报告。
+
+## P5 Phase II Shadow 对照记录
+
+**升级时间**: 2026-06-01
+
+本次在 P4 统一管线落地后，继续推进 Phase II 只读影子对照。目标是让 `score_pipeline(...)` 接本地真实历史 store，同时复用既有 backtest 历史分数/裁决输入，比较新版 RiskEngine + SizingOptimizer 与旧 backtest sizing 的差异。
+
+### 已实装内容
+
+- ✅ 新增 `scripts/phase2_shadow_compare.py`
+  - 读取 `reports/Backtest_FULL.json`
+  - 默认回放最近 20 个交易日
+  - 输出 `reports/PhaseII_Shadow_Compare.json`
+  - 输出 `reports/PhaseII_Shadow_Compare.md`
+- ✅ RiskEngine 数值稳定补丁
+  - return series / DataFrame 统一数值化并过滤 `NaN/inf`
+  - CVaR 向量乘法改用 `np.dot`，规避 macOS Accelerate 假阳性 RuntimeWarning
+  - 新增非有限 return 输入单测
+- ✅ SizingOptimizer SLSQP 例行裁剪告警屏蔽
+
+### Shadow 对照结果
+
+- rows evaluated: 20 / requested 20
+- errors: 0
+- R3 violations: 0
+- max abs weight delta: 0.2747
+- confidence modes: NORMAL × 20
+- 最近 20 日多数出现 `EXTREME_CORR`，新版 shadow gross scaler 显著低于旧 backtest gross scaler，说明新风险层更保守。
+
+### 验证结果
+
+- ✅ `python3 -m unittest hermes_escape_top.tests.test_risk_engine hermes_escape_top.tests.test_sizing_optimizer`：31 tests OK。
+- ✅ `python3 -m unittest discover -s hermes_escape_top/tests`：245 tests OK。
+- ✅ `python3 -m unittest discover -s tests`：11 tests OK。
+
+### 当前结论
+
+P5/Phase II 状态推进为 `IN-PROGRESS / SHADOW-REPLAY-20D-DONE`。生产/live 开关仍保持关闭。下一步建议：扩展 shadow 窗口、解释 `EXTREME_CORR` 收缩来源，并在 Phase III 前完成风险预算参数校准。

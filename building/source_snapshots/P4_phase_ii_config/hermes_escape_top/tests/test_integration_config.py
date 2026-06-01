@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from hermes_escape_top.config.integration_config import (
+from hermes_escape_top.integration_config import (
     default_integration_config,
     phase_ii_overrides,
     phase_iii_overrides,

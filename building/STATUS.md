@@ -6,16 +6,16 @@
 | 3 评分核心 A/B/C/D | DONE | local only | n/a | 软数据 blind-spot 属预期 | 2026-06-01 |
 | 4 硬阀门 | DONE | local only | n/a | - | 2026-06-01 |
 | 5 裁决层 | DONE | local only | n/a | - | 2026-06-01 |
-| 6 组合风险预算层 | DONE | local only | pending | NEXT-3 校准已完成；scaler 仍 shadow-only | 2026-06-01 |
-| 7 仓位管理 | DONE | local only | pending | 未接持久化滞回状态 | 2026-06-01 |
+| 6 组合风险预算层 | DONE | local only | NEXT-3 passed | NEXT-3 校准完成；旧 scaler 仍 shadow-only | 2026-06-01 |
+| 7 仓位管理 | DONE | local only | NEXT-3 passed | 未接持久化滞回状态 | 2026-06-01 |
 | 8 资金路由 | DONE | local only | n/a | 仅 advisory | 2026-06-01 |
 | 9 3-3-4 再建仓 | DONE | local only | n/a | T1/T2 未持久化 | 2026-06-01 |
 | 10 扩展数据 adapter | IN-PROGRESS | local only | n/a | PCR/NAAIM/BTC funding-basis-DVOL 待接 | 2026-06-01 |
-| 11 回测与验证框架 | ACCEPTANCE-READY | local only | coverage-constrained | P0 已通过 | 2026-06-01 |
+| 11 回测与验证框架 | DONE / M3-COMPLETE | local only | passed | full-proxy + real-only + NEXT-3 校准完成 | 2026-06-01 |
 | 12 镜像参考系统 | DONE | local only | n/a | IBKR 未接 | 2026-06-01 |
 | 13 元模型 | LOCKED | - | - | 标签解锁门未达 | - |
 | 14 WebUI 与可观测性 | PARTIAL | local only | n/a | 未接 IBKR drilldown | 2026-06-01 |
-| 15 集成、dry-run、切换 | **IN-PROGRESS** | local only | pending | **Pipeline 已接线；待删旧 scaler/实数据验证** | 2026-06-01 |
+| 15 集成、dry-run、切换 | **IN-PROGRESS / PHASEII-SHADOW-20D-DONE** | local only | shadow passed | Phase II 20 日 shadow 已跑通；live 开关保持关闭；待扩窗解释 `EXTREME_CORR` | 2026-06-01 |
 
 ## NEXT 工单进度
 
@@ -23,12 +23,14 @@
 |---|---|---|---|
 | NEXT-0 数据地基 | DONE-CODE | 34/38 symbols ≤2018-01-02 | - |
 | NEXT-1 软数据 | IN-PROGRESS / 盲区门已过 | MSTR 26 / FNGU 19 / SOXL 19 | PCR/NAAIM/BTC 待接 |
-| NEXT-2 回测 | **DONE** | real-only CAGR 44.39% Sharpe 1.79 DSR 1.66 | - |
-| P0 合成历史 | **DONE** | FNGU TE 4.67%, corr 0.9986 | - |
-| NEXT-3 校准 | **DONE** | deployment PBO=0.1538 | - |
+| NEXT-2 回测 | **DONE / P1-COMPLETE** | real-only CAGR 44.39% Sharpe 1.79 DSR 1.66 | - |
+| P0 合成历史 | **DONE / STRICT-GATE-PASSED** | FNGU TE 4.67%, corr 0.9986 | - |
+| NEXT-3 校准 | **DONE / M3-COMPLETE** | deployment PBO=0.1538；chosen E75_D65_R50 | - |
 | NEXT-4 向前软数据 | TODO | - | 可并行 |
 | NEXT-5 元模型 | LOCKED | - | 标签未达 |
 | NEXT-6 IBKR 对账 | TODO | - | greenfield |
+| P4 整合地基 | **DONE / PHASE0-I-PIPELINE-LOCAL-SYNCED** | 245 package tests OK + 11 golden tests OK | live 开关关闭 |
+| P5 Phase II Shadow | **IN-PROGRESS / SHADOW-REPLAY-20D-DONE** | rows=20 / errors=0 / R3 violations=0 / max delta=0.2747 / NORMAL×20 | 需扩窗解释 `EXTREME_CORR` |
 
 ## P4 整合地基进度
 
@@ -82,7 +84,24 @@
 |---|---|---|
 | JSON + Markdown + JSONL 导出 | `core/audit/exporter.py` | ✅ |
 
-**Phase 0–I 完整交付：15 个组件 + 140 个新测试。E1–E30 全部 30/30 完整骨架 + 再建仓持久化 + 审计导出。**
+**Phase 0–I 完整交付**：15 个组件 + E1–E30 全部 30/30 完整骨架 + 再建仓持久化 + 审计导出。远端 P4 source snapshots 已落地本地 `.hermes`，并修复 integration config 路径、Python 3.9 日期、RiskEngine 数值稳定、SizingOptimizer shrinkage 与 MarketContext 测试警告。
+
+## P5 Phase II Shadow 对照
+
+| 产物 | 状态 |
+|---|---|
+| `scripts/phase2_shadow_compare.py` | ✅ |
+| `reports/PhaseII_Shadow_Compare.md/json` | ✅ |
+| `reports/P5_PHASE2_SHADOW_COMPARE_LOG.md` | ✅ |
+
+| 指标 | 结果 |
+|---|---:|
+| 回放窗口 | 最近 20 个交易日 |
+| rows evaluated | 20 |
+| errors | 0 |
+| R3 violations | 0 |
+| max abs weight delta | 0.2747 |
+| confidence mode | NORMAL × 20 |
 
 ## 系统级 7 道总闸
 
@@ -90,8 +109,8 @@
 |---|---|---|---|
 | 1 | 单一风险源 | ✅ | ✅ test_gate1 |
 | 2 | 单一处置入口 | ✅ | ✅ test_gate2 |
-| 3 | R3 100% | ✅ | ✅ test_gate3 + test_r3_invariant |
-| 4 | 置信脊柱贯通 | ✅ | ✅ test_gate4 + test_confidence_propagates |
+| 3 | R3 100% | ✅ | ✅ test_gate3 + test_r3_invariant；P5 shadow R3 violations=0 |
+| 4 | 置信脊柱贯通 | ✅ | ✅ test_gate4 + test_confidence_propagates；P5 shadow NORMAL×20 |
 | 5 | PBO<0.5+CI+对抗 | ✅ | ✅ test_gate5 (structural) |
 | 6 | 因子健康 | ✅ | ✅ test_gate6 (structural) |
 | 7 | 可解释可治理 | ✅ | ✅ test_gate7 + audit completeness |
@@ -101,7 +120,8 @@
 1. ~~Phase 0 输入护栏~~ ✅
 2. ~~Phase I 地基~~ ✅
 3. ~~Pipeline 接线~~ ✅
-4. **Phase II 风险与信号**：把 E 系列参数调优接入已建骨架
-5. **Phase III 统一处置**：删除旧 scaler 乘法链
-6. **Phase IV 验证与治理**：实跑 PBO/CI/对抗验证
-7. **补 NEXT-1 剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL
+4. ~~Phase II 20 日 shadow 对照~~ ✅
+5. **Phase II 扩窗**：扩大 shadow 窗口，解释 `EXTREME_CORR` 高频触发与 gross scaler 收缩来源。
+6. **Phase III 统一处置**：风险预算校准后再替换旧 scaler 乘法链。
+7. **Phase IV 验证与治理**：实跑 PBO/CI/对抗验证。
+8. **补 NEXT-1 剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL。

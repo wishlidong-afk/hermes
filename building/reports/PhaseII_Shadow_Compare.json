@@ -1,0 +1,761 @@
+{
+  "comparisons": [
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-01",
+      "decision_confidence": 0.978749,
+      "gross_delta": -0.430049,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.569951,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.166321,
+          "old_target_weight": 0.166322,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.270331,
+          "old_target_weight": 0.270331,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-04",
+      "decision_confidence": 0.978749,
+      "gross_delta": -0.420356,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.579644,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.174761,
+          "old_target_weight": 0.174762,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.274716,
+          "old_target_weight": 0.274716,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-05",
+      "decision_confidence": 0.978771,
+      "gross_delta": -0.472022,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.527978,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.182913,
+          "old_target_weight": 0.182914,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.26211,
+          "old_target_weight": 0.26211,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-06",
+      "decision_confidence": 0.978771,
+      "gross_delta": -0.3,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.7,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.187235,
+          "old_target_weight": 0.187236,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.098795,
+          "old_target_weight": 0.098795,
+          "rule_weight": 0.12,
+          "shadow_target_weight": 0.0,
+          "status": "REDUCE"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-07",
+      "decision_confidence": 0.978794,
+      "gross_delta": -0.512368,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.487632,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.192586,
+          "old_target_weight": 0.192587,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.227198,
+          "old_target_weight": 0.227198,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-08",
+      "decision_confidence": 0.978794,
+      "gross_delta": -0.584195,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.415805,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.181065,
+          "old_target_weight": 0.181066,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.215186,
+          "old_target_weight": 0.215186,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-11",
+      "decision_confidence": 0.978816,
+      "gross_delta": -0.573625,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.426375,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.189285,
+          "old_target_weight": 0.189286,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.22517,
+          "old_target_weight": 0.22517,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-12",
+      "decision_confidence": 0.978816,
+      "gross_delta": -0.565569,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.434431,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.188122,
+          "old_target_weight": 0.188123,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.207607,
+          "old_target_weight": 0.207607,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-13",
+      "decision_confidence": 0.978838,
+      "gross_delta": -0.53189,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.46811,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.193387,
+          "old_target_weight": 0.193388,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.217085,
+          "old_target_weight": 0.217085,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-14",
+      "decision_confidence": 0.978838,
+      "gross_delta": -0.509894,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.490106,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.199999,
+          "old_target_weight": 0.2,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.226841,
+          "old_target_weight": 0.226841,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-15",
+      "decision_confidence": 0.978838,
+      "gross_delta": -0.502023,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.497977,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.179187,
+          "old_target_weight": 0.179188,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.204899,
+          "old_target_weight": 0.204899,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "ELEVATED",
+      "date": "2026-05-18",
+      "decision_confidence": 0.97886,
+      "gross_delta": 0.0,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "NONE",
+      "shadow_gross_scaler": 1.0,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.180791,
+          "old_target_weight": 0.180792,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.08157,
+          "old_target_weight": 0.08157,
+          "rule_weight": 0.12,
+          "shadow_target_weight": 0.0,
+          "status": "REDUCE"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "ELEVATED",
+      "date": "2026-05-19",
+      "decision_confidence": 0.97886,
+      "gross_delta": 0.0,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "NONE",
+      "shadow_gross_scaler": 1.0,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.184063,
+          "old_target_weight": 0.184064,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.085674,
+          "old_target_weight": 0.085674,
+          "rule_weight": 0.12,
+          "shadow_target_weight": 0.0,
+          "status": "REDUCE"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-20",
+      "decision_confidence": 0.978883,
+      "gross_delta": -0.531915,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.468085,
+      "symbols": {
+        "FNGU": {
+          "binding": "ZERO",
+          "delta": -0.184536,
+          "old_target_weight": 0.184536,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.204573,
+          "old_target_weight": 0.204574,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-21",
+      "decision_confidence": 0.978883,
+      "gross_delta": -0.509225,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.490775,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.191934,
+          "old_target_weight": 0.191935,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.215036,
+          "old_target_weight": 0.215036,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-22",
+      "decision_confidence": 0.978905,
+      "gross_delta": -0.479498,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.520502,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.194433,
+          "old_target_weight": 0.194434,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.223386,
+          "old_target_weight": 0.223386,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-26",
+      "decision_confidence": 0.978905,
+      "gross_delta": -0.588869,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.411131,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.167912,
+          "old_target_weight": 0.167913,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "ZERO",
+          "delta": -0.203049,
+          "old_target_weight": 0.203049,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-27",
+      "decision_confidence": 0.978927,
+      "gross_delta": -0.557284,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.442716,
+      "symbols": {
+        "FNGU": {
+          "binding": "ZERO",
+          "delta": -0.175067,
+          "old_target_weight": 0.175067,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.206434,
+          "old_target_weight": 0.206435,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-28",
+      "decision_confidence": 0.978927,
+      "gross_delta": -0.522062,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.477938,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.181549,
+          "old_target_weight": 0.18155,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.21698,
+          "old_target_weight": 0.21698,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    },
+    {
+      "confidence_mode": "NORMAL",
+      "corr_regime": "EXTREME",
+      "date": "2026-05-29",
+      "decision_confidence": 0.978927,
+      "gross_delta": -0.516404,
+      "old_gross_scaler": 1.0,
+      "risk_binding": "EXTREME_CORR",
+      "shadow_gross_scaler": 0.483596,
+      "symbols": {
+        "FNGU": {
+          "binding": "NONE",
+          "delta": -0.180135,
+          "old_target_weight": 0.180136,
+          "rule_weight": 0.2,
+          "shadow_target_weight": 1e-06,
+          "status": "HOLD"
+        },
+        "MSTR": {
+          "binding": "ZERO",
+          "delta": 0.0,
+          "old_target_weight": 0.0,
+          "rule_weight": 0.0,
+          "shadow_target_weight": 0.0,
+          "status": "EXIT"
+        },
+        "SOXL": {
+          "binding": "NONE",
+          "delta": -0.226277,
+          "old_target_weight": 0.226277,
+          "rule_weight": 0.3,
+          "shadow_target_weight": 0.0,
+          "status": "HOLD"
+        }
+      },
+      "weakest_link": "data"
+    }
+  ],
+  "errors": [],
+  "live_effect": "none",
+  "max_abs_weight_delta": 0.274716,
+  "mode_counts": {
+    "NORMAL": 20
+  },
+  "notes": [
+    "Uses historical Backtest_FULL scoring rows as scorer input.",
+    "Runs new pipeline in shadow mode only; no production state or live config is changed.",
+    "Sizing differences are diagnostic, not recommendations."
+  ],
+  "phase": "Phase II shadow",
+  "r3_violations": 0,
+  "rows_evaluated": 20,
+  "rows_requested": 20,
+  "schema_version": "phase2-shadow-v1",
+  "source_backtest": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/reports/Backtest_FULL.json"
+}

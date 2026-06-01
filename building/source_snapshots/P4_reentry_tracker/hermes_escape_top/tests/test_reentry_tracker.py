@@ -28,32 +28,32 @@ class TestThreeLocks(unittest.TestCase):
 
     def test_time_lock_blocks(self) -> None:
         state = TrancheState("MSTR", "LOCKED", last_sell_date="2026-05-28")
-        lc = check_three_locks(state, date(2026, 06, 1), total_score=10, c_score=3,
+        lc = check_three_locks(state, date(2026, 6, 1), total_score=10, c_score=3,
                                divergence_active=False, has_sell_signal=False, has_hard_valve=False, cfg=_base_cfg())
         self.assertFalse(lc.time_lock_clear)
         self.assertFalse(lc.all_clear)
 
     def test_sentiment_lock_blocks(self) -> None:
         state = TrancheState("MSTR", "LOCKED", last_sell_date="2026-04-01")
-        lc = check_three_locks(state, date(2026, 06, 1), total_score=25, c_score=3,
+        lc = check_three_locks(state, date(2026, 6, 1), total_score=25, c_score=3,
                                divergence_active=False, has_sell_signal=False, has_hard_valve=False, cfg=_base_cfg())
         self.assertFalse(lc.sentiment_lock_clear)
 
     def test_structure_lock_blocks(self) -> None:
         state = TrancheState("MSTR", "LOCKED", last_sell_date="2026-04-01")
-        lc = check_three_locks(state, date(2026, 06, 1), total_score=10, c_score=8,
+        lc = check_three_locks(state, date(2026, 6, 1), total_score=10, c_score=8,
                                divergence_active=False, has_sell_signal=False, has_hard_valve=False, cfg=_base_cfg())
         self.assertFalse(lc.structure_lock_clear)
 
     def test_hard_valve_forces_lock(self) -> None:
         state = TrancheState("MSTR", "LOCKED", last_sell_date="2026-04-01")
-        lc = check_three_locks(state, date(2026, 06, 1), total_score=5, c_score=1,
+        lc = check_three_locks(state, date(2026, 6, 1), total_score=5, c_score=1,
                                divergence_active=False, has_sell_signal=False, has_hard_valve=True, cfg=_base_cfg())
         self.assertFalse(lc.all_clear)
 
     def test_sell_signal_forces_lock(self) -> None:
         state = TrancheState("MSTR", "LOCKED", last_sell_date="2026-04-01")
-        lc = check_three_locks(state, date(2026, 06, 1), total_score=5, c_score=1,
+        lc = check_three_locks(state, date(2026, 6, 1), total_score=5, c_score=1,
                                divergence_active=False, has_sell_signal=True, has_hard_valve=False, cfg=_base_cfg())
         self.assertFalse(lc.all_clear)
 

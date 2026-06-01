@@ -110,7 +110,9 @@ class TestCrossSectionalRs(unittest.TestCase):
 class TestDivergence(unittest.TestCase):
     def test_no_new_high_returns_zero(self) -> None:
         store = _make_store(100)
-        store["SYM"]["close"].iloc[-1] = store["SYM"]["close"].iloc[-5] * 0.9
+        last_idx = store["SYM"].index[-1]
+        ref_idx = store["SYM"].index[-5]
+        store["SYM"].loc[last_idx, "close"] = store["SYM"].loc[ref_idx, "close"] * 0.9
         ctx = MarketContext("2020-06-01", store, {})
         f = divergence_score(ctx, "SYM", ["LEADER"])
         self.assertEqual(f.value, 0.0)
