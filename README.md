@@ -4,7 +4,7 @@
 
 > 性质：只读风控/建议系统，**不下单**。覆盖标的 MSTR / FNGU / SOXL（逃顶）+ QQQ/FNGU、SOXX/SOXL、MSTR/QQQ（镜像）。
 
-> **Codex 从这里开始施工 →** [`docs/CODEX_GUIDANCE.md`](docs/CODEX_GUIDANCE.md)（当前：P0 合成历史、P1 全窗口回测、NEXT-3 稳定高原校准、P4 Phase 0–I + Pipeline 已完成并落地本地；P5 Phase II 252 日 shadow、相关闸敏感性、2113 日 full-window sensitivity 已跑通；下一步优先做 Phase III exact 抽样复核/dry-run 与 P3 软数据补全）。
+> **Codex 从这里开始施工 →** [`docs/CODEX_GUIDANCE.md`](docs/CODEX_GUIDANCE.md)（当前：P0 合成历史、P1 全窗口回测、NEXT-3 稳定高原校准、P4 Phase 0–I + Pipeline 已完成并落地本地；P5 Phase II 252 日 shadow、相关闸敏感性、2113 日 full-window sensitivity 已跑通；P6/P7/P8/P9 Phase III 人审与 full/exact 复核已完成；下一步生成 updated migration acceptance pack，并并行补 P3 软数据）。
 
 ## 阅读路线（按顺序）
 

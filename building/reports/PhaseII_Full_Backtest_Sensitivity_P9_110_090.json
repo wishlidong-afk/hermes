@@ -1,0 +1,225 @@
+{
+  "base_penalty": 0.7,
+  "base_threshold": 92,
+  "baseline_old_backtest": {
+    "cagr": 0.181291,
+    "final_value": 403631.357858,
+    "max_drawdown": -0.276045,
+    "sharpe": 0.881817,
+    "sortino": 1.115495,
+    "turnover": 326.682483
+  },
+  "date_filter": {
+    "end": null,
+    "start": null
+  },
+  "errors": [],
+  "exact_optimizer": false,
+  "live_effect": "none",
+  "notes": [
+    "Shadow-only replay; no live config, feature flag, account state, or signal journal is changed.",
+    "Uses cached historical A/B/C/D score rows, then routes residual sleeve capital through the cached capital-routing decision for that day.",
+    "Default scenario sizing uses the deterministic R3/confidence/risk-gross upper-bound projection; pass --exact-optimizer for slow SLSQP spot checks.",
+    "The candidate is a review target only; Phase III scaler replacement remains locked until human dry-run gates pass."
+  ],
+  "review_candidate": {
+    "avg_gross": 0.920493,
+    "avg_gross_delta": -0.079507,
+    "binding_counts": {
+      "CONFIDENCE": 733,
+      "RISK_GROSS": 2384,
+      "ZERO": 3222
+    },
+    "fixed_oos_below_median_share": 1.0,
+    "hit_count": 839,
+    "hit_share": 0.397066,
+    "max_abs_weight_delta": 0.167531,
+    "mean_oos_rank": 1.0,
+    "min_gross": 0.457055,
+    "penalty": 0.9,
+    "r3_violations": 0,
+    "simulation": {
+      "cagr": 0.203695,
+      "deflated_sharpe": 0.93068,
+      "final_value": 472466.654765,
+      "max_drawdown": -0.243212,
+      "max_drawdown_end": "2023-05-12",
+      "max_drawdown_start": "2021-02-12",
+      "sharpe": 1.017092,
+      "sortino": 1.303328,
+      "turnover": 338.059431
+    },
+    "threshold": 110.0
+  },
+  "rows_evaluated": 2113,
+  "rows_loaded": 2113,
+  "scenarios": [
+    {
+      "avg_gross": 0.920493,
+      "avg_gross_delta": -0.079507,
+      "binding_counts": {
+        "CONFIDENCE": 733,
+        "RISK_GROSS": 2384,
+        "ZERO": 3222
+      },
+      "fixed_oos_below_median_share": 1.0,
+      "hit_count": 839,
+      "hit_share": 0.397066,
+      "max_abs_weight_delta": 0.167531,
+      "mean_oos_rank": 1.0,
+      "min_gross": 0.457055,
+      "penalty": 0.9,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": 0.203695,
+        "deflated_sharpe": 0.93068,
+        "final_value": 472466.654765,
+        "max_drawdown": -0.243212,
+        "max_drawdown_end": "2023-05-12",
+        "max_drawdown_start": "2021-02-12",
+        "sharpe": 1.017092,
+        "sortino": 1.303328,
+        "turnover": 338.059431
+      },
+      "threshold": 110.0
+    }
+  ],
+  "schema_version": "phase2-full-backtest-sensitivity-v1",
+  "source_backtest": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/reports/Backtest_FULL_2018_2026.json",
+  "walk_forward": {
+    "folds": [
+      {
+        "scenario_count": 1,
+        "test_end": "2020-07-02",
+        "test_start": "2020-01-03",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2019-12-03",
+        "train_start": "2018-01-02"
+      },
+      {
+        "scenario_count": 1,
+        "test_end": "2020-12-31",
+        "test_start": "2020-07-06",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2020-06-04",
+        "train_start": "2018-07-02"
+      },
+      {
+        "scenario_count": 1,
+        "test_end": "2021-07-02",
+        "test_start": "2021-01-04",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2020-12-02",
+        "train_start": "2019-01-02"
+      },
+      {
+        "scenario_count": 1,
+        "test_end": "2022-01-03",
+        "test_start": "2021-07-06",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2021-06-04",
+        "train_start": "2019-07-02"
+      },
+      {
+        "scenario_count": 1,
+        "test_end": "2022-07-01",
+        "test_start": "2022-01-03",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2021-12-02",
+        "train_start": "2020-01-02"
+      },
+      {
+        "scenario_count": 1,
+        "test_end": "2023-01-03",
+        "test_start": "2022-07-05",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2022-06-02",
+        "train_start": "2020-07-02"
+      },
+      {
+        "scenario_count": 1,
+        "test_end": "2023-07-03",
+        "test_start": "2023-01-03",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2022-12-01",
+        "train_start": "2021-01-04"
+      },
+      {
+        "scenario_count": 1,
+        "test_end": "2024-01-03",
+        "test_start": "2023-07-03",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2023-06-01",
+        "train_start": "2021-07-02"
+      },
+      {
+        "scenario_count": 1,
+        "test_end": "2024-07-03",
+        "test_start": "2024-01-03",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2023-12-01",
+        "train_start": "2022-01-03"
+      },
+      {
+        "scenario_count": 1,
+        "test_end": "2025-01-03",
+        "test_start": "2024-07-03",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2024-06-03",
+        "train_start": "2022-07-05"
+      },
+      {
+        "scenario_count": 1,
+        "test_end": "2025-07-03",
+        "test_start": "2025-01-03",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2024-12-03",
+        "train_start": "2023-01-03"
+      },
+      {
+        "scenario_count": 1,
+        "test_end": "2026-01-02",
+        "test_start": "2025-07-03",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2025-06-03",
+        "train_start": "2023-07-03"
+      },
+      {
+        "scenario_count": 1,
+        "test_end": "2026-05-29",
+        "test_start": "2026-01-05",
+        "train_best_oos_rank": 1,
+        "train_best_penalty": 0.9,
+        "train_best_threshold": 110.0,
+        "train_end": "2025-12-03",
+        "train_start": "2024-01-02"
+      }
+    ],
+    "note": "PBO is the share of folds where the train-best scenario lands below median OOS rank.",
+    "train_greedy_pbo": 1.0
+  }
+}

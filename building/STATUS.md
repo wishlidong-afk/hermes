@@ -15,7 +15,7 @@
 | 12 镜像参考系统 | DONE | local only | n/a | IBKR 未接 | 2026-06-01 |
 | 13 元模型 | LOCKED | - | - | 标签解锁门未达 | - |
 | 14 WebUI 与可观测性 | PARTIAL | local only | n/a | 未接 IBKR drilldown | 2026-06-01 |
-| 15 集成、dry-run、切换 | **IN-PROGRESS / WARN-SENSITIVITY-DONE** | local only | shadow + WARN sensitivity passed | Phase II 252 日 shadow、相关闸敏感性、2113 日 full-window sensitivity 已跑通；P8 二次网格候选 `110/0.90`；live 开关保持关闭 | 2026-06-02 |
+| 15 集成、dry-run、切换 | **IN-PROGRESS / FULL-EXACT-PASSED / REVIEW-GATED** | local only | shadow + WARN sensitivity + full/exact passed | Phase II 252 日 shadow、相关闸敏感性、2113 日 full-window sensitivity 已跑通；P9 已复核 `110/0.90`：CAGR 20.37%、MaxDD -24.32%、R3=0、4 个 exact/fast 抽查通过；live 开关保持关闭 | 2026-06-02 |
 
 ## NEXT 工单进度
 
@@ -33,7 +33,8 @@
 | P5 Phase II Shadow | **DONE / DRY-RUN-PACKAGE-READY** | shadow rows=252；full rows=2113 / errors=0 / scenario count=21 / R3 violations=0 / review candidate 110/0.70：CAGR 18.06%、MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077；4 个 exact spot-check PASS | live 开关保持关闭 |
 | P6 Phase III dry-run comparator | **DONE / HUMAN-GATE-READY** | daily comparator rows=252 / errors=0 / R3 violations=0 / PASS=128 / WARN=124 / BLOCK=0 / avg old-new turnover 0.2244→0.2285 | 需人工审阅 WARN 日期；通过后才可设计 scaler migration |
 | P7 Phase III WARN review | **DONE / WARN-REVIEW-PACK-DONE** | WARN=124 / EXTREME_CORR=102 / WARN candidate-old avg：1d -0.00%、5d -0.05%、10d -0.29% / readiness=REVIEW_REQUIRED | live 开关保持关闭；需人工决定是否接受机会成本 |
-| P8 Phase III WARN sensitivity | **DONE / WARN-SENSITIVITY-DONE** | 24 scenarios / retained-penalty candidate `110/0.90`: WARN 10d -0.13%, max turnover delta 0.2886, R3=0, BLOCK=0 | 需 full-window backtest + exact spot-check；live 开关保持关闭 |
+| P8 Phase III WARN sensitivity | **DONE / WARN-SENSITIVITY-DONE** | 24 scenarios / retained-penalty candidate `110/0.90`: WARN 10d -0.13%, max turnover delta 0.2886, R3=0, BLOCK=0 | live 开关保持关闭 |
+| P9 Phase III 110/0.90 full/exact | **DONE / FULL-EXACT-PASSED / REVIEW-GATED** | 2113 日 full-window：errors=0、R3=0、CAGR 20.37%、MaxDD -24.32%、Sharpe 1.0171、turnover 338.0594；2020H1/2022H1/2024H1/2026YTD exact/fast 抽查 PASS | 需 updated migration acceptance pack；需人工接受约 1.85 pp 回撤放大；live 开关保持关闭 |
 
 ## P4 整合地基进度
 
@@ -118,6 +119,9 @@
 | `tests/test_phase3_warn_sensitivity.py` | ✅ |
 | `reports/PhaseIII_WARN_Sensitivity.md/json` | ✅ |
 | `reports/P8_PHASE3_WARN_SENSITIVITY_LOG.md` | ✅ |
+| `reports/PhaseII_Full_Backtest_Sensitivity_P9_110_090.md/json` | ✅ |
+| `reports/PhaseII_Full_Backtest_Sensitivity_P9_Exact/Fast_*.md/json` | ✅ |
+| `reports/P9_PHASE3_110_090_FULL_EXACT_LOG.md` | ✅ |
 
 | 指标 | 结果 |
 |---|---:|
@@ -216,6 +220,28 @@
 | max turnover delta | 0.4022 | 0.2886 |
 | review score | 0.3888 | 0.1340 |
 
+## P9 Phase III 110/0.90 Full-Window + Exact
+
+| 指标 | P5 当前候选 110/0.70 | P9 复核候选 110/0.90 |
+|---|---:|---:|
+| rows evaluated | 2113 | 2113 |
+| errors | 0 | 0 |
+| R3 violations | 0 | 0 |
+| final value | $401,635.03 | $472,466.65 |
+| CAGR | 18.06% | 20.37% |
+| max drawdown | -22.47% | -24.32% |
+| Sharpe | 1.0115 | 1.0171 |
+| Sortino | 1.3141 | 1.3033 |
+| turnover | 339.9802 | 338.0594 |
+| max abs weight delta | 0.1698 | 0.1675 |
+
+| exact/fast 抽查窗口 | rows | errors | R3 | 结论 |
+|---|---:|---:|---:|---|
+| 2020H1 | 126 | 0 | 0 | PASS，浮点级差异 |
+| 2022H1 | 125 | 0 | 0 | PASS，完全一致 |
+| 2024H1 | 126 | 0 | 0 | PASS，final value 差约 $0.06 |
+| 2026YTD | 101 | 0 | 0 | PASS，完全一致 |
+
 ## 系统级 7 道总闸
 
 | # | 总闸 | 骨架 | Pipeline 结构验证 |
@@ -236,6 +262,6 @@
 4. ~~Phase II 20 日 shadow 对照~~ ✅
 5. ~~Phase II 252 日扩窗 + 相关闸敏感性~~ ✅
 6. ~~相关闸 full backtest 校准~~ ✅
-7. **Phase III 统一处置**：daily old-vs-new comparator、WARN review、WARN sensitivity 已完成；下一步对 `110/0.90` 做 full-window + exact 复核。
+7. **Phase III 统一处置**：daily old-vs-new comparator、WARN review、WARN sensitivity、`110/0.90` full-window + exact 复核已完成；下一步生成 updated migration acceptance pack。
 8. **Phase IV 验证与治理**：实跑 PBO/CI/对抗验证。
 9. **补 NEXT-1 剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL。

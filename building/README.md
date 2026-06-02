@@ -132,7 +132,7 @@
 | M1 看得清 | ✅ | missing: MSTR 26 / FNGU 19 / SOXL 19，均 <30 |
 | M2 验得过 | ✅ | real-only CAGR 44.39% MaxDD -10.43% Sharpe 1.79 DSR 1.66 |
 | **M3 校得准** | **✅ 实质达成** | EXIT=75 DEF_EXIT=65 REDUCE=50；deployment PBO=0.1538 |
-| M4 可上线 | ⬜ | P8 找到新 review candidate `110/0.90`，待 full-window + exact 复核 |
+| M4 可上线 | ⬜ | P9 已复核 review candidate `110/0.90`；待 updated migration acceptance pack 与人工开关 |
 | M5 会学习 | ⬜ | 标签解锁门未达 |
 
 ## P4 整合进度
@@ -148,9 +148,10 @@
 | Phase III 统一处置 | ✅ WARN-REVIEW-PACK-DONE | 252 日 daily comparator：errors=0、R3=0、PASS=128、WARN=124、BLOCK=0；P7 已量化 WARN 机会成本 |
 | Phase III WARN review | ✅ WARN-REVIEW-PACK-DONE | EXTREME_CORR=102/124；WARN candidate-old avg：1d -0.00%、5d -0.05%、10d -0.29%；readiness=REVIEW_REQUIRED |
 | Phase III WARN sensitivity | ✅ WARN-SENSITIVITY-DONE | 24 场景；保留惩罚候选 `110/0.90`：WARN 10d -0.13%、max turnover delta 0.2886、R3=0、BLOCK=0 |
+| Phase III 110/0.90 full/exact | ✅ FULL-EXACT-PASSED / REVIEW-GATED | 2113 日 full-window：CAGR 20.37%、MaxDD -24.32%、R3=0；4 个 exact/fast 抽查通过；需人工接受约 1.85 pp 回撤放大 |
 | Phase IV 验证与治理 | TODO | 7 闸全通过 |
 
-**当前最高优先任务**：对 `110/0.90` 跑 full-window backtest sensitivity 与 exact spot-check，并并行补 NEXT-1 剩余软数据。
+**当前最高优先任务**：生成 updated migration acceptance pack，把 P8/P9 结论合并成 shadow-only 参数迁移提案；并行补 NEXT-1 剩余软数据。
 
 ---
 

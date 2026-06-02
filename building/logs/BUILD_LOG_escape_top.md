@@ -759,3 +759,46 @@ P7 状态为 `DONE / WARN-REVIEW-PACK-DONE`。没有新增 R3/BLOCK 硬伤，但
 ### 当前结论
 
 P8 状态为 `DONE / WARN-SENSITIVITY-DONE`。`110/0.90` 是新的 review candidate，但必须先跑 full-window backtest sensitivity 与 exact spot-check；live promotion 继续 `BLOCKED`。
+
+## P9 Phase III 110/0.90 Full-Window + Exact 记录
+
+**升级时间**: 2026-06-02
+
+本次继续沿 P8 的保留惩罚候选 `threshold=110 / penalty=0.90` 做完整复核。目标是确认该候选是否经得起 2018-2026 全窗口回测，以及 fast optimizer 是否会相对 exact optimizer 产生不可接受偏差。
+
+### 已实装内容
+
+- ✅ 复用 `scripts/phase2_full_backtest_sensitivity.py`，未新增生产逻辑
+- ✅ 新增 `reports/PhaseII_Full_Backtest_Sensitivity_P9_110_090.md/json`
+- ✅ 新增 4 组 exact optimizer 抽查报告：2020H1 / 2022H1 / 2024H1 / 2026YTD
+- ✅ 新增 4 组 fast optimizer 对照报告：2020H1 / 2022H1 / 2024H1 / 2026YTD
+- ✅ 新增 `reports/P9_PHASE3_110_090_FULL_EXACT_LOG.md`
+
+### 结果摘要
+
+| 指标 | P5 当前候选 110/0.70 | P9 复核候选 110/0.90 |
+|---|---:|---:|
+| rows evaluated | 2113 | 2113 |
+| errors | 0 | 0 |
+| R3 violations | 0 | 0 |
+| final value | $401,635.03 | $472,466.65 |
+| CAGR | 18.06% | 20.37% |
+| max drawdown | -22.47% | -24.32% |
+| Sharpe | 1.0115 | 1.0171 |
+| Sortino | 1.3141 | 1.3033 |
+| turnover | 339.9802 | 338.0594 |
+| max abs weight delta | 0.1698 | 0.1675 |
+
+### Exact / Fast 验收
+
+- ✅ 2020H1：exact/fast final value 差异约 `$0.0006`
+- ✅ 2022H1：exact/fast 完全一致
+- ✅ 2024H1：exact/fast final value 差异约 `$0.06`
+- ✅ 2026YTD：exact/fast 完全一致
+- ✅ 4 个窗口均为 errors=0、R3 violations=0
+- ✅ `python3 -m unittest discover -s hermes_escape_top/tests`：270 tests OK
+- ✅ `python3 -m unittest discover -s tests`：11 tests OK（仅 urllib3/LibreSSL 环境警告）
+
+### 当前结论
+
+P9 状态为 `DONE / FULL-EXACT-PASSED / REVIEW-GATED`。`110/0.90` 可以进入 updated migration acceptance pack，作为 `110/0.70` 的 Phase III 替代候选继续 shadow-only 审核；但 live promotion 仍保持 `BLOCKED`。上线前必须人工接受约 `1.85 pp` 的最大回撤放大。

@@ -1,0 +1,88 @@
+{
+  "base_penalty": 0.7,
+  "base_threshold": 92,
+  "baseline_old_backtest": {
+    "cagr": 0.181291,
+    "final_value": 403631.357858,
+    "max_drawdown": -0.276045,
+    "sharpe": 0.881817,
+    "sortino": 1.115495,
+    "turnover": 326.682483
+  },
+  "date_filter": {
+    "end": "2022-07-01",
+    "start": "2022-01-03"
+  },
+  "errors": [],
+  "exact_optimizer": true,
+  "live_effect": "none",
+  "notes": [
+    "Shadow-only replay; no live config, feature flag, account state, or signal journal is changed.",
+    "Uses cached historical A/B/C/D score rows, then routes residual sleeve capital through the cached capital-routing decision for that day.",
+    "Default scenario sizing uses the deterministic R3/confidence/risk-gross upper-bound projection; pass --exact-optimizer for slow SLSQP spot checks.",
+    "The candidate is a review target only; Phase III scaler replacement remains locked until human dry-run gates pass."
+  ],
+  "review_candidate": {
+    "avg_gross": 1.0,
+    "avg_gross_delta": 0.0,
+    "binding_counts": {
+      "CONFIDENCE": 15,
+      "ZERO": 360
+    },
+    "hit_count": 0,
+    "hit_share": 0.0,
+    "max_abs_weight_delta": 0.043964,
+    "min_gross": 1.0,
+    "penalty": 0.9,
+    "r3_violations": 0,
+    "simulation": {
+      "cagr": -0.070055,
+      "deflated_sharpe": -1.591944,
+      "final_value": 96392.777231,
+      "max_drawdown": -0.067329,
+      "max_drawdown_end": "2022-01-24",
+      "max_drawdown_start": "2022-01-03",
+      "sharpe": -1.006806,
+      "sortino": -0.892005,
+      "turnover": 2.090376
+    },
+    "threshold": 110.0
+  },
+  "rows_evaluated": 125,
+  "rows_loaded": 125,
+  "scenarios": [
+    {
+      "avg_gross": 1.0,
+      "avg_gross_delta": 0.0,
+      "binding_counts": {
+        "CONFIDENCE": 15,
+        "ZERO": 360
+      },
+      "hit_count": 0,
+      "hit_share": 0.0,
+      "max_abs_weight_delta": 0.043964,
+      "min_gross": 1.0,
+      "penalty": 0.9,
+      "r3_violations": 0,
+      "simulation": {
+        "cagr": -0.070055,
+        "deflated_sharpe": -1.591944,
+        "final_value": 96392.777231,
+        "max_drawdown": -0.067329,
+        "max_drawdown_end": "2022-01-24",
+        "max_drawdown_start": "2022-01-03",
+        "sharpe": -1.006806,
+        "sortino": -0.892005,
+        "turnover": 2.090376
+      },
+      "threshold": 110.0
+    }
+  ],
+  "schema_version": "phase2-full-backtest-sensitivity-v1",
+  "source_backtest": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/reports/Backtest_FULL_2018_2026.json",
+  "walk_forward": {
+    "fixed_candidate_pbo": null,
+    "folds": [],
+    "train_greedy_pbo": null
+  }
+}

@@ -24,7 +24,7 @@
            III 统一处置(E6/E8/E12/E15/E25/E26/E27)
            IV 验证与治理(E21/E22/E23/E24 + E9/E10/E28/E29)
       │
-[人工上线 M4] 逐个翻 features.*/use_*，P8 候选 full-window + exact 复核达标（人决定）
+[人工上线 M4] 逐个翻 features.*/use_*，P9 已复核 `110/0.90`；updated migration acceptance pack + 人工开关仍待完成
       │
 [学习 M5] NEXT-5 元模型解锁(标签≥300/正样本≥40/体制≥2) → p_act 校准达标
 [增强] NEXT-4 纯向前软数据(GEX/CNN/新闻/mNAV) · NEXT-6 IBKR 只读对账
@@ -56,9 +56,10 @@
 | ✅ P5 | Phase II shadow/full sensitivity | PHASE_II_IV_ROLLOUT_PLAN | **252 日 shadow + 2113 日 full-window sensitivity 已跑通**：errors=0、R3 violations=0；review candidate 110/0.70，MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077 |
 | **P6** | Phase III daily comparator | SCALER_MIGRATION_GUIDE | **252 日 old-vs-new dry-run 已跑通**：errors=0、R3=0、PASS=128、WARN=124、BLOCK=0；待人工审 WARN |
 | **P7** | Phase III WARN review | SCALER_MIGRATION_GUIDE | **WARN review pack 已跑通**：EXTREME_CORR=102/124；WARN 10d candidate-old avg=-0.29%；readiness=REVIEW_REQUIRED |
-| **P8** | Phase III WARN sensitivity | SCALER_MIGRATION_GUIDE | **24 场景二次网格已跑通**：保留惩罚候选 `110/0.90`，WARN 10d=-0.13%、max turnover delta=0.2886、R3=0、BLOCK=0 |
+| ✅ P8 | Phase III WARN sensitivity | SCALER_MIGRATION_GUIDE | **24 场景二次网格已跑通**：保留惩罚候选 `110/0.90`，WARN 10d=-0.13%、max turnover delta=0.2886、R3=0、BLOCK=0 |
+| ✅ P9 | Phase III 110/0.90 full/exact | SCALER_MIGRATION_GUIDE | **2113 日 full-window + 4 窗 exact/fast 已跑通**：CAGR 20.37%、MaxDD -24.32%、R3=0；需人工接受约 1.85 pp 回撤放大 |
 | **P3** | 补 NEXT-1 剩余软数据 | BUILD_TICKETS NEXT-1 | PCR/NAAIM/BTC；可降 MSTR missing 8pt |
-| **P9** | Phase III 替换旧 scaler → Phase IV 7 闸全通过 | SCALER_MIGRATION_GUIDE | 依赖 P8 full-window + exact 复核 |
+| **P10** | updated migration acceptance pack → Phase IV 7 闸全通过 | SCALER_MIGRATION_GUIDE | 汇总 P8/P9，形成 shadow-only 迁移提案；live 仍需人工开关 |
 
 ---
 
@@ -76,7 +77,7 @@
 
 ## 起步指令（给 Codex / Claude）
 
-从 **P8 → P9 交界**继续：①对 `110/0.90` 跑 full-window backtest sensitivity；②对 `110/0.90` 跑 exact optimizer spot-check；③通过后再进入 Phase III scaler 替换设计；④并行补 P3 剩余软数据。
+从 **P9 → P10 交界**继续：①生成 updated migration acceptance pack；②把 `110/0.90` 作为 shadow-only scaler migration candidate；③列明相对 `110/0.70` 的收益/回撤/审阅权衡；④并行补 P3 剩余软数据。
 
 同步推进 **P3**：补 PCR/NAAIM/BTC funding-basis-DVOL CSV，降 MSTR missing。
 

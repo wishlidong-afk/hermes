@@ -1,7 +1,7 @@
 # CODEX GUIDANCE — 下一步做什么（看这一个文件就够）
 
 > 给 Codex 的明确施工指引。读完照做即可，无需翻其它文档（细节锚点已标）。
-> 更新：2026-06-01，据真实进度账本。读者：Codex。
+> 更新：2026-06-02，据真实进度账本。读者：Codex。
 
 ---
 
@@ -14,8 +14,9 @@
 - **P6 Phase III daily comparator 已完成**：252 日 old-vs-new dry-run rows=252、errors=0、R3=0、PASS=128、WARN=124、BLOCK=0；avg old/new turnover 0.2244/0.2285。
 - **P7 Phase III WARN review 已完成**：WARN=124、EXTREME_CORR=102、WARN candidate-old avg：1d -0.00%、5d -0.05%、10d -0.29%；readiness=REVIEW_REQUIRED。
 - **P8 Phase III WARN sensitivity 已完成**：24 场景；保留惩罚候选 `110/0.90`，WARN 10d candidate-old avg 从 -0.29% 改为 -0.13%，max turnover delta 从 0.4022 降至 0.2886，R3=0、BLOCK=0。
+- **P9 Phase III 110/0.90 full/exact 已完成**：2113 日 full-window errors=0、R3=0、CAGR 20.37%、MaxDD -24.32%、Sharpe 1.0171；2020H1/2022H1/2024H1/2026YTD exact/fast 抽查均 PASS；相对 110/0.70 收益更高但最大回撤放大约 1.85 pp。
 - **Phase II–IV 计划就绪**：配置/feature flags/rollout plan/scaler migration guide 全部产出。
-- **下一步**：对 `110/0.90` 跑 full-window backtest sensitivity 与 exact optimizer spot-check；并行补 NEXT-1 剩余软数据。
+- **下一步**：生成 updated migration acceptance pack，把 P8/P9 结论合并成 shadow-only 参数迁移提案；并行补 NEXT-1 剩余软数据。
 
 ---
 
@@ -30,10 +31,11 @@ P4  ✅ Phase 0–I + Pipeline DONE — 12 组件 + 270 package tests + E1–E30
 P5  ✅ DONE — Phase II shadow/corr/full-window sensitivity + 4 个 exact spot-check + dry-run acceptance pack 已跑通
 P6  ✅ DONE — Phase III daily comparator 已完成
 P7  ✅ DONE — WARN review pack 已完成
-P8  HUMAN-GATE-READY — WARN sensitivity 已完成，新候选 110/0.90 需 full-window + exact 复核
+P8  ✅ DONE — WARN sensitivity 已完成，新候选 110/0.90 通过 P9 full-window + exact 复核
+P9  REVIEW-GATED — updated migration acceptance pack 待生成；live 开关继续关闭
 ```
 
-> P0+P1+P2+P4 已完成并落地本地。P5 Phase II full-window sensitivity、4 个 exact spot-check、dry-run acceptance pack 已完成；P6/P7/P8 Phase III 人审包已完成。下一步优先复核 `110/0.90` 的 full-window 与 exact，并补 P3 软数据。
+> P0+P1+P2+P4 已完成并落地本地。P5 Phase II full-window sensitivity、4 个 exact spot-check、dry-run acceptance pack 已完成；P6/P7/P8 Phase III 人审包与 P9 full/exact 复核已完成。下一步优先生成 updated migration acceptance pack，并补 P3 软数据。
 
 ---
 
@@ -135,7 +137,8 @@ def validate_synth(real_df: pd.DataFrame, synth_df: pd.DataFrame,
 - P6 daily old-vs-new comparator 已完成：252 rows、errors=0、R3=0、PASS=128、WARN=124、BLOCK=0；avg old/new turnover 0.2244/0.2285。
 - P7 WARN review 已完成：WARN=124、EXTREME_CORR=102、WARN candidate-old avg 1d -0.00%、5d -0.05%、10d -0.29%，readiness=REVIEW_REQUIRED。
 - P8 WARN sensitivity 已完成：`110/0.90` 在保留相关惩罚前提下优于 `110/0.70` 的 P7 机会成本指标。
-- **下一步关键**：对 `110/0.90` 做 full-window backtest sensitivity 与 exact spot-check，最后决定 Phase III 是否替换旧 scaler 链。R3 不变式仍为硬约束。
+- P9 full/exact 复核已完成：`110/0.90` 2113 日 CAGR 20.37%、MaxDD -24.32%、R3=0，4 个 exact/fast 抽查通过；主要代价是相对 `110/0.70` 最大回撤放大约 1.85 pp。
+- **下一步关键**：生成 updated migration acceptance pack，把 `110/0.90` 作为 shadow-only scaler migration candidate；live 开关继续保持关闭，是否接受回撤代价由人工决定。R3 不变式仍为硬约束。
 
 ---
 
@@ -152,8 +155,8 @@ def validate_synth(real_df: pd.DataFrame, synth_df: pd.DataFrame,
 
 ## 8. 下一步回报格式
 
-1. P8 复核：`110/0.90` full-window backtest sensitivity 与 exact optimizer spot-check。
+1. P10 验收包：updated migration acceptance pack，合并 P8/P9 并列明回撤代价与 shadow-only 范围。
 2. human-gate 验收：哪些 feature flag 仍保持 false，哪些只进入 shadow。
 3. P3 软数据进展：PCR/NAAIM/BTC funding-basis-DVOL 哪些已补、missing_weight 降了多少。
 
-> 一句话：**不要贪心上线。** P5 已证明固定 110/0.70 比默认 92/0.70 更均衡，且四个 exact spot-check 通过；但 Phase III 仍必须 dry-run 和人审。
+> 一句话：**不要贪心上线。** P9 已证明 `110/0.90` 通过 full-window 与 exact 抽查，但它用约 1.85 pp 最大回撤放大换取更高 CAGR 和更好的 WARN 审阅指标；只能进入 shadow-only 迁移验收包。
