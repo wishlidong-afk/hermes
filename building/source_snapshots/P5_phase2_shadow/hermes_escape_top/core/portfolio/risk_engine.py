@@ -108,15 +108,16 @@ def ewma_corr_forecast(returns_df: pd.DataFrame, lam: float = 0.94) -> np.ndarra
 
 
 def ledoit_wolf_shrink(corr: np.ndarray, n_obs: int) -> np.ndarray:
-    """Ledoit-Wolf shrinkage toward identity (sklearn preferred, handwritten fallback)."""
+    """Ledoit-Wolf shrinkage toward identity using analytic formula.
+
+    The sklearn branch was removed: sklearn's LedoitWolf.fit() must receive the
+    actual return data, not a precomputed correlation matrix. Fitting on
+    np.eye(k) (the old code) produced a shrinkage value that bore no relation
+    to the actual data, silently corrupting the estimate. The manual formula
+    here is derived from the same off-diagonal variance proxy and is correct.
+    """
     corr = _finite_square_matrix(corr)
-    try:
-        from sklearn.covariance import LedoitWolf
-        lw = LedoitWolf(assume_centered=True)
-        lw.fit(np.eye(corr.shape[0]))
-        shrinkage = lw.shrinkage_
-    except (ImportError, Exception):
-        shrinkage = _lw_shrinkage_manual(corr, n_obs)
+    shrinkage = _lw_shrinkage_manual(corr, n_obs)
     target = np.eye(corr.shape[0])
     shrunk = (1.0 - shrinkage) * corr + shrinkage * target
     np.fill_diagonal(shrunk, 1.0)
@@ -327,8 +328,15 @@ def build_risk_state(
     extreme_corr_penalty = float(risk_cfg.get("extreme_corr_penalty", 0.70))
     downside_q = float(risk_cfg.get("downside_q", 0.10))
     cvar_alpha = float(risk_cfg.get("cvar_alpha", 0.95))
-    extreme_pctl = float(risk_cfg.get("corr_regime_extreme_pctl", 92))
-    elevated_pctl = float(risk_cfg.get("corr_regime_elevated_pctl", 80))
+    # Support both new key name (corr_regime_extreme_ratio) and legacy name
+    # (corr_regime_extreme_pctl). The ratio is multiplied by 100 so thresholds
+    # stay in the same numeric range (e.g. 110 = 1.10× downside-to-linear).
+    extreme_ratio_threshold = float(risk_cfg.get(
+        "corr_regime_extreme_ratio", risk_cfg.get("corr_regime_extreme_pctl", 110)
+    ))
+    elevated_ratio_threshold = float(risk_cfg.get(
+        "corr_regime_elevated_ratio", risk_cfg.get("corr_regime_elevated_pctl", 80)
+    ))
     concentration_cap = risk_cfg.get("concentration_cap", {})
 
     explain: List[str] = []
@@ -356,6 +364,7 @@ def build_risk_state(
 
     if n_obs < min_periods:
         explain.append(f"joint sample {n_obs} < {min_periods}; conservative fallback")
+        raw_corr = np.eye(len(legs_reported))
         corr = np.eye(len(legs_reported))
         corr_regime = "UNKNOWN"
     else:
@@ -368,15 +377,19 @@ def build_risk_state(
     cov = _finite_square_matrix(D @ corr @ D, size=len(legs_reported))
 
     # Downside correlation + corr regime
+    # Use raw_corr (pre-shrinkage EWMA) as the linear-regime baseline so both
+    # numerator and denominator come from consistent estimators. The shrunk corr
+    # has off-diagonal values pulled toward 0, which deflates the denominator and
+    # inflates the ratio — causing systematic EXTREME_CORR over-classification.
     dc = downside_corr(joint_df, downside_q) if n_obs >= min_periods else np.eye(len(legs_reported))
     if n_obs >= min_periods:
-        corr_mean = _off_diag_mean(corr)
+        corr_mean = _off_diag_mean(raw_corr)    # pre-shrinkage EWMA corr (unbiased baseline)
         downside_corr_mean = _off_diag_mean(dc)
         if downside_corr_mean > 0:
             downside_corr_ratio_score = downside_corr_mean / max(corr_mean, 1e-6) * 100.0
-            if downside_corr_ratio_score >= extreme_pctl:
+            if downside_corr_ratio_score >= extreme_ratio_threshold:
                 corr_regime = "EXTREME"
-            elif downside_corr_ratio_score >= elevated_pctl:
+            elif downside_corr_ratio_score >= elevated_ratio_threshold:
                 corr_regime = "ELEVATED"
 
     # Portfolio vol
@@ -400,9 +413,11 @@ def build_risk_state(
         explain.append(f"EXTREME corr regime; penalty {extreme_corr_penalty}")
     gross = min(1.0, max(0.0, gross))
 
-    # Risk contributions
+    # Risk contributions — map by position index, not by sorted key name.
+    # sorted(rc.items()) would lexicographically order "leg_10" before "leg_2",
+    # misaligning contributions with symbols once there are ≥10 legs.
     rc = risk_contribution(w_vec, cov)
-    rc_named = {legs_reported[i]: v for i, (_, v) in enumerate(sorted(rc.items()))}
+    rc_named = {legs_reported[i]: rc[f"leg_{i}"] for i in range(len(legs_reported))}
 
     # Factor betas
     if factor_returns:
@@ -438,8 +453,8 @@ def build_risk_state(
         "corr_mean": round(float(corr_mean), 6),
         "downside_corr_mean": round(float(downside_corr_mean), 6),
         "downside_corr_ratio_score": round(float(downside_corr_ratio_score), 6),
-        "corr_extreme_threshold": extreme_pctl,
-        "corr_elevated_threshold": elevated_pctl,
+        "corr_extreme_threshold": extreme_ratio_threshold,
+        "corr_elevated_threshold": elevated_ratio_threshold,
         "gross_before_corr_penalty": round(float(gross_before_corr_penalty), 6),
         "extreme_corr_penalty": extreme_corr_penalty,
     }

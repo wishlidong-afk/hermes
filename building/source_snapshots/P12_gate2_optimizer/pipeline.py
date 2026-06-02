@@ -22,6 +22,7 @@ from .core.portfolio.risk_budget import compute_portfolio_risk
 from .core.portfolio.sizing import size_portfolio  # kept for fallback / legacy compat
 from .core.portfolio.risk_engine import build_risk_state
 from .core.portfolio.sizing_optimizer import optimize_targets
+from .core.confidence.spine import compute_confidence
 from .core.contracts import Verdict, ConfidenceState
 from .core.routing.capital_routing import route_capital
 from .core.reentry.plan import build_reentry_plan
@@ -201,7 +202,6 @@ def _optimize_sizing(
     Output is a dict keyed by symbol, each value has a to_dict() method for
     backward compatibility with posterior_pnl and audit serialization.
     """
-    import math
     from .core.portfolio.sizing import size_portfolio  # fallback reference
 
     # ── Build Verdicts from ScoreResults ──────────────────────────────────────
@@ -249,21 +249,19 @@ def _optimize_sizing(
         optimizer_cfg,
     )
 
-    # ── Build ConfidenceState from portfolio_risk ─────────────────────────────
-    conf_val = min(1.0, max(0.0, float(portfolio_risk.effective_gross_scaler)))
-    if conf_val >= 0.80:
-        mode = "NORMAL"
-    elif conf_val >= 0.55:
-        mode = "CAUTION"
-    else:
-        mode = "DEGRADED"
-
-    confidence = ConfidenceState(
-        decision_confidence=conf_val,
-        mode=mode,
-        components={"gross": conf_val},
-        weakest_link="gross",
-        notes=[f"derived from portfolio risk gross={conf_val:.3f}"],
+    # ── Build ConfidenceState via ConfidenceSpine (Gate ④) ───────────────────
+    # Use getattr so missing attributes (data_quality_score, failover_state,
+    # staleness_days, drift_state) degrade gracefully to neutral 0.5 in the
+    # spine rather than hard-erroring. Fragility and disagreement remain wired
+    # as None (pending E7/E22 integration) and receive the same neutral treatment.
+    confidence = compute_confidence(
+        data_conf=getattr(portfolio_risk, "data_quality_score", None),
+        failover_state=getattr(portfolio_risk, "failover_state", None),
+        staleness_days=getattr(portfolio_risk, "staleness_days", None),
+        drift_state=getattr(portfolio_risk, "drift_state", None),
+        fragility=None,      # TODO: wire E7 fragility score
+        disagreement=None,   # TODO: wire E22 model disagreement
+        cfg=config.get("confidence", {}),
     )
 
     # ── Run optimizer ─────────────────────────────────────────────────────────

@@ -164,16 +164,26 @@ def optimize_targets(
     risk_gross_factor = max(0.0, min(1.0, float(risk_state.gross_scaler)))
     confidence_bounds = rule_targets * conf_factor
     upper_bounds = confidence_bounds * risk_gross_factor
+    # TODO: E12 liquidity_cap(), E15 cppi_exposure_cap(), E26 kelly_fraction()
+    # are defined in this module but not yet applied here. Wire them once ADV20,
+    # price, netliq, and equity/floor data are available from the pipeline caller.
+    # Until wired, those functions exist only in tests and are dead in production.
 
-    # Expected returns (simple proxy: base_mu from vol target inversion)
+    # Expected returns proxy — SHADOW MODE LIMITATION
+    # TODO(option-A): Replace base_mu with rolling 252-day historical mean
+    # returns once leg_returns are threaded through to this function. Until then:
+    #
+    # base_mu = vol_i × max(2.0, dd_aversion+1) → with dd_aversion=3, gives
+    # base_mu = 4·vol_i, which always exceeds the marginal risk term
+    # dd·vol_i·corr (≤ 3·vol_i for corr ≤ 1). Consequence: the utility
+    # optimizer always pushes every leg to its upper bound; SLSQP is effectively
+    # equivalent to upper-bound clipping (upper = rule_target × conf × gross).
+    # Vol budget remains the true binding constraint when it is tight; otherwise
+    # the result is identical to the pre-optimizer scaler chain.
     mu = np.zeros(n)
     for i, s in enumerate(syms):
         lev = float(leverage_map.get(s, 1.0))
         vol_i = risk_state.leg_vol.get(s, 0.2)
-        # Shadow-mode proxy: until real alpha/expected-return models are wired
-        # in, keep expected return above the configured risk-aversion hurdle.
-        # Otherwise a downside-averse utility optimizer turns every high-vol
-        # HOLD sleeve into a near-zero target, which is a false liquidation.
         base_mu = vol_i * max(2.0, dd_aversion + 1.0)
         mu[i] = expected_leg_return(s, vol_i, lev, 20.0, base_mu, sizing_cfg)
 
@@ -282,12 +292,24 @@ def _solve_slsqp(
             x0,
             method="SLSQP",
             bounds=bounds,
+            # TODO: add CVaR constraint. CVaR budget is currently enforced
+            # indirectly via risk_state.cvar_scaler folded into upper_bounds, not
+            # as an explicit SLSQP constraint. The optimizer can technically violate
+            # CVaR by reallocating within the upper-bound space when the vol
+            # constraint is non-binding but CVaR is. Adding
+            # cvar_constraint(w) = cvar_budget - normal_approx_cvar(w, cov, alpha)
+            # would close this gap.
             constraints=[{"type": "ineq", "fun": vol_constraint}],
             options={"maxiter": 200, "ftol": 1e-10},
         )
     if result.success:
         return np.clip(result.x, 0.0, upper)
-    return upper * 0.3
+    # Fallback: scale upper * 0.3, then enforce vol feasibility.
+    w_fallback = np.clip(upper * 0.3, 0.0, upper)
+    vol_fb = math.sqrt(max(float(w_fallback @ cov @ w_fallback), 1e-12))
+    if vol_fb > vol_budget:
+        w_fallback = w_fallback * (vol_budget / vol_fb)
+    return w_fallback
 
 
 def _solve_grid(
@@ -336,7 +358,11 @@ def _solve_grid(
                             best_u = u
                             best_w = w.copy()
     else:
-        best_w = upper * 0.3
+        # n > 3: grid is too expensive; fall back to scaled upper bounds.
+        best_w = np.clip(upper * 0.3, 0.0, upper)
+        vol_fb = math.sqrt(max(float(best_w @ cov @ best_w), 1e-12))
+        if vol_fb > vol_budget:
+            best_w = best_w * (vol_budget / vol_fb)
 
     return best_w
 
