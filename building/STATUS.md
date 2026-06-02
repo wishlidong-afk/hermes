@@ -22,7 +22,7 @@
 | NEXT | 状态 | 关键指标 | 阻塞 |
 |---|---|---|---|
 | NEXT-0 数据地基 | DONE-CODE | 34/38 symbols ≤2018-01-02 | - |
-| NEXT-1 软数据 | IN-PROGRESS / 盲区门已过 | MSTR 26 / FNGU 19 / SOXL 19 | PCR/NAAIM/BTC 待接 |
+| NEXT-1 软数据 | **IN-PROGRESS / PROXY-CSV-CONNECTED** | MSTR 26→预估~22 / FNGU 19 / SOXL 19；PCR/NAAIM/BTC funding-basis 代理 CSV 已接入 adapter | 真实软数据待手动回填 |
 | NEXT-2 回测 | **DONE / P1-COMPLETE** | real-only CAGR 44.39% Sharpe 1.79 DSR 1.66 | - |
 | P0 合成历史 | **DONE / STRICT-GATE-PASSED** | FNGU TE 4.67%, corr 0.9986 | - |
 | NEXT-3 校准 | **DONE / M3-COMPLETE** | deployment PBO=0.1538；chosen E75_D65_R50 | - |
@@ -34,7 +34,8 @@
 | P6 Phase III dry-run comparator | **DONE / HUMAN-GATE-READY** | daily comparator rows=252 / errors=0 / R3 violations=0 / PASS=128 / WARN=124 / BLOCK=0 / avg old-new turnover 0.2244→0.2285 | 需人工审阅 WARN 日期；通过后才可设计 scaler migration |
 | P7 Phase III WARN review | **DONE / WARN-REVIEW-PACK-DONE** | WARN=124 / EXTREME_CORR=102 / WARN candidate-old avg：1d -0.00%、5d -0.05%、10d -0.29% / readiness=REVIEW_REQUIRED | live 开关保持关闭；需人工决定是否接受机会成本 |
 | P8 Phase III WARN sensitivity | **DONE / WARN-SENSITIVITY-DONE** | 24 scenarios / retained-penalty candidate `110/0.90`: WARN 10d -0.13%, max turnover delta 0.2886, R3=0, BLOCK=0 | live 开关保持关闭 |
-| P9 Phase III 110/0.90 full/exact | **DONE / FULL-EXACT-PASSED / REVIEW-GATED** | 2113 日 full-window：errors=0、R3=0、CAGR 20.37%、MaxDD -24.32%、Sharpe 1.0171、turnover 338.0594；2020H1/2022H1/2024H1/2026YTD exact/fast 抽查 PASS | 需 updated migration acceptance pack；需人工接受约 1.85 pp 回撤放大；live 开关保持关闭 |
+| P9 Phase III 110/0.90 full/exact | **DONE / FULL-EXACT-PASSED / REVIEW-GATED** | 2113 日 full-window：errors=0、R3=0、CAGR 20.37%、MaxDD -24.32%、Sharpe 1.0171、turnover 338.0594；2020H1/2022H1/2024H1/2026YTD exact/fast 抽查 PASS | 需人工接受约 1.85 pp 回撤放大；live 开关保持关闭 |
+| **P10 Migration Acceptance Pack** | **DONE / HUMAN-GATE-PENDING** | P8/P9 结论已合并；人工审阅检查单 9/10 通过；第 10 项待人工确认是否接受 1.85 pp 回撤放大 | **⬜ 人工决定接受/拒绝 110/0.90 候选** |
 
 ## P4 整合地基进度
 
