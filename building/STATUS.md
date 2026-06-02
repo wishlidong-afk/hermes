@@ -22,7 +22,7 @@
 | NEXT | 状态 | 关键指标 | 阻塞 |
 |---|---|---|---|
 | NEXT-0 数据地基 | DONE-CODE | 34/38 symbols ≤2018-01-02 | - |
-| NEXT-1 软数据 | **IN-PROGRESS / PROXY-CSV-CONNECTED** | MSTR 26→预估~22 / FNGU 19 / SOXL 19；PCR/NAAIM/BTC funding-basis 代理 CSV 已接入 adapter | 真实软数据待手动回填 |
+| NEXT-1 软数据 | **DONE / REAL-DATA-AUTO-FETCHED** | MSTR **18** / FNGU **11** / SOXL **11**（均大幅下降）；NAAIM 1038行真实数据(2006→2026)；BTC funding+DVOL 1897行真实数据(2021→2026)；全自动获取脚本已建 | PCR 仍为代理（CBOE 端点封锁） |
 | NEXT-2 回测 | **DONE / P1-COMPLETE** | real-only CAGR 44.39% Sharpe 1.79 DSR 1.66 | - |
 | P0 合成历史 | **DONE / STRICT-GATE-PASSED** | FNGU TE 4.67%, corr 0.9986 | - |
 | NEXT-3 校准 | **DONE / M3-COMPLETE** | deployment PBO=0.1538；chosen E75_D65_R50 | - |
