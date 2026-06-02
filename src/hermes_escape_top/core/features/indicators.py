@@ -78,6 +78,24 @@ def indicator_frame(df: pd.DataFrame, atr_multiplier: float = 4.5, chandelier_pe
             out["vwap20"] = (typical * volume).rolling(20).sum() / denom20
             denom60 = volume.rolling(60).sum().replace(0, np.nan)
             out["avwap_60d"] = (typical * volume).rolling(60).sum() / denom60
+            # v25-monolith-aligned: peak-anchored AVWAP (VWAP from the date of
+            # the 20-bar-prior high, recomputed rolling per row) + 20-bar support.
+            out["avwap_anchored_20d"] = np.nan
+            out["support_20d_low"] = low.shift(1).rolling(20).min()
+            if isinstance(out.index, pd.DatetimeIndex) and len(out) > 21:
+                anchored_vals = np.full(len(out), np.nan)
+                arr_close = close.values
+                arr_vol = volume.values
+                arr_high = high.values
+                for i in range(21, len(out)):
+                    window_high = arr_high[max(0, i - 21) : i]
+                    anchor = int(np.nanargmax(window_high)) + max(0, i - 21)
+                    v_slice = arr_vol[anchor : i + 1]
+                    c_slice = arr_close[anchor : i + 1]
+                    total_vol = np.nansum(v_slice)
+                    if total_vol > 0:
+                        anchored_vals[i] = np.nansum(c_slice * v_slice) / total_vol
+                out["avwap_anchored_20d"] = anchored_vals
             money_flow_multiplier = ((close - low) - (high - close)) / (high - low).replace(0, np.nan)
             money_flow_volume = money_flow_multiplier * volume
             out["cmf20"] = money_flow_volume.rolling(20).sum() / denom20
