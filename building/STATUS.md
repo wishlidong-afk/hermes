@@ -14,7 +14,7 @@
 | 11 回测与验证框架 | DONE / M3-COMPLETE | local only | passed | full-proxy + real-only + NEXT-3 校准完成 | 2026-06-01 |
 | 12 镜像参考系统 | DONE | local only | n/a | IBKR 未接 | 2026-06-01 |
 | 13 元模型 | LOCKED | - | - | 标签解锁门未达 | - |
-| 14 WebUI 与可观测性 | PARTIAL | local only | n/a | 未接 IBKR drilldown | 2026-06-01 |
+| 14 WebUI 与可观测性 | **DONE（基础）** | local only | n/a | 新增 Optimizer Detail / Factor Scores / System Health 面板；IBKR drilldown TODO | 2026-06-02 |
 | 15 集成、dry-run、切换 | **IN-PROGRESS / FULL-EXACT-PASSED / REVIEW-GATED** | local only | shadow + WARN sensitivity + full/exact passed | Phase II 252 日 shadow、相关闸敏感性、2113 日 full-window sensitivity 已跑通；P9 已复核 `110/0.90`：CAGR 20.37%、MaxDD -24.32%、R3=0、4 个 exact/fast 抽查通过；live 开关保持关闭 | 2026-06-02 |
 
 ## NEXT 工单进度
