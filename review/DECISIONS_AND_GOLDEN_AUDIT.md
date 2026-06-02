@@ -6,6 +6,7 @@
 
 | # | 决策 | 落地 |
 |---|---|---|
+| 1 | 110/0.90 是否接受迁移 | **接受**(你预授权"PBO<0.5 即接受")。全网格 exact 跑完:**train-greedy PBO=0.077**(原文档警报值 0.6154,现远低于 0.5),候选 `fixed_oos_below_median_share=0.0`(21 场景最优),CAGR 21.5%/MaxDD −25.6%/Sharpe 1.01,errors=0、R3=0。**过拟合门通过。** |
 | 2 | 旧引擎退役时机 | **迁移验收后退役**;现保留作回测 baseline 对照(`run_full.py`/`phase2`)。活路径已单一源。 |
 | 3 | Kelly | **保持关闭**(默认 `enabled=False`;启用须显式校准 `p_act`,否则报错)。 |
 | 4 | mu 模式 | **保持 `proxy`**(已全窗口验证);`historical_tilt` 留作 opt-in,待单独回测。 |
