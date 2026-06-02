@@ -2,9 +2,17 @@
 
 > **Created: 2026-06-02**
 > This directory is the single canonical home for `hermes_escape_top`.
-> All fixes from `review/CODE_REVIEW_FOLLOWUP.md` are applied here.
+> All fixes from `review/CODE_REVIEW_FOLLOWUP.md` + `review/FIX_LOG_ROUND2.md` are applied here.
 > `building/source_snapshots/` is now **archive only** — do not edit snapshots
 > directly; edit `src/` and update snapshots only when cutting a new milestone.
+>
+> **Runnable truth & test status (2026-06-02):** the executable package (with data,
+> 316 tests, phase scripts) lives at `~/.hermes/skills/investment/escape-top/`.
+> The round-2 fixes were applied AND tested there: **315 passed / 1 failed**, where the
+> single failure is a pre-existing module-B golden scoring drift unrelated to these fixes
+> (see `review/RUN_LOG_TESTS_ROUND2.md`). `pipeline.py` / `risk_engine.py` /
+> `sizing_optimizer.py` here mirror exactly what was tested. Phase II–IV backtests were
+> NOT rerun (deferred) — old Sharpe/MaxDD/PBO numbers remain stale until then.
 
 ---
 

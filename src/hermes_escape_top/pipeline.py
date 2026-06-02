@@ -21,8 +21,8 @@ from .core.features.regime import Regime, RegimeInput, classify_regime
 from .core.portfolio.risk_budget import compute_portfolio_risk
 from .core.portfolio.risk_engine import build_risk_state
 from .core.portfolio.sizing_optimizer import optimize_targets
-from .core.confidence.spine import compute_confidence
 from .core.contracts import Verdict, ConfidenceState
+from .core.confidence.spine import compute_confidence
 from .core.routing.capital_routing import route_capital
 from .core.reentry.plan import build_reentry_plan
 from .core.decision.signal_journal import SignalJournalEntry, append_signal_journal, trading_days_since_last_sell
@@ -186,6 +186,23 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any
     )
     payload["audit_log_path"] = str(audit_path)
     payload["signal_journal_path"] = str(signal_path)
+
+    # ── IBKR reconciliation (NEXT-6, read-only) ───────────────────────────────
+    if config.get("ibkr", {}).get("enabled", False):
+        try:
+            from hermes_escape_top.ibkr.positions import read_positions
+            from hermes_escape_top.ibkr.reconcile import reconcile as ibkr_reconcile
+            snap = read_positions(config)
+            # sizing: {sym: _SizingProxy} → {sym: {target_weight, ...}}
+            sizing_for_recon = {s: d.to_dict() for s, d in sizing.items()}
+            routing_for_recon = {s: d.to_dict() for s, d in routing.items()}
+            report = ibkr_reconcile(snap, sizing_for_recon, routing_for_recon)
+            payload["ibkr"] = report.to_dict()
+        except Exception as exc:
+            payload["ibkr"] = {"error": str(exc), "source": "unavailable"}
+    else:
+        payload["ibkr"] = {"source": "disabled", "note": "set ibkr.enabled=true to activate"}
+
     return payload
 
 
@@ -193,10 +210,7 @@ def _data_confidence(bundles: Dict[str, Any], config: Dict[str, Any]) -> float:
     """Data-quality confidence in [floor, 1.0] from the scores' missing_weight.
 
     This is where the "缺数据 ≠ 安全" red line is enforced for the confidence
-    spine: more missing soft data → lower confidence → smaller positions. The
-    blind-spot gate (default 30) is the missing_weight at which a symbol is
-    considered fully blind; a floor keeps a single sparse leg from zeroing the
-    whole book on data gaps alone.
+    spine: more missing soft data → lower confidence → smaller positions.
     """
     gate = float(config.get("scoring", {}).get("blind_spot_gate", 30.0))
     floor = float(config.get("confidence", {}).get("data_conf_floor", 0.3))
@@ -216,11 +230,7 @@ def _max_staleness_days(
     config: Dict[str, Any],
     as_of: Optional[str],
 ) -> Optional[float]:
-    """Worst (largest) staleness across trade symbols: as_of minus newest bar.
-
-    Returns None when as_of or histories are unavailable so the spine treats
-    staleness as an unknown (neutral) rather than fabricating freshness.
-    """
+    """Worst (largest) staleness across trade symbols: as_of minus newest bar."""
     if as_of is None:
         return None
     try:
@@ -280,24 +290,6 @@ def _optimize_sizing(
             close = hist["Close"] if "Close" in hist.columns else hist.iloc[:, 0]
             leg_returns[symbol] = close.pct_change().dropna()
 
-    # ── E12 liquidity data from histories ─────────────────────────────────────
-    netliq = float(config.get("portfolio", {}).get("netliq", 100_000.0))
-    liquidity_data: dict = {}
-    for symbol, hist in histories.items():
-        if hist is None or hist.empty:
-            continue
-        close_col = "Close" if "Close" in hist.columns else hist.columns[0]
-        price_series = hist[close_col].dropna()
-        if price_series.empty:
-            continue
-        price = float(price_series.iloc[-1])
-        if "Volume" in hist.columns:
-            vol_series = hist["Volume"].dropna().tail(20)
-            adv20 = float(vol_series.mean() * price) if len(vol_series) >= 5 else float("inf")
-        else:
-            adv20 = float("inf")  # no volume data → liquidity_cap will not bind
-        liquidity_data[symbol] = {"adv20": adv20, "price": price, "netliq": netliq}
-
     optimizer_cfg = {
         "risk_engine": config.get("portfolio", {}),
         "sizing": {
@@ -323,22 +315,15 @@ def _optimize_sizing(
     )
 
     # ── Build ConfidenceState via ConfidenceSpine (Gate ④) ───────────────────
-    # IMPORTANT: the spine inputs must come from REAL signal sources, not from
-    # `portfolio_risk` (a risk-budget object that has none of these attributes —
-    # reading them via getattr silently yielded None for all four → every run
-    # collapsed to neutral 0.5 → permanent DEGRADED). We compute the signals we
-    # actually have and pass truthful "healthy" states for monitors that ran
-    # clean, matching the original P4 pipeline's contract:
-    #   - data_conf:     derived from the scores' missing_weight (the "缺数据≠安全"
-    #                    red line lives HERE, as a low confidence, not as None).
-    #   - staleness_days: newest trade-symbol bar vs as_of.
-    #   - failover/drift: healthy defaults until those monitors are wired.
-    #   - fragility/disagreement: 0.0 placeholder (no signal) pending E7/E22.
+    # Inputs MUST come from real signal sources, not from portfolio_risk (which
+    # has none of these attributes — reading them via getattr silently yields
+    # None → spine collapses to 0.5 → permanent DEGRADED). Compute what we have;
+    # pass truthful "healthy" states for monitors that ran clean.
     confidence = compute_confidence(
         data_conf=_data_confidence(bundles, config),
-        failover_state={"is_degraded": False},   # TODO: wire real failover state
+        failover_state={"is_degraded": False},      # TODO: wire real failover state
         staleness_days=_max_staleness_days(histories, config, as_of),
-        drift_state={"psi": 0.0, "alert": False},  # TODO: wire real drift monitor
+        drift_state={"psi": 0.0, "alert": False},   # TODO: wire real drift monitor
         fragility=0.0,       # TODO: wire E7 fragility score
         disagreement=0.0,    # TODO: wire E22 model disagreement
         cfg=config.get("confidence", {}),
@@ -346,11 +331,7 @@ def _optimize_sizing(
 
     # ── Run optimizer ─────────────────────────────────────────────────────────
     try:
-        opt_decision = optimize_targets(
-            verdicts, risk_state, confidence, optimizer_cfg,
-            leg_returns=leg_returns,
-            liquidity_data=liquidity_data,
-        )
+        opt_decision = optimize_targets(verdicts, risk_state, confidence, optimizer_cfg)
     except Exception as exc:
         # Safety fallback: revert to old scaler chain if optimizer fails
         return size_portfolio(
@@ -377,8 +358,7 @@ def _optimize_sizing(
             sleeve_cap=cap,
             sell_fraction=float(result_obj.sell_fraction),
             reference_target_weight=old_ref,
-            # Report the RiskEngine gross (single risk source, Gate ①), not the
-            # legacy risk-budget engine's scaler.
+            # Report the RiskEngine gross (single risk source, Gate ①).
             vol_scaler=float(risk_state.gross_scaler),
             gross_scaler=float(risk_state.gross_scaler),
             target_weight=new_target,
