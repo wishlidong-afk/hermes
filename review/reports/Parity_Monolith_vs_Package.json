@@ -1,0 +1,219 @@
+{
+  "caveat": "V1: inputs from each system's own loader; byte-identical bridge is T1-T4.",
+  "counters": {
+    "destination": {
+      "match": 13,
+      "total": 18
+    },
+    "hard_ids": {
+      "match": 18,
+      "total": 18
+    },
+    "routed": {
+      "match": 13,
+      "total": 18
+    },
+    "sell_pct": {
+      "match": 13,
+      "total": 18
+    },
+    "status": {
+      "match": 8,
+      "total": 18
+    }
+  },
+  "dates_compared": [
+    "2026-05-22",
+    "2026-05-26",
+    "2026-05-27",
+    "2026-05-28",
+    "2026-05-29",
+    "2026-06-01"
+  ],
+  "divergences": [
+    {
+      "date": "2026-05-22",
+      "field": "status",
+      "monolith": "WATCH",
+      "package": "HOLD",
+      "symbol": "FNGU"
+    },
+    {
+      "date": "2026-05-22",
+      "field": "status",
+      "monolith": "WATCH",
+      "package": "HOLD",
+      "symbol": "SOXL"
+    },
+    {
+      "date": "2026-05-26",
+      "field": "status",
+      "monolith": "WATCH",
+      "package": "HOLD",
+      "symbol": "FNGU"
+    },
+    {
+      "date": "2026-05-26",
+      "field": "status",
+      "monolith": "REDUCE",
+      "package": "HOLD",
+      "symbol": "SOXL"
+    },
+    {
+      "date": "2026-05-26",
+      "field": "sell_pct",
+      "monolith": 60,
+      "package": 0.0,
+      "symbol": "SOXL"
+    },
+    {
+      "date": "2026-05-26",
+      "field": "destination",
+      "monolith": "BRK.B",
+      "package": null,
+      "symbol": "SOXL"
+    },
+    {
+      "date": "2026-05-26",
+      "field": "routed",
+      "monolith": true,
+      "package": false,
+      "symbol": "SOXL"
+    },
+    {
+      "date": "2026-05-27",
+      "field": "status",
+      "monolith": "REDUCE",
+      "package": "HOLD",
+      "symbol": "FNGU"
+    },
+    {
+      "date": "2026-05-27",
+      "field": "sell_pct",
+      "monolith": 60,
+      "package": 0.0,
+      "symbol": "FNGU"
+    },
+    {
+      "date": "2026-05-27",
+      "field": "destination",
+      "monolith": "BRK.B",
+      "package": null,
+      "symbol": "FNGU"
+    },
+    {
+      "date": "2026-05-27",
+      "field": "routed",
+      "monolith": true,
+      "package": false,
+      "symbol": "FNGU"
+    },
+    {
+      "date": "2026-05-28",
+      "field": "status",
+      "monolith": "WATCH",
+      "package": "HOLD",
+      "symbol": "FNGU"
+    },
+    {
+      "date": "2026-05-29",
+      "field": "status",
+      "monolith": "WATCH",
+      "package": "HOLD",
+      "symbol": "FNGU"
+    },
+    {
+      "date": "2026-05-29",
+      "field": "status",
+      "monolith": "WATCH",
+      "package": "REDUCE",
+      "symbol": "SOXL"
+    },
+    {
+      "date": "2026-05-29",
+      "field": "sell_pct",
+      "monolith": 0,
+      "package": 60.0,
+      "symbol": "SOXL"
+    },
+    {
+      "date": "2026-05-29",
+      "field": "destination",
+      "monolith": null,
+      "package": "BRK.B",
+      "symbol": "SOXL"
+    },
+    {
+      "date": "2026-05-29",
+      "field": "routed",
+      "monolith": false,
+      "package": true,
+      "symbol": "SOXL"
+    },
+    {
+      "date": "2026-06-01",
+      "field": "status",
+      "monolith": "REDUCE",
+      "package": "HOLD",
+      "symbol": "FNGU"
+    },
+    {
+      "date": "2026-06-01",
+      "field": "sell_pct",
+      "monolith": 60,
+      "package": 0.0,
+      "symbol": "FNGU"
+    },
+    {
+      "date": "2026-06-01",
+      "field": "destination",
+      "monolith": "BRK.B",
+      "package": null,
+      "symbol": "FNGU"
+    },
+    {
+      "date": "2026-06-01",
+      "field": "routed",
+      "monolith": true,
+      "package": false,
+      "symbol": "FNGU"
+    },
+    {
+      "date": "2026-06-01",
+      "field": "status",
+      "monolith": "WATCH",
+      "package": "REDUCE",
+      "symbol": "SOXL"
+    },
+    {
+      "date": "2026-06-01",
+      "field": "sell_pct",
+      "monolith": 0,
+      "package": 60.0,
+      "symbol": "SOXL"
+    },
+    {
+      "date": "2026-06-01",
+      "field": "destination",
+      "monolith": null,
+      "package": "BRK.B",
+      "symbol": "SOXL"
+    },
+    {
+      "date": "2026-06-01",
+      "field": "routed",
+      "monolith": false,
+      "package": true,
+      "symbol": "SOXL"
+    }
+  ],
+  "match_rates": {
+    "destination": 0.7222222222222222,
+    "hard_ids": 1.0,
+    "routed": 0.7222222222222222,
+    "sell_pct": 0.7222222222222222,
+    "status": 0.4444444444444444
+  },
+  "n_divergences": 25,
+  "schema_version": "parity-monolith-vs-package-v1"
+}
