@@ -35,7 +35,8 @@
 | P7 Phase III WARN review | **DONE / WARN-REVIEW-PACK-DONE** | WARN=124 / EXTREME_CORR=102 / WARN candidate-old avg：1d -0.00%、5d -0.05%、10d -0.29% / readiness=REVIEW_REQUIRED | live 开关保持关闭；需人工决定是否接受机会成本 |
 | P8 Phase III WARN sensitivity | **DONE / WARN-SENSITIVITY-DONE** | 24 scenarios / retained-penalty candidate `110/0.90`: WARN 10d -0.13%, max turnover delta 0.2886, R3=0, BLOCK=0 | live 开关保持关闭 |
 | P9 Phase III 110/0.90 full/exact | **DONE / FULL-EXACT-PASSED / REVIEW-GATED** | 2113 日 full-window：errors=0、R3=0、CAGR 20.37%、MaxDD -24.32%、Sharpe 1.0171、turnover 338.0594；2020H1/2022H1/2024H1/2026YTD exact/fast 抽查 PASS | 需人工接受约 1.85 pp 回撤放大；live 开关保持关闭 |
-| **P10 Migration Acceptance Pack** | **DONE / HUMAN-GATE-PENDING** | P8/P9 结论已合并；人工审阅检查单 9/10 通过；第 10 项待人工确认是否接受 1.85 pp 回撤放大 | **⬜ 人工决定接受/拒绝 110/0.90 候选** |
+| **P10 Migration Acceptance Pack** | **DONE / HUMAN-GATE-PASSED** | 人工于 2026-06-02 确认接受 1.85 pp 回撤放大；110/0.90 候选通过全部门控 | ✅ 人工确认 |
+| **P11 Phase III 参数层迁移** | **DONE** | config 已更新 extreme=110/penalty=0.90；新 dry-run PASS=129/WARN=123/BLOCK=0/R3=0；max turnover delta 降至 0.2886；270 tests OK | Phase III Step 2（optimizer 替换 size_portfolio 乘法链）TODO |
 
 ## P4 整合地基进度
 
