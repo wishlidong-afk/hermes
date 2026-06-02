@@ -11,6 +11,7 @@ no-scipy fallback: constrained grid search + projection (deterministic).
 
 from __future__ import annotations
 
+import itertools
 import math
 import warnings
 from typing import Any, Dict, List, Optional, Tuple
@@ -147,16 +148,26 @@ def _rolling_annualized_mean(ret: Any, window: int = 252) -> Optional[float]:
         return None
 
 
-def _cvar_normal_factor(cvar_alpha: float) -> float:
-    """φ(Φ⁻¹(1−α)) / (1−α) — the normal-distribution CVaR multiplier.
+def _shrink_expected_returns(
+    raw_mu: Dict[str, float],
+    shrink: float,
+) -> Dict[str, float]:
+    """James-Stein-style shrinkage of per-leg means toward the cross-sectional mean.
 
-    CVaR_daily ≈ port_vol_daily × _cvar_normal_factor(α).
-    For α=0.95: Φ⁻¹(0.05)=−1.6449, φ(1.6449)=0.1031, factor≈2.063.
+    Trailing-mean estimates of expected return are notoriously noise-dominated
+    (the "mean is hard to estimate" problem): with ~252 daily observations the
+    standard error of an annualized mean swamps the signal. Shrinking each leg
+    toward the cross-sectional grand mean trades a little bias for a large
+    variance reduction, so the optimizer differentiates legs on durable
+    differences rather than estimation noise.
+
+    shrunk_i = shrink * grand_mean + (1 - shrink) * raw_mu_i
     """
-    p = 1.0 - cvar_alpha
-    z = math.sqrt(2.0) * math.erfinv(2.0 * p - 1.0)  # Φ⁻¹(1−α), negative
-    phi_z = math.exp(-0.5 * z * z) / math.sqrt(2.0 * math.pi)
-    return phi_z / max(p, 1e-9)
+    if not raw_mu:
+        return {}
+    shrink = max(0.0, min(1.0, shrink))
+    grand = sum(raw_mu.values()) / len(raw_mu)
+    return {s: shrink * grand + (1.0 - shrink) * m for s, m in raw_mu.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -176,17 +187,20 @@ def optimize_targets(
     Constraints applied in order (each tightens upper_bounds):
       - R3:         w_i <= verdict.rule_target_weight (ALWAYS — belt-and-suspenders)
       - Confidence: w_i <= rule_target_i × decision_confidence  (E4 data quality)
-      - Risk gross: w_i <= confidence_bound_i × risk_state.gross_scaler (E5 vol/CVaR)
-      - E26 Kelly:  upper_i *= kelly_fraction(p_act=conf, payoff, frac)
+      - Risk gross: w_i <= confidence_bound_i × risk_state.gross_scaler
+                    (E5 — gross_scaler = min(vol_scaler, cvar_scaler), so BOTH the
+                    vol budget and the historical-sim CVaR budget are already
+                    encoded here; the optimizer does not re-impose CVaR.)
+      - E26 Kelly:  upper_i *= kelly_fraction(...)  — OFF by default; opt-in only,
+                    and only with a calibrated win probability (see kelly cfg).
       - E12 Liq:    upper_i = min(upper_i, liquidity_cap(adv20, price, netliq))
       - E15 CPPI:   scale all upper_i if sum(upper) > cppi_exposure_cap
       - Vol:        sqrt(w'cov w) <= vol_budget  (explicit SLSQP constraint)
-      - CVaR:       CVaR_daily(w) <= cvar_budget (normal-approx SLSQP constraint)
 
     Args:
-        leg_returns: per-symbol pd.Series of daily returns for mu estimation.
-                     When provided, uses rolling 252-day annualized mean;
-                     otherwise falls back to vol-based proxy.
+        leg_returns: per-symbol pd.Series of daily returns. Only consulted when
+                     sizing.mu_mode == "historical_tilt" (opt-in); under the
+                     default "proxy" mode the vol-based proxy is used.
         liquidity_data: per-symbol dict with keys 'adv20', 'price', 'netliq'
                         for E12 liquidity cap. Omit to skip E12.
     """
@@ -206,10 +220,21 @@ def optimize_targets(
     upper_bounds = rule_targets * conf_factor * risk_gross_factor
 
     # ── E26: Fractional Kelly cap ─────────────────────────────────────────────
+    # OFF by default. Kelly's p_act is the probability the position WINS — it must
+    # come from a calibrated probability model (FactorLab score→probability), NOT
+    # from decision_confidence (a data-quality composite). Feeding confidence in as
+    # p_act is a category error that silently slashes every position ~75-90%.
+    # Enable only once a real p_act source is wired and pass it via kelly.p_act.
     kelly_cfg = sizing_cfg.get("kelly", {})
-    if kelly_cfg.get("enabled", True):
+    if kelly_cfg.get("enabled", False):
+        p_act = kelly_cfg.get("p_act", None)
+        if p_act is None:
+            raise ValueError(
+                "kelly.enabled=True requires a calibrated kelly.p_act (win "
+                "probability); decision_confidence must not be used as p_act."
+            )
         kf = kelly_fraction(
-            p_act=conf_factor,
+            p_act=float(p_act),
             payoff_ratio=float(kelly_cfg.get("payoff_ratio", 2.0)),
             frac=float(kelly_cfg.get("frac", 0.3)),
             ci_width=float(kelly_cfg.get("ci_width", 0.0)),
@@ -243,35 +268,63 @@ def optimize_targets(
     # Ensure non-negative after all caps
     upper_bounds = np.clip(upper_bounds, 0.0, None)
 
-    # ── Expected returns: rolling historical mean (option A) ──────────────────
-    # When leg_returns are provided the optimizer uses the actual trailing
-    # 252-day annualized mean. Without them the vol-proxy (base_mu = 4×vol_i)
-    # makes every leg push to its upper bound — SLSQP only adds value when
-    # the vol or CVaR budget is binding. Providing leg_returns enables the
-    # optimizer to meaningfully differentiate allocations across legs.
+    # ── Expected returns ──────────────────────────────────────────────────────
+    # mu_mode (default "proxy"):
+    #   "proxy"           base_mu_i = vol_i × max(2, dd+1). This keeps
+    #                     mu_i > dd_aversion × vol_i so the downside-averse
+    #                     utility never imposes an absolute Sharpe>dd hurdle (no
+    #                     asset clears Sharpe>3); the optimizer then performs
+    #                     risk-budgeted allocation up to the upper bounds — the
+    #                     behaviour validated in Phase II/III. The hold/no-hold
+    #                     decision belongs to the scoring/verdict layer (which
+    #                     sets rule_target_weight), NOT to this optimizer.
+    #   "historical_tilt" opt-in, BACKTEST-GATED. Keeps base_mu >= proxy (so the
+    #                     posture is preserved) but adds a bounded rank tilt from
+    #                     the cross-sectionally shrunk trailing 252d mean, so the
+    #                     optimizer favours higher-return legs WHEN the vol budget
+    #                     binds. A raw trailing mean must NOT be used directly: it
+    #                     is mostly estimation noise and, against dd=3, collapses
+    #                     every high-vol leg to zero (false liquidation).
+    mu_mode = str(sizing_cfg.get("mu_mode", "proxy"))
+    proxies = {s: risk_state.leg_vol.get(s, 0.2) * max(2.0, dd_aversion + 1.0) for s in syms}
+
+    tilt: Dict[str, float] = {s: 0.0 for s in syms}
+    if mu_mode == "historical_tilt" and leg_returns is not None:
+        shrink = float(sizing_cfg.get("mu_shrink", 0.5))
+        tilt_cap = float(sizing_cfg.get("mu_tilt_cap", 0.5))
+        raw_mu = {s: _rolling_annualized_mean(leg_returns[s])
+                  for s in syms if s in leg_returns}
+        raw_mu = {s: v for s, v in raw_mu.items() if v is not None}
+        shrunk = _shrink_expected_returns(raw_mu, shrink)
+        if len(shrunk) >= 2:
+            lo, hi = min(shrunk.values()), max(shrunk.values())
+            span = hi - lo
+            if span > 1e-12:
+                # rank_frac in [0,1]; worst leg gets +0, best gets +tilt_cap
+                for s, v in shrunk.items():
+                    tilt[s] = tilt_cap * (v - lo) / span
+
     mu = np.zeros(n)
     for i, s in enumerate(syms):
         lev = float(leverage_map.get(s, 1.0))
         vol_i = risk_state.leg_vol.get(s, 0.2)
-        if leg_returns is not None and s in leg_returns:
-            hist_mu = _rolling_annualized_mean(leg_returns[s])
-            base_mu = hist_mu if hist_mu is not None else vol_i * max(2.0, dd_aversion + 1.0)
-        else:
-            base_mu = vol_i * max(2.0, dd_aversion + 1.0)
+        base_mu = proxies[s] * (1.0 + tilt[s])   # >= proxy, preserves posture
         mu[i] = expected_leg_return(s, vol_i, lev, 20.0, base_mu, sizing_cfg)
 
-    # ── Covariance and budgets (single source: RiskState) ─────────────────────
+    # ── Covariance and budget (single source: RiskState) ──────────────────────
+    # CVaR is NOT re-imposed here: risk_state.gross_scaler already equals
+    # min(vol_scaler, cvar_scaler) from the historical-sim CVaR in RiskEngine,
+    # so the CVaR budget is encoded in upper_bounds. A second normal-approx CVaR
+    # constraint would be both redundant and wrong (normal approx understates the
+    # fat tails of leveraged ETFs). Vol is the only explicit solver constraint.
     cov = risk_state.cov
     if cov.shape[0] != n:
         cov = np.eye(n) * 0.04
     vol_budget = risk_state.vol_budget
-    cvar_budget = risk_state.cvar_budget
-    cvar_alpha = float(sizing_cfg.get("cvar_alpha", 0.95))
 
     # ── Solve ─────────────────────────────────────────────────────────────────
     try:
-        w_opt = _solve_slsqp(mu, cov, upper_bounds, vol_budget, dd_aversion,
-                             cvar_budget, cvar_alpha)
+        w_opt = _solve_slsqp(mu, cov, upper_bounds, vol_budget, dd_aversion)
     except Exception:
         w_opt = _solve_grid(mu, cov, upper_bounds, vol_budget, dd_aversion, n)
 
@@ -342,33 +395,22 @@ def _solve_slsqp(
     upper: np.ndarray,
     vol_budget: float,
     dd_aversion: float,
-    cvar_budget: float = 0.08,
-    cvar_alpha: float = 0.95,
 ) -> np.ndarray:
-    """scipy SLSQP solver with explicit vol + CVaR constraints.
+    """scipy SLSQP solver with an explicit annualized-vol constraint.
 
-    CVaR uses the normal approximation:
-        CVaR_daily(w) ≈ port_vol_annual(w) / √252 × φ(Φ⁻¹(1−α)) / (1−α)
-    This is exact under normality and conservative (underestimates fat-tail CVaR),
-    making the feasible set a superset of the true CVaR-feasible set — acceptable
-    as a constraint because the upper_bounds already encode the historical-sim
-    CVaR scaler from RiskState.
+    CVaR is intentionally not a solver constraint: it is already enforced upstream
+    via upper_bounds (risk_state.gross_scaler embeds the historical-sim CVaR
+    scaler). See optimize_targets for the rationale.
     """
     from scipy.optimize import minimize
 
     n = len(mu)
-    cvar_factor = _cvar_normal_factor(cvar_alpha)
 
     def neg_utility(w):
         return -(float(w @ mu) - dd_aversion * math.sqrt(max(float(w @ cov @ w), 1e-12)))
 
     def vol_constraint(w):
         return vol_budget - math.sqrt(max(float(w @ cov @ w), 1e-12))
-
-    def cvar_constraint(w):
-        port_vol_ann = math.sqrt(max(float(w @ cov @ w), 1e-12))
-        cvar_approx = port_vol_ann / math.sqrt(252.0) * cvar_factor
-        return cvar_budget - cvar_approx
 
     bounds = [(0.0, float(upper[i])) for i in range(n)]
     x0 = upper * 0.5
@@ -383,23 +425,16 @@ def _solve_slsqp(
             x0,
             method="SLSQP",
             bounds=bounds,
-            constraints=[
-                {"type": "ineq", "fun": vol_constraint},
-                {"type": "ineq", "fun": cvar_constraint},
-            ],
+            constraints=[{"type": "ineq", "fun": vol_constraint}],
             options={"maxiter": 200, "ftol": 1e-10},
         )
     if result.success:
         return np.clip(result.x, 0.0, upper)
-    # Fallback: scale upper × 0.3, then enforce both vol and CVaR feasibility.
+    # Fallback: scale upper × 0.3, then enforce vol feasibility.
     w_fallback = np.clip(upper * 0.3, 0.0, upper)
     port_vol_ann = math.sqrt(max(float(w_fallback @ cov @ w_fallback), 1e-12))
     if port_vol_ann > vol_budget:
         w_fallback = w_fallback * (vol_budget / port_vol_ann)
-        port_vol_ann = vol_budget
-    cvar_approx = port_vol_ann / math.sqrt(252.0) * cvar_factor
-    if cvar_approx > cvar_budget:
-        w_fallback = w_fallback * (cvar_budget / cvar_approx)
     return w_fallback
 
 
@@ -411,50 +446,30 @@ def _solve_grid(
     dd_aversion: float,
     n: int,
     grid_steps: int = 11,
+    max_points: int = 50_000,
 ) -> np.ndarray:
-    """Deterministic grid search fallback for low-dimensional problems."""
+    """Deterministic grid search fallback for any dimension.
+
+    Generalized via itertools.product so n > 3 genuinely searches instead of
+    silently returning a scaled upper bound. grid_steps is reduced when the
+    full grid would exceed max_points, keeping the fallback bounded. The
+    all-zero weight is always feasible (vol 0 ≤ budget, utility 0), so a feasible
+    solution always exists.
+    """
+    while grid_steps > 2 and grid_steps ** n > max_points:
+        grid_steps -= 1
+
+    grids = [np.linspace(0.0, float(upper[i]), grid_steps) for i in range(n)]
     best_u = -1e18
     best_w = np.zeros(n)
-
-    grids = [np.linspace(0, float(upper[i]), grid_steps) for i in range(n)]
-
-    if n == 1:
-        for w0 in grids[0]:
-            w = np.array([w0])
-            vol = math.sqrt(max(float(w @ cov @ w), 1e-12))
-            if vol <= vol_budget:
-                u = dd_averse_utility(w, mu, cov, dd_aversion)
-                if u > best_u:
-                    best_u = u
-                    best_w = w.copy()
-    elif n == 2:
-        for w0 in grids[0]:
-            for w1 in grids[1]:
-                w = np.array([w0, w1])
-                vol = math.sqrt(max(float(w @ cov @ w), 1e-12))
-                if vol <= vol_budget:
-                    u = dd_averse_utility(w, mu, cov, dd_aversion)
-                    if u > best_u:
-                        best_u = u
-                        best_w = w.copy()
-    elif n == 3:
-        for w0 in grids[0]:
-            for w1 in grids[1]:
-                for w2 in grids[2]:
-                    w = np.array([w0, w1, w2])
-                    vol = math.sqrt(max(float(w @ cov @ w), 1e-12))
-                    if vol <= vol_budget:
-                        u = dd_averse_utility(w, mu, cov, dd_aversion)
-                        if u > best_u:
-                            best_u = u
-                            best_w = w.copy()
-    else:
-        # n > 3: grid is too expensive; fall back to scaled upper bounds.
-        best_w = np.clip(upper * 0.3, 0.0, upper)
-        vol_fb = math.sqrt(max(float(best_w @ cov @ best_w), 1e-12))
-        if vol_fb > vol_budget:
-            best_w = best_w * (vol_budget / vol_fb)
-
+    for combo in itertools.product(*grids):
+        w = np.array(combo, dtype=float)
+        vol = math.sqrt(max(float(w @ cov @ w), 1e-12))
+        if vol <= vol_budget:
+            u = dd_averse_utility(w, mu, cov, dd_aversion)
+            if u > best_u:
+                best_u = u
+                best_w = w.copy()
     return best_w
 
 

@@ -4,7 +4,7 @@ import hashlib
 import json
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pandas as pd
 
@@ -19,7 +19,6 @@ from .core.data.adapters import collect_soft_data
 from .core.backtest.posterior import escape_posterior_pnl, mirror_posterior_pnl
 from .core.features.regime import Regime, RegimeInput, classify_regime
 from .core.portfolio.risk_budget import compute_portfolio_risk
-from .core.portfolio.sizing import size_portfolio  # kept for fallback / legacy compat
 from .core.portfolio.risk_engine import build_risk_state
 from .core.portfolio.sizing_optimizer import optimize_targets
 from .core.confidence.spine import compute_confidence
@@ -125,7 +124,7 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any
     target_weights = _target_weights_after_verdict(config, bundles)
     hard_excluded = {symbol for symbol, bundle in bundles.items() if bundle.result.hard_valve_hits or bundle.result.sell_fraction >= 1.0}
     portfolio_risk = compute_portfolio_risk(histories, target_weights, config, excluded_symbols=hard_excluded)
-    sizing = _optimize_sizing(bundles, histories, portfolio_risk, config)
+    sizing = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of)
     routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=histories) for symbol, bundle in bundles.items()}
     signal_journal_path = store.archive_dir / "signal_journal.jsonl"
     reentry = {
@@ -190,11 +189,67 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any
     return payload
 
 
+def _data_confidence(bundles: Dict[str, Any], config: Dict[str, Any]) -> float:
+    """Data-quality confidence in [floor, 1.0] from the scores' missing_weight.
+
+    This is where the "缺数据 ≠ 安全" red line is enforced for the confidence
+    spine: more missing soft data → lower confidence → smaller positions. The
+    blind-spot gate (default 30) is the missing_weight at which a symbol is
+    considered fully blind; a floor keeps a single sparse leg from zeroing the
+    whole book on data gaps alone.
+    """
+    gate = float(config.get("scoring", {}).get("blind_spot_gate", 30.0))
+    floor = float(config.get("confidence", {}).get("data_conf_floor", 0.3))
+    weights = []
+    for bundle in bundles.values():
+        mw = getattr(bundle.result, "missing_weight", None)
+        if mw is not None:
+            weights.append(float(mw))
+    if not weights or gate <= 0:
+        return 1.0
+    mean_missing = sum(weights) / len(weights)
+    return max(floor, min(1.0, 1.0 - mean_missing / gate))
+
+
+def _max_staleness_days(
+    histories: Dict[str, Any],
+    config: Dict[str, Any],
+    as_of: Optional[str],
+) -> Optional[float]:
+    """Worst (largest) staleness across trade symbols: as_of minus newest bar.
+
+    Returns None when as_of or histories are unavailable so the spine treats
+    staleness as an unknown (neutral) rather than fabricating freshness.
+    """
+    if as_of is None:
+        return None
+    try:
+        ref = pd.Timestamp(str(as_of)[:10])
+    except Exception:
+        return None
+    trade = set(trade_symbols(config))
+    worst: Optional[float] = None
+    for symbol, hist in histories.items():
+        if symbol not in trade or hist is None or getattr(hist, "empty", True):
+            continue
+        idx = hist.index
+        if len(idx) == 0:
+            continue
+        try:
+            last = pd.Timestamp(idx[-1])
+        except Exception:
+            continue
+        days = max(0.0, (ref - last).days)
+        worst = days if worst is None else max(worst, days)
+    return worst
+
+
 def _optimize_sizing(
     bundles: Dict[str, Any],
     histories: Dict[str, Any],
     portfolio_risk: Any,
     config: Dict[str, Any],
+    as_of: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Replace the old scaler multiplication chain with SizingOptimizer (Gate 2).
 
@@ -268,17 +323,24 @@ def _optimize_sizing(
     )
 
     # ── Build ConfidenceState via ConfidenceSpine (Gate ④) ───────────────────
-    # Use getattr so missing attributes (data_quality_score, failover_state,
-    # staleness_days, drift_state) degrade gracefully to neutral 0.5 in the
-    # spine rather than hard-erroring. Fragility and disagreement remain wired
-    # as None (pending E7/E22 integration) and receive the same neutral treatment.
+    # IMPORTANT: the spine inputs must come from REAL signal sources, not from
+    # `portfolio_risk` (a risk-budget object that has none of these attributes —
+    # reading them via getattr silently yielded None for all four → every run
+    # collapsed to neutral 0.5 → permanent DEGRADED). We compute the signals we
+    # actually have and pass truthful "healthy" states for monitors that ran
+    # clean, matching the original P4 pipeline's contract:
+    #   - data_conf:     derived from the scores' missing_weight (the "缺数据≠安全"
+    #                    red line lives HERE, as a low confidence, not as None).
+    #   - staleness_days: newest trade-symbol bar vs as_of.
+    #   - failover/drift: healthy defaults until those monitors are wired.
+    #   - fragility/disagreement: 0.0 placeholder (no signal) pending E7/E22.
     confidence = compute_confidence(
-        data_conf=getattr(portfolio_risk, "data_quality_score", None),
-        failover_state=getattr(portfolio_risk, "failover_state", None),
-        staleness_days=getattr(portfolio_risk, "staleness_days", None),
-        drift_state=getattr(portfolio_risk, "drift_state", None),
-        fragility=None,      # TODO: wire E7 fragility score
-        disagreement=None,   # TODO: wire E22 model disagreement
+        data_conf=_data_confidence(bundles, config),
+        failover_state={"is_degraded": False},   # TODO: wire real failover state
+        staleness_days=_max_staleness_days(histories, config, as_of),
+        drift_state={"psi": 0.0, "alert": False},  # TODO: wire real drift monitor
+        fragility=0.0,       # TODO: wire E7 fragility score
+        disagreement=0.0,    # TODO: wire E22 model disagreement
         cfg=config.get("confidence", {}),
     )
 
@@ -315,8 +377,10 @@ def _optimize_sizing(
             sleeve_cap=cap,
             sell_fraction=float(result_obj.sell_fraction),
             reference_target_weight=old_ref,
-            vol_scaler=float(portfolio_risk.effective_gross_scaler),
-            gross_scaler=float(portfolio_risk.effective_gross_scaler),
+            # Report the RiskEngine gross (single risk source, Gate ①), not the
+            # legacy risk-budget engine's scaler.
+            vol_scaler=float(risk_state.gross_scaler),
+            gross_scaler=float(risk_state.gross_scaler),
             target_weight=new_target,
             clamp_applied=new_target < old_ref - 1e-9,
             binding_constraint=binding,

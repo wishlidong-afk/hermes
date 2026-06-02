@@ -108,32 +108,38 @@ def ewma_corr_forecast(returns_df: pd.DataFrame, lam: float = 0.94) -> np.ndarra
 
 
 def ledoit_wolf_shrink(corr: np.ndarray, n_obs: int) -> np.ndarray:
-    """Ledoit-Wolf shrinkage toward identity using analytic formula.
+    """Shrink a correlation matrix toward the identity target.
 
-    The sklearn branch was removed: sklearn's LedoitWolf.fit() must receive the
-    actual return data, not a precomputed correlation matrix. Fitting on
-    np.eye(k) (the old code) produced a shrinkage value that bore no relation
-    to the actual data, silently corrupting the estimate. The manual formula
-    here is derived from the same off-diagonal variance proxy and is correct.
+    NOTE ON NAMING: this is a *heuristic* shrinkage, not the asymptotically
+    optimal Ledoit-Wolf (2004) estimator. The true LW intensity is a function of
+    the raw return observations (the variance of the sample covariance entries),
+    which are not available at this call site — only the precomputed correlation
+    matrix is. The previous sklearn branch tried to recover it by fitting
+    LedoitWolf on np.eye(k), which is meaningless (it fits on the identity, not
+    the data) and was removed. The public name is kept for backward compatibility;
+    callers that need the true estimator should pass raw returns to a data-level
+    estimator. The intensity below is a sensible, bounded fallback: it shrinks
+    more when observations are scarce relative to the number of pairs to estimate.
+
+    intensity = n_pairs / (n_obs + n_pairs),   n_pairs = k(k-1)/2
     """
     corr = _finite_square_matrix(corr)
-    shrinkage = _lw_shrinkage_manual(corr, n_obs)
+    shrinkage = _shrinkage_intensity(corr.shape[0], n_obs)
     target = np.eye(corr.shape[0])
     shrunk = (1.0 - shrinkage) * corr + shrinkage * target
     np.fill_diagonal(shrunk, 1.0)
     return shrunk
 
 
-def _lw_shrinkage_manual(corr: np.ndarray, n_obs: int) -> float:
-    k = corr.shape[0]
+def _shrinkage_intensity(k: int, n_obs: int) -> float:
+    """Bounded heuristic shrinkage intensity in [0, 1].
+
+    More pairs to estimate (k(k-1)/2) or fewer observations → more shrinkage.
+    """
     if k <= 1 or n_obs <= 1:
         return 1.0
-    off_diag = corr.copy()
-    np.fill_diagonal(off_diag, 0.0)
-    sum_sq = float(np.sum(off_diag ** 2))
-    rho = sum_sq / (k * (k - 1))
-    shrinkage = min(1.0, max(0.0, rho / max(n_obs, 1)))
-    return shrinkage
+    n_pairs = k * (k - 1) / 2.0
+    return min(1.0, max(0.0, n_pairs / (n_obs + n_pairs)))
 
 
 # ---------------------------------------------------------------------------
@@ -164,6 +170,34 @@ def downside_corr(returns_df: pd.DataFrame, q: float = 0.10) -> np.ndarray:
         corr = np.maximum(corr, full_corr)
     np.fill_diagonal(corr, 1.0)
     return corr
+
+
+def downside_vs_linear_ratio(returns_df: pd.DataFrame, q: float = 0.10) -> Optional[Tuple[float, float]]:
+    """Tail vs. full-sample off-diagonal correlation, from a SINGLE estimator.
+
+    Returns (tail_corr_mean, linear_corr_mean) where BOTH are off-diagonal means
+    of Pearson correlation on the same sample — the tail one conditioned on the
+    portfolio's left tail, the linear one unconditional. Using one consistent
+    estimator is the whole point: the regime ratio must measure genuine tail
+    amplification, not an artifact of mixing an EWMA/shrunk denominator with a
+    floored downside numerator (which made the ratio structurally exceed 100 and
+    forced the threshold up to 110). Returns None when samples are insufficient.
+    """
+    clean = _clean_returns_df(returns_df)
+    R = clean.values.astype(float)
+    n, k = R.shape
+    if n < 10 or k < 2:
+        return None
+    full = np.corrcoef(R.T)
+    port = R.mean(axis=1)
+    threshold = np.quantile(port, q)
+    mask = port <= threshold
+    if mask.sum() < 5:
+        return None
+    tail = np.corrcoef(R[mask].T)
+    if not (np.all(np.isfinite(full)) and np.all(np.isfinite(tail))):
+        return None
+    return _off_diag_mean(tail), _off_diag_mean(full)
 
 
 # ---------------------------------------------------------------------------
@@ -376,21 +410,23 @@ def build_risk_state(
     D = np.diag([leg_vol.get(s, 0.0) for s in legs_reported])
     cov = _finite_square_matrix(D @ corr @ D, size=len(legs_reported))
 
-    # Downside correlation + corr regime
-    # Use raw_corr (pre-shrinkage EWMA) as the linear-regime baseline so both
-    # numerator and denominator come from consistent estimators. The shrunk corr
-    # has off-diagonal values pulled toward 0, which deflates the denominator and
-    # inflates the ratio — causing systematic EXTREME_CORR over-classification.
+    # Downside correlation (reported, conservatively floored) + corr regime.
+    # The regime ratio is computed from a SINGLE consistent estimator
+    # (downside_vs_linear_ratio: tail vs. full-sample Pearson on the same data),
+    # NOT by dividing a floored downside matrix by an EWMA/shrunk baseline. The
+    # latter mixed estimators and biased the ratio above 100 regardless of true
+    # tail behavior; this measures genuine tail amplification.
     dc = downside_corr(joint_df, downside_q) if n_obs >= min_periods else np.eye(len(legs_reported))
     if n_obs >= min_periods:
-        corr_mean = _off_diag_mean(raw_corr)    # pre-shrinkage EWMA corr (unbiased baseline)
-        downside_corr_mean = _off_diag_mean(dc)
-        if downside_corr_mean > 0:
-            downside_corr_ratio_score = downside_corr_mean / max(corr_mean, 1e-6) * 100.0
-            if downside_corr_ratio_score >= extreme_ratio_threshold:
-                corr_regime = "EXTREME"
-            elif downside_corr_ratio_score >= elevated_ratio_threshold:
-                corr_regime = "ELEVATED"
+        ratio_pair = downside_vs_linear_ratio(joint_df, downside_q)
+        if ratio_pair is not None:
+            downside_corr_mean, corr_mean = ratio_pair
+            if corr_mean > 0:
+                downside_corr_ratio_score = downside_corr_mean / max(corr_mean, 1e-6) * 100.0
+                if downside_corr_ratio_score >= extreme_ratio_threshold:
+                    corr_regime = "EXTREME"
+                elif downside_corr_ratio_score >= elevated_ratio_threshold:
+                    corr_regime = "ELEVATED"
 
     # Portfolio vol
     w_vec = np.array([target_weights.get(s, 0.0) for s in legs_reported])
