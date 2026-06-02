@@ -37,7 +37,8 @@
 | P9 Phase III 110/0.90 full/exact | **DONE / FULL-EXACT-PASSED / REVIEW-GATED** | 2113 日 full-window：errors=0、R3=0、CAGR 20.37%、MaxDD -24.32%、Sharpe 1.0171、turnover 338.0594；2020H1/2022H1/2024H1/2026YTD exact/fast 抽查 PASS | 需人工接受约 1.85 pp 回撤放大；live 开关保持关闭 |
 | **P10 Migration Acceptance Pack** | **DONE / HUMAN-GATE-PASSED** | 人工于 2026-06-02 确认接受 1.85 pp 回撤放大；110/0.90 候选通过全部门控 | ✅ 人工确认 |
 | **P11 Phase III 参数层迁移** | **DONE** | config 已更新 extreme=110/penalty=0.90；新 dry-run PASS=129/WARN=123/BLOCK=0/R3=0；max turnover delta 降至 0.2886；270 tests OK | - |
-| **P12 Gate 2 optimizer 替换** | **DONE / GATE-2-COMPLETE** | `pipeline.py` 用 `_optimize_sizing` 替换 `size_portfolio`；`optimize_targets` 唯一处置入口；R3 PASS；`sizing_engine=optimize_targets_v1`；270 tests OK | 7 道总闸 Gate 2 已通过 |
+| **P12 Gate 2 optimizer 替换** | **DONE / GATE-2-COMPLETE** | `pipeline.py` 用 `_optimize_sizing` 替换 `size_portfolio`；`optimize_targets` 唯一处置入口；R3 PASS；`sizing_engine=optimize_targets_v1`；270 tests OK | - |
+| **P13 Phase IV Gates 4/5/6** | **DONE / PHASE-IV-GATES-PASSED** | Gate4 置信脊柱 PASS；Gate5 PBO=0.2500 PASS（AUC延后）；Gate6 Factor_Health.md 出炉 32因子 IC，top=C10 avg\|IC\|=0.38；6/7 总闸通过 | Gate7（熔断端到端）TODO |
 
 ## P4 整合地基进度
 
