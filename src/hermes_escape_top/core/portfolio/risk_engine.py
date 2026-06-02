@@ -51,8 +51,15 @@ def har_rv_forecast(returns: pd.Series, cfg: Dict[str, Any]) -> float:
         return _ewma_vol(r, ewma_lambda)
 
     X = np.column_stack([np.ones(n), x_d[:n], x_w[:n], x_m[:n]])
+    # Ridge on the slope coefficients (intercept unpenalized): rv_d/rv_w/rv_m are
+    # highly collinear, so plain OLS can return unstable betas. A small relative
+    # ridge keeps the fit well-conditioned without materially biasing the forecast.
+    lam_ridge = float(cfg.get("har_ridge", 1e-6))
     try:
-        betas, _, _, _ = np.linalg.lstsq(X, y[:n], rcond=None)
+        XtX = X.T @ X
+        reg = lam_ridge * (np.trace(XtX) / X.shape[1]) * np.eye(X.shape[1])
+        reg[0, 0] = 0.0  # do not penalize the intercept
+        betas = np.linalg.solve(XtX + reg, X.T @ y[:n])
     except np.linalg.LinAlgError:
         return _ewma_vol(r, ewma_lambda)
 
@@ -69,8 +76,11 @@ def _ewma_vol(r: np.ndarray, lam: float) -> float:
     r = r[np.isfinite(r)]
     if len(r) == 0:
         return 0.0
-    var = r[0] ** 2
-    for ret in r[1:]:
+    # Seed the recursion with the mean of the first up-to-5 squared returns
+    # rather than a single observation (r[0]**2 is hypersensitive to one outlier).
+    seed = r[: min(5, len(r))]
+    var = float(np.mean(seed ** 2))
+    for ret in r[min(5, len(r)) :]:
         var = lam * var + (1.0 - lam) * ret ** 2
     return float(np.sqrt(252.0 * max(var, 1e-10)))
 
@@ -107,28 +117,62 @@ def ewma_corr_forecast(returns_df: pd.DataFrame, lam: float = 0.94) -> np.ndarra
     return corr
 
 
-def ledoit_wolf_shrink(corr: np.ndarray, n_obs: int) -> np.ndarray:
-    """Shrink a correlation matrix toward the identity target.
+def ledoit_wolf_shrink(corr: np.ndarray, n_obs: int, returns: Optional[np.ndarray] = None) -> np.ndarray:
+    """Shrink a correlation matrix toward the identity target (Ledoit-Wolf).
 
-    NOTE ON NAMING: this is a *heuristic* shrinkage, not the asymptotically
-    optimal Ledoit-Wolf (2004) estimator. The true LW intensity is a function of
-    the raw return observations (the variance of the sample covariance entries),
-    which are not available at this call site — only the precomputed correlation
-    matrix is. The previous sklearn branch tried to recover it by fitting
-    LedoitWolf on np.eye(k), which is meaningless (it fits on the identity, not
-    the data) and was removed. The public name is kept for backward compatibility;
-    callers that need the true estimator should pass raw returns to a data-level
-    estimator. The intensity below is a sensible, bounded fallback: it shrinks
-    more when observations are scarce relative to the number of pairs to estimate.
+    When `returns` (the raw T×N return matrix) is provided, the shrinkage
+    intensity is the data-driven Ledoit-Wolf (2004) optimum computed on the
+    standardized returns (`_lw_identity_intensity`). When it is not available,
+    we fall back to the bounded heuristic `_shrinkage_intensity` (more shrinkage
+    when observations are scarce relative to the number of pairs to estimate).
 
-    intensity = n_pairs / (n_obs + n_pairs),   n_pairs = k(k-1)/2
+    The earlier sklearn branch fit LedoitWolf on np.eye(k) — meaningless, since
+    that fits on the identity rather than the data — and was removed.
     """
     corr = _finite_square_matrix(corr)
-    shrinkage = _shrinkage_intensity(corr.shape[0], n_obs)
-    target = np.eye(corr.shape[0])
+    k = corr.shape[0]
+    shrinkage = None
+    if returns is not None:
+        shrinkage = _lw_identity_intensity(returns)
+    if shrinkage is None:
+        shrinkage = _shrinkage_intensity(k, n_obs)
+    target = np.eye(k)
     shrunk = (1.0 - shrinkage) * corr + shrinkage * target
     np.fill_diagonal(shrunk, 1.0)
     return shrunk
+
+
+def _lw_identity_intensity(returns: np.ndarray) -> Optional[float]:
+    """Ledoit-Wolf (2004) shrinkage intensity toward the identity target.
+
+    Computed on standardized returns so the sample "covariance" is the sample
+    correlation and the identity target has mean eigenvalue ≈ 1. Returns a value
+    in [0, 1], or None if the data is insufficient (caller uses the heuristic).
+    """
+    try:
+        R = np.asarray(returns, dtype=float)
+        R = R[np.isfinite(R).all(axis=1)]
+        T, N = R.shape
+        if T < 10 or N < 2:
+            return None
+        sd = R.std(axis=0, ddof=0)
+        sd = np.where(sd < 1e-12, 1.0, sd)
+        Z = (R - R.mean(axis=0)) / sd          # standardized -> correlation scale
+        S = (Z.T @ Z) / T                      # sample correlation
+        mu = float(np.trace(S) / N)            # ≈ 1
+        d2 = float(np.sum((S - mu * np.eye(N)) ** 2) / N)
+        if d2 < 1e-18:
+            return 1.0
+        # b̄² = mean over t of ||z_t z_t' - S||²_F, normalized
+        b2bar = 0.0
+        for t in range(T):
+            outer = np.outer(Z[t], Z[t])
+            b2bar += float(np.sum((outer - S) ** 2))
+        b2bar = b2bar / (T * T * N)
+        b2 = min(b2bar, d2)
+        return max(0.0, min(1.0, b2 / d2))
+    except Exception:
+        return None
 
 
 def _shrinkage_intensity(k: int, n_obs: int) -> float:
@@ -403,7 +447,10 @@ def build_risk_state(
         corr_regime = "UNKNOWN"
     else:
         raw_corr = ewma_corr_forecast(joint_df, ewma_lambda)
-        corr = _finite_square_matrix(ledoit_wolf_shrink(raw_corr, n_obs), size=len(legs_reported))
+        corr = _finite_square_matrix(
+            ledoit_wolf_shrink(raw_corr, n_obs, returns=joint_df.values),
+            size=len(legs_reported),
+        )
         corr_regime = "NORMAL"
 
     # Covariance: D R D
