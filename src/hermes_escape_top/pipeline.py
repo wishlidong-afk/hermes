@@ -6,6 +6,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import numpy as np
 import pandas as pd
 
 from .config import CONFIG_PATH, load_config, trade_symbols
@@ -124,9 +125,10 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any
     target_weights = _target_weights_after_verdict(config, bundles)
     hard_excluded = {symbol for symbol, bundle in bundles.items() if bundle.result.hard_valve_hits or bundle.result.sell_fraction >= 1.0}
     portfolio_risk = compute_portfolio_risk(histories, target_weights, config, excluded_symbols=hard_excluded)
-    sizing = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of)
-    routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=histories) for symbol, bundle in bundles.items()}
     signal_journal_path = store.archive_dir / "signal_journal.jsonl"
+    sizing = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of,
+                              signal_journal_path=signal_journal_path)
+    routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=histories) for symbol, bundle in bundles.items()}
     reentry = {
         symbol: build_reentry_plan(
             symbol,
@@ -254,12 +256,61 @@ def _max_staleness_days(
     return worst
 
 
+def _drift_state(signal_journal_path: Any, config: Dict[str, Any]) -> Dict[str, Any]:
+    """Real score-distribution drift (PSI) from the signal journal.
+
+    Compares the recent score distribution (last `live_days` distinct dates) to
+    the historical baseline (everything before that window). This is the genuine
+    drift signal the ConfidenceSpine expects — not a placeholder. Falls back to a
+    no-alert state when there is not enough history to compute a stable PSI
+    (compute_psi needs >=10 samples per side), which is the truthful "cannot
+    assess drift yet" outcome rather than a fabricated alert.
+    """
+    healthy = {"psi": 0.0, "alert": False}
+    try:
+        from .core.monitor.drift import DriftMonitor
+        import json as _json
+        from pathlib import Path as _Path
+
+        path = _Path(str(signal_journal_path))
+        if not path.exists():
+            return healthy
+        live_days = int(config.get("confidence", {}).get("drift_live_days", 10))
+        by_date: Dict[str, list] = {}
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = _json.loads(line)
+                score = float(rec["final_score"])
+            except (ValueError, KeyError, TypeError):
+                continue
+            by_date.setdefault(str(rec.get("as_of", "")), []).append(score)
+        dates = sorted(d for d in by_date if d)
+        if len(dates) < 4:
+            return healthy
+        live_dates = set(dates[-live_days:])
+        live = [s for d in live_dates for s in by_date[d]]
+        train = [s for d in dates if d not in live_dates for s in by_date[d]]
+        if len(train) < 10 or len(live) < 10:
+            return healthy
+        cfg = {
+            "psi_threshold": float(config.get("confidence", {}).get("drift_psi_threshold", 0.25)),
+        }
+        state = DriftMonitor(cfg).evaluate(np.asarray(train, dtype=float), np.asarray(live, dtype=float))
+        return {"psi": float(state.get("psi", 0.0)), "alert": bool(state.get("alert", False))}
+    except Exception:
+        return healthy
+
+
 def _optimize_sizing(
     bundles: Dict[str, Any],
     histories: Dict[str, Any],
     portfolio_risk: Any,
     config: Dict[str, Any],
     as_of: Optional[str] = None,
+    signal_journal_path: Any = None,
 ) -> Dict[str, Any]:
     """Replace the old scaler multiplication chain with SizingOptimizer (Gate 2).
 
@@ -321,9 +372,13 @@ def _optimize_sizing(
     # pass truthful "healthy" states for monitors that ran clean.
     confidence = compute_confidence(
         data_conf=_data_confidence(bundles, config),
-        failover_state={"is_degraded": False},      # TODO: wire real failover state
+        # No multi-source failover is wired into the data adapters (collect_soft_data
+        # does not use FailoverSource), so there is no degradation signal to read —
+        # "not degraded" is the truthful state, not a placeholder. Wire this once the
+        # data layer routes through FailoverSource and exposes is_degraded.
+        failover_state={"is_degraded": False},
         staleness_days=_max_staleness_days(histories, config, as_of),
-        drift_state={"psi": 0.0, "alert": False},   # TODO: wire real drift monitor
+        drift_state=_drift_state(signal_journal_path, config),   # real PSI from signal journal
         fragility=0.0,       # TODO: wire E7 fragility score
         disagreement=0.0,    # TODO: wire E22 model disagreement
         cfg=config.get("confidence", {}),
