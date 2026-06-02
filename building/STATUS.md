@@ -28,7 +28,7 @@
 | NEXT-3 校准 | **DONE / M3-COMPLETE** | deployment PBO=0.1538；chosen E75_D65_R50 | - |
 | NEXT-4 向前软数据 | TODO | - | 可并行 |
 | NEXT-5 元模型 | LOCKED | - | 标签未达 |
-| NEXT-6 IBKR 对账 | TODO | - | greenfield |
+| NEXT-6 IBKR 对账 | **DONE** | TWS port 4001 已连通（U18122312, NetLiq $86k）；read_positions + reconcile + WebUI 面板；12 offline tests；305 tests OK | 绝不下单 |
 | P4 整合地基 | **DONE / PHASE0-I-PIPELINE-LOCAL-SYNCED** | 270 package tests OK + 11 golden tests OK | live 开关关闭 |
 | P5 Phase II Shadow | **DONE / DRY-RUN-PACKAGE-READY** | shadow rows=252；full rows=2113 / errors=0 / scenario count=21 / R3 violations=0 / review candidate 110/0.70：CAGR 18.06%、MaxDD -22.47%、Sharpe 1.0115、fixed OOS below-median 0.3077；4 个 exact spot-check PASS | live 开关保持关闭 |
 | P6 Phase III dry-run comparator | **DONE / HUMAN-GATE-READY** | daily comparator rows=252 / errors=0 / R3 violations=0 / PASS=128 / WARN=124 / BLOCK=0 / avg old-new turnover 0.2244→0.2285 | 需人工审阅 WARN 日期；通过后才可设计 scaler migration |
