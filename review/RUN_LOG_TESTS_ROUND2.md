@@ -92,6 +92,42 @@
 
 ---
 
+## 7. 真实数据 smoke test（端到端验证置信修复）
+
+单元测试之外,又在 runnable 包里跑了一次**真实 `score_pipeline`**(`as_of=2026-05-29`,
+真实历史数据;跑前备份 `signal_journal.jsonl`、跑后还原,无状态污染)。结果直接验证了
+最关键的 🔴 修复在真实数据上成立:
+
+| 指标 | 结果 | 说明 |
+|---|---|---|
+| `optimizer_confidence` | **0.696**(三腿一致) | 真实 spine 输出,**不是修复前的恒 0.5 永久 DEGRADED** → Fix #1 真数据验证 ✓ |
+| `target_weight` | FNGU 0.20→0.139, SOXL 0.12→0.084 | ≈ reference × 0.696,**无双 gross、无 Kelly 砍仓** → Fix #2/#3 ✓ |
+| MSTR | 0.0 | 其 rule target 本就为 0(裁决层决定),R3 行为正确 |
+| `sizing_engine` | `optimize_targets_v1` | 单一处置入口生效 |
+
+(运行时的 `IBKR ConnectionRefused` 是被禁用的 NEXT-6 只读对账在探测端口,与评分/仓位无关。)
+
+**结论:置信脊柱接回 + 去双 gross + Kelly 默认关,在真实数据上产出 confidence=0.696 /
+sane 仓位,修复确实生效。**
+
+## 8. golden 根因定论(为何不重生成)
+
+深挖 `test_v25_parity` 后定论:它测的是**独立的 standalone 单体脚本**
+`scripts/escape_top_system.py`(v25 monolith,line 1484 的 `daily=/weekly=` RSI reason),
+**与我修的 `hermes_escape_top` 包是完全不同的代码路径**。把 golden 非破坏性重生成后与现存版本 diff:
+**798 行差异**,涉及 reason(95)/points(54)/flag(44)/raw_score(26)/calibrated_score(13)/
+**status(6)/sell_pct(3)** 等决策相关字段,来源是三件事——
+
+1. **numpy-2.x 浮点漂移**(如 `693.6088524588347 → 693.608852459202`,~1e-9)级联进评分取整;
+2. 生成器**采样滑动日期窗口**(现在多了 2026-05-27 / 06-01)→ 随数据时钟推进本身不可复现;
+3. 下游 `status`/`sell_pct` 变化(改变实际决策)。
+
+直接重生成会把这些**未经审阅的决策变化**一并"祝福"进 golden,违反"不替未验证改动背书"。
+故**已还原原 golden、不动**。该项需 owner:① 定 numpy-2.x 浮点基线;② 修生成器滑动窗口
+不可复现问题;③ 审阅 status/sell_pct 变化——均与本次 review/修复无关。
+
+---
+
 ## 复跑命令
 
 ```bash
