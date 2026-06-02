@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.hermes.next5watch</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/scripts/daily_next5_watch.sh</string>
+    </array>
+
+    <!-- 工作日 (周一~周五) 北京时间 18:30 运行 -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>18</integer><key>Minute</key><integer>33</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>18</integer><key>Minute</key><integer>33</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>18</integer><key>Minute</key><integer>33</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>18</integer><key>Minute</key><integer>33</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>18</integer><key>Minute</key><integer>33</integer></dict>
+    </array>
+
+    <!-- 如果到点时机器在睡眠，醒来后补跑 -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/data/archive/next5_launchd.out</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/data/archive/next5_launchd.err</string>
+</dict>
+</plist>
