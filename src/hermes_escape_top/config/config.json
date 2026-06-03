@@ -1,0 +1,282 @@
+{
+  "version": "escape-top-v3.0-greenfield",
+  "runtime": {
+    "offline_replay_mode": false,
+    "as_of": null
+  },
+  "paths": {
+    "legacy_history_dir": "../data/history",
+    "archive_dir": "data/archive",
+    "history_dir": "data/history",
+    "soft_history_dir": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/data/soft_history",
+    "aaii_sentiment_xls": "/Users/liweishi/Downloads/sentiment.xls"
+  },
+  "symbols": {
+    "MSTR": {
+      "sleeve_cap": 0.15,
+      "module_weights": {
+        "A": 0.9,
+        "B": 0.95,
+        "C": 1.0,
+        "D": 1.25
+      }
+    },
+    "FNGU": {
+      "sleeve_cap": 0.2,
+      "module_weights": {
+        "A": 1.1,
+        "B": 0.9,
+        "C": 1.1,
+        "D": 1.05
+      }
+    },
+    "SOXL": {
+      "sleeve_cap": 0.3,
+      "module_weights": {
+        "A": 0.9,
+        "B": 0.95,
+        "C": 1.15,
+        "D": 1.25
+      }
+    }
+  },
+  "market_symbols": [
+    "QQQ",
+    "SPY",
+    "^VIX",
+    "^VIX3M",
+    "^VIX9D",
+    "^SKEW",
+    "^VVIX"
+  ],
+  "radars": {
+    "MSTR": [
+      "BTC-USD"
+    ],
+    "FNGU": [
+      "QQQ",
+      "FNGS",
+      "^NYFANG"
+    ],
+    "SOXL": [
+      "QQQ",
+      "SOXX",
+      "SMH",
+      "^SOX"
+    ]
+  },
+  "component_proxies": {
+    "FNGU": [
+      "NVDA",
+      "AAPL",
+      "MSFT",
+      "AMZN",
+      "META",
+      "GOOGL",
+      "TSLA",
+      "NFLX",
+      "AVGO"
+    ],
+    "SOXL": [
+      "NVDA",
+      "AVGO",
+      "AMD",
+      "TSM",
+      "ASML",
+      "AMAT",
+      "LRCX",
+      "KLAC",
+      "QCOM",
+      "MU"
+    ]
+  },
+  "module_caps": {
+    "A": 20,
+    "B": 25,
+    "C": 35,
+    "D": 20
+  },
+  "status_thresholds": {
+    "EXIT": 75,
+    "DEFENSIVE_EXIT": 65,
+    "REDUCE": 50,
+    "TRIM": 35,
+    "WATCH": 20
+  },
+  "sell_fractions": {
+    "MSTR": {
+      "TRIM": 0.25,
+      "REDUCE": 0.5,
+      "DEFENSIVE_EXIT": 0.75,
+      "EXIT": 1.0
+    },
+    "default": {
+      "TRIM": 0.35,
+      "REDUCE": 0.6,
+      "DEFENSIVE_EXIT": 0.85,
+      "EXIT": 1.0
+    }
+  },
+  "missing": {
+    "blind_spot_threshold": 30,
+    "critical_fields": [
+      "history",
+      "close",
+      "ma200"
+    ],
+    "weights": {
+      "history": 100,
+      "close": 100,
+      "ma200": 100,
+      "A2 cnn_fear_greed": 2,
+      "A2 aaii_bull": 2,
+      "A2 naaim": 4,
+      "A2 cboe_equity_pcr": 4,
+      "A3 NDX breadth": 4,
+      "A5": 4,
+      "A6 fund flow": 4,
+      "A7 VIX term structure": 2,
+      "A8 market distribution": 4,
+      "B4 options": 6,
+      "B5 social": 4,
+      "B6 valuation": 5,
+      "C7 AVWAP/platform support": 4,
+      "D-M1": 5,
+      "D-M3": 4,
+      "D-M4": 4,
+      "D-M5": 3,
+      "D-F4": 3,
+      "D-S4": 3
+    }
+  },
+  "normalize": {
+    "window": 252,
+    "min_periods": 60
+  },
+  "regime": {
+    "enter": {
+      "HIGH_VOL": 70,
+      "CRISIS": 90
+    },
+    "exit": {
+      "HIGH_VOL": 55,
+      "CRISIS": 75
+    },
+    "min_dwell_days_on_exit": 3,
+    "weight_change_cap_per_refresh": 0.15,
+    "multipliers": {
+      "LOW_VOL_TREND": {
+        "B": 1.15
+      },
+      "HIGH_VOL": {
+        "A": 1.15,
+        "C": 1.15,
+        "B": 0.9
+      },
+      "CRISIS": {
+        "A": 1.25,
+        "C": 1.25,
+        "B": 0.8
+      }
+    }
+  },
+  "vol_target": {
+    "mode": "relative_to_baseline",
+    "baseline_window": 252,
+    "baseline_stat": "median_20d_realized",
+    "floor": 0.25,
+    "forecast": "ewma"
+  },
+  "hysteresis": {
+    "enter": {
+      "WATCH": 20,
+      "TRIM": 35,
+      "REDUCE": 50
+    },
+    "exit": {
+      "WATCH": 15,
+      "TRIM": 28,
+      "REDUCE": 42
+    }
+  },
+  "portfolio": {
+    "corr_window": 60,
+    "min_periods": 40,
+    "vol_window": 20,
+    "vol_history_per_leg": "max",
+    "cov_estimator": "ledoit_wolf",
+    "vol_budget_annual": 0.35,
+    "corr_regime_pct": {
+      "elevated": 80,
+      "extreme": 110
+    },
+    "extreme_corr_penalty": 0.9,
+    "_calibration": {
+      "swept_at": "2026-06-02",
+      "note": "P10 APPROVED 2026-06-02: threshold=110/penalty=0.90; human-confirmed 1.85pp MaxDD trade-off accepted",
+      "approved_by": "human-gate-2026-06-02",
+      "prev_extreme": 92,
+      "prev_penalty": 0.7
+    }
+  },
+  "routing": {
+    "defcon1": {
+      "BOXX": 0.7,
+      "TREND": 0.3,
+      "trend_symbol": "DBMF"
+    },
+    "defcon2": {
+      "primary": "BRK.B",
+      "fallback": "BOXX",
+      "brkb_corr_window": 60,
+      "brkb_corr_threshold": 0.85
+    },
+    "defcon3": {
+      "SOXL": "SOXX",
+      "FNGU": "QQQ",
+      "MSTR": "QQQ"
+    }
+  },
+  "reentry": {
+    "time_lock_days": 11,
+    "score_unlock": 19,
+    "c_module_unlock": 5,
+    "tranches": [
+      0.3,
+      0.3,
+      0.4
+    ]
+  },
+  "atr": {
+    "chandelier_period": 22,
+    "multiplier": 4.5
+  },
+  "features": {
+    "data_gex": false,
+    "data_skew_vvix": true,
+    "data_net_liquidity": true,
+    "data_aaii": true,
+    "data_naaim": true,
+    "data_component_breadth": true,
+    "data_btc_micro": false,
+    "use_meta_label": false,
+    "use_garch": false,
+    "use_rolling_quantile": false,
+    "use_regime_weights": false,
+    "use_portfolio_risk_budget": false,
+    "routing_v2": false,
+    "data_cboe_pcr": true
+  },
+  "ibkr": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "ports": [
+      4001,
+      4002,
+      7496,
+      7497
+    ],
+    "client_id": 992,
+    "readonly": true
+  }
+}
