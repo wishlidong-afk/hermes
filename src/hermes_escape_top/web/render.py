@@ -199,30 +199,63 @@ def _render_m4_panel(shadow_status: Dict[str, Any]) -> str:
       var asOf = document.getElementById('shadow-date').value || new Date().toISOString().slice(0,10);
       var el = document.getElementById('shadow-status');
       var res = document.getElementById('shadow-result');
-      el.textContent = '⏳ 运行中（约30–90秒）…';
+      var btn = document.querySelector('button[onclick="runShadow()"]');
+
+      // Disable button to prevent double-click
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      btn.textContent = '⏳ 运行中…';
+
+      // Show animated progress so user knows it's working
+      var dots = 0;
+      var progress = setInterval(function(){{
+        dots = (dots + 1) % 4;
+        el.textContent = '⏳ 正在运行(' + asOf + ')' + '.'.repeat(dots+1) + ' 约30–90秒，请耐心等待';
+      }}, 800);
+
       res.style.display='none';
+
       fetch('/api/m4_shadow', {{
-        method:'POST',
-        headers:{{'Content-Type':'application/json'}},
+        method: 'POST',
+        headers: {{'Content-Type': 'application/json'}},
         body: JSON.stringify({{as_of: asOf}})
-      }}).then(r=>r.json()).then(d=>{{
+      }})
+      .then(function(r){{ return r.json(); }})
+      .then(function(d){{
+        clearInterval(progress);
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.textContent = '▶ 运行影子对比';
         el.textContent = d.ok ? '✅ 完成' : '❌ 失败';
+
         var out = '';
         if(d.diff){{
-          out += '=== 对比结果 ===\n';
+          out += '=== 对比结果(' + asOf + ') ===\n';
           out += '匹配率: ' + d.diff.match_rate + '% (' + d.diff.matches + '/' + d.diff.total + ')\n';
           if(d.diff.divergences && d.diff.divergences.length)
-            out += '差异: ' + d.diff.divergences.join('; ') + '\n';
+            out += '差异:\n  ' + d.diff.divergences.join('\n  ') + '\n';
           else
-            out += '✅ 全部一致\n';
+            out += '✅ 全部一致 — 安全门通过\n';
           out += '\n';
         }}
-        out += d.output || '';
+        // Filter out noisy IBKR lines from output
+        var lines = (d.output || '').split('\n').filter(function(l){{
+          return l.indexOf('API connection failed') === -1 &&
+                 l.indexOf('Make sure API port') === -1 &&
+                 l.trim() !== '';
+        }});
+        out += lines.join('\n');
         res.textContent = out;
-        res.style.display='block';
-        // Refresh page after 2s to update shadow panel
-        if(d.ok) setTimeout(()=>location.reload(), 2000);
-      }}).catch(e=>{{ el.textContent='❌ 网络错误: '+e; }});
+        res.style.display = 'block';
+        if(d.ok) setTimeout(function(){{ location.reload(); }}, 1500);
+      }})
+      .catch(function(e){{
+        clearInterval(progress);
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.textContent = '▶ 运行影子对比';
+        el.textContent = '❌ 网络错误: ' + e;
+      }});
     }};
 
     window.goLive = function(){{
