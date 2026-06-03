@@ -174,11 +174,14 @@ def _qqq_stretch(ctx: FactorContext) -> tuple[float, str]:
             rsi_score = 2.0
             rsi_reason = f"QQQ RSI={rsi14:.1f} watch"
 
-    if dist_score >= rsi_score:
-        if dist_score == 0:
-            return 0.0, f"QQQ dist20={((close-ema20)/ema20):.1%}, RSI={rsi14:.1f}" if (close and ema20 and rsi14) else "QQQ stretch normal"
-        return dist_score, f"A4 {dist_reason}, RSI={rsi14:.1f if rsi14 else 'n/a'}"
-    return rsi_score, f"A4 {rsi_reason}, dist20={((close-ema20)/ema20):.1%}" if (close and ema20) else f"A4 {rsi_reason}"
+    rsi_str = f"{rsi14:.1f}" if rsi14 is not None else "n/a"
+    dist_str = f"{((close - ema20) / ema20):.1%}" if (close is not None and ema20 not in (None, 0)) else "n/a"
+
+    best = max(dist_score, rsi_score)
+    if best == 0:
+        return 0.0, f"QQQ stretch normal: dist20={dist_str}, RSI={rsi_str}"
+    reason = dist_reason if dist_score >= rsi_score else rsi_reason
+    return best, f"A4 {reason} (dist20={dist_str}, RSI={rsi_str})"
 
 
 def _vix_term_structure(ctx: FactorContext) -> tuple[float, str]:
