@@ -6,6 +6,16 @@
 > `building/source_snapshots/` is now **archive only** — do not edit snapshots
 > directly; edit `src/` and update snapshots only when cutting a new milestone.
 >
+> **Round-3 follow-up fixes (2026-06-03):** `src/` is now editable-installable
+> (`pip install -e src/` was previously broken by an invalid `build-backend` —
+> `setuptools.backends.legacy:build` does not exist; fixed to `setuptools.build_meta`).
+> Migrated three real, self-contained modules so the shipped surface has no dead
+> imports: `config.py`, `core/data/base.py`, `core/scoring/registry.py` (the last
+> two unblock `core/scoring/module_a|b|c.py`). Also fixed two silently-dead
+> governance signals — see `core/governance/governance.py` (disagreement threshold
+> no-op) and `core/pipeline.py` (fragility wrapper ignored its perturbed input) —
+> with regression tests in `tests/test_review_followups_round2.py`.
+>
 > **Runnable truth & test status (2026-06-02):** the executable package (with data,
 > 316 tests, phase scripts) lives at `~/.hermes/skills/investment/escape-top/`.
 > The round-2 fixes were applied AND tested there: **315 passed / 1 failed**, where the
@@ -39,6 +49,9 @@
 | `core/backtest/harness.py` | P4_validation_harness | — |
 | `core/portfolio/tax.py` | P4_tax_awareness | — |
 | `integration_config.py` | P4_phase_ii_config | — |
+| `config.py` | local `.hermes` | round-3: migrated (loads `config/config.json`) |
+| `core/data/base.py` | local `.hermes` | round-3: migrated (Field, SymbolSnapshot) |
+| `core/scoring/registry.py` | local `.hermes` | round-3: migrated (unblocks module_a/b/c) |
 
 ---
 
@@ -49,15 +62,17 @@ repo (they were built in earlier phases and only exist in the local `.hermes`
 installation). They must be copied here before `src/` can be installed and run
 without the local package.
 
+> Migrating `core/data/store.py` (+ its closure) is the next domino: it currently
+> blocks `core/data/{adapters,crypto,market}.py` and `core/routing/leg_proxy.py`
+> from importing; `core/data/flow.py` then unblocks the top-level `pipeline.py`.
+
 | Import path | Notes |
 |---|---|
-| `.config` (`CONFIG_PATH`, `load_config`, `trade_symbols`) | Phase 0 config loader |
-| `.core.data.base` (`Field`, `SymbolSnapshot`) | Phase 0 base data types |
+| `.core.data.store` (`LocalStore`, `bootstrap_history`) | **next domino** — blocks adapters/crypto/market/leg_proxy |
 | `.core.data.flow` (`basket_flow`, `money_flow_metrics`) | Phase 1 flow metrics |
 | `.core.data.market` (`MarketData`) | Phase 0/1 market data loader |
 | `.core.data.audit` (`write_audit_record`) | Phase 2 audit writer |
 | `.core.data.quality` (`analyze_missing_fields`, `quality_from_snapshots`) | Phase 1 quality |
-| `.core.data.store` (`LocalStore`, `bootstrap_history`) | Phase 0 local store |
 | `.core.backtest.posterior` (`escape_posterior_pnl`, `mirror_posterior_pnl`) | Phase 2 posterior PnL |
 | `.core.features.regime` (`Regime`, `RegimeInput`, `classify_regime`) | Phase 2 regime |
 | `.core.portfolio.risk_budget` (`compute_portfolio_risk`) | Legacy; to be deleted after full migration |

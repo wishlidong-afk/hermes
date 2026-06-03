@@ -171,15 +171,26 @@ def score_pipeline(
     frag_values: Dict[str, float] = {}
     disg_values: Dict[str, float] = {}
 
+    exit_threshold = float(cfg.get("thresholds", {}).get("exit", 75))
     for sym in symbols:
         snap = scores.get(sym, {})
-        if scorer_fn is not None:
-            def _scorer_wrapper(s):
-                r = scorer_fn(sym, clean_store, ctx, cfg)
-                total = r.get("total", 0)
-                thresholds = cfg.get("thresholds", {})
-                return "EXIT" if total >= thresholds.get("exit", 75) else "HOLD"
-            frag_values[sym] = decision_fragility(snap, _scorer_wrapper, seed=42)
+        # Decision fragility = how knife-edge the verdict is: perturb the numeric
+        # score components ±eps and count how often the EXIT/HOLD verdict flips.
+        # The callable MUST consume its perturbed argument. An earlier version
+        # closed over `sym` and re-ran scorer_fn on the ORIGINAL inputs, ignoring
+        # the perturbation, so fragility was ALWAYS 0 and the confidence spine's
+        # fragility guard could never fire. We now perturb the components dict and
+        # re-derive the verdict from the perturbed total, which both uses the
+        # perturbed input and avoids 20× re-running the (expensive) scorer.
+        components = {
+            k: float(v)
+            for k, v in snap.items()
+            if isinstance(v, (int, float)) and k not in ("total", "missing_weight")
+        }
+        if any(components.values()):
+            def _verdict_from_components(perturbed, _exit=exit_threshold):
+                return "EXIT" if sum(perturbed.values()) >= _exit else "HOLD"
+            frag_values[sym] = decision_fragility(components, _verdict_from_components, seed=42)
         else:
             frag_values[sym] = 0.0
 

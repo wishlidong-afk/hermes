@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-escape-top"
@@ -19,3 +19,7 @@ dev = ["pytest>=7", "pytest-cov"]
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["hermes_escape_top*"]
+
+[tool.setuptools.package-data]
+# config/ is a data dir (intentionally not a package); ship the JSON in wheels.
+hermes_escape_top = ["config/config.json"]

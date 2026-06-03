@@ -1,0 +1,14 @@
+Copyright (c) 2026 Hermes project authors. All rights reserved.
+
+This software and its documentation are proprietary. It is a read-only,
+advisory risk/research system and is provided WITHOUT ANY WARRANTY; it does
+not place orders and is not investment advice.
+
+No license — express or implied — to use, copy, modify, or distribute this
+software is granted by this file. All rights are reserved by the authors.
+
+NOTE TO MAINTAINER: this is a deliberately conservative default so that a
+private trading strategy is not inadvertently open-sourced. If you intend this
+repository to be open source, replace this file with the full text of your
+chosen license (e.g. MIT or Apache-2.0) and add the matching `license` field to
+src/pyproject.toml.

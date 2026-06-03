@@ -190,8 +190,19 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
 
             self._send(404, "text/plain; charset=utf-8", b"not found")
 
+        def _is_loopback(self) -> bool:
+            return str(self.client_address[0]) in ("127.0.0.1", "::1", "::ffff:127.0.0.1")
+
         def do_POST(self) -> None:
             parsed = urlparse(self.path)
+            # Defense in depth: the mutating endpoints below rewrite run_daily.py
+            # on disk and spawn subprocesses. Even though the server binds to
+            # 127.0.0.1, refuse any non-loopback client outright so a misconfig
+            # (e.g. binding 0.0.0.0) can never expose them to the network.
+            if not self._is_loopback():
+                self._send(403, "application/json; charset=utf-8",
+                           b'{"ok":false,"message":"loopback only"}')
+                return
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length) if length else b""
             try:

@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+.installed.cfg
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Editable installs
+*.editable-*.whl
+src/*.egg-link
+
+# Test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Local runtime artifacts (never commit live state / data dumps)
+*.sqlite
+data/shadow/
+reports/shadow/
+*.monolith_backup

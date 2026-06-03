@@ -63,7 +63,13 @@ def detect_disagreement(
                   for i in range(len(signals))
                   for j in range(i + 1, len(signals)))
 
-    return round(min(1.0, max_gap / max(threshold, 1e-6) * threshold), 4)
+    # Normalize the raw max pairwise gap by `threshold`: a gap of `threshold`
+    # (or more) saturates to full disagreement (1.0), smaller gaps scale down.
+    # `disagreement_threshold` is therefore a real sensitivity knob (lower =
+    # more sensitive). NOTE: the previous form `max_gap / threshold * threshold`
+    # algebraically cancels to `max_gap`, so the configured threshold was
+    # silently ignored.
+    return round(min(1.0, max_gap / max(threshold, 1e-6)), 4)
 
 
 # ---------------------------------------------------------------------------
