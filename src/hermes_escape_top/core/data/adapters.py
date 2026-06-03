@@ -73,8 +73,72 @@ def default_sources() -> list[DataSource]:
     ]
 
 
+def _valuation_record(as_of: str, config: Dict[str, Any], store: LocalStore) -> Dict[str, Any]:
+    """B6 valuation percentile per trade symbol, from valuation_snapshot.json.
+
+    Maps each trade symbol to its valuation proxy percentile (FNGU→FNGS forward PE,
+    SOXL→SOXX forward PE, MSTR→mNAV premium), exposed as SOFT fields
+    `<SYM>_valuation_pctl` to match the v25 monolith's B6 input. Absent → no field
+    (B6 then scores 0 via the registry's missing handling).
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    sym_map = {
+        "FNGU": ("FNGS", ["forward_pe_percentile", "pe_percentile", "valuation_percentile"]),
+        "SOXL": ("SOXX", ["forward_pe_percentile", "pe_percentile", "valuation_percentile"]),
+        "MSTR": ("MSTR", ["mnav_premium_percentile", "premium_percentile", "valuation_percentile"]),
+    }
+    candidates = []
+    cfg_path = config.get("valuation", {}).get("snapshot_path")
+    if cfg_path:
+        candidates.append(_Path(cfg_path))
+    try:
+        candidates.append(_Path(store.archive_dir).parent / "valuation_snapshot.json")
+    except Exception:
+        pass
+    base = _Path(__file__).resolve().parents[2]  # escape-top/ skill root
+    candidates.append(base / "data" / "valuation_snapshot.json")
+    candidates.append(base.parent / "data" / "valuation_snapshot.json")
+
+    snapshot = None
+    src_path = None
+    for c in candidates:
+        try:
+            if c and c.exists():
+                snapshot = _json.loads(c.read_text(encoding="utf-8"))
+                src_path = str(c)
+                break
+        except Exception:
+            continue
+
+    fields: Dict[str, float | None] = {}
+    if snapshot:
+        items = snapshot.get("items") or snapshot.get("symbols") or {}
+        for sym, (key, pctl_fields) in sym_map.items():
+            item = items.get(key, {})
+            if not isinstance(item, dict):
+                continue
+            for pf in pctl_fields:
+                v = item.get(pf)
+                if isinstance(v, (int, float)):
+                    fields[f"{sym}_valuation_pctl"] = float(v)
+                    break
+
+    return {
+        "value": None,
+        "source": src_path or "valuation_snapshot:absent",
+        "as_of": str(as_of)[:10],
+        "data_available": bool(fields),
+        "is_proxy": True,
+        "fields": fields,
+        "reason": "B6 valuation percentile per symbol",
+    }
+
+
 def collect_soft_data(as_of: str, config: Dict[str, Any], store: LocalStore) -> Dict[str, Any]:
     records = {source.name: source.collect(as_of, config).to_dict() for source in default_sources()}
+    records["valuation"] = _valuation_record(as_of, config, store)
     path = store.write_dated_snapshot(
         "soft_adapter_snapshot",
         as_of,

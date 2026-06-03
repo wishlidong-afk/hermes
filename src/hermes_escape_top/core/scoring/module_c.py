@@ -96,13 +96,19 @@ def _avwap_platform_support(ctx: FactorContext) -> tuple[float, str]:
 
 
 def _distribution_pressure(ctx: FactorContext) -> tuple[float, str]:
+    """C8 distribution pressure — thresholds aligned with v25 monolith.
+
+    >=6 → 4, >=5 → 3, >=4 → 2 (monolith maps 6→5/5→3/4→2; capped at this
+    factor's max of 4). Previously 8→4/6→3/4→1 under-scored mid-range pressure
+    (5 days gave 1 vs the monolith's 3).
+    """
     days = ctx.get("distribution_days_25d")
-    if days >= 8:
-        return 4.0, f"Distribution pressure severe: {days:.0f}/25"
     if days >= 6:
+        return 4.0, f"Distribution pressure severe: {days:.0f}/25"
+    if days >= 5:
         return 3.0, f"Distribution pressure elevated: {days:.0f}/25"
     if days >= 4:
-        return 1.0, f"Distribution pressure watch: {days:.0f}/25"
+        return 2.0, f"Distribution pressure watch: {days:.0f}/25"
     return 0.0, f"Distribution pressure quiet: {days:.0f}/25"
 
 

@@ -10,8 +10,31 @@ def module_b_factors() -> list[FactorDefinition]:
         FactorDefinition("B3_POST_PEAK_DAMAGE", "B", 5.0, ["drawdown_60d_high_pct"], _post_peak_damage),
         FactorDefinition("B4_CBOE_OPTIONS_STRESS", "B", 6.0, ["SOFT.vvix_pctl", "SOFT.skew_index", "SOFT.skew_pctl"], _cboe_options_stress, "B4 options"),
         missing_only("B5_SOCIAL_EUPHORIA", "B", "B5 social"),
-        missing_only("B6_VALUATION_HEAT", "B", "B6 valuation"),
+        FactorDefinition("B6_VALUATION_HEAT", "B", 5.0, [], _valuation_heat, "B6 valuation"),
     ]
+
+
+def _valuation_heat(ctx: FactorContext) -> tuple[float, str]:
+    """B6 valuation percentile (PE / mNAV) — v25-aligned, per-symbol.
+
+    Reads SOFT.<symbol>_valuation_pctl (populated from valuation_snapshot.json:
+    FNGU→FNGS fwd PE pctl, SOXL→SOXX fwd PE pctl, MSTR→mNAV premium pctl).
+    Scoring per SKILL.md §4/B6: >=95→5, >=90→3, >=80→2, >=70→1.
+    Empty dependency list so the factor always runs; returns 0 when valuation is
+    unavailable (does not add blind-spot weight — valuation is now a live input).
+    """
+    pctl = ctx.get(f"SOFT.{ctx.symbol}_valuation_pctl")
+    if pctl is None:
+        return 0.0, "B6 valuation percentile unavailable"
+    if pctl >= 95:
+        return 5.0, f"B6 valuation extreme: {pctl:.0f}th pctl"
+    if pctl >= 90:
+        return 3.0, f"B6 valuation elevated: {pctl:.0f}th pctl"
+    if pctl >= 80:
+        return 2.0, f"B6 valuation watch: {pctl:.0f}th pctl"
+    if pctl >= 70:
+        return 1.0, f"B6 valuation mild: {pctl:.0f}th pctl"
+    return 0.0, f"B6 valuation normal: {pctl:.0f}th pctl"
 
 
 def _fmt_rsi(value) -> str:
