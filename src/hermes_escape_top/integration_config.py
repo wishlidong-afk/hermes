@@ -57,22 +57,33 @@ def default_integration_config() -> Dict[str, Any]:
             "cvar_alpha": 0.95,
             "vol_budget_annual": 0.35,
             "cvar_budget": 0.08,
-            "extreme_corr_penalty": 0.70,
+            # P10 approved calibration: threshold=110 / penalty=0.90.
+            "extreme_corr_penalty": 0.90,
             "downside_q": 0.10,
-            "corr_regime_extreme_pctl": 92,
-            "corr_regime_elevated_pctl": 80,
+            "corr_regime_extreme_ratio": 110,
+            "corr_regime_elevated_ratio": 80,
             "concentration_cap": {"BTC": 0.50},
         },
 
         # ── SizingOptimizer (§7) ──
         "sizing": {
             "dd_aversion": 3.0,
-            "kelly_fraction": 0.30,
+            "kelly": {
+                # Off until a calibrated p_act model is wired. Using decision
+                # confidence as win probability is a category error.
+                "enabled": False,
+                "frac": 0.30,
+                "payoff_ratio": 2.0,
+                "ci_width": 0.0,
+            },
             "leverage_L": {"FNGU": 3, "SOXL": 3, "MSTR": 1},
             "solver": "slsqp_or_grid",
             "exec_slices": 3,
-            "max_liquidation_days": 3,
-            "participation_rate": 0.10,
+            "liquidity": {
+                "max_liquidation_days": 3,
+                "participation_rate": 0.10,
+            },
+            "mu_mode": "proxy",
         },
 
         # ── Governance (§8) ──

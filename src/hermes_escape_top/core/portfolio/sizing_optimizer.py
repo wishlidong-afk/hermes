@@ -77,22 +77,40 @@ def kelly_fraction(
 # ---------------------------------------------------------------------------
 
 def liquidity_cap(
-    adv20: float,
+    adv20_shares: float,
     price: float,
     netliq: float,
     cfg: Dict[str, Any],
 ) -> float:
     """Max weight such that position can be liquidated within max_days.
 
-    days_to_liquidate = shares / (participation * ADV20)
-    => max_notional = participation * ADV20 * max_days * price
+    `adv20_shares` is average daily share volume. If the caller already has
+    dollar ADV, it must pass that through `liquidity_data["adv20_notional"]`
+    so the optimizer does not multiply by price twice.
+
+    days_to_liquidate = shares / (participation * ADV20_shares)
+    => max_notional = participation * ADV20_shares * max_days * price
     => max_weight = max_notional / netliq
     """
     max_days = float(cfg.get("max_liquidation_days", 3))
     participation = float(cfg.get("participation_rate", 0.10))
-    if adv20 <= 0 or price <= 0 or netliq <= 0:
+    if adv20_shares <= 0 or price <= 0 or netliq <= 0:
         return 0.0
-    max_notional = participation * adv20 * max_days * price
+    max_notional = participation * adv20_shares * max_days * price
+    return min(1.0, max_notional / netliq)
+
+
+def liquidity_notional_cap(
+    adv20_notional: float,
+    netliq: float,
+    cfg: Dict[str, Any],
+) -> float:
+    """Liquidity cap when ADV20 is already expressed in dollars."""
+    max_days = float(cfg.get("max_liquidation_days", 3))
+    participation = float(cfg.get("participation_rate", 0.10))
+    if adv20_notional <= 0 or netliq <= 0:
+        return 0.0
+    max_notional = participation * adv20_notional * max_days
     return min(1.0, max_notional / netliq)
 
 
@@ -201,8 +219,9 @@ def optimize_targets(
         leg_returns: per-symbol pd.Series of daily returns. Only consulted when
                      sizing.mu_mode == "historical_tilt" (opt-in); under the
                      default "proxy" mode the vol-based proxy is used.
-        liquidity_data: per-symbol dict with keys 'adv20', 'price', 'netliq'
-                        for E12 liquidity cap. Omit to skip E12.
+        liquidity_data: per-symbol dict with keys 'adv20_shares' or
+                        'adv20_notional', plus 'price' and 'netliq', for E12
+                        liquidity cap. Omit to skip E12.
     """
     sizing_cfg = cfg.get("sizing", cfg)
     dd_aversion = float(sizing_cfg.get("dd_aversion", 3.0))
@@ -247,11 +266,15 @@ def optimize_targets(
         liq_cfg = sizing_cfg.get("liquidity", {})
         for i, s in enumerate(syms):
             liq = liquidity_data.get(s, {})
-            adv20 = float(liq.get("adv20", float("inf")))
             price = float(liq.get("price", 1.0))
             netliq = float(liq.get("netliq", 1.0))
-            if math.isfinite(adv20) and adv20 > 0:
-                liq_cap_val = liquidity_cap(adv20, price, netliq, liq_cfg)
+            adv20_notional = float(liq.get("adv20_notional", float("nan")))
+            adv20_shares = float(liq.get("adv20_shares", liq.get("adv20", float("inf"))))
+            if math.isfinite(adv20_notional) and adv20_notional > 0:
+                liq_cap_val = liquidity_notional_cap(adv20_notional, netliq, liq_cfg)
+                upper_bounds[i] = min(upper_bounds[i], liq_cap_val)
+            elif math.isfinite(adv20_shares) and adv20_shares > 0:
+                liq_cap_val = liquidity_cap(adv20_shares, price, netliq, liq_cfg)
                 upper_bounds[i] = min(upper_bounds[i], liq_cap_val)
 
     # ── E15: CPPI portfolio-level gross exposure cap ───────────────────────────

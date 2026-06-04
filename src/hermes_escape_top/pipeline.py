@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import warnings
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -55,6 +56,7 @@ def empty_score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[st
         score.final_score = missing.adjusted_score
         scores[symbol] = score
     quality = quality_from_snapshots(snapshots.values())
+    portfolio_value = float(config.get("portfolio", {}).get("netliq", config.get("initial_capital", 100000.0)))
     payload = {
         "schema_version": "escape-top-greenfield-phase0-empty-v1",
         "as_of": as_of,
@@ -148,6 +150,7 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any
         as_of,
     )
     mirror_pnl = mirror_posterior_pnl(mirror, histories, as_of)
+    portfolio_value = float(config.get("portfolio", {}).get("netliq", config.get("initial_capital", 100000.0)))
     payload = {
         "schema_version": "escape-top-greenfield-phase3-score-v1",
         "as_of": as_of,
@@ -165,7 +168,7 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any
             "decisions": {sleeve: decision.to_dict() for sleeve, decision in sorted(mirror.items())},
         },
         "posterior_pnl": {
-            "portfolio_value": 100000.0,
+            "portfolio_value": portfolio_value,
             "escape": {symbol: row.to_dict() for symbol, row in sorted(escape_pnl.items())},
             "mirror": {sleeve: row.to_dict() for sleeve, row in sorted(mirror_pnl.items())},
         },
@@ -304,6 +307,59 @@ def _drift_state(signal_journal_path: Any, config: Dict[str, Any]) -> Dict[str, 
         return healthy
 
 
+def _risk_engine_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize legacy portfolio keys into RiskEngine's current schema."""
+    port_cfg = dict(config.get("portfolio", {}))
+    risk_cfg = dict(config.get("risk_engine", {}))
+    risk_cfg.update(port_cfg)
+
+    corr_pct = port_cfg.get("corr_regime_pct", {})
+    if "corr_regime_extreme_ratio" not in risk_cfg:
+        risk_cfg["corr_regime_extreme_ratio"] = risk_cfg.get(
+            "corr_regime_extreme_pctl",
+            corr_pct.get("extreme", 110),
+        )
+    if "corr_regime_elevated_ratio" not in risk_cfg:
+        risk_cfg["corr_regime_elevated_ratio"] = risk_cfg.get(
+            "corr_regime_elevated_pctl",
+            corr_pct.get("elevated", 80),
+        )
+    risk_cfg.setdefault("extreme_corr_penalty", 0.90)
+    risk_cfg.setdefault("vol_budget_annual", 0.35)
+    risk_cfg.setdefault("min_periods", 40)
+    risk_cfg.setdefault("ewma_lambda", 0.94)
+    risk_cfg.setdefault("cvar_alpha", 0.95)
+    risk_cfg.setdefault("cvar_budget", 0.08)
+    return risk_cfg
+
+
+def _sizing_optimizer_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize SizingOptimizer config, including legacy flat fields."""
+    raw = dict(config.get("sizing", {}))
+    sizing_cfg = {
+        "dd_aversion": float(raw.get("dd_aversion", 3.0)),
+        "leverage_L": raw.get("leverage_L", {"FNGU": 3, "SOXL": 3, "MSTR": 1}),
+        "solver": raw.get("solver", "slsqp_or_grid"),
+        "exec_slices": int(raw.get("exec_slices", 3)),
+        "mu_mode": raw.get("mu_mode", "proxy"),
+    }
+
+    kelly = dict(raw.get("kelly", {}))
+    kelly.setdefault("enabled", False)
+    if "kelly_fraction" in raw:
+        kelly.setdefault("frac", raw["kelly_fraction"])
+    sizing_cfg["kelly"] = kelly
+
+    liquidity = dict(raw.get("liquidity", {}))
+    liquidity.setdefault("max_liquidation_days", raw.get("max_liquidation_days", 3))
+    liquidity.setdefault("participation_rate", raw.get("participation_rate", 0.10))
+    sizing_cfg["liquidity"] = liquidity
+
+    if "cppi" in raw:
+        sizing_cfg["cppi"] = raw["cppi"]
+    return sizing_cfg
+
+
 def _optimize_sizing(
     bundles: Dict[str, Any],
     histories: Dict[str, Any],
@@ -341,22 +397,35 @@ def _optimize_sizing(
             close = hist["Close"] if "Close" in hist.columns else hist.iloc[:, 0]
             leg_returns[symbol] = close.pct_change().dropna()
 
+    # ── E12 liquidity data from histories ─────────────────────────────────────
+    netliq = float(config.get("portfolio", {}).get("netliq", 100_000.0))
+    liquidity_data: dict = {}
+    for symbol, hist in histories.items():
+        if hist is None or hist.empty:
+            continue
+        close_col = "Close" if "Close" in hist.columns else hist.columns[0]
+        price_series = hist[close_col].dropna()
+        if price_series.empty:
+            continue
+        price = float(price_series.iloc[-1])
+        if "Volume" in hist.columns:
+            vol_series = hist["Volume"].dropna().tail(20)
+            adv20_shares = float(vol_series.mean()) if len(vol_series) >= 5 else float("inf")
+            adv20_notional = adv20_shares * price if len(vol_series) >= 5 else float("inf")
+        else:
+            adv20_shares = float("inf")
+            adv20_notional = float("inf")
+        liquidity_data[symbol] = {
+            "adv20_shares": adv20_shares,
+            "adv20_notional": adv20_notional,
+            "price": price,
+            "netliq": netliq,
+        }
+
     optimizer_cfg = {
-        "risk_engine": config.get("portfolio", {}),
-        "sizing": {
-            "dd_aversion": 3.0,
-            "leverage_L": {"FNGU": 3, "SOXL": 3, "MSTR": 1},
-            "solver": "slsqp_or_grid",
-            "exec_slices": 3,
-        },
+        "risk_engine": _risk_engine_config(config),
+        "sizing": _sizing_optimizer_config(config),
     }
-    # Inherit vol_budget from portfolio config
-    port_cfg = config.get("portfolio", {})
-    optimizer_cfg["risk_engine"]["vol_budget_annual"] = float(
-        port_cfg.get("vol_budget_annual", 0.35)
-    )
-    optimizer_cfg["risk_engine"]["min_periods"] = int(port_cfg.get("min_periods", 40))
-    optimizer_cfg["risk_engine"]["ewma_lambda"] = float(port_cfg.get("ewma_lambda", 0.94))
 
     risk_state = build_risk_state(
         {s: leg_returns[s] for s in verdicts if s in leg_returns},
@@ -386,15 +455,31 @@ def _optimize_sizing(
 
     # ── Run optimizer ─────────────────────────────────────────────────────────
     try:
-        opt_decision = optimize_targets(verdicts, risk_state, confidence, optimizer_cfg)
+        opt_decision = optimize_targets(
+            verdicts,
+            risk_state,
+            confidence,
+            optimizer_cfg,
+            leg_returns=leg_returns,
+            liquidity_data=liquidity_data,
+        )
     except Exception as exc:
-        # Safety fallback: revert to old scaler chain if optimizer fails
-        return size_portfolio(
+        warnings.warn(
+            f"SizingOptimizer failed; falling back to legacy size_portfolio: {exc!r}",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        fallback = size_portfolio(
             histories,
             {symbol: bundle.result for symbol, bundle in bundles.items()},
             config,
             gross_scaler=portfolio_risk.effective_gross_scaler,
         )
+        for decision in fallback.values():
+            explain = getattr(decision, "explain", None)
+            if isinstance(explain, list):
+                explain.append(f"optimizer_fallback={exc!r}")
+        return fallback
 
     # ── Wrap into backward-compatible SizingProxy dicts ───────────────────────
     result: Dict[str, Any] = {}

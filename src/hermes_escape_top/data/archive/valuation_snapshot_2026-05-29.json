@@ -1,0 +1,8 @@
+{
+  "as_of": "2026-05-29",
+  "data_available": false,
+  "name": "valuation_snapshot",
+  "note": "Phase 1 starts dated archive accumulation; source adapter not yet wired.",
+  "schema_version": "escape-top-greenfield-dated-archive-v1",
+  "source": "greenfield_seed"
+}

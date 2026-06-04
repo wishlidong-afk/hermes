@@ -314,8 +314,10 @@ def _kurtosis(arr: np.ndarray) -> float:
 
 
 def _cornish_fisher_quantile(p: float, skew: float, kurt: float) -> float:
-    from math import erfinv
-    z = math.sqrt(2.0) * erfinv(2.0 * p - 1.0)
+    from statistics import NormalDist
+
+    p = min(max(float(p), 1e-9), 1.0 - 1e-9)
+    z = NormalDist().inv_cdf(p)
     cf = (z
           + (z ** 2 - 1.0) * skew / 6.0
           + (z ** 3 - 3.0 * z) * (kurt - 3.0) / 24.0

@@ -22,9 +22,9 @@
 |---|---|---|
 | `core/contracts.py` | P4_confidence_spine | — (stable) |
 | `core/confidence/spine.py` | P4_confidence_spine | — (correct as-is) |
-| `core/portfolio/risk_engine.py` | P5_phase2_shadow | §1.4 sklearn bug, §三 EXTREME_CORR denominator, §4.1 rc_named ordering |
-| `core/portfolio/sizing_optimizer.py` | P5_phase2_shadow | §1.3 mu→rolling mean, §2.1 E26/E12/E15 wired, §2.2 CVaR explicit, §4.2 fallback vol check |
-| `pipeline.py` | P12_gate2_optimizer | §1.1 ConfidenceSpine, §1.2 dual-gross, leg_returns+liquidity_data threaded |
+| `core/portfolio/risk_engine.py` | P5_phase2_shadow | §1.4 sklearn bug, §三 EXTREME_CORR denominator, §4.1 rc_named ordering, 2026-06-04 `NormalDist.inv_cdf` Cornish-Fisher fix |
+| `core/portfolio/sizing_optimizer.py` | P5_phase2_shadow + local `.hermes` | Kelly opt-in only, historical tilt guarded, E12 share/notional ADV split, redundant normal-CVaR solver removed |
+| `pipeline.py` | P12_gate2_optimizer + local `.hermes` | ConfidenceSpine wired to real missing/staleness/drift signals, leg_returns+liquidity_data threaded, optimizer fallback warns |
 | `core/data/failover.py` | P4_input_guardrails | — |
 | `core/data/sanitize.py` | P4_input_guardrails | — |
 | `core/data/adapters.py` | P3_soft_data_proxy | — |
@@ -42,34 +42,30 @@
 
 ---
 
-## Still missing — must migrate from local `.hermes`
+## 2026-06-04 Migration Closure
 
-These modules are imported by `pipeline.py` but are **not in any snapshot** in this
-repo (they were built in earlier phases and only exist in the local `.hermes`
-installation). They must be copied here before `src/` can be installed and run
-without the local package.
+The missing local `.hermes` modules have been migrated into `src/`:
 
-| Import path | Notes |
-|---|---|
-| `.config` (`CONFIG_PATH`, `load_config`, `trade_symbols`) | Phase 0 config loader |
-| `.core.data.base` (`Field`, `SymbolSnapshot`) | Phase 0 base data types |
-| `.core.data.flow` (`basket_flow`, `money_flow_metrics`) | Phase 1 flow metrics |
-| `.core.data.market` (`MarketData`) | Phase 0/1 market data loader |
-| `.core.data.audit` (`write_audit_record`) | Phase 2 audit writer |
-| `.core.data.quality` (`analyze_missing_fields`, `quality_from_snapshots`) | Phase 1 quality |
-| `.core.data.store` (`LocalStore`, `bootstrap_history`) | Phase 0 local store |
-| `.core.backtest.posterior` (`escape_posterior_pnl`, `mirror_posterior_pnl`) | Phase 2 posterior PnL |
-| `.core.features.regime` (`Regime`, `RegimeInput`, `classify_regime`) | Phase 2 regime |
-| `.core.portfolio.risk_budget` (`compute_portfolio_risk`) | Legacy; to be deleted after full migration |
-| `.core.portfolio.sizing` (`size_portfolio`) | Legacy fallback; to be deleted |
-| `.core.decision.signal_journal` | Phase 2 signal journal |
-| `.core.scoring.scorer` (`score_symbol`) | Phase 2 scoring |
-| `.core.scoring.result` (`ScoreResult`) | Phase 2 scoring |
-| `.core.routing.capital_routing` (`route_capital`) | Phase 2 routing |
-| `.mirror.strategy` (`build_mirror_plan`) | Phase 2 mirror |
-| `.mirror.store` (`write_mirror_snapshot`) | Phase 2 mirror |
+- `.config` and packaged `config/config.json`
+- data layer: `base`, `flow`, `market`, `audit`, `quality`, `store`, adapters, options, sentiment, valuation, WSO index, PIT helpers
+- scoring layer: A/B/C/D modules, registry, hard valves, scorer/result
+- decision/routing/reentry/mirror/IBKR modules
+- backtest/replay/posterior/reporting modules
+- package tests and required offline history fixtures under `data/history`
+- soft-data offline fixtures under `data/soft_history`
 
-**How to migrate:** `cp -r ~/.hermes/hermes_escape_top/core/data/base.py src/hermes_escape_top/core/data/base.py` (repeat for each). Run `pip install -e src/` after all modules are present.
+`src/` now imports without the local package:
+
+```bash
+PYTHONPATH=src python3 -c "from hermes_escape_top.pipeline import score_pipeline; print('pipeline OK')"
+```
+
+Full package verification:
+
+```bash
+PYTHONPATH=src python3 -m unittest discover -s src/hermes_escape_top/tests -p 'test_*.py'
+# Ran 311 tests ... OK
+```
 
 ---
 

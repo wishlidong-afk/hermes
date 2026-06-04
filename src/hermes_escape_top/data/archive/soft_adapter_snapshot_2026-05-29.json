@@ -1,0 +1,149 @@
+{
+  "as_of": "2026-05-29",
+  "records": {
+    "aaii": {
+      "as_of": "2026-05-29",
+      "data_available": true,
+      "fields": {
+        "aaii_bear": 0.436123,
+        "aaii_bull": 0.317181,
+        "aaii_bull_bear_spread": -0.1189419999999999,
+        "aaii_bull_pctl": 16.666666666666664,
+        "aaii_spread_pctl": 16.666666666666664
+      },
+      "is_proxy": false,
+      "latency_days": 8,
+      "name": "aaii",
+      "quality_penalty": 1.5,
+      "reason": "",
+      "source": "AAII",
+      "value": -0.1189419999999999
+    },
+    "btc_funding_basis": {
+      "as_of": "2026-05-29",
+      "data_available": true,
+      "fields": {
+        "btc_basis_annual": 0.0617,
+        "btc_basis_pctl": 82.14,
+        "btc_funding_8h_avg": 5.6e-05,
+        "btc_funding_pctl": 82.14
+      },
+      "is_proxy": true,
+      "latency_days": 0,
+      "name": "btc_funding_basis",
+      "quality_penalty": 2.0,
+      "reason": "",
+      "source": "BTC_FUNDING_PROXY",
+      "value": 5.6e-05
+    },
+    "cboe_indices": {
+      "as_of": "2026-05-29",
+      "data_available": true,
+      "fields": {
+        "skew_index": 144.17999267578125,
+        "skew_pctl": 43.65079365079365,
+        "vix9d_vix_ratio": 0.8218015929100413,
+        "vix_term_ratio": 0.8210074930385864,
+        "vvix_index": 86.05999755859375,
+        "vvix_pctl": 3.1746031746031744
+      },
+      "is_proxy": false,
+      "latency_days": 0,
+      "name": "cboe_indices",
+      "quality_penalty": 0.0,
+      "reason": "",
+      "source": "local_cboe_history",
+      "value": 3.1746031746031744
+    },
+    "cboe_pcr": {
+      "as_of": "2026-05-29",
+      "data_available": true,
+      "fields": {
+        "equity_pcr": 0.6298,
+        "equity_pcr_pctl": 13.89
+      },
+      "is_proxy": true,
+      "latency_days": 0,
+      "name": "cboe_pcr",
+      "quality_penalty": 1.5,
+      "reason": "",
+      "source": "PCR_VIX_PROXY",
+      "value": 0.6298
+    },
+    "component_breadth": {
+      "as_of": "2026-05-29",
+      "data_available": true,
+      "fields": {
+        "aggregate_breadth_chg_5d": 0.05882352941176472,
+        "aggregate_pct_above_200dma": 0.8235294117647058,
+        "aggregate_pct_above_50dma": 0.9411764705882353,
+        "fngu_breadth_chg_5d": 0.11111111111111105,
+        "fngu_pct_above_200dma": 0.6666666666666666,
+        "fngu_pct_above_50dma": 0.8888888888888888,
+        "soxl_breadth_chg_5d": 0.0,
+        "soxl_pct_above_200dma": 1.0,
+        "soxl_pct_above_50dma": 1.0
+      },
+      "is_proxy": true,
+      "latency_days": 0,
+      "name": "component_breadth",
+      "quality_penalty": 2.0,
+      "reason": "",
+      "source": "local_component_history",
+      "value": 0.9411764705882353
+    },
+    "gex": {
+      "as_of": "2026-05-29",
+      "data_available": false,
+      "fields": {},
+      "is_proxy": false,
+      "latency_days": 0,
+      "name": "gex",
+      "quality_penalty": 0.0,
+      "reason": "feature disabled: data_gex",
+      "source": "greenfield_soft_adapter_contract",
+      "value": null
+    },
+    "naaim": {
+      "as_of": "2026-05-29",
+      "data_available": true,
+      "fields": {
+        "naaim_exposure": 98.39,
+        "naaim_pctl": 93.25
+      },
+      "is_proxy": false,
+      "latency_days": 2,
+      "name": "naaim",
+      "quality_penalty": 0.0,
+      "reason": "",
+      "source": "NAAIM",
+      "value": 98.39
+    },
+    "net_liquidity": {
+      "as_of": "2026-05-29",
+      "data_available": true,
+      "fields": {
+        "net_liq": 5874085.837,
+        "net_liq_chg10": -15828.444000000134,
+        "net_liq_chg10_pctl": 44.84126984126984
+      },
+      "is_proxy": false,
+      "latency_days": 0,
+      "name": "net_liquidity",
+      "quality_penalty": 0.0,
+      "reason": "",
+      "source": "FRED",
+      "value": 44.84126984126984
+    },
+    "valuation": {
+      "as_of": "2026-05-29",
+      "data_available": false,
+      "fields": {},
+      "is_proxy": true,
+      "reason": "B6 valuation percentile per symbol",
+      "source": "valuation_snapshot:absent",
+      "value": null
+    }
+  },
+  "schema_version": "escape-top-greenfield-soft-adapter-v1"
+}

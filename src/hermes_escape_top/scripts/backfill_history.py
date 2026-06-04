@@ -1,0 +1,197 @@
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+from datetime import date, timedelta
+from pathlib import Path
+from typing import Callable, Dict, Iterable, Optional
+
+import pandas as pd
+
+from ..config import load_config, resolve_path
+from ..core.data.store import safe_symbol
+
+
+ROUTE_LEGS = ["BRK.B", "BOXX", "DBMF", "BIL", "SHV"]
+EXTRA_MARKET = ["^VIX9D", "^SKEW", "^VVIX"]
+YFINANCE_SYMBOL_MAP = {"BRK.B": "BRK-B"}
+
+
+@dataclass(frozen=True)
+class BackfillResult:
+    symbol: str
+    source_symbol: str
+    path: str
+    start_date: Optional[str]
+    end_date: Optional[str]
+    row_count: int
+    missing_weekdays: int
+    updated: bool
+    reason: str = ""
+
+    def to_dict(self) -> Dict[str, object]:
+        return asdict(self)
+
+
+Downloader = Callable[[str, str, Optional[str]], pd.DataFrame]
+
+
+def all_backfill_symbols(config: Optional[Dict[str, object]] = None) -> list[str]:
+    cfg = config or load_config()
+    symbols = set(cfg.get("symbols", {}).keys())
+    symbols.update(cfg.get("market_symbols", []))
+    symbols.update(EXTRA_MARKET)
+    symbols.update(ROUTE_LEGS)
+    for values in cfg.get("radars", {}).values():
+        symbols.update(values)
+    for values in cfg.get("component_proxies", {}).values():
+        symbols.update(values)
+    return sorted(symbols)
+
+
+def backfill(
+    symbols: list[str],
+    start: str = "2018-01-01",
+    end: Optional[str] = None,
+    store_dir: str | Path = "data/history",
+    downloader: Optional[Downloader] = None,
+    repair_overlap_days: int = 0,
+) -> Dict[str, BackfillResult]:
+    store = Path(store_dir)
+    store.mkdir(parents=True, exist_ok=True)
+    out: Dict[str, BackfillResult] = {}
+    for symbol in symbols:
+        out[symbol] = _backfill_one(symbol, start, end, store, downloader or _download_yfinance, repair_overlap_days=repair_overlap_days)
+    return out
+
+
+def write_coverage_report(results: Dict[str, BackfillResult], output_path: str | Path) -> Path:
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rows = [
+        "| Symbol | Source | Start | End | Rows | Missing Weekdays | Updated | Note |",
+        "|---|---|---:|---:|---:|---:|---:|---|",
+    ]
+    for symbol, result in sorted(results.items()):
+        rows.append(
+            f"| {symbol} | {result.source_symbol} | {result.start_date or '-'} | {result.end_date or '-'} | "
+            f"{result.row_count} | {result.missing_weekdays} | {result.updated} | {result.reason or '-'} |"
+        )
+    path.write_text(
+        "# N0 History Coverage\n\n"
+        f"Generated: {date.today().isoformat()}\n\n"
+        + "\n".join(rows)
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _backfill_one(
+    symbol: str,
+    start: str,
+    end: Optional[str],
+    store_dir: Path,
+    downloader: Downloader,
+    repair_overlap_days: int = 0,
+) -> BackfillResult:
+    path = store_dir / f"{safe_symbol(symbol)}.csv"
+    existing = _read_existing(path)
+    intervals: list[tuple[str, Optional[str]]] = []
+    if not existing.empty:
+        first = existing.index.min().date()
+        last = existing.index.max().date()
+        if pd.Timestamp(start).date() < first:
+            intervals.append((start, first.isoformat()))
+        tail_date = last + timedelta(days=1)
+        if repair_overlap_days > 0:
+            tail_date = max(pd.Timestamp(start).date(), last - timedelta(days=int(repair_overlap_days)))
+        tail_start = tail_date.isoformat()
+        if end is None or pd.Timestamp(tail_start) <= pd.Timestamp(end):
+            intervals.append((tail_start, end))
+    else:
+        intervals.append((start, end))
+    if not intervals:
+        return _result(symbol, path, existing, updated=False, source_symbol=_yf_symbol(symbol), reason="already current")
+    downloaded_frames: list[pd.DataFrame] = []
+    reasons: list[str] = []
+    for fetch_start, fetch_end in intervals:
+        try:
+            chunk = _normalize_download(downloader(_yf_symbol(symbol), fetch_start, fetch_end))
+            if chunk.empty:
+                reasons.append(f"{fetch_start}->{fetch_end or 'latest'} returned no rows")
+            downloaded_frames.append(chunk)
+        except Exception as exc:
+            reasons.append(f"{fetch_start}->{fetch_end or 'latest'} failed: {exc}")
+    normalized = pd.concat(downloaded_frames).sort_index() if downloaded_frames else pd.DataFrame()
+    combined = pd.concat([existing, normalized]).sort_index()
+    if not combined.empty:
+        combined = combined[~combined.index.duplicated(keep="last")]
+        _write_history(path, combined)
+    return _result(symbol, path, combined, updated=not normalized.empty, source_symbol=_yf_symbol(symbol), reason="; ".join(reasons))
+
+
+def _read_existing(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame()
+    frame = pd.read_csv(path)
+    frame = frame.rename(columns={"date": "Date", "open": "Open", "high": "High", "low": "Low", "close": "Close", "adj_close": "Adj Close", "volume": "Volume"})
+    if "Date" not in frame:
+        return pd.DataFrame()
+    frame["Date"] = pd.to_datetime(frame["Date"], errors="coerce")
+    frame = frame.dropna(subset=["Date"]).set_index("Date").sort_index()
+    return frame[[col for col in ["Open", "High", "Low", "Close", "Adj Close", "Volume"] if col in frame.columns]]
+
+
+def _normalize_download(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame is None or frame.empty:
+        return pd.DataFrame()
+    out = frame.copy()
+    if isinstance(out.columns, pd.MultiIndex):
+        out.columns = [col[0] for col in out.columns]
+    rename = {"AdjClose": "Adj Close", "adjclose": "Adj Close", "adj_close": "Adj Close"}
+    out = out.rename(columns=rename)
+    if "Date" in out.columns:
+        out["Date"] = pd.to_datetime(out["Date"], errors="coerce")
+        out = out.dropna(subset=["Date"]).set_index("Date")
+    out.index = pd.to_datetime(out.index, errors="coerce")
+    out = out[~out.index.isna()].sort_index()
+    columns = [col for col in ["Open", "High", "Low", "Close", "Adj Close", "Volume"] if col in out.columns]
+    out = out[columns]
+    for col in columns:
+        out[col] = pd.to_numeric(out[col], errors="coerce")
+    if "Adj Close" not in out and "Close" in out:
+        out["Adj Close"] = out["Close"]
+    return out[[col for col in ["Open", "High", "Low", "Close", "Adj Close", "Volume"] if col in out.columns]]
+
+
+def _write_history(path: Path, frame: pd.DataFrame) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    out = frame.copy()
+    out.index.name = "date"
+    out = out.reset_index()
+    out = out.rename(columns={"Open": "open", "High": "high", "Low": "low", "Close": "close", "Adj Close": "adj_close", "Volume": "volume"})
+    out[["date", "open", "high", "low", "close", "adj_close", "volume"]].to_csv(path, index=False)
+
+
+def _result(symbol: str, path: Path, frame: pd.DataFrame, updated: bool, source_symbol: str, reason: str = "") -> BackfillResult:
+    if frame.empty:
+        return BackfillResult(symbol, source_symbol, str(path), None, None, 0, 0, updated, reason or "no rows")
+    start = frame.index.min().date()
+    end = frame.index.max().date()
+    expected = pd.bdate_range(start, end)
+    missing = len(expected.difference(pd.DatetimeIndex(frame.index.normalize().unique())))
+    return BackfillResult(symbol, source_symbol, str(path), start.isoformat(), end.isoformat(), int(len(frame)), int(missing), updated, reason)
+
+
+def _download_yfinance(symbol: str, start: str, end: Optional[str]) -> pd.DataFrame:
+    import yfinance as yf  # type: ignore
+
+    return yf.download(symbol, start=start, end=end, auto_adjust=False, progress=False)
+
+
+def _yf_symbol(symbol: str) -> str:
+    return YFINANCE_SYMBOL_MAP.get(symbol, symbol)
+
+
+def default_store_dir() -> Path:
+    return resolve_path(load_config(), "history_dir")

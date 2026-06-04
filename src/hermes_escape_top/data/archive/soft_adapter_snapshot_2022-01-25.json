@@ -1,0 +1,149 @@
+{
+  "as_of": "2022-01-25",
+  "records": {
+    "aaii": {
+      "as_of": "2022-01-25",
+      "data_available": true,
+      "fields": {
+        "aaii_bear": 0.467249,
+        "aaii_bull": 0.209607,
+        "aaii_bull_bear_spread": -0.257642,
+        "aaii_bull_pctl": 1.9230769230769231,
+        "aaii_spread_pctl": 3.205128205128205
+      },
+      "is_proxy": false,
+      "latency_days": 5,
+      "name": "aaii",
+      "quality_penalty": 1.5,
+      "reason": "",
+      "source": "AAII",
+      "value": -0.257642
+    },
+    "btc_funding_basis": {
+      "as_of": "2022-01-25",
+      "data_available": true,
+      "fields": {
+        "btc_basis_annual": -0.0204,
+        "btc_basis_pctl": 17.06,
+        "btc_funding_8h_avg": -1.9e-05,
+        "btc_funding_pctl": 17.06
+      },
+      "is_proxy": true,
+      "latency_days": 0,
+      "name": "btc_funding_basis",
+      "quality_penalty": 2.0,
+      "reason": "",
+      "source": "BTC_FUNDING_PROXY",
+      "value": -1.9e-05
+    },
+    "cboe_indices": {
+      "as_of": "2022-01-25",
+      "data_available": true,
+      "fields": {
+        "skew_index": 133.89999389648438,
+        "skew_pctl": 4.365079365079365,
+        "vix9d_vix_ratio": 1.1931964212850805,
+        "vix_term_ratio": 0.9811083004677028,
+        "vvix_index": 150.8000030517578,
+        "vvix_pctl": 98.4126984126984
+      },
+      "is_proxy": false,
+      "latency_days": 0,
+      "name": "cboe_indices",
+      "quality_penalty": 0.0,
+      "reason": "",
+      "source": "local_cboe_history",
+      "value": 98.4126984126984
+    },
+    "cboe_pcr": {
+      "as_of": "2022-01-25",
+      "data_available": true,
+      "fields": {
+        "equity_pcr": 0.8674,
+        "equity_pcr_pctl": 99.21
+      },
+      "is_proxy": true,
+      "latency_days": 0,
+      "name": "cboe_pcr",
+      "quality_penalty": 1.5,
+      "reason": "",
+      "source": "PCR_VIX_PROXY",
+      "value": 0.8674
+    },
+    "component_breadth": {
+      "as_of": "2022-01-25",
+      "data_available": true,
+      "fields": {
+        "aggregate_breadth_chg_5d": -0.23529411764705882,
+        "aggregate_pct_above_200dma": 0.5294117647058824,
+        "aggregate_pct_above_50dma": 0.0,
+        "fngu_breadth_chg_5d": -0.1111111111111111,
+        "fngu_pct_above_200dma": 0.4444444444444444,
+        "fngu_pct_above_50dma": 0.0,
+        "soxl_breadth_chg_5d": -0.3,
+        "soxl_pct_above_200dma": 0.7,
+        "soxl_pct_above_50dma": 0.0
+      },
+      "is_proxy": true,
+      "latency_days": 0,
+      "name": "component_breadth",
+      "quality_penalty": 2.0,
+      "reason": "",
+      "source": "local_component_history",
+      "value": 0.0
+    },
+    "gex": {
+      "as_of": "2022-01-25",
+      "data_available": false,
+      "fields": {},
+      "is_proxy": false,
+      "latency_days": 0,
+      "name": "gex",
+      "quality_penalty": 0.0,
+      "reason": "feature disabled: data_gex",
+      "source": "greenfield_soft_adapter_contract",
+      "value": null
+    },
+    "naaim": {
+      "as_of": "2022-01-25",
+      "data_available": true,
+      "fields": {
+        "naaim_exposure": 56.73,
+        "naaim_pctl": 12.3
+      },
+      "is_proxy": false,
+      "latency_days": 6,
+      "name": "naaim",
+      "quality_penalty": 0.0,
+      "reason": "",
+      "source": "NAAIM",
+      "value": 56.73
+    },
+    "net_liquidity": {
+      "as_of": "2022-01-25",
+      "data_available": true,
+      "fields": {
+        "net_liq": 8377522.998,
+        "net_liq_chg10": 3083.0939999995753,
+        "net_liq_chg10_pctl": 18.650793650793652
+      },
+      "is_proxy": false,
+      "latency_days": 0,
+      "name": "net_liquidity",
+      "quality_penalty": 0.0,
+      "reason": "",
+      "source": "FRED",
+      "value": 18.650793650793652
+    },
+    "valuation": {
+      "as_of": "2022-01-25",
+      "data_available": false,
+      "fields": {},
+      "is_proxy": true,
+      "reason": "B6 valuation percentile per symbol",
+      "source": "valuation_snapshot:absent",
+      "value": null
+    }
+  },
+  "schema_version": "escape-top-greenfield-soft-adapter-v1"
+}

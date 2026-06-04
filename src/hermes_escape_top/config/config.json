@@ -8,8 +8,8 @@
     "legacy_history_dir": "../data/history",
     "archive_dir": "data/archive",
     "history_dir": "data/history",
-    "soft_history_dir": "/Users/liweishi/.hermes/skills/investment/escape-top/hermes_escape_top/data/soft_history",
-    "aaii_sentiment_xls": "/Users/liweishi/Downloads/sentiment.xls"
+    "soft_history_dir": "data/soft_history",
+    "aaii_sentiment_xls": "data/sentiment.xls"
   },
   "symbols": {
     "MSTR": {
@@ -217,7 +217,8 @@
       "approved_by": "human-gate-2026-06-02",
       "prev_extreme": 92,
       "prev_penalty": 0.7
-    }
+    },
+    "ewma_lambda": 0.94
   },
   "routing": {
     "defcon1": {
@@ -278,5 +279,26 @@
     ],
     "client_id": 992,
     "readonly": true
+  },
+  "sizing": {
+    "dd_aversion": 3.0,
+    "leverage_L": {
+      "FNGU": 3,
+      "SOXL": 3,
+      "MSTR": 1
+    },
+    "solver": "slsqp_or_grid",
+    "exec_slices": 3,
+    "mu_mode": "proxy",
+    "kelly": {
+      "enabled": false,
+      "frac": 0.3,
+      "payoff_ratio": 2.0,
+      "ci_width": 0.0
+    },
+    "liquidity": {
+      "max_liquidation_days": 3,
+      "participation_rate": 0.1
+    }
   }
 }
