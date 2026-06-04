@@ -1,5 +1,6 @@
 | Phase | 状态 | 分支/PR | 回测达标 | 阻塞 | 更新时间 |
 |---|---|---|---|---|---|
+| 16 run_daily/WebUI/数据接口修复 | DONE | hermes-docs | n/a | IBKR live 在线验收待 Gateway 开启 | 2026-06-04 |
 | 0 脚手架与契约 | DONE | local only | n/a | - | 2026-05-31 |
 | 1 数据层与离线回放 | DONE | local only | n/a | 真实软数据 adapter 尚未接入 | 2026-05-31 |
 | 2 指标与特征层 | DONE | local only | n/a | 全部内建 | 2026-06-01 |

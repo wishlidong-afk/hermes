@@ -113,7 +113,7 @@ def flow_snapshot(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any]
     }
 
 
-def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any]:
+def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = False) -> Dict[str, Any]:
     config = load_config(config_path)
     store = LocalStore(config)
     market = MarketData(config=config, store=store)
@@ -128,6 +128,7 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any
     hard_excluded = {symbol for symbol, bundle in bundles.items() if bundle.result.hard_valve_hits or bundle.result.sell_fraction >= 1.0}
     portfolio_risk = compute_portfolio_risk(histories, target_weights, config, excluded_symbols=hard_excluded)
     signal_journal_path = store.archive_dir / "signal_journal.jsonl"
+    signal_journal_write_path = _signal_journal_write_path(store, shadow)
     sizing = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of,
                               signal_journal_path=signal_journal_path)
     routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=histories) for symbol, bundle in bundles.items()}
@@ -175,9 +176,9 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any
         "data_quality": quality_from_snapshots(snapshots.values()).to_dict(),
     }
     payload["input_hash"] = stable_hash(payload["snapshots"])
-    audit_path = write_audit_record(payload, store.archive_dir)
+    audit_path = write_audit_record(payload, _audit_write_dir(store, shadow))
     signal_path = append_signal_journal(
-        signal_journal_path,
+        signal_journal_write_path,
         [
             SignalJournalEntry(
                 as_of=str(as_of)[:10],
@@ -209,6 +210,22 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any
         payload["ibkr"] = {"source": "disabled", "note": "set ibkr.enabled=true to activate"}
 
     return payload
+
+
+def _signal_journal_write_path(store: LocalStore, shadow: bool) -> Path:
+    if not shadow:
+        return store.archive_dir / "signal_journal.jsonl"
+    path = store.archive_dir.parent / "shadow" / "signal_journal.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _audit_write_dir(store: LocalStore, shadow: bool) -> Path:
+    if not shadow:
+        return store.archive_dir
+    path = store.archive_dir.parent / "shadow" / "archive"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def _data_confidence(bundles: Dict[str, Any], config: Dict[str, Any]) -> float:

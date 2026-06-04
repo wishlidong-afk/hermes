@@ -81,6 +81,15 @@ def _render_m4_panel(shadow_status: Dict[str, Any]) -> str:
     mode_text_color = {"monolith": "#854d0e", "package": "#065f46", "unknown": "#374151"}.get(mode, "#374151")
     mode_label = {"monolith": "🔶 单体引擎（生产）", "package": "✅ 包引擎（已上线）", "unknown": "❓ 未知"}.get(mode, mode)
 
+    # Dates with a monolith baseline (so the comparison is meaningful).
+    available_dates = shadow_status.get("available_dates", []) or []
+    latest_baseline = shadow_status.get("latest_baseline_date") or ""
+    baseline_hint = (
+        f"有单体基准可对比的日期（选这些才会出匹配率）：<b>{escape(', '.join(available_dates[:8]))}</b>"
+        if available_dates else
+        "⚠️ 暂无任何单体基准文件（data/daily_score_precheck_*.json），对比将只显示包输出。"
+    )
+
     # Shadow log table
     log_entries = shadow_status.get("log_entries", [])
     log_rows = []
@@ -150,14 +159,21 @@ def _render_m4_panel(shadow_status: Dict[str, Any]) -> str:
     <div style="flex:1;min-width:280px;background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:14px">
       <h3 style="margin:0 0 6px;color:#92400e;font-size:14px">M4-2 · 今日影子对比</h3>
       <p style="font-size:12px;color:#6b7280;margin:0 0 10px">
-        用包引擎跑今天的日期（跳过 OHLCV 刷新，速度快），写入 data/shadow/，对比单体输出。
-        <b>不影响任何生产文件。</b>
+        <b>「▶ 运行影子对比」</b>：用包引擎跑选定日期（跳过 OHLCV 刷新，速度快），写入 data/shadow/，
+        对比单体输出。<b>不影响任何生产文件。</b><br>
+        <b style="color:#0e7490">「⤵ 补基准并对比」</b>：当某天没有单体基准时用它——拉取该日 OHLCV，
+        用单体生成基准（写入 data/，<b>不改 state.json、不下单</b>），再自动跑影子并对比。<br>
+        <span style="color:#92400e">{baseline_hint}</span>
       </p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input id="shadow-date" type="date" style="border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;font-size:13px">
-        <button onclick="runShadow()"
+        <button onclick="runShadow()" class="m4-run-btn"
           style="background:#d97706;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">
           ▶ 运行影子对比
+        </button>
+        <button onclick="runBackfill()" class="m4-run-btn"
+          style="background:#0e7490;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">
+          ⤵ 补基准并对比
         </button>
         <span id="shadow-status" style="font-size:12px;color:#6b7280"></span>
       </div>
@@ -192,31 +208,32 @@ def _render_m4_panel(shadow_status: Dict[str, Any]) -> str:
 
   <script>
   (function(){{
-    // Set default date to today
+    // Default to the latest date that HAS a monolith baseline, so the
+    // comparison actually produces a match rate. Falls back to today.
+    var LATEST_BASELINE = "{latest_baseline}";
     var d = document.getElementById('shadow-date');
-    if(d) d.value = new Date().toISOString().slice(0,10);
+    if(d) d.value = LATEST_BASELINE || new Date().toISOString().slice(0,10);
 
-    window.runShadow = function(){{
+    // Shared runner for both M4-2 buttons (shadow-only and backfill+compare).
+    window.m4Run = function(endpoint, runningMsg){{
       var asOf = document.getElementById('shadow-date').value || new Date().toISOString().slice(0,10);
       var el = document.getElementById('shadow-status');
       var res = document.getElementById('shadow-result');
-      var btn = document.querySelector('button[onclick="runShadow()"]');
+      var btns = document.querySelectorAll('.m4-run-btn');
 
-      // Disable button to prevent double-click
-      btn.disabled = true;
-      btn.style.opacity = '0.6';
-      btn.textContent = '⏳ 运行中…';
+      // Disable both run buttons to prevent overlapping runs
+      btns.forEach(function(b){{ b.disabled = true; b.style.opacity = '0.6'; }});
 
       // Show animated progress so user knows it's working
       var dots = 0;
       var progress = setInterval(function(){{
         dots = (dots + 1) % 4;
-        el.textContent = '⏳ 正在运行(' + asOf + ')' + '.'.repeat(dots+1) + ' 约30–90秒，请耐心等待';
+        el.textContent = '⏳ 正在运行(' + asOf + ')' + '.'.repeat(dots+1) + ' ' + runningMsg;
       }}, 800);
 
       res.style.display='none';
 
-      fetch('/api/m4_shadow', {{
+      fetch(endpoint, {{
         method: 'POST',
         headers: {{'Content-Type': 'application/json'}},
         body: JSON.stringify({{as_of: asOf}})
@@ -224,40 +241,44 @@ def _render_m4_panel(shadow_status: Dict[str, Any]) -> str:
       .then(function(r){{ return r.json(); }})
       .then(function(d){{
         clearInterval(progress);
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.textContent = '▶ 运行影子对比';
+        btns.forEach(function(b){{ b.disabled = false; b.style.opacity = '1'; }});
         el.textContent = d.ok ? '✅ 完成' : '❌ 失败';
 
         var out = '';
         if(d.diff){{
-          out += '=== 对比结果(' + asOf + ') ===\n';
-          out += '匹配率: ' + d.diff.match_rate + '% (' + d.diff.matches + '/' + d.diff.total + ')\n';
+          out += '=== 对比结果(' + asOf + ') ===\\n';
+          out += '匹配率: ' + d.diff.match_rate + '% (' + d.diff.matches + '/' + d.diff.total + ')\\n';
           if(d.diff.divergences && d.diff.divergences.length)
-            out += '差异:\n  ' + d.diff.divergences.join('\n  ') + '\n';
+            out += '差异:\\n  ' + d.diff.divergences.join('\\n  ') + '\\n';
           else
-            out += '✅ 全部一致 — 安全门通过\n';
-          out += '\n';
+            out += '✅ 全部一致 — 安全门通过\\n';
+          out += '\\n';
+        }} else {{
+          // No monolith baseline for this date → suggest the backfill button.
+          out += '⚠️ 该日期(' + asOf + ')没有单体基准文件，无法算匹配率。\\n';
+          out += '   点「⤵ 补基准并对比」可拉取该日数据并生成基准';
+          out += (LATEST_BASELINE ? '（已有基准最近到：' + LATEST_BASELINE + '）' : '') + '。\\n\\n';
         }}
         // Filter out noisy IBKR lines from output
-        var lines = (d.output || '').split('\n').filter(function(l){{
+        var lines = (d.output || '').split('\\n').filter(function(l){{
           return l.indexOf('API connection failed') === -1 &&
                  l.indexOf('Make sure API port') === -1 &&
                  l.trim() !== '';
         }});
-        out += lines.join('\n');
+        out += lines.join('\\n');
         res.textContent = out;
         res.style.display = 'block';
         if(d.ok) setTimeout(function(){{ location.reload(); }}, 1500);
       }})
       .catch(function(e){{
         clearInterval(progress);
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.textContent = '▶ 运行影子对比';
+        btns.forEach(function(b){{ b.disabled = false; b.style.opacity = '1'; }});
         el.textContent = '❌ 网络错误: ' + e;
       }});
     }};
+
+    window.runShadow = function(){{ m4Run('/api/m4_shadow', '约30–90秒，请耐心等待'); }};
+    window.runBackfill = function(){{ m4Run('/api/m4_backfill', '约1–3分钟（拉数据+单体基准+影子对比），请耐心等待'); }};
 
     window.goLive = function(){{
       if(!document.getElementById('golive-confirm').checked){{
@@ -440,51 +461,51 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
   </style>
 </head>
 <body>
-	  <h1>Hermes Escape Top</h1>
-	  <p class="meta">as_of={escape(str(payload.get('as_of')))} &nbsp;|&nbsp; schema={escape(str(payload.get('schema_version')))}</p>
-	  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 16px">
-	    <button onclick="refreshScore()" id="refresh-score-btn"
-	      style="background:#111827;color:white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">
-	      更新策略数据
-	    </button>
-	    <span id="refresh-score-status" style="font-size:12px;color:#6b7280"></span>
-	    <span style="background:{cache_color};color:{cache_text};padding:3px 8px;border-radius:4px;font-size:12px;font-weight:700">
-	      {escape(cache_label)}
-	    </span>
-	  </div>
-	  <script>
-	  window.refreshScore = function(){{
-	    var btn = document.getElementById('refresh-score-btn');
-	    var st = document.getElementById('refresh-score-status');
-	    var asOf = {json.dumps(str(payload.get('as_of') or ''))};
-	    btn.disabled = true;
-	    btn.style.opacity = '0.6';
-	    st.textContent = '正在拉取/计算最新策略数据...';
-	    fetch('/api/refresh_score', {{
-	      method: 'POST',
-	      headers: {{'Content-Type': 'application/json'}},
-	      body: JSON.stringify({{as_of: asOf}})
-	    }})
-	    .then(function(r){{ return r.json(); }})
-	    .then(function(d){{
-	      if(d && d.scores){{
-	        st.textContent = '完成，正在刷新页面';
-	        setTimeout(function(){{ location.reload(); }}, 500);
-	      }} else {{
-	        btn.disabled = false;
-	        btn.style.opacity = '1';
-	        st.textContent = '刷新失败: ' + (d.message || 'unknown');
-	      }}
-	    }})
-	    .catch(function(e){{
-	      btn.disabled = false;
-	      btn.style.opacity = '1';
-	      st.textContent = '刷新失败: ' + e;
-	    }});
-	  }};
-	  </script>
+  <h1>Hermes Escape Top</h1>
+  <p class="meta">as_of={escape(str(payload.get('as_of')))} &nbsp;|&nbsp; schema={escape(str(payload.get('schema_version')))}</p>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 16px">
+    <button onclick="refreshScore()" id="refresh-score-btn"
+      style="background:#111827;color:white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">
+      更新策略数据
+    </button>
+    <span id="refresh-score-status" style="font-size:12px;color:#6b7280"></span>
+    <span style="background:{cache_color};color:{cache_text};padding:3px 8px;border-radius:4px;font-size:12px;font-weight:700">
+      {escape(cache_label)}
+    </span>
+  </div>
+  <script>
+  window.refreshScore = function(){{
+    var btn = document.getElementById('refresh-score-btn');
+    var st = document.getElementById('refresh-score-status');
+    var asOf = {json.dumps(str(payload.get('as_of') or ''))};
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    st.textContent = '正在拉取/计算最新策略数据...';
+    fetch('/api/refresh_score', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{as_of: asOf}})
+    }})
+    .then(function(r){{ return r.json(); }})
+    .then(function(d){{
+      if(d && d.scores){{
+        st.textContent = '完成，正在刷新页面';
+        setTimeout(function(){{ location.reload(); }}, 500);
+      }} else {{
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        st.textContent = '刷新失败: ' + (d.message || 'unknown');
+      }}
+    }})
+    .catch(function(e){{
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      st.textContent = '刷新失败: ' + e;
+    }});
+  }};
+  </script>
 
-	  {_render_m4_panel(shadow_status)}
+  {_render_m4_panel(shadow_status)}
 
   <section>
     <h2>System Health</h2>

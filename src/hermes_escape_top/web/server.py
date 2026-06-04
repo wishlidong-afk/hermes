@@ -12,6 +12,7 @@ Endpoints:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import traceback
@@ -19,12 +20,29 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+PACKAGE_DIR = Path(__file__).resolve().parents[1]
+
+
+def _runtime_root() -> Path:
+    local_root = PACKAGE_DIR.parent
+    if (local_root / "scripts").exists() or (local_root / "data").exists():
+        return local_root
+    repo_root = PACKAGE_DIR.parents[1]
+    if (repo_root / "src" / "hermes_escape_top").exists():
+        return repo_root
+    return local_root
+
+
+BASE_DIR = _runtime_root()
 VENV_PYTHON = BASE_DIR.parent.parent.parent.parent / ".hermes" / "hermes-agent" / "venv" / "bin" / "python3"
 PYTHON = str(VENV_PYTHON) if VENV_PYTHON.exists() else sys.executable
 SHADOW_LOG = BASE_DIR / "reports" / "shadow" / "M4_shadow_log.jsonl"
 RUN_DAILY = BASE_DIR / "scripts" / "run_daily.py"
-RUN_DAILY_PKG = BASE_DIR / "scripts" / "run_daily_package.py"
+RUN_DAILY_PKG = (
+    BASE_DIR / "scripts" / "run_daily_package.py"
+    if (BASE_DIR / "scripts" / "run_daily_package.py").exists()
+    else PACKAGE_DIR / "scripts" / "run_daily_package.py"
+)
 
 from ..config import load_config, resolve_path
 from ..pipeline import score_pipeline
@@ -79,6 +97,14 @@ def _latest_score_payload(as_of: str) -> dict | None:
         return None
 
 
+def _subprocess_env() -> dict:
+    env = os.environ.copy()
+    package_parent = str(PACKAGE_DIR.parent)
+    existing = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = package_parent + (os.pathsep + existing if existing else "")
+    return env
+
+
 def _empty_dashboard_payload(as_of: str) -> dict:
     return {
         "schema_version": "escape-top-greenfield-dashboard-cache-miss-v1",
@@ -128,17 +154,22 @@ def _shadow_status() -> dict:
             shadow_latest = json.loads(shadow_files[0].read_text(encoding="utf-8"))
         except Exception:
             pass
+    available_dates = []
+    for p in sorted((BASE_DIR / "data").glob("daily_score_precheck_*.json"), reverse=True):
+        available_dates.append(p.stem.replace("daily_score_precheck_", ""))
     return {
         "log_entries": entries,
         "shadow_precheck": shadow_latest,
         "run_daily_mode": _read_run_daily_mode(),
+        "available_dates": available_dates,
+        "latest_baseline_date": available_dates[0] if available_dates else None,
     }
 
 
 def _run_shadow(as_of: str) -> dict:
     cmd = [PYTHON, str(RUN_DAILY_PKG), "--as-of", as_of, "--skip-refresh"]
     try:
-        r = subprocess.run(cmd, cwd=str(BASE_DIR), capture_output=True, text=True, timeout=180)
+        r = subprocess.run(cmd, cwd=str(BASE_DIR), env=_subprocess_env(), capture_output=True, text=True, timeout=180)
         output = r.stdout + ("\n[STDERR]\n" + r.stderr if r.stderr.strip() else "")
         ok = r.returncode == 0
         diff_result = _diff_shadow(as_of)
@@ -147,6 +178,50 @@ def _run_shadow(as_of: str) -> dict:
         return {"ok": False, "output": "Timeout (180s)", "diff": None}
     except Exception:
         return {"ok": False, "output": traceback.format_exc()[-1000:], "diff": None}
+
+
+def _run_history_refresh(as_of: str) -> dict:
+    cmd = [PYTHON, "-m", "hermes_escape_top.cli", "backfill-history", "--end", as_of, "--repair-overlap-days", "3"]
+    try:
+        r = subprocess.run(cmd, cwd=str(BASE_DIR), env=_subprocess_env(), capture_output=True, text=True, timeout=180)
+        return {"ok": r.returncode == 0, "output": (r.stdout + ("\n[STDERR]\n" + r.stderr if r.stderr.strip() else ""))[-2000:]}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "output": "history refresh timeout (180s)"}
+    except Exception:
+        return {"ok": False, "output": traceback.format_exc()[-1000:]}
+
+
+def _run_baseline(as_of: str) -> dict:
+    backup = RUN_DAILY.with_suffix(".py.monolith_backup")
+    script = backup if backup.exists() else RUN_DAILY
+    if not script.exists():
+        return {"ok": False, "output": f"No monolith baseline script found at {script}"}
+    cmd = [PYTHON, str(script), "--as-of", as_of, "--skip-refresh"]
+    try:
+        r = subprocess.run(cmd, cwd=str(BASE_DIR), env=_subprocess_env(), capture_output=True, text=True, timeout=180)
+        output = r.stdout + ("\n[STDERR]\n" + r.stderr if r.stderr.strip() else "")
+        return {"ok": r.returncode == 0, "output": output[-2000:]}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "output": "baseline timeout (180s)"}
+    except Exception:
+        return {"ok": False, "output": traceback.format_exc()[-1000:]}
+
+
+def _backfill_compare(as_of: str) -> dict:
+    refresh = _run_history_refresh(as_of)
+    baseline = _run_baseline(as_of) if refresh.get("ok") else {"ok": False, "output": "Skipped baseline because refresh failed."}
+    shadow = _run_shadow(as_of) if baseline.get("ok") else {"ok": False, "output": "Skipped shadow because baseline failed.", "diff": None}
+    output = (
+        "=== history refresh ===\n" + str(refresh.get("output", "")) +
+        "\n\n=== baseline ===\n" + str(baseline.get("output", "")) +
+        "\n\n=== package shadow ===\n" + str(shadow.get("output", ""))
+    )
+    return {
+        "ok": bool(refresh.get("ok") and baseline.get("ok") and shadow.get("ok")),
+        "output": output[-5000:],
+        "diff": shadow.get("diff"),
+        "steps": {"refresh": refresh.get("ok"), "baseline": baseline.get("ok"), "shadow": shadow.get("ok")},
+    }
 
 
 def _diff_shadow(as_of: str) -> dict | None:
@@ -182,8 +257,14 @@ def _diff_shadow(as_of: str) -> dict | None:
 def _flip_to_package() -> dict:
     try:
         backup = RUN_DAILY.with_suffix(".py.monolith_backup")
-        if not backup.exists():
+        RUN_DAILY.parent.mkdir(parents=True, exist_ok=True)
+        if RUN_DAILY.exists() and not backup.exists():
             backup.write_text(RUN_DAILY.read_text(encoding="utf-8"), encoding="utf-8")
+        elif not RUN_DAILY.exists() and not backup.exists():
+            backup.write_text(
+                '#!/usr/bin/env python3\n"""No monolith file existed in this checkout before package shim creation."""\n',
+                encoding="utf-8",
+            )
         new_content = (
             '#!/usr/bin/env python3\n'
             '"""run_daily.py — M4 live: package engine.\n'
@@ -193,7 +274,10 @@ def _flip_to_package() -> dict:
             'BASE_DIR = Path(__file__).resolve().parent\n'
             'PYTHON = sys.executable\n'
             'if __name__ == "__main__":\n'
-            '    cmd = [PYTHON, str(BASE_DIR / "run_daily_package.py"),\n'
+            '    pkg = BASE_DIR / "run_daily_package.py"\n'
+            '    if not pkg.exists():\n'
+            '        pkg = BASE_DIR.parent / "src" / "hermes_escape_top" / "scripts" / "run_daily_package.py"\n'
+            '    cmd = [PYTHON, str(pkg),\n'
             '           "--live", "--commit-state"] + sys.argv[1:]\n'
             '    r = subprocess.run(cmd, cwd=str(BASE_DIR.parent))\n'
             '    sys.exit(r.returncode)\n'
@@ -256,6 +340,13 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/m4_shadow":
                 as_of = req.get("as_of", default_as_of)
                 result = _run_shadow(as_of)
+                self._send(200, "application/json; charset=utf-8",
+                           json.dumps(result, ensure_ascii=False, indent=2, default=str).encode())
+                return
+
+            if parsed.path == "/api/m4_backfill":
+                as_of = req.get("as_of", default_as_of)
+                result = _backfill_compare(as_of)
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(result, ensure_ascii=False, indent=2, default=str).encode())
                 return
