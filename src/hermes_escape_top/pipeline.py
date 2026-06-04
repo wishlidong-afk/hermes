@@ -176,22 +176,6 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = F
         "data_quality": quality_from_snapshots(snapshots.values()).to_dict(),
     }
     payload["input_hash"] = stable_hash(payload["snapshots"])
-    audit_path = write_audit_record(payload, _audit_write_dir(store, shadow))
-    signal_path = append_signal_journal(
-        signal_journal_write_path,
-        [
-            SignalJournalEntry(
-                as_of=str(as_of)[:10],
-                symbol=symbol,
-                status=bundle.result.status,
-                final_score=bundle.result.final_score,
-                hard_valves=bundle.result.hard_valve_hits,
-            )
-            for symbol, bundle in sorted(bundles.items())
-        ],
-    )
-    payload["audit_log_path"] = str(audit_path)
-    payload["signal_journal_path"] = str(signal_path)
 
     # ── IBKR reconciliation (NEXT-6, read-only) ───────────────────────────────
     if config.get("ibkr", {}).get("enabled", False):
@@ -208,6 +192,23 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = F
             payload["ibkr"] = {"error": str(exc), "source": "unavailable"}
     else:
         payload["ibkr"] = {"source": "disabled", "note": "set ibkr.enabled=true to activate"}
+
+    audit_path = write_audit_record(payload, _audit_write_dir(store, shadow))
+    signal_path = append_signal_journal(
+        signal_journal_write_path,
+        [
+            SignalJournalEntry(
+                as_of=str(as_of)[:10],
+                symbol=symbol,
+                status=bundle.result.status,
+                final_score=bundle.result.final_score,
+                hard_valves=bundle.result.hard_valve_hits,
+            )
+            for symbol, bundle in sorted(bundles.items())
+        ],
+    )
+    payload["audit_log_path"] = str(audit_path)
+    payload["signal_journal_path"] = str(signal_path)
 
     return payload
 

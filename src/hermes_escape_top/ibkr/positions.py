@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import socket
+import asyncio
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -88,35 +89,62 @@ def read_positions(config: Optional[Dict[str, Any]] = None) -> PositionSnapshot:
         return _load_snapshot(error=f"Could not connect to TWS on any of {ports}{detail}")
 
     try:
+        created_loop = _ensure_thread_event_loop()
         from ib_insync import IB
         ib = IB()
-        connected = False
-        for port in open_ports:
-            try:
-                ib.connect(
-                    host,
-                    port,
-                    clientId=client_id,
-                    readonly=True,
-                    timeout=connect_timeout,
-                )
-                connected = True
-                break
-            except Exception as exc:
-                last_error = str(exc)
-                continue
-
-        if not connected:
-            detail = f": {last_error}" if last_error else ""
-            raise ConnectionError(f"Could not connect to TWS on any of {open_ports}{detail}")
-
         try:
-            return _read_from_tws(ib, config)
+            connected = False
+            for port in open_ports:
+                try:
+                    ib.connect(
+                        host,
+                        port,
+                        clientId=client_id,
+                        readonly=True,
+                        timeout=connect_timeout,
+                    )
+                    connected = True
+                    break
+                except Exception as exc:
+                    last_error = str(exc)
+                    continue
+
+            if not connected:
+                detail = f": {last_error}" if last_error else ""
+                raise ConnectionError(f"Could not connect to TWS on any of {open_ports}{detail}")
+
+            snapshot = _read_from_tws(ib, config)
         finally:
-            ib.disconnect()
+            try:
+                ib.disconnect()
+            finally:
+                del ib
+                _close_thread_event_loop(created_loop)
+        return snapshot
 
     except Exception as exc:
         return _load_snapshot(error=str(exc))
+
+
+def _ensure_thread_event_loop() -> Optional[asyncio.AbstractEventLoop]:
+    """ib_insync's sync API needs an event loop in worker threads."""
+    try:
+        asyncio.get_event_loop()
+        return None
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop
+
+
+def _close_thread_event_loop(loop: Optional[asyncio.AbstractEventLoop]) -> None:
+    if loop is None:
+        return
+    if not loop.is_closed():
+        loop.run_until_complete(asyncio.sleep(0))
+        loop.run_until_complete(asyncio.sleep(0))
+    loop.close()
+    asyncio.set_event_loop(None)
 
 
 def _read_from_tws(ib: Any, config: Optional[Dict[str, Any]]) -> PositionSnapshot:

@@ -3,657 +3,234 @@ from __future__ import annotations
 import json
 from html import escape
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Iterable, List, Optional
 
 
-def _render_ibkr_section(ibkr: Dict[str, Any]) -> str:
-    """Render IBKR reconciliation section."""
-    source = ibkr.get("source", "disabled")
-    if source in ("disabled", "unavailable") or ibkr.get("error") and not ibkr.get("net_liq"):
-        note = ibkr.get("note", ibkr.get("error", ""))
-        return f'<section><h2>IBKR Reconciliation</h2><p class="meta">{escape(source)}: {escape(str(note))}</p></section>'
-
-    nl = float(ibkr.get("net_liq", 0))
-    sync = str(ibkr.get("sync_time", ""))[:19]
-    max_d = float(ibkr.get("max_abs_delta", 0))
-    all_ok = ibkr.get("all_within_tolerance", False)
-    ok_color = "#d1fae5" if all_ok else "#fee2e2"
-    ok_text = "✅ All within tolerance" if all_ok else f"⚠️ Max delta {max_d:.2%}"
-    err = ibkr.get("error")
-
-    rows = []
-    for section, items in [
-        ("Trade Symbol", ibkr.get("trade_symbols", [])),
-        ("Route Leg", ibkr.get("route_legs", [])),
-        ("Extra", ibkr.get("extra_positions", [])),
-    ]:
-        for d in items:
-            status = d.get("status", "?")
-            status_colors = {
-                "MATCH": ("#d1fae5", "#065f46"),
-                "MISSING": ("#fee2e2", "#991b1b"),
-                "OVER": ("#fef9c3", "#854d0e"),
-                "UNDER": ("#fef3c7", "#92400e"),
-                "EXTRA": ("#ede9fe", "#5b21b6"),
-                "ROUTE_LEG": ("#e0f2fe", "#075985"),
-            }
-            bg, fg = status_colors.get(status, ("#f3f4f6", "#374151"))
-            rows.append(
-                "<tr>"
-                f"<td>{escape(section)}</td>"
-                f"<td>{escape(d.get('symbol','?'))}</td>"
-                f"<td>{float(d.get('ideal_weight',0)):.2%}</td>"
-                f"<td>{float(d.get('actual_weight',0)):.2%}</td>"
-                f"<td>{float(d.get('delta_weight',0)):+.2%}</td>"
-                f"<td>${float(d.get('actual_notional',0)):,.0f}</td>"
-                f"<td>{float(d.get('actual_shares',0)):.2f}</td>"
-                f"<td><span style='background:{bg};color:{fg};padding:2px 6px;border-radius:4px;font-size:12px'>{escape(status)}</span></td>"
-                f"<td style='font-size:12px;color:#6b7280'>{escape(d.get('note',''))}</td>"
-                "</tr>"
-            )
-
-    rows_html = "".join(rows) if rows else "<tr><td colspan='9'>No position data</td></tr>"
-    err_html = f'<p style="color:#dc2626;font-size:12px">Error: {escape(str(err))}</p>' if err else ""
-
-    return f"""<section>
-    <h2>IBKR Reconciliation <span style="font-size:12px;font-weight:normal;color:#6b7280">(read-only · no orders)</span></h2>
-    <p>
-      Account: <b>{escape(str(ibkr.get('account_id','?')))}</b>
-      &nbsp;|&nbsp; NetLiq: <b>${nl:,.2f}</b>
-      &nbsp;|&nbsp; Sync: {escape(sync)}
-      &nbsp;|&nbsp; <span style="background:{ok_color};padding:3px 8px;border-radius:4px;font-size:13px">{ok_text}</span>
-    </p>
-    {err_html}
-    <table>
-      <thead><tr>
-        <th>Type</th><th>Symbol</th><th>Ideal</th><th>Actual</th><th>Delta</th>
-        <th>Notional</th><th>Shares</th><th>Status</th><th>Note</th>
-      </tr></thead>
-      <tbody>{rows_html}</tbody>
-    </table>
-  </section>"""
-
-
-def _render_m4_panel(shadow_status: Dict[str, Any]) -> str:
-    """M4 migration control panel with shadow-run and go-live buttons."""
-    mode = shadow_status.get("run_daily_mode", "unknown")
-    mode_color = {"monolith": "#fef9c3", "package": "#d1fae5", "unknown": "#f3f4f6"}.get(mode, "#f3f4f6")
-    mode_text_color = {"monolith": "#854d0e", "package": "#065f46", "unknown": "#374151"}.get(mode, "#374151")
-    mode_label = {"monolith": "🔶 单体引擎（生产）", "package": "✅ 包引擎（已上线）", "unknown": "❓ 未知"}.get(mode, mode)
-
-    # Dates with a monolith baseline (so the comparison is meaningful).
-    available_dates = shadow_status.get("available_dates", []) or []
-    latest_baseline = shadow_status.get("latest_baseline_date") or ""
-    baseline_hint = (
-        f"有单体基准可对比的日期（选这些才会出匹配率）：<b>{escape(', '.join(available_dates[:8]))}</b>"
-        if available_dates else
-        "⚠️ 暂无任何单体基准文件（data/daily_score_precheck_*.json），对比将只显示包输出。"
-    )
-
-    # Shadow log table
-    log_entries = shadow_status.get("log_entries", [])
-    log_rows = []
-    for e in reversed(log_entries[-5:]):
-        mr = e.get("match_rate", 0)
-        divs = e.get("divergences", [])
-        ok_badge = (
-            '<span style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:4px">✅</span>'
-            if mr == 100 else
-            f'<span style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:4px">⚠️ {mr}%</span>'
-        )
-        divs_text = "; ".join(divs) if divs else "—"
-        log_rows.append(
-            f"<tr><td>{escape(str(e.get('date','?')))}</td>"
-            f"<td>{ok_badge}</td>"
-            f"<td>{e.get('matches',0)}/{e.get('total',0)}</td>"
-            f"<td style='font-size:11px;color:#6b7280'>{escape(divs_text)}</td></tr>"
-        )
-    log_table = (
-        "<table><thead><tr><th>日期</th><th>状态</th><th>匹配</th><th>差异</th></tr></thead>"
-        f"<tbody>{''.join(log_rows) if log_rows else '<tr><td colspan=4>尚无记录，先运行 M4-2</td></tr>'}</tbody></table>"
-    )
-
-    # Latest shadow precheck summary
-    shadow_pc = shadow_status.get("shadow_precheck")
-    shadow_summary_rows = []
-    if shadow_pc:
-        for sym in ["MSTR", "FNGU", "SOXL"]:
-            r = shadow_pc.get("results", {}).get(sym, {})
-            ht = r.get("hard_trigger", {}) or {}
-            hard_str = (",".join(ht.get("ids", [])) or "—") if ht.get("triggered") else "—"
-            shadow_summary_rows.append(
-                f"<tr><td>{escape(sym)}</td>"
-                f"<td><b>{escape(str(r.get('status','?')))}</b></td>"
-                f"<td>{r.get('sell_pct',0)}%</td>"
-                f"<td>{r.get('total_score',0)}</td>"
-                f"<td style='color:#dc2626'>{escape(hard_str)}</td></tr>"
-            )
-        shadow_as_of = shadow_pc.get("as_of", "?")
-        shadow_schema = shadow_pc.get("schema_version", "")
-        shadow_header = f'<p style="font-size:12px;color:#4b5563">最新影子预检: <b>{escape(shadow_as_of)}</b> · schema: {escape(shadow_schema)}</p>'
-    else:
-        shadow_header = '<p style="font-size:12px;color:#9ca3af">尚无影子预检文件（先运行 M4-2）</p>'
-
-    shadow_table = (
-        f"{shadow_header}"
-        "<table><thead><tr><th>标的</th><th>状态</th><th>卖出%</th><th>分数</th><th>硬触发</th></tr></thead>"
-        f"<tbody>{''.join(shadow_summary_rows) if shadow_summary_rows else '<tr><td colspan=5>—</td></tr>'}</tbody></table>"
-    ) if shadow_pc else shadow_header
-
-    golive_warn = "" if mode == "monolith" else (
-        '<p style="background:#d1fae5;color:#065f46;padding:8px;border-radius:6px;font-size:13px">'
-        '✅ 已切换到包引擎。M4-3 按钮不需要再点。</p>'
-    )
-
-    return f"""<section style="border:2px solid #7c3aed;background:#fdf4ff">
-  <h2 style="color:#6d28d9">🚀 M4 迁移控制台</h2>
-  <p style="font-size:13px;color:#4b5563">
-    当前 run_daily.py 引擎：
-    <span style="background:{mode_color};color:{mode_text_color};padding:3px 10px;border-radius:6px;font-weight:700">
-      {mode_label}
-    </span>
-  </p>
-
-  <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0">
-    <!-- M4-2 shadow button -->
-    <div style="flex:1;min-width:280px;background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:14px">
-      <h3 style="margin:0 0 6px;color:#92400e;font-size:14px">M4-2 · 今日影子对比</h3>
-      <p style="font-size:12px;color:#6b7280;margin:0 0 10px">
-        <b>「▶ 运行影子对比」</b>：用包引擎跑选定日期（跳过 OHLCV 刷新，速度快），写入 data/shadow/，
-        对比单体输出。<b>不影响任何生产文件。</b><br>
-        <b style="color:#0e7490">「⤵ 补基准并对比」</b>：当某天没有单体基准时用它——拉取该日 OHLCV，
-        用单体生成基准（写入 data/，<b>不改 state.json、不下单</b>），再自动跑影子并对比。<br>
-        <span style="color:#92400e">{baseline_hint}</span>
-      </p>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input id="shadow-date" type="date" style="border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;font-size:13px">
-        <button onclick="runShadow()" class="m4-run-btn"
-          style="background:#d97706;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">
-          ▶ 运行影子对比
-        </button>
-        <button onclick="runBackfill()" class="m4-run-btn"
-          style="background:#0e7490;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">
-          ⤵ 补基准并对比
-        </button>
-        <span id="shadow-status" style="font-size:12px;color:#6b7280"></span>
-      </div>
-      <div id="shadow-result" style="margin-top:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;max-height:200px;overflow:auto;background:#fffaf0;padding:6px;border-radius:4px;display:none"></div>
-    </div>
-
-    <!-- M4-3 go-live button -->
-    <div style="flex:1;min-width:280px;background:#fef2f2;border:1px solid #ef4444;border-radius:8px;padding:14px">
-      <h3 style="margin:0 0 6px;color:#991b1b;font-size:14px">M4-3 · 切换到包引擎（上线）</h3>
-      <p style="font-size:12px;color:#6b7280;margin:0 0 10px">
-        将 run_daily.py 改为调用包引擎（原版自动备份为 run_daily.py.monolith_backup）。
-        <b>此操作影响生产——确认影子期通过后再点。</b>
-      </p>
-      {golive_warn}
-      <div style="display:flex;gap:8px;align-items:center">
-        <input type="checkbox" id="golive-confirm" style="width:16px;height:16px">
-        <label for="golive-confirm" style="font-size:12px;color:#374151">我已确认影子期通过，授权上线</label>
-      </div>
-      <button onclick="goLive()" id="golive-btn"
-        style="margin-top:10px;background:#dc2626;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">
-        ⚡ 上线切换
-      </button>
-      <span id="golive-status" style="display:block;margin-top:8px;font-size:13px"></span>
-    </div>
-  </div>
-
-  <h3 style="font-size:13px;color:#374151;margin:12px 0 6px">影子运行历史（最近 5 次）</h3>
-  {log_table}
-
-  <h3 style="font-size:13px;color:#374151;margin:12px 0 6px">最新影子预检结果</h3>
-  {shadow_table}
-
-  <script>
-  (function(){{
-    // Default to the latest date that HAS a monolith baseline, so the
-    // comparison actually produces a match rate. Falls back to today.
-    var LATEST_BASELINE = "{latest_baseline}";
-    var d = document.getElementById('shadow-date');
-    if(d) d.value = LATEST_BASELINE || new Date().toISOString().slice(0,10);
-
-    // Shared runner for both M4-2 buttons (shadow-only and backfill+compare).
-    window.m4Run = function(endpoint, runningMsg){{
-      var asOf = document.getElementById('shadow-date').value || new Date().toISOString().slice(0,10);
-      var el = document.getElementById('shadow-status');
-      var res = document.getElementById('shadow-result');
-      var btns = document.querySelectorAll('.m4-run-btn');
-
-      // Disable both run buttons to prevent overlapping runs
-      btns.forEach(function(b){{ b.disabled = true; b.style.opacity = '0.6'; }});
-
-      // Show animated progress so user knows it's working
-      var dots = 0;
-      var progress = setInterval(function(){{
-        dots = (dots + 1) % 4;
-        el.textContent = '⏳ 正在运行(' + asOf + ')' + '.'.repeat(dots+1) + ' ' + runningMsg;
-      }}, 800);
-
-      res.style.display='none';
-
-      fetch(endpoint, {{
-        method: 'POST',
-        headers: {{'Content-Type': 'application/json'}},
-        body: JSON.stringify({{as_of: asOf}})
-      }})
-      .then(function(r){{ return r.json(); }})
-      .then(function(d){{
-        clearInterval(progress);
-        btns.forEach(function(b){{ b.disabled = false; b.style.opacity = '1'; }});
-        el.textContent = d.ok ? '✅ 完成' : '❌ 失败';
-
-        var out = '';
-        if(d.diff){{
-          out += '=== 对比结果(' + asOf + ') ===\\n';
-          out += '匹配率: ' + d.diff.match_rate + '% (' + d.diff.matches + '/' + d.diff.total + ')\\n';
-          if(d.diff.divergences && d.diff.divergences.length)
-            out += '差异:\\n  ' + d.diff.divergences.join('\\n  ') + '\\n';
-          else
-            out += '✅ 全部一致 — 安全门通过\\n';
-          out += '\\n';
-        }} else {{
-          // No monolith baseline for this date → suggest the backfill button.
-          out += '⚠️ 该日期(' + asOf + ')没有单体基准文件，无法算匹配率。\\n';
-          out += '   点「⤵ 补基准并对比」可拉取该日数据并生成基准';
-          out += (LATEST_BASELINE ? '（已有基准最近到：' + LATEST_BASELINE + '）' : '') + '。\\n\\n';
-        }}
-        // Filter out noisy IBKR lines from output
-        var lines = (d.output || '').split('\\n').filter(function(l){{
-          return l.indexOf('API connection failed') === -1 &&
-                 l.indexOf('Make sure API port') === -1 &&
-                 l.trim() !== '';
-        }});
-        out += lines.join('\\n');
-        res.textContent = out;
-        res.style.display = 'block';
-        if(d.ok) setTimeout(function(){{ location.reload(); }}, 1500);
-      }})
-      .catch(function(e){{
-        clearInterval(progress);
-        btns.forEach(function(b){{ b.disabled = false; b.style.opacity = '1'; }});
-        el.textContent = '❌ 网络错误: ' + e;
-      }});
-    }};
-
-    window.runShadow = function(){{ m4Run('/api/m4_shadow', '约30–90秒，请耐心等待'); }};
-    window.runBackfill = function(){{ m4Run('/api/m4_backfill', '约1–3分钟（拉数据+单体基准+影子对比），请耐心等待'); }};
-
-    window.goLive = function(){{
-      if(!document.getElementById('golive-confirm').checked){{
-        alert('请先勾选确认复选框'); return;
-      }}
-      if(!confirm('⚠️ 确认将 run_daily.py 切换到包引擎？这将影响每日生产运行。'))
-        return;
-      var st = document.getElementById('golive-status');
-      st.textContent = '⏳ 切换中…';
-      fetch('/api/m4_golive', {{
-        method:'POST',
-        headers:{{'Content-Type':'application/json'}},
-        body: JSON.stringify({{confirmed: true}})
-      }}).then(r=>r.json()).then(d=>{{
-        st.style.color = d.ok ? '#16a34a' : '#dc2626';
-        st.textContent = d.message || (d.ok ? '✅ 成功' : '❌ 失败');
-        if(d.ok) setTimeout(()=>location.reload(), 1500);
-      }}).catch(e=>{{ st.textContent='❌ 网络错误: '+e; }});
-    }};
-  }})();
-  </script>
-</section>"""
+TRADE_SYMBOLS = ["MSTR", "FNGU", "SOXL"]
 
 
 def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | None = None) -> str:
-    if shadow_status is None:
-        shadow_status = {}
-    rows = []
-    detail_rows = []
-    optimizer_rows = []
-    factor_rows = []
-
-    for symbol, score in sorted(payload.get("scores", {}).items()):
-        sizing = payload.get("sizing", {}).get(symbol, {})
-        routing = payload.get("routing", {}).get(symbol, {})
-        reentry = payload.get("reentry", {}).get(symbol, {})
-        modules = score.get("module_scores", {})
-
-        # Optimizer fields (new in P12)
-        binding = sizing.get("binding_constraint", "-")
-        opt_conf = sizing.get("optimizer_confidence")
-        sizing_engine = sizing.get("sizing_engine", "legacy")
-        exec_mode = sizing.get("execution_mode", "-")
-        engine_badge = (
-            f'<span style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:4px;font-size:12px">'
-            f'{escape(sizing_engine)}</span>'
-            if sizing_engine == "optimize_targets_v1"
-            else f'<span style="background:#fef9c3;color:#854d0e;padding:2px 6px;border-radius:4px;font-size:12px">'
-                 f'{escape(sizing_engine)}</span>'
-        )
-
-        rows.append(
-            "<tr>"
-            f"<td>{escape(symbol)}</td>"
-            f"<td>{escape(str(score.get('status')))}</td>"
-            f"<td>{float(score.get('final_score', 0.0)):.2f}</td>"
-            f"<td>A {float(modules.get('A', 0.0)):.1f} / B {float(modules.get('B', 0.0)):.1f}"
-            f" / C {float(modules.get('C', 0.0)):.1f} / D {float(modules.get('D', 0.0)):.1f}</td>"
-            f"<td>{float(score.get('sell_fraction', 0.0)):.2%}</td>"
-            f"<td><b>{float(sizing.get('target_weight', 0.0)):.2%}</b></td>"
-            f"<td>{float(sizing.get('vol_scaler', 1.0)):.3f}</td>"
-            f"<td>{escape(str(routing.get('defcon', 'NONE')))} / {escape(str(routing.get('destination', '-')))}</td>"
-            f"<td>{escape(str(reentry.get('tranche', '-')))}</td>"
-            f"<td>{escape(','.join(score.get('hard_valve_hits', [])) or '-')}</td>"
-            "</tr>"
-        )
-        detail_rows.append(
-            "<tr>"
-            f"<td>{escape(symbol)}</td>"
-            f"<td>{float(score.get('missing_weight', 0.0)):.1f}</td>"
-            f"<td>{escape(str(score.get('blind_spot', False)))}</td>"
-            f"<td>{float(score.get('data_quality', 0.0)):.1f}</td>"
-            f"<td>{escape(str(routing.get('reason', '-')))}</td>"
-            f"<td>{escape(' | '.join(score.get('explain', [])[:5]))}</td>"
-            "</tr>"
-        )
-        # Optimizer detail panel (new)
-        optimizer_rows.append(
-            "<tr>"
-            f"<td>{escape(symbol)}</td>"
-            f"<td>{float(sizing.get('target_weight', 0.0)):.2%}</td>"
-            f"<td>{float(sizing.get('reference_target_weight', 0.0)):.2%}</td>"
-            f"<td>{float(sizing.get('gross_scaler', 1.0)):.3f}</td>"
-            f"<td>{escape(str(binding))}</td>"
-            f"<td>{_fmt_pct(opt_conf)}</td>"
-            f"<td>{escape(exec_mode)}</td>"
-            f"<td>{engine_badge}</td>"
-            "</tr>"
-        )
-        # Factor IC panel (from Factor_Health if available, else module scores)
-        factor_scores = score.get("factor_scores", {})
-        for module, factors in factor_scores.items():
-            if not isinstance(factors, list):
-                continue
-            for f in factors[:3]:  # top 3 per module to keep UI compact
-                s = float(f.get("score", 0.0))
-                mx = float(f.get("max_score", 0.0))
-                pct = (s / mx * 100) if mx > 0 else 0.0
-                bar = "█" * int(pct / 10) + "░" * (10 - int(pct / 10))
-                factor_rows.append(
-                    "<tr>"
-                    f"<td>{escape(symbol)}</td>"
-                    f"<td>{escape(module)}</td>"
-                    f"<td style='font-size:12px'>{escape(f.get('factor_id','?'))}</td>"
-                    f"<td>{s:.1f}/{mx:.1f}</td>"
-                    f"<td style='font-family:monospace;color:#6b7280'>{bar}</td>"
-                    f"<td style='font-size:11px;color:#9ca3af'>{escape(f.get('explain','')[:60])}</td>"
-                    "</tr>"
-                )
-
-    risk = payload.get("portfolio_risk", {})
-    regime = payload.get("regime", {})
+    """Render the package-engine dashboard using the new payload schema."""
+    shadow_status = shadow_status or {}
+    as_of = str(payload.get("as_of", ""))
+    schema = str(payload.get("schema_version", ""))
     cache = payload.get("cache_status", {})
-    cache_label = "cache hit" if cache.get("hit") else "no cache"
-    cache_color = "#d1fae5" if cache.get("hit") else "#fee2e2"
-    cache_text = "#065f46" if cache.get("hit") else "#991b1b"
-
-    # Confidence / Gate 4 info
-    sizing_first = next(iter(payload.get("sizing", {}).values()), {})
-    opt_conf_global = sizing_first.get("optimizer_confidence")
-    conf_mode = "NORMAL" if (opt_conf_global or 1.0) >= 0.80 else (
-        "CAUTION" if (opt_conf_global or 1.0) >= 0.55 else "DEGRADED"
-    )
-    conf_color = {"NORMAL": "#d1fae5", "CAUTION": "#fef9c3", "DEGRADED": "#fee2e2"}.get(conf_mode, "#f3f4f6")
-    conf_text_color = {"NORMAL": "#065f46", "CAUTION": "#854d0e", "DEGRADED": "#991b1b"}.get(conf_mode, "#374151")
-
-    mirror_rows = []
-    for sleeve, decision in sorted(payload.get("mirror", {}).get("decisions", {}).items()):
-        mirror_rows.append(
-            "<tr>"
-            f"<td>{escape(sleeve)}</td>"
-            f"<td>{escape(str(decision.get('cycle')))}</td>"
-            f"<td>{escape(str(decision.get('selected_symbol')))}</td>"
-            f"<td>{float(decision.get('target_weight', 0.0)):.2%}</td>"
-            f"<td>{escape(str(decision.get('reason')))}</td>"
-            "</tr>"
-        )
-    pnl_rows = []
-    posterior = payload.get("posterior_pnl", {})
-    for group_name, rows_by_key in [
-        ("Escape", posterior.get("escape", {})),
-        ("Mirror", posterior.get("mirror", {})),
-    ]:
-        for key, row in sorted(rows_by_key.items()):
-            pnl_rows.append(
-                "<tr>"
-                f"<td>{escape(group_name)}</td>"
-                f"<td>{escape(key)}</td>"
-                f"<td>{escape(str(row.get('symbol')))}</td>"
-                f"<td>{float(row.get('target_weight', 0.0)):.2%}</td>"
-                f"<td>${float(row.get('notional', 0.0)):,.2f}</td>"
-                f"<td>${float(row.get('pnl', 0.0)):,.2f}</td>"
-                f"<td>{_fmt_pct(row.get('return_pct'))}</td>"
-                f"<td>{escape(str(row.get('reason', '')))}</td>"
-                "</tr>"
-            )
-
-    optimizer_rows_html = "".join(optimizer_rows) if optimizer_rows else "<tr><td colspan='8'>No optimizer data</td></tr>"
-    factor_rows_html = "".join(factor_rows) if factor_rows else "<tr><td colspan='6'>No factor data</td></tr>"
+    data_quality = payload.get("data_quality", {})
+    regime = payload.get("regime", {})
+    risk = payload.get("portfolio_risk", {})
+    ibkr = payload.get("ibkr") or {"source": "disabled"}
 
     return f"""<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hermes Escape Top</title>
+  <title>Hermes Escape Top / Hermes 逃顶驾驶舱</title>
   <style>
-    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 24px; background: #f7f8fa; color: #111827; }}
-    h1, h2 {{ margin: 0 0 12px; }}
-    section {{ background: white; border: 1px solid #d8dee8; border-radius: 8px; padding: 16px; margin-bottom: 16px; }}
-    table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
-    th, td {{ border-bottom: 1px solid #e5e7eb; padding: 7px 8px; text-align: left; }}
-    th {{ color: #374151; background: #f3f4f6; font-weight: 600; }}
-    .meta {{ color: #4b5563; font-size: 13px; }}
-    .pill {{ display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 13px; }}
-    .conf-badge {{ display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 13px;
-                   background: {conf_color}; color: {conf_text_color}; }}
-    .gate-ok {{ color: #16a34a; font-weight: 700; }}
-    .gate-warn {{ color: #d97706; font-weight: 700; }}
+    :root {{
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --line: #d9dee7;
+      --muted: #5f6b7a;
+      --text: #111827;
+      --blue: #1d4ed8;
+      --green: #047857;
+      --amber: #b45309;
+      --red: #b91c1c;
+      --slate: #334155;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      letter-spacing: 0;
+    }}
+    .shell {{ max-width: 1480px; margin: 0 auto; padding: 18px; }}
+    .hero {{
+      background: #111827;
+      color: white;
+      border-radius: 8px;
+      padding: 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: start;
+    }}
+    h1 {{ margin: 0 0 8px; font-size: 26px; line-height: 1.15; }}
+    h2 {{ margin: 0 0 10px; font-size: 18px; line-height: 1.25; }}
+    h3 {{ margin: 0 0 8px; font-size: 15px; line-height: 1.25; }}
+    .subtle {{ color: var(--muted); font-size: 12px; }}
+    .hero .subtle {{ color: #cbd5e1; }}
+    .controls {{ display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }}
+    button {{
+      border: 0;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+      background: var(--slate);
+      font-size: 13px;
+    }}
+    button:disabled {{ opacity: .55; cursor: default; }}
+    .btn-primary {{ background: var(--blue); }}
+    .btn-live {{ background: var(--green); }}
+    .btn-muted {{ background: #475569; }}
+    .status-line {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }}
+    .badge {{
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      background: #e5e7eb;
+      color: #374151;
+    }}
+    .badge.ok {{ background: #d1fae5; color: #065f46; }}
+    .badge.warn {{ background: #fef3c7; color: #92400e; }}
+    .badge.danger {{ background: #fee2e2; color: #991b1b; }}
+    .badge.watch {{ background: #dbeafe; color: #1e40af; }}
+    .toolbar-output {{
+      display: none;
+      margin-top: 12px;
+      padding: 10px;
+      background: #ecfdf5;
+      color: #064e3b;
+      border: 1px solid #10b981;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      max-height: 220px;
+      overflow: auto;
+    }}
+    .kpis {{
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }}
+    .kpi, section, .symbol-card {{
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }}
+    .kpi {{ padding: 12px; min-height: 86px; }}
+    .kpi .label {{ color: var(--muted); font-size: 12px; margin-bottom: 8px; }}
+    .kpi .value {{ font-size: 22px; font-weight: 800; line-height: 1.1; }}
+    .kpi .note {{ color: var(--muted); font-size: 12px; margin-top: 6px; }}
+    section {{ padding: 14px; margin-bottom: 12px; }}
+    .command-grid {{
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }}
+    .symbol-card {{ overflow: hidden; }}
+    .symbol-head {{
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+    }}
+    .symbol-title {{ display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }}
+    .symbol-title strong {{ font-size: 22px; }}
+    .score {{ font-size: 28px; font-weight: 850; text-align: right; line-height: 1; }}
+    .score small {{ display:block; color: var(--muted); font-size: 11px; margin-top: 4px; font-weight: 600; }}
+    .symbol-body {{ padding: 14px; display: grid; gap: 12px; }}
+    .mini-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }}
+    .metric {{ background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 6px; padding: 9px; min-width: 0; }}
+    .metric .label {{ color: var(--muted); font-size: 11px; margin-bottom: 5px; }}
+    .metric .value {{ font-size: 15px; font-weight: 800; overflow-wrap: anywhere; }}
+    .module-row {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }}
+    .module {{ background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; }}
+    .module b {{ display: block; font-size: 13px; margin-bottom: 6px; }}
+    .bar {{ height: 7px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }}
+    .bar span {{ display: block; height: 100%; background: #64748b; }}
+    .bar span.warn {{ background: #d97706; }}
+    .bar span.danger {{ background: #dc2626; }}
+    .facts {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }}
+    details {{ border: 1px solid #e5e7eb; border-radius: 6px; background: #fbfdff; }}
+    summary {{ cursor: pointer; padding: 9px 10px; font-weight: 800; color: #334155; }}
+    details .detail-body {{ padding: 0 10px 10px; }}
+    table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
+    th, td {{ border-bottom: 1px solid #e5e7eb; padding: 7px 8px; text-align: left; vertical-align: top; }}
+    th {{ background: #f1f5f9; color: #334155; font-weight: 800; }}
+    tr:last-child td {{ border-bottom: 0; }}
+    .two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
+    .route-text {{ font-weight: 800; color: #0f172a; }}
+    .reason {{ color: var(--muted); font-size: 12px; line-height: 1.45; }}
+    .warning-box {{ background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:10px; color:#7c2d12; font-size:12px; }}
+    .ops details {{ background: white; }}
+    @media (max-width: 1100px) {{
+      .hero {{ grid-template-columns: 1fr; }}
+      .controls {{ justify-content: flex-start; }}
+      .kpis {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+      .command-grid {{ grid-template-columns: 1fr; }}
+      .two-col {{ grid-template-columns: 1fr; }}
+    }}
+    @media (max-width: 720px) {{
+      .shell {{ padding: 10px; }}
+      .kpis, .facts, .mini-grid, .module-row {{ grid-template-columns: 1fr; }}
+      h1 {{ font-size: 22px; }}
+    }}
   </style>
 </head>
 <body>
-  <h1>Hermes Escape Top</h1>
-  <p class="meta">as_of={escape(str(payload.get('as_of')))} &nbsp;|&nbsp; schema={escape(str(payload.get('schema_version')))}</p>
-  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 16px">
-    <button onclick="refreshScore()" id="refresh-score-btn"
-      style="background:#111827;color:white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">
-      更新策略数据
-    </button>
-    <button onclick="runIbkrLiveCheck()" id="ibkr-live-btn"
-      style="background:#047857;color:white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">
-      IBKR Live 验收
-    </button>
-    <span id="refresh-score-status" style="font-size:12px;color:#6b7280"></span>
-    <span id="ibkr-live-status" style="font-size:12px;color:#6b7280"></span>
-    <span style="background:{cache_color};color:{cache_text};padding:3px 8px;border-radius:4px;font-size:12px;font-weight:700">
-      {escape(cache_label)}
-    </span>
+  <div class="shell">
+    <header class="hero">
+      <div>
+        <h1>Hermes Escape Top / Hermes 逃顶驾驶舱</h1>
+        <div class="subtle">as_of={esc(as_of)} · schema={esc(schema)} · 新系统 package payload</div>
+        <div class="status-line">
+          {_badge('Data ' + str(data_quality.get('level', 'NA')), _quality_kind(data_quality.get('level')))}
+          {_badge('Cache ' + ('hit' if cache.get('hit') else 'live/none'), 'ok' if cache.get('hit') else 'warn')}
+          {_badge('IBKR ' + str(ibkr.get('source', 'disabled')), _ibkr_kind(ibkr))}
+          {_badge('Regime ' + str(regime.get('current', 'NA')), 'watch')}
+        </div>
+      </div>
+      <div>
+        <div class="controls">
+          <button class="btn-primary" onclick="refreshScore()" id="refresh-score-btn">更新策略数据</button>
+          <button class="btn-live" onclick="runIbkrLiveCheck()" id="ibkr-live-btn">IBKR Live 验收</button>
+          <button class="btn-muted" onclick="location.reload()">重新载入</button>
+        </div>
+        <div class="subtle" id="refresh-score-status" style="margin-top:8px;text-align:right"></div>
+        <div class="subtle" id="ibkr-live-status" style="margin-top:4px;text-align:right"></div>
+      </div>
+    </header>
+
+    <div id="ibkr-live-result" class="toolbar-output"></div>
+
+    {_render_kpis(payload)}
+
+    <section>
+      <h2>Escape Decisions / 今日处置指令</h2>
+      <div class="command-grid">
+        {''.join(_render_symbol_card(symbol, payload) for symbol in TRADE_SYMBOLS)}
+      </div>
+    </section>
+
+    <div class="two-col">
+      {_render_ibkr_section(ibkr)}
+      {_render_posterior_section(payload)}
+    </div>
+
+    <div class="two-col">
+      {_render_mirror_section(payload)}
+      {_render_quality_section(payload)}
+    </div>
+
+    {_render_ops_panel(shadow_status)}
   </div>
-  <div id="ibkr-live-result"
-    style="display:none;margin:0 0 16px;font-size:12px;font-family:monospace;white-space:pre-wrap;background:#ecfdf5;border:1px solid #10b981;border-radius:6px;padding:10px;max-height:220px;overflow:auto"></div>
-  <script>
-  window.refreshScore = function(){{
-    var btn = document.getElementById('refresh-score-btn');
-    var st = document.getElementById('refresh-score-status');
-    var asOf = {json.dumps(str(payload.get('as_of') or ''))};
-    btn.disabled = true;
-    btn.style.opacity = '0.6';
-    st.textContent = '正在拉取/计算最新策略数据...';
-    fetch('/api/refresh_score', {{
-      method: 'POST',
-      headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{as_of: asOf}})
-    }})
-    .then(function(r){{ return r.json(); }})
-    .then(function(d){{
-      if(d && d.scores){{
-        st.textContent = '完成，正在刷新页面';
-        setTimeout(function(){{ location.reload(); }}, 500);
-      }} else {{
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        st.textContent = '刷新失败: ' + (d.message || 'unknown');
-      }}
-    }})
-    .catch(function(e){{
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      st.textContent = '刷新失败: ' + e;
-    }});
-  }};
-  window.runIbkrLiveCheck = function(){{
-    var btn = document.getElementById('ibkr-live-btn');
-    var st = document.getElementById('ibkr-live-status');
-    var out = document.getElementById('ibkr-live-result');
-    var asOf = {json.dumps(str(payload.get('as_of') or ''))};
-    btn.disabled = true;
-    btn.style.opacity = '0.6';
-    out.style.display = 'none';
-    st.textContent = '正在验收 IBKR live 连接...';
-    fetch('/api/ibkr_live_check', {{
-      method: 'POST',
-      headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{as_of: asOf}})
-    }})
-    .then(function(r){{ return r.json(); }})
-    .then(function(d){{
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      st.textContent = d.ok ? '✅ LIVE_OK' : '❌ ' + (d.status || 'LIVE_FAILED');
-      var lines = [];
-      lines.push('status=' + (d.status || 'unknown'));
-      lines.push('ok=' + !!d.ok);
-      if(d.preflight){{
-        lines.push('source=' + d.preflight.source);
-        lines.push('account=' + d.preflight.account_id);
-        lines.push('net_liq=' + d.preflight.net_liq);
-        if(d.preflight.error) lines.push('error=' + d.preflight.error);
-      }}
-      if(d.ibkr){{
-        lines.push('score_ibkr_source=' + d.ibkr.source);
-        lines.push('max_abs_delta=' + d.ibkr.max_abs_delta);
-      }}
-      if(d.report_paths){{
-        lines.push('json_report=' + d.report_paths.json);
-        lines.push('markdown_report=' + d.report_paths.markdown);
-      }}
-      if(d.message) lines.push('message=' + d.message);
-      out.textContent = lines.join('\\n');
-      out.style.display = 'block';
-      if(d.ok) setTimeout(function(){{ location.reload(); }}, 900);
-    }})
-    .catch(function(e){{
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      st.textContent = '❌ 网络错误: ' + e;
-    }});
-  }};
-  </script>
-
-  {_render_m4_panel(shadow_status)}
-
-  <section>
-    <h2>System Health</h2>
-    <p>
-      Regime: <span class="pill" style="background:#e0f2fe;color:#075985">{escape(str(regime.get('current', 'UNKNOWN')))}</span>
-      &nbsp;|&nbsp;
-      Confidence: <span class="conf-badge">{conf_mode} ({_fmt_pct(opt_conf_global)})</span>
-      &nbsp;|&nbsp;
-      VIX pct: {_fmt_num(regime.get('vix_percentile'))} &nbsp;|&nbsp; VIX/VIX3M: {_fmt_num(regime.get('vix_term_ratio'))}
-    </p>
-    <p style="font-size:12px;color:#6b7280;margin-top:8px">
-      Risk binding: {escape(str(risk.get('binding_constraint', risk.get('binding', 'NONE'))))}
-      &nbsp;|&nbsp; gross_scaler: {float(risk.get('gross_scaler', risk.get('effective_gross_scaler', 1.0))):.3f}
-      &nbsp;|&nbsp; corr_regime: {escape(str(risk.get('corr_regime', '-')))}
-    </p>
-  </section>
-
-  <section>
-    <h2>Escape Decisions</h2>
-    <table>
-      <thead><tr>
-        <th>Symbol</th><th>Status</th><th>Score</th><th>Modules (A/B/C/D)</th>
-        <th>Sell%</th><th>Target</th><th>Vol Scaler</th>
-        <th>Route</th><th>Reentry</th><th>Hard Valve</th>
-      </tr></thead>
-      <tbody>{''.join(rows)}</tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>Optimizer Detail <span style="font-size:12px;font-weight:normal;color:#6b7280">(Gate 2: single sizing entry)</span></h2>
-    <table>
-      <thead><tr>
-        <th>Symbol</th><th>Target Weight</th><th>Rule Ref</th><th>Gross Scaler</th>
-        <th>Binding</th><th>Confidence</th><th>Exec Mode</th><th>Engine</th>
-      </tr></thead>
-      <tbody>{optimizer_rows_html}</tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>Factor Scores <span style="font-size:12px;font-weight:normal;color:#6b7280">(top factors per module)</span></h2>
-    <table>
-      <thead><tr>
-        <th>Symbol</th><th>Module</th><th>Factor</th><th>Score</th><th>Bar</th><th>Explain</th>
-      </tr></thead>
-      <tbody>{factor_rows_html}</tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>Audit Detail</h2>
-    <table>
-      <thead><tr>
-        <th>Symbol</th><th>Missing Weight</th><th>Blind Spot</th>
-        <th>Data Quality</th><th>Route Explain</th><th>Top Reasons</th>
-      </tr></thead>
-      <tbody>{''.join(detail_rows)}</tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>Portfolio Risk</h2>
-    <p>
-      legs_used={escape(str(risk.get('legs_used')))}
-      &nbsp;|&nbsp; forecast_vol={float(risk.get('forecast_portfolio_vol') or 0):.2%}
-      &nbsp;|&nbsp; gross={float(risk.get('gross_scaler', risk.get('effective_gross_scaler', 1.0))):.3f}
-      &nbsp;|&nbsp; binding={escape(str(risk.get('binding_constraint', risk.get('binding','?'))))}
-      &nbsp;|&nbsp; corr_regime={escape(str(risk.get('corr_regime', '-')))}
-    </p>
-  </section>
-
-  <section>
-    <h2>Mirror Reference</h2>
-    <table>
-      <thead><tr><th>Sleeve</th><th>Cycle</th><th>Selected</th><th>Target</th><th>Reason</th></tr></thead>
-      <tbody>{''.join(mirror_rows)}</tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>Posterior Ideal P/L</h2>
-    <p class="meta">Assumes ${float(posterior.get('portfolio_value', 100000.0)):,.0f} portfolio.</p>
-    <table>
-      <thead><tr>
-        <th>System</th><th>Sleeve</th><th>Symbol</th><th>Weight</th>
-        <th>Notional</th><th>P/L</th><th>Return</th><th>Note</th>
-      </tr></thead>
-      <tbody>{''.join(pnl_rows)}</tbody>
-    </table>
-  </section>
-
-  {_render_ibkr_section(payload.get("ibkr") or {"source": "disabled"})}
-
+  {_render_scripts(as_of)}
 </body>
 </html>
 """
@@ -665,19 +242,542 @@ def write_dashboard(payload: Dict[str, Any], output_path: Path) -> Path:
     return output_path
 
 
-def _fmt_pct(value: object) -> str:
+def _render_kpis(payload: Dict[str, Any]) -> str:
+    risk = payload.get("portfolio_risk", {})
+    regime = payload.get("regime", {})
+    dq = payload.get("data_quality", {})
+    ibkr = payload.get("ibkr") or {}
+    vix_pct = regime.get("vix_percentile")
+    gross = risk.get("gross_scaler", risk.get("effective_gross_scaler"))
+    return f"""
+    <section>
+      <h2>System Health / Portfolio Risk / 系统状态</h2>
+      <div class="kpis" style="margin:0">
+      <div class="kpi">
+        <div class="label">数据质量</div>
+        <div class="value">{esc(dq.get('level', 'NA'))}</div>
+        <div class="note">overall {_fmt_num(dq.get('overall_score'))} · latency {_fmt_num(dq.get('latency_score'))}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">市场状态</div>
+        <div class="value">{esc(regime.get('current', 'NA'))}</div>
+        <div class="note">VIX pct {_fmt_num(vix_pct)} · QQQ { _fmt_money((regime.get('inputs') or {}).get('QQQ.close')) }</div>
+      </div>
+      <div class="kpi">
+        <div class="label">组合风险</div>
+        <div class="value">{_fmt_pct(risk.get('forecast_portfolio_vol'))}</div>
+        <div class="note">gross {_fmt_num(gross)} · corr {esc(risk.get('corr_regime', 'NA'))}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">IBKR 对账</div>
+        <div class="value">{esc(ibkr.get('source', 'disabled'))}</div>
+        <div class="note">NetLiq {_fmt_money(ibkr.get('net_liq'))} · max delta {_fmt_pct(ibkr.get('max_abs_delta'))}</div>
+      </div>
+      </div>
+    </section>
+    """
+
+
+def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
+    score = (payload.get("scores") or {}).get(symbol, {})
+    sizing = (payload.get("sizing") or {}).get(symbol, {})
+    routing = (payload.get("routing") or {}).get(symbol, {})
+    reentry = (payload.get("reentry") or {}).get(symbol, {})
+    pnl = (payload.get("posterior_pnl") or {}).get("escape", {}).get(symbol, {})
+    ibkr_row = _ibkr_row(payload.get("ibkr") or {}, symbol)
+    status = str(score.get("status", "NA"))
+    hard = score.get("hard_valve_hits") or []
+    module_scores = score.get("module_scores") or {}
+    sell_fraction = score.get("sell_fraction")
+    close = _snap(payload, symbol, "close")
+    ma200 = _snap(payload, symbol, "ma200")
+    ma220 = _snap(payload, symbol, "ma220")
+    ema20 = _snap(payload, symbol, "ema20")
+    chandelier = _snap(payload, symbol, "chandelier_exit")
+    dist = _snap(payload, symbol, "distribution_days_25d")
+    drawdown = _snap(payload, symbol, "drawdown_60d_high_pct")
+    radar_symbol = "QQQ" if symbol in {"FNGU", "SOXL"} else symbol
+    if symbol == "SOXL":
+        radar_symbol = "SOXX"
+    radar_close = _snap(payload, radar_symbol, "close")
+    radar_ma200 = _snap(payload, radar_symbol, "ma200")
+    top_reasons = _top_factor_rows(score, limit=5)
+
+    return f"""
+      <article class="symbol-card">
+        <div class="symbol-head">
+          <div>
+            <div class="symbol-title">
+              <strong>{esc(symbol)}</strong>
+              {_badge(status, _status_kind(status))}
+              {_badge('Hard ' + str(len(hard)), 'danger' if hard else 'ok')}
+            </div>
+            <div class="subtle">sell {_fmt_pct(sell_fraction)} · target {_fmt_pct(sizing.get('target_weight'))} · route {esc(_route_label(routing))}</div>
+          </div>
+          <div class="score">{_fmt_num(score.get('final_score'))}<small>final score</small></div>
+        </div>
+        <div class="symbol-body">
+          <div class="module-row">
+            {''.join(_module_box(m, module_scores.get(m, 0.0)) for m in ['A','B','C','D'])}
+          </div>
+
+          <div class="facts">
+            {_metric('建议处置', f"{status} / 卖出 {_fmt_pct(sell_fraction)}")}
+            {_metric('理想仓位', f"{_fmt_pct(sizing.get('target_weight'))} · {_fmt_money(pnl.get('notional'))}")}
+            {_metric('建议股数', f"{_fmt_num(pnl.get('shares'))} 股 @ {_fmt_money(pnl.get('current_close'))}")}
+            {_metric('资金路由', _route_text(routing))}
+            {_metric('优化器', f"{esc(sizing.get('binding_constraint', 'NA'))} · conf {_fmt_pct(sizing.get('optimizer_confidence'))}")}
+            {_metric('IBKR 当前', _ibkr_text(ibkr_row))}
+          </div>
+
+          <div class="mini-grid">
+            <div>
+              <h3>斩仓线 / 风险线</h3>
+              <table>
+                <tbody>
+                  {_tr('当前收盘', _fmt_money(close), '标的自身')}
+                  {_tr('EMA20', _fmt_money(ema20), '短线风险位')}
+                  {_tr('MA200', _fmt_money(ma200), '核心硬阀门')}
+                  {_tr('MA220', _fmt_money(ma220), '建仓审计参考')}
+                  {_tr('Chandelier', _fmt_money(chandelier), 'ATR 吊灯止损')}
+                  {_tr('25日派发', _fmt_num(dist), 'distribution days')}
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <h3>建仓审计 / 雷达</h3>
+              <table>
+                <tbody>
+                  {_tr('雷达标的', esc(radar_symbol), '主控趋势')}
+                  {_tr('雷达收盘', _fmt_money(radar_close), '')}
+                  {_tr('雷达 MA200', _fmt_money(radar_ma200), '趋势红线')}
+                  {_tr('60日回撤', _fmt_pct(drawdown), '高空回撤')}
+                  {_tr('再建仓', esc(reentry.get('tranche', 'NA')), esc('; '.join(reentry.get('explain', [])[:2])))}
+                  {_tr('解锁状态', esc(reentry.get('eligible', False)), esc(reentry.get('locked_reason', '')))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <details>
+            <summary>裁决原因和关键触发项</summary>
+            <div class="detail-body">
+              {_hard_valves(hard)}
+              <table>
+                <thead><tr><th>模块</th><th>指标</th><th>得分</th><th>解释</th></tr></thead>
+                <tbody>{''.join(top_reasons) or '<tr><td colspan="4">暂无高分触发项</td></tr>'}</tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+      </article>
+    """
+
+
+def _render_ibkr_section(ibkr: Dict[str, Any]) -> str:
+    rows: List[str] = []
+    for label, items in [
+        ("策略标的", ibkr.get("trade_symbols", [])),
+        ("路由腿", ibkr.get("route_legs", [])),
+        ("额外持仓", ibkr.get("extra_positions", [])),
+    ]:
+        for item in items or []:
+            rows.append(
+                "<tr>"
+                f"<td>{esc(label)}</td>"
+                f"<td><b>{esc(item.get('symbol'))}</b></td>"
+                f"<td>{_fmt_pct(item.get('ideal_weight'))}</td>"
+                f"<td>{_fmt_pct(item.get('actual_weight'))}</td>"
+                f"<td>{_fmt_pct(item.get('delta_weight'), signed=True)}</td>"
+                f"<td>{_fmt_money(item.get('actual_notional'))}</td>"
+                f"<td>{_fmt_num(item.get('actual_shares'))}</td>"
+                f"<td>{_fmt_money(item.get('avg_cost'))}</td>"
+                f"<td>{_badge(str(item.get('status', 'NA')), _ibkr_status_kind(str(item.get('status', 'NA'))))}</td>"
+                "</tr>"
+            )
+    if not rows:
+        note = ibkr.get("note") or ibkr.get("error") or "暂无 IBKR 对账数据"
+        rows.append(f'<tr><td colspan="9">{esc(note)}</td></tr>')
+    return f"""
+    <section>
+      <h2>IBKR Reconciliation / 持仓对账</h2>
+      <div class="subtle">source={esc(ibkr.get('source', 'disabled'))} · account={esc(ibkr.get('account_id', 'NA'))} · NetLiq={_fmt_money(ibkr.get('net_liq'))} · sync={esc(str(ibkr.get('sync_time', ''))[:19])}</div>
+      {_warning(ibkr.get('error'))}
+      <table>
+        <thead><tr><th>类别</th><th>标的</th><th>理想</th><th>实际</th><th>差异</th><th>市值</th><th>股数</th><th>成本</th><th>状态</th></tr></thead>
+        <tbody>{''.join(rows)}</tbody>
+      </table>
+    </section>
+    """
+
+
+def _render_posterior_section(payload: Dict[str, Any]) -> str:
+    posterior = payload.get("posterior_pnl") or {}
+    rows = []
+    for group, by_key in [("Escape", posterior.get("escape", {})), ("Mirror", posterior.get("mirror", {}))]:
+        for key, row in sorted((by_key or {}).items()):
+            rows.append(
+                "<tr>"
+                f"<td>{esc(group)}</td><td>{esc(key)}</td><td><b>{esc(row.get('symbol'))}</b></td>"
+                f"<td>{_fmt_pct(row.get('target_weight'))}</td><td>{_fmt_money(row.get('notional'))}</td>"
+                f"<td>{_fmt_num(row.get('shares'))}</td><td>{_fmt_money(row.get('pnl'))}</td><td>{_fmt_pct(row.get('return_pct'))}</td>"
+                "</tr>"
+            )
+    return f"""
+    <section>
+      <h2>Posterior Ideal P/L / 理想仓位上一交易日盈亏</h2>
+      <div class="subtle">portfolio value={_fmt_money(posterior.get('portfolio_value'))}</div>
+      <table>
+        <thead><tr><th>系统</th><th>仓位桶</th><th>标的</th><th>权重</th><th>金额</th><th>股数</th><th>浮盈亏</th><th>收益</th></tr></thead>
+        <tbody>{''.join(rows) if rows else '<tr><td colspan="8">暂无后验盈亏数据</td></tr>'}</tbody>
+      </table>
+    </section>
+    """
+
+
+def _render_mirror_section(payload: Dict[str, Any]) -> str:
+    rows = []
+    for sleeve, decision in sorted(((payload.get("mirror") or {}).get("decisions") or {}).items()):
+        rows.append(
+            "<tr>"
+            f"<td><b>{esc(sleeve)}</b></td><td>{esc(decision.get('cycle'))}</td>"
+            f"<td>{esc(decision.get('selected_symbol'))}</td><td>{_fmt_pct(decision.get('target_weight'))}</td>"
+            f"<td>{esc(decision.get('reason'))}</td>"
+            "</tr>"
+        )
+    return f"""
+    <section>
+      <h2>Mirror Reference / 镜像参考</h2>
+      <table>
+        <thead><tr><th>仓位桶</th><th>周期</th><th>选择</th><th>目标</th><th>原因</th></tr></thead>
+        <tbody>{''.join(rows) if rows else '<tr><td colspan="5">暂无镜像数据</td></tr>'}</tbody>
+      </table>
+    </section>
+    """
+
+
+def _render_quality_section(payload: Dict[str, Any]) -> str:
+    dq = payload.get("data_quality") or {}
+    penalties = dq.get("penalties") or []
+    rows = [
+        f"<tr><td>{esc(p.get('reason'))}</td><td>{esc(p.get('field'))}</td><td>{_fmt_num(p.get('penalty'))}</td></tr>"
+        for p in penalties[:8]
+    ]
+    return f"""
+    <section>
+      <h2>Audit Detail / 数据质量</h2>
+      <div class="facts" style="margin-bottom:10px">
+        {_metric('Completeness', _fmt_num(dq.get('completeness_score')))}
+        {_metric('Quality', _fmt_num(dq.get('quality_score')))}
+        {_metric('Latency', _fmt_num(dq.get('latency_score')))}
+      </div>
+      <table>
+        <thead><tr><th>类型</th><th>字段</th><th>惩罚</th></tr></thead>
+        <tbody>{''.join(rows) if rows else '<tr><td colspan="3">暂无数据质量惩罚</td></tr>'}</tbody>
+      </table>
+    </section>
+    """
+
+
+def _render_ops_panel(shadow_status: Dict[str, Any]) -> str:
+    mode = shadow_status.get("run_daily_mode", "unknown")
+    latest = shadow_status.get("latest_baseline_date") or ""
+    dates = ", ".join((shadow_status.get("available_dates") or [])[:8])
+    return f"""
+    <section class="ops">
+      <details>
+        <summary>M4 迁移控制台 / 运维工具</summary>
+        <div class="detail-body">
+          <div class="facts" style="margin-bottom:10px">
+            {_metric('run_daily mode', esc(mode))}
+            {_metric('最新基准日', esc(latest or 'NA'))}
+            {_metric('可对比日期', esc(dates or 'NA'))}
+          </div>
+          <div class="controls" style="justify-content:flex-start;margin-bottom:10px">
+            <input id="shadow-date" type="date" value="{esc(latest)}" style="border:1px solid #cbd5e1;border-radius:6px;padding:7px 9px">
+            <button class="btn-muted" onclick="runShadow()">运行影子对比</button>
+            <button class="btn-muted" onclick="runBackfill()">补基准并对比</button>
+          </div>
+          <div id="shadow-status" class="subtle"></div>
+          <div id="shadow-result" class="toolbar-output"></div>
+        </div>
+      </details>
+    </section>
+    """
+
+
+def _render_scripts(as_of: str) -> str:
+    as_of_js = json.dumps(str(as_of or ""))
+    return f"""
+  <script>
+  function setBusy(btn, busy) {{
+    if (!btn) return;
+    btn.disabled = busy;
+    btn.style.opacity = busy ? '0.6' : '1';
+  }}
+  window.refreshScore = function() {{
+    var btn = document.getElementById('refresh-score-btn');
+    var st = document.getElementById('refresh-score-status');
+    setBusy(btn, true);
+    st.textContent = '正在刷新新系统数据...';
+    fetch('/api/refresh_score', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{as_of: {as_of_js}}})
+    }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+      if (d && d.scores) {{
+        st.textContent = '刷新完成，重新载入页面';
+        setTimeout(function() {{ location.reload(); }}, 600);
+      }} else {{
+        st.textContent = '刷新失败: ' + (d.message || d.error || 'unknown');
+        setBusy(btn, false);
+      }}
+    }}).catch(function(e) {{
+      st.textContent = '刷新失败: ' + e;
+      setBusy(btn, false);
+    }});
+  }};
+  window.runIbkrLiveCheck = function() {{
+    var btn = document.getElementById('ibkr-live-btn');
+    var st = document.getElementById('ibkr-live-status');
+    var out = document.getElementById('ibkr-live-result');
+    setBusy(btn, true);
+    st.textContent = '正在验收 IBKR live 连接...';
+    out.style.display = 'none';
+    fetch('/api/ibkr_live_check', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{as_of: {as_of_js}}})
+    }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+      setBusy(btn, false);
+      st.textContent = d.ok ? 'LIVE_OK' : (d.status || 'LIVE_FAILED');
+      var lines = [];
+      lines.push('status=' + (d.status || 'unknown'));
+      lines.push('ok=' + !!d.ok);
+      if (d.preflight) {{
+        lines.push('source=' + d.preflight.source);
+        lines.push('account=' + d.preflight.account_id);
+        lines.push('net_liq=' + d.preflight.net_liq);
+        if (d.preflight.error) lines.push('error=' + d.preflight.error);
+      }}
+      if (d.ibkr) {{
+        lines.push('score_ibkr_source=' + d.ibkr.source);
+        lines.push('max_abs_delta=' + d.ibkr.max_abs_delta);
+      }}
+      if (d.report_paths) {{
+        lines.push('json_report=' + d.report_paths.json);
+        lines.push('markdown_report=' + d.report_paths.markdown);
+      }}
+      if (d.message) lines.push('message=' + d.message);
+      out.textContent = lines.join('\\n');
+      out.style.display = 'block';
+      if (d.ok) setTimeout(function() {{ location.reload(); }}, 900);
+    }}).catch(function(e) {{
+      setBusy(btn, false);
+      st.textContent = 'Live 验收失败: ' + e;
+    }});
+  }};
+  function m4Run(endpoint, label) {{
+    var date = document.getElementById('shadow-date').value || {as_of_js};
+    var st = document.getElementById('shadow-status');
+    var out = document.getElementById('shadow-result');
+    st.textContent = '正在运行 ' + label + '...';
+    out.style.display = 'none';
+    fetch(endpoint, {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{as_of: date}})
+    }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+      st.textContent = d.ok ? '完成' : '失败';
+      out.textContent = JSON.stringify(d, null, 2);
+      out.style.display = 'block';
+    }}).catch(function(e) {{
+      st.textContent = '失败: ' + e;
+    }});
+  }}
+  window.runShadow = function() {{ m4Run('/api/m4_shadow', '影子对比'); }};
+  window.runBackfill = function() {{ m4Run('/api/m4_backfill', '补基准并对比'); }};
+  </script>
+    """
+
+
+def _top_factor_rows(score: Dict[str, Any], limit: int = 5) -> List[str]:
+    factors = []
+    for module, rows in (score.get("factor_scores") or {}).items():
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            pts = _float(row.get("score"), 0.0)
+            if pts > 0:
+                factors.append((pts, module, row))
+    factors.sort(key=lambda x: x[0], reverse=True)
+    out = []
+    for pts, module, row in factors[:limit]:
+        max_score = row.get("max_score")
+        score_text = f"{_fmt_num(pts)}/{_fmt_num(max_score)}" if max_score is not None else _fmt_num(pts)
+        out.append(
+            "<tr>"
+            f"<td>{esc(module)}</td>"
+            f"<td>{esc(row.get('factor_id', row.get('name', '')))}</td>"
+            f"<td>{score_text}</td>"
+            f"<td>{esc(row.get('explain', ''))}</td>"
+            "</tr>"
+        )
+    return out
+
+
+def _module_box(module: str, value: Any) -> str:
+    score = _float(value, 0.0)
+    width = max(0.0, min(100.0, score / 25.0 * 100.0))
+    kind = "danger" if score >= 12 else "warn" if score >= 6 else ""
+    return f"""
+    <div class="module">
+      <b>{esc(module)} 模块</b>
+      <div class="bar"><span class="{kind}" style="width:{width:.1f}%"></span></div>
+      <div class="subtle" style="margin-top:5px">{_fmt_num(score)} 分</div>
+    </div>
+    """
+
+
+def _metric(label: str, value: str) -> str:
+    return f'<div class="metric"><div class="label">{esc(label)}</div><div class="value">{value}</div></div>'
+
+
+def _tr(label: str, value: str, note: str) -> str:
+    return f"<tr><td>{esc(label)}</td><td><b>{value}</b></td><td class='subtle'>{note}</td></tr>"
+
+
+def _hard_valves(hard: Iterable[str]) -> str:
+    hard = list(hard or [])
+    if not hard:
+        return '<div class="warning-box" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534">未触发硬阀门。</div>'
+    return f'<div class="warning-box">硬阀门触发：<b>{esc(", ".join(hard))}</b></div>'
+
+
+def _warning(text: Any) -> str:
+    if not text:
+        return ""
+    return f'<div class="warning-box" style="margin:10px 0">{esc(text)}</div>'
+
+
+def _route_label(route: Dict[str, Any]) -> str:
+    if not route or route.get("applies") is False:
+        return "NONE"
+    return str(route.get("defcon") or route.get("destination") or "ROUTE")
+
+
+def _route_text(route: Dict[str, Any]) -> str:
+    if not route or route.get("applies") is False:
+        return "不路由"
+    weights = route.get("weights") or {}
+    if weights:
+        dest = " / ".join(f"{k} {_fmt_pct(v)}" for k, v in weights.items())
+    else:
+        dest = str(route.get("destination", "-"))
+    return f"{esc(route.get('defcon', 'ROUTE'))} -> {esc(dest)}"
+
+
+def _ibkr_row(ibkr: Dict[str, Any], symbol: str) -> Optional[Dict[str, Any]]:
+    for bucket in ["trade_symbols", "route_legs", "extra_positions"]:
+        for row in ibkr.get(bucket, []) or []:
+            if row.get("symbol") == symbol:
+                return row
+    return None
+
+
+def _ibkr_text(row: Optional[Dict[str, Any]]) -> str:
+    if not row:
+        return "无持仓"
+    return f"{_fmt_num(row.get('actual_shares'))} 股 · {_fmt_pct(row.get('actual_weight'))} · {esc(row.get('status'))}"
+
+
+def _snap(payload: Dict[str, Any], symbol: str, field: str) -> Any:
+    snap = (payload.get("snapshots") or {}).get(symbol, {})
+    fields = snap.get("fields") or {}
+    row = fields.get(field) or {}
+    return row.get("value")
+
+
+def _badge(text: str, kind: str = "") -> str:
+    kind = kind if kind in {"ok", "warn", "danger", "watch"} else ""
+    return f'<span class="badge {kind}">{esc(text)}</span>'
+
+
+def _status_kind(status: str) -> str:
+    if status in {"EXIT", "DEFENSIVE_EXIT"}:
+        return "danger"
+    if status == "REDUCE":
+        return "warn"
+    if status in {"TRIM", "WATCH"}:
+        return "watch"
+    return "ok"
+
+
+def _quality_kind(level: Any) -> str:
+    level = str(level or "").upper()
+    if level in {"HIGH", "GOOD"}:
+        return "ok"
+    if level in {"LOW", "NO_CACHE"}:
+        return "danger"
+    return "warn"
+
+
+def _ibkr_kind(ibkr: Dict[str, Any]) -> str:
+    src = str(ibkr.get("source", "")).lower()
+    if src == "tws":
+        return "ok"
+    if src in {"snapshot", "disabled"}:
+        return "warn"
+    return "danger"
+
+
+def _ibkr_status_kind(status: str) -> str:
+    if status == "MATCH":
+        return "ok"
+    if status in {"UNDER", "MISSING"}:
+        return "warn"
+    if status in {"OVER", "EXTRA"}:
+        return "danger"
+    return "watch"
+
+
+def _fmt_money(value: Any) -> str:
     if value is None:
         return "NA"
     try:
-        return f"{float(value):.2%}"
+        return f"${float(value):,.2f}"
     except (TypeError, ValueError):
-        return str(value)
+        return esc(value)
 
 
-def _fmt_num(value: object) -> str:
+def _fmt_pct(value: Any, signed: bool = False) -> str:
     if value is None:
         return "NA"
     try:
-        return f"{float(value):.3f}"
+        val = float(value) * 100.0
+        prefix = "+" if signed and val > 0 else ""
+        return f"{prefix}{val:.1f}%"
     except (TypeError, ValueError):
-        return str(value)
+        return esc(value)
+
+
+def _fmt_num(value: Any) -> str:
+    if value is None:
+        return "NA"
+    try:
+        return f"{float(value):,.2f}"
+    except (TypeError, ValueError):
+        return esc(value)
+
+
+def _float(value: Any, default: float = 0.0) -> float:
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def esc(value: Any) -> str:
+    return escape("" if value is None else str(value))
