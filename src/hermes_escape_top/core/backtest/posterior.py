@@ -75,7 +75,47 @@ def mirror_posterior_pnl(
 ) -> Dict[str, IdealPnlRow]:
     rows = {}
     for sleeve, decision in sorted(mirror_decisions.items()):
+        allocations = getattr(decision, "allocations", None) or {}
+        if allocations and len(allocations) > 1:
+            rows[sleeve] = _aggregate_allocation_pnl(sleeve, allocations, histories, as_of, portfolio_value)
+            continue
         selected = str(decision.selected_symbol)
         weight = float(decision.target_weight)
         rows[sleeve] = ideal_previous_day_pnl(sleeve, selected, weight, histories.get(selected, pd.DataFrame()), as_of, portfolio_value)
     return rows
+
+
+def _aggregate_allocation_pnl(
+    sleeve: str,
+    allocations: Dict[str, float],
+    histories: Dict[str, pd.DataFrame],
+    as_of: str,
+    portfolio_value: float,
+) -> IdealPnlRow:
+    total_weight = float(sum(float(weight) for weight in allocations.values()))
+    total_notional = float(portfolio_value) * total_weight
+    total_pnl = 0.0
+    all_available = True
+    reasons = []
+    symbols = []
+    for symbol, weight in sorted(allocations.items()):
+        row = ideal_previous_day_pnl(sleeve, symbol, float(weight), histories.get(symbol, pd.DataFrame()), as_of, portfolio_value)
+        symbols.append(symbol)
+        total_pnl += float(row.pnl)
+        all_available = all_available and bool(row.data_available)
+        if row.reason:
+            reasons.append(f"{symbol}: {row.reason}")
+    return_pct = total_pnl / total_notional if total_notional > 0 else 0.0
+    return IdealPnlRow(
+        sleeve=sleeve,
+        symbol="+".join(symbols),
+        target_weight=total_weight,
+        notional=total_notional,
+        previous_close=None,
+        current_close=None,
+        shares=0.0,
+        pnl=total_pnl,
+        return_pct=return_pct,
+        data_available=all_available,
+        reason="; ".join(reasons),
+    )

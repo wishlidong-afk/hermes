@@ -18,16 +18,14 @@ from .render import (
 )
 
 
-MIRROR_ORDER = ["FNGU_QQQ", "SOXL_SOXX", "MSTR_QQQ"]
+MIRROR_ORDER = ["FNGU_QQQ", "SOXL_SOXX"]
 MIRROR_LABELS = {
-    "FNGU_QQQ": "QQQ / FNGU 科技动能",
+    "FNGU_QQQ": "QQQ / FNGU 双轮驱动",
     "SOXL_SOXX": "SOXX / SOXL 半导体",
-    "MSTR_QQQ": "MSTR / QQQ 比特币贝塔",
 }
 RADAR_SYMBOLS = {
-    "FNGU_QQQ": ["QQQ", "FNGU"],
-    "SOXL_SOXX": ["SOXX", "SOXL"],
-    "MSTR_QQQ": ["MSTR", "BTC-USD", "QQQ"],
+    "FNGU_QQQ": ["QQQ", "FNGU", "^VIX"],
+    "SOXL_SOXX": ["SOXX", "SOXL", "SPY", "^VIX"],
 }
 
 
@@ -137,7 +135,7 @@ def render_mirror_dashboard(payload: Dict[str, Any]) -> str:
     .kpi .value {{ font-size: 22px; font-weight: 900; line-height: 1.1; overflow-wrap: anywhere; }}
     .kpi .note {{ color: var(--muted); font-size: 12px; margin-top: 6px; }}
     section {{ padding: 14px; margin-bottom: 12px; }}
-    .mirror-grid {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }}
+    .mirror-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }}
     .card {{ overflow: hidden; }}
     .card-head {{
       padding: 14px;
@@ -159,7 +157,7 @@ def render_mirror_dashboard(payload: Dict[str, Any]) -> str:
     .route {{ font-weight: 900; }}
     .reason {{ color: var(--muted); font-size: 12px; line-height: 1.45; }}
     .two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
-    .flow-grid {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }}
+    .flow-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }}
     .flow-card {{ border: 1px solid #e5e7eb; border-radius: 8px; background: #fbfdff; overflow: hidden; }}
     .flow-title {{ padding: 10px 12px; border-bottom: 1px solid #e5e7eb; background: #f8fafc; }}
     .flow-body {{ padding: 10px; overflow-x: auto; }}
@@ -184,6 +182,10 @@ def render_mirror_dashboard(payload: Dict[str, Any]) -> str:
       overflow: auto;
     }}
     .warning-box {{ background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:10px; color:#7c2d12; font-size:12px; }}
+    details {{ border: 1px solid #e5e7eb; border-radius: 6px; background: #fbfdff; }}
+    summary {{ cursor: pointer; padding: 9px 10px; font-weight: 850; color: #334155; }}
+    .detail-body {{ padding: 0 10px 10px; }}
+    ul {{ margin: 0; padding-left: 18px; color: #334155; font-size: 12px; line-height: 1.6; }}
     @media (max-width: 1100px) {{
       .hero {{ grid-template-columns: 1fr; }}
       .controls {{ justify-content: flex-start; }}
@@ -207,7 +209,7 @@ def render_mirror_dashboard(payload: Dict[str, Any]) -> str:
           {_badge('Data ' + str(dq.get('level', 'NA')), _quality_kind(dq.get('level')))}
           {_badge('IBKR ' + str(ibkr.get('source', 'disabled')), _ibkr_kind(ibkr))}
           {_badge('Regime ' + str(regime.get('current', 'NA')), 'watch')}
-          {_badge('Mirror cap ' + _fmt_pct(_mirror_cap(payload)), 'ok')}
+          {_badge('Mirror target ' + _fmt_pct(_mirror_cap(payload)), 'ok')}
         </div>
       </div>
       <div>
@@ -236,9 +238,9 @@ def render_mirror_dashboard(payload: Dict[str, Any]) -> str:
         <div class="note">优先用 IBKR NetLiq，否则用后验组合值</div>
       </div>
       <div class="kpi">
-        <div class="label">镜像总控制仓位</div>
+        <div class="label">镜像策略总目标仓位</div>
         <div class="value">{_fmt_pct(_mirror_cap(payload))}</div>
-        <div class="note">FNGU/QQQ 20% · SOXL/SOXX 30% · MSTR/QQQ 15%</div>
+        <div class="note">FNGU/QQQ 桶 20% · SOXL/SOXX 桶 30%</div>
       </div>
       <div class="kpi">
         <div class="label">上一交易日理想 P/L</div>
@@ -284,10 +286,8 @@ def _render_leg_card(sleeve: str, payload: Dict[str, Any], portfolio_base: float
     selected = str(decision.get("selected_symbol", pnl.get("symbol", "NA")))
     target_weight = _float(decision.get("target_weight"), _float(pnl.get("target_weight"), 0.0))
     target_amount = portfolio_base * target_weight
-    price = _price_for(payload, selected, pnl)
-    shares = target_amount / price if price > 0 else None
     cycle = str(decision.get("cycle", "NA"))
-    kind = "ok" if cycle == "RISK_ON" else "watch" if cycle == "BASE_DEFENSE" else "warn"
+    kind = "ok" if cycle in {"STRONG_TREND", "STRONG_BOOM"} else "watch" if cycle in {"WEAK_TREND", "WEAK_BOOM"} else "warn"
     return f"""
     <article class="card">
       <div class="card-head">
@@ -298,17 +298,20 @@ def _render_leg_card(sleeve: str, payload: Dict[str, Any], portfolio_base: float
           </div>
           <div class="subtle">上限 {_fmt_pct(decision.get('sleeve_cap'))} · 风险腿 {esc(decision.get('risk_symbol', 'NA'))} · 防守腿 {esc(decision.get('base_symbol', 'NA'))}</div>
         </div>
-        <div class="selected">{esc(selected)}<small>当前选择</small></div>
+        <div class="selected">{esc(selected)}<small>主动作</small></div>
       </div>
       <div class="card-body">
         <div class="facts">
           {_metric('建议动作', _action_text(decision))}
-          {_metric('理想资金', f"{_fmt_pct(target_weight)} · {_fmt_money(target_amount)}")}
-          {_metric('市价/股数', f"{_fmt_money(price)} · {_fmt_num(shares)} 股")}
+          {_metric('理想总资金', f"{_fmt_pct(target_weight)} · {_fmt_money(target_amount)}")}
+          {_metric('策略桶上限', _fmt_pct(decision.get('sleeve_cap')))}
           {_metric('昨日理想盈亏', f"{_fmt_money(pnl.get('pnl'))} · {_fmt_pct(pnl.get('return_pct'))}")}
         </div>
         <div class="reason">{esc(decision.get('reason', '暂无原因'))}</div>
+        {_render_allocation_table(decision, payload, portfolio_base)}
         {_render_radar_table(sleeve, payload)}
+        {_render_rule_checks(decision)}
+        {_render_stop_rules(decision)}
       </div>
     </article>
     """
@@ -332,6 +335,70 @@ def _render_radar_table(sleeve: str, payload: Dict[str, Any]) -> str:
         <thead><tr><th>雷达</th><th>收盘</th><th>EMA20</th><th>MA200</th><th>MA220</th><th>60日回撤</th></tr></thead>
         <tbody>{''.join(rows) if rows else '<tr><td colspan="6">暂无雷达数据</td></tr>'}</tbody>
       </table>
+    """
+
+
+def _render_allocation_table(decision: Dict[str, Any], payload: Dict[str, Any], portfolio_base: float) -> str:
+    rows = []
+    allocations = decision.get("allocations") or {}
+    for symbol, weight in sorted(allocations.items(), key=lambda item: item[0]):
+        amount = portfolio_base * _float(weight, 0.0)
+        price = _price_for(payload, symbol, {})
+        shares = amount / price if price > 0 else None
+        rows.append(
+            "<tr>"
+            f"<td><b>{esc(symbol)}</b></td>"
+            f"<td>{_fmt_pct(weight)}</td>"
+            f"<td>{_fmt_money(amount)}</td>"
+            f"<td>{_fmt_money(price)}</td>"
+            f"<td>{_fmt_num(shares)}</td>"
+            "</tr>"
+        )
+    return f"""
+      <table>
+        <thead><tr><th>目标标的</th><th>全盘比例</th><th>目标金额</th><th>参考价</th><th>建议股数</th></tr></thead>
+        <tbody>{''.join(rows) if rows else '<tr><td colspan="5">暂无分配建议</td></tr>'}</tbody>
+      </table>
+    """
+
+
+def _render_rule_checks(decision: Dict[str, Any]) -> str:
+    checks = decision.get("rule_checks") or {}
+    if not checks:
+        return ""
+    rows = []
+    for name, passed in checks.items():
+        rows.append(
+            "<tr>"
+            f"<td>{esc(name)}</td>"
+            f"<td>{_rule_badge(passed)}</td>"
+            "</tr>"
+        )
+    return f"""
+      <details open>
+        <summary>规则检查</summary>
+        <div class="flow-body">
+          <table>
+            <thead><tr><th>条件</th><th>状态</th></tr></thead>
+            <tbody>{''.join(rows)}</tbody>
+          </table>
+        </div>
+      </details>
+    """
+
+
+def _render_stop_rules(decision: Dict[str, Any]) -> str:
+    rules = decision.get("stop_rules") or []
+    if not rules:
+        return ""
+    rows = "".join(f"<li>{esc(rule)}</li>" for rule in rules)
+    return f"""
+      <details>
+        <summary>止损止盈与禁令</summary>
+        <div class="detail-body">
+          <ul>{rows}</ul>
+        </div>
+      </details>
     """
 
 
@@ -374,22 +441,21 @@ def _render_ideal_allocations(payload: Dict[str, Any], portfolio_base: float) ->
     rows = []
     for sleeve in MIRROR_ORDER:
         decision = ((payload.get("mirror") or {}).get("decisions") or {}).get(sleeve, {})
-        pnl = ((payload.get("posterior_pnl") or {}).get("mirror") or {}).get(sleeve, {})
-        selected = str(decision.get("selected_symbol", pnl.get("symbol", "NA")))
-        weight = _float(decision.get("target_weight"), _float(pnl.get("target_weight"), 0.0))
-        amount = portfolio_base * weight
-        price = _price_for(payload, selected, pnl)
-        shares = amount / price if price > 0 else None
-        rows.append(
-            "<tr>"
-            f"<td><b>{esc(MIRROR_LABELS.get(sleeve, sleeve))}</b></td>"
-            f"<td>{esc(selected)}</td>"
-            f"<td>{_fmt_pct(weight)}</td>"
-            f"<td>{_fmt_money(amount)}</td>"
-            f"<td>{_fmt_money(price)}</td>"
-            f"<td>{_fmt_num(shares)}</td>"
-            "</tr>"
-        )
+        allocations = decision.get("allocations") or {}
+        for symbol, weight in sorted(allocations.items()):
+            amount = portfolio_base * _float(weight, 0.0)
+            price = _price_for(payload, symbol, {})
+            shares = amount / price if price > 0 else None
+            rows.append(
+                "<tr>"
+                f"<td><b>{esc(MIRROR_LABELS.get(sleeve, sleeve))}</b></td>"
+                f"<td>{esc(symbol)}</td>"
+                f"<td>{_fmt_pct(weight)}</td>"
+                f"<td>{_fmt_money(amount)}</td>"
+                f"<td>{_fmt_money(price)}</td>"
+                f"<td>{_fmt_num(shares)}</td>"
+                "</tr>"
+            )
     remaining = max(0.0, 1.0 - _mirror_cap(payload))
     rows.append(
         "<tr>"
@@ -464,7 +530,7 @@ def _render_flow(payload: Dict[str, Any]) -> str:
     flow = payload.get("flow") or {}
     baskets = flow.get("component_baskets") or {}
     cards = []
-    for symbol in ["FNGU", "SOXL", "MSTR"]:
+    for symbol in ["FNGU", "SOXL"]:
         basket = baskets.get(symbol) or {}
         components = basket.get("components") or []
         summary = (
@@ -592,13 +658,26 @@ def _warning(text: Any) -> str:
 
 
 def _action_text(decision: Dict[str, Any]) -> str:
-    selected = str(decision.get("selected_symbol", "NA"))
+    allocations = decision.get("allocations") or {}
+    risky = {
+        symbol: weight
+        for symbol, weight in allocations.items()
+        if symbol in {str(decision.get("risk_symbol")), "FNGU", "SOXL"} and _float(weight, 0.0) > 0
+    }
     cycle = str(decision.get("cycle", "NA"))
-    if selected == "BOXX" or cycle == "CASH":
+    if cycle == "CASH" or allocations.get("BOXX"):
         return "<span class='route'>转入 BOXX / 现金防守</span>"
-    if cycle == "BASE_DEFENSE":
-        return f"<span class='route'>降维到 {esc(selected)}</span>"
-    return f"<span class='route'>持有/切入 {esc(selected)}</span>"
+    if cycle in {"RISK_WARNING", "DECLINE", "CHOP"} or not risky:
+        return "<span class='route'>清杠杆，仅保留底层 ETF</span>"
+    return "<span class='route'>按表格配置杠杆 + 底层 ETF</span>"
+
+
+def _rule_badge(passed: Any) -> str:
+    if passed is True:
+        return _badge("通过", "ok")
+    if passed is False:
+        return _badge("未满足", "warn")
+    return _badge("缺数据", "watch")
 
 
 def _price_for(payload: Dict[str, Any], symbol: str, pnl: Dict[str, Any]) -> float:
@@ -636,4 +715,3 @@ def _float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
-

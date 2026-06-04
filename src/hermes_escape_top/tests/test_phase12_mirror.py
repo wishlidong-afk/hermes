@@ -22,33 +22,33 @@ def snap(symbol: str, values: dict[str, float]) -> SymbolSnapshot:
 class Phase12MirrorTest(unittest.TestCase):
     def test_mirror_selects_risk_on_for_q_policy(self) -> None:
         snapshots = {
-            "QQQ": snap("QQQ", {"close": 120, "ema20": 110, "ma200": 100}),
-            "SOXX": snap("SOXX", {"close": 120, "ema20": 110, "ma200": 100}),
-            "MSTR": snap("MSTR", {"close": 120, "ma200": 100}),
-            "BTC-USD": snap("BTC-USD", {"close": 120, "ma200": 100}),
+            "QQQ": snap("QQQ", {"close": 120, "ema20": 112, "ema50": 108, "rsi14": 60, "macd": 2, "macd_signal": 1}),
+            "SOXX": snap("SOXX", {"close": 120, "ema50": 110, "ma200": 100, "rsi14": 60, "macd": 2, "macd_signal": 1}),
+            "^VIX": snap("^VIX", {"close": 18}),
         }
         plan = build_mirror_plan(snapshots, {})
         self.assertEqual(plan["FNGU_QQQ"].selected_symbol, "FNGU")
         self.assertEqual(plan["SOXL_SOXX"].selected_symbol, "SOXL")
-        self.assertEqual(plan["MSTR_QQQ"].selected_symbol, "MSTR")
+        self.assertIn("QQQ", plan["FNGU_QQQ"].allocations)
+        self.assertIn("SOXX", plan["SOXL_SOXX"].allocations)
 
     def test_mirror_store_writes_sqlite_snapshot(self) -> None:
         snapshots = {
-            "QQQ": snap("QQQ", {"close": 90, "ema20": 100, "ma200": 110}),
-            "SOXX": snap("SOXX", {"close": 90, "ema20": 100, "ma200": 110}),
-            "MSTR": snap("MSTR", {"close": 90, "ma200": 110}),
+            "QQQ": snap("QQQ", {"close": 90, "ema20": 100, "ema50": 105, "rsi14": 55, "macd": -1, "macd_signal": 0}),
+            "SOXX": snap("SOXX", {"close": 90, "ema50": 100, "ma200": 110, "rsi14": 55, "macd": -1, "macd_signal": 0}),
+            "^VIX": snap("^VIX", {"close": 18}),
         }
         plan = build_mirror_plan(snapshots, {})
         with tempfile.TemporaryDirectory() as tmp:
             path = write_mirror_snapshot(Path(tmp) / "mirror.sqlite", "2026-05-29", plan)
             with sqlite3.connect(path) as conn:
                 count = conn.execute("SELECT COUNT(*) FROM mirror_snapshots").fetchone()[0]
-            self.assertEqual(count, 3)
+            self.assertEqual(count, 2)
 
     def test_score_pipeline_includes_mirror(self) -> None:
         payload = score_pipeline("2026-05-29")
         self.assertIn("mirror", payload)
-        self.assertEqual(set(payload["mirror"]["decisions"]), {"FNGU_QQQ", "MSTR_QQQ", "SOXL_SOXX"})
+        self.assertEqual(set(payload["mirror"]["decisions"]), {"FNGU_QQQ", "SOXL_SOXX"})
 
 
 if __name__ == "__main__":

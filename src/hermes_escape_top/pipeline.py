@@ -135,7 +135,7 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = F
         )
         for symbol, bundle in bundles.items()
     }
-    mirror = build_mirror_plan(snapshots, config)
+    mirror = build_mirror_plan(snapshots, config, histories=histories, as_of=as_of)
     mirror_db = write_mirror_snapshot(store.archive_dir / "mirror_reference.sqlite", str(as_of)[:10], mirror)
     flow = _flow_payload(config, histories, as_of)
     escape_pnl = escape_posterior_pnl(

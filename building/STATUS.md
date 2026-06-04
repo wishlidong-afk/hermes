@@ -1,5 +1,6 @@
 | Phase | 状态 | 分支/PR | 回测达标 | 阻塞 | 更新时间 |
 |---|---|---|---|---|---|
+| 23 8768 镜像参考 FNGU/QQQ + SOXL/SOXX 新规则 | DONE | hermes-docs | n/a | PE 分位、真实交易批次持仓天数未接入 | 2026-06-05 |
 | 22 镜像参考 WebUI 8768 恢复 | DONE | hermes-docs | n/a | 当前 IBKR 为 snapshot；live 取决于 Gateway/TWS 在线 | 2026-06-04 |
 | 21 WebUI 宏观 A 模块紧凑中文化 | DONE | hermes-docs | n/a | IBKR live 超时不影响该 UI 调整 | 2026-06-04 |
 | 20 WebUI 宏观评分与底层资金流恢复 | DONE | hermes-docs | n/a | 当前 IBKR live 超时会显示 snapshot；宏观/flow 正常 | 2026-06-04 |

@@ -18,9 +18,12 @@ def sample_payload() -> dict:
             "base_symbol": "QQQ",
             "selected_symbol": "FNGU",
             "sleeve_cap": 0.20,
-            "target_weight": 0.20,
-            "cycle": "RISK_ON",
-            "reason": "QQQ above EMA20 and MA200.",
+            "target_weight": 0.22,
+            "cycle": "STRONG_TREND",
+            "reason": "QQQ 满足入场共振并连续 3 日上涨；执行强趋势杠杆配置。",
+            "allocations": {"QQQ": 0.12, "FNGU": 0.10},
+            "rule_checks": {"QQQ 收盘 > EMA20": True, "近5日涨幅 >= 3%": True},
+            "stop_rules": ["FNGU 单笔亏损 >= 8%：强制止损。"],
         },
         "SOXL_SOXX": {
             "sleeve": "SOXL_SOXX",
@@ -29,18 +32,11 @@ def sample_payload() -> dict:
             "selected_symbol": "SOXL",
             "sleeve_cap": 0.30,
             "target_weight": 0.30,
-            "cycle": "RISK_ON",
-            "reason": "SOXX above EMA20 and MA200.",
-        },
-        "MSTR_QQQ": {
-            "sleeve": "MSTR_QQQ",
-            "risk_symbol": "MSTR",
-            "base_symbol": "QQQ",
-            "selected_symbol": "QQQ",
-            "sleeve_cap": 0.15,
-            "target_weight": 0.15,
-            "cycle": "BASE_DEFENSE",
-            "reason": "MSTR/BTC radar not risk-on; use QQQ base leg.",
+            "cycle": "STRONG_BOOM",
+            "reason": "SOXX 满足繁荣周期共振并连续 5 日上涨；执行强繁荣配置。",
+            "allocations": {"SOXX": 0.12, "SOXL": 0.18},
+            "rule_checks": {"SOXX 收盘 > EMA50": True, "近10日涨幅 >= 8%": True},
+            "stop_rules": ["SOXL 单笔亏损 >= 15%：强制止损。"],
         },
     }
     return {
@@ -62,20 +58,18 @@ def sample_payload() -> dict:
         "posterior_pnl": {
             "portfolio_value": 100000,
             "mirror": {
-                "FNGU_QQQ": {"symbol": "FNGU", "target_weight": 0.20, "notional": 20000, "previous_close": 32, "current_close": 34, "shares": 625, "pnl": 1250, "return_pct": 0.0625},
-                "SOXL_SOXX": {"symbol": "SOXL", "target_weight": 0.30, "notional": 30000, "previous_close": 220, "current_close": 224, "shares": 136.36, "pnl": 545.45, "return_pct": 0.0182},
-                "MSTR_QQQ": {"symbol": "QQQ", "target_weight": 0.15, "notional": 15000, "previous_close": 742, "current_close": 746, "shares": 20.21, "pnl": 80.86, "return_pct": 0.0054},
+                "FNGU_QQQ": {"symbol": "FNGU+QQQ", "target_weight": 0.22, "notional": 22000, "previous_close": None, "current_close": None, "shares": 0, "pnl": 1250, "return_pct": 0.0568},
+                "SOXL_SOXX": {"symbol": "SOXL+SOXX", "target_weight": 0.30, "notional": 30000, "previous_close": None, "current_close": None, "shares": 0, "pnl": 545.45, "return_pct": 0.0182},
             },
         },
         "snapshots": {
-            symbol: {"fields": {"close": {"value": close}, "ema20": {"value": close * 0.98}, "ma200": {"value": close * 0.9}, "ma220": {"value": close * 0.88}, "drawdown_60d_high_pct": {"value": -0.05}}}
-            for symbol, close in {"QQQ": 746, "FNGU": 34, "SOXX": 300, "SOXL": 224, "MSTR": 136, "BTC-USD": 110000}.items()
+            symbol: {"fields": {"close": {"value": close}, "ema20": {"value": close * 0.98}, "ema50": {"value": close * 0.96}, "ma200": {"value": close * 0.9}, "ma220": {"value": close * 0.88}, "drawdown_60d_high_pct": {"value": -0.05}}}
+            for symbol, close in {"QQQ": 746, "FNGU": 34, "SOXX": 300, "SOXL": 224, "SPY": 600, "^VIX": 18}.items()
         },
         "flow": {
             "component_baskets": {
                 "FNGU": {"severity": "NORMAL", "avg_cmf20": 0.1, "avg_mfi14": 55, "abnormal_components": 0, "component_count": 1, "components": [{"symbol": "NVDA", "severity": "NORMAL", "cmf20": 0.1, "mfi14": 60, "legacy_signed_5d": 1000000}]},
                 "SOXL": {"severity": "WATCH", "avg_cmf20": -0.02, "avg_mfi14": 48, "abnormal_components": 1, "component_count": 1, "components": [{"symbol": "AVGO", "severity": "WATCH", "cmf20": -0.02, "mfi14": 48, "legacy_signed_5d": -2000000}]},
-                "MSTR": {"severity": "NORMAL", "avg_cmf20": 0.05, "avg_mfi14": 52, "abnormal_components": 0, "component_count": 1, "components": [{"symbol": "MSTR", "severity": "NORMAL", "cmf20": 0.05, "mfi14": 52, "legacy_signed_5d": 500000}]},
             }
         },
     }
@@ -89,7 +83,7 @@ class MirrorWebTest(unittest.TestCase):
         self.assertIn("周期判断与推荐处置", html)
         self.assertIn("QQQ / FNGU", html)
         self.assertIn("SOXX / SOXL", html)
-        self.assertIn("MSTR / QQQ", html)
+        self.assertIn("规则检查", html)
         self.assertIn("IBKR 持仓", html)
         self.assertIn("理想化持仓配比", html)
         self.assertIn("模型校准 / 上一交易日理想 P/L", html)
@@ -110,6 +104,7 @@ class MirrorWebTest(unittest.TestCase):
                     payload = json.loads(response.read().decode("utf-8"))
                 self.assertIn("mirror", payload)
                 self.assertEqual(payload["mirror"]["decisions"]["FNGU_QQQ"]["selected_symbol"], "FNGU")
+                self.assertEqual(set(payload["mirror"]["decisions"]), {"FNGU_QQQ", "SOXL_SOXX"})
         finally:
             server.shutdown()
             server.server_close()
@@ -118,4 +113,3 @@ class MirrorWebTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

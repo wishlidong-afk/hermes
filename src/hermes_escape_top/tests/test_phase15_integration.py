@@ -27,7 +27,7 @@ class Phase15IntegrationTest(unittest.TestCase):
         payload = score_pipeline("2026-05-29")
         self.assertIn("posterior_pnl", payload)
         self.assertEqual(set(payload["posterior_pnl"]["escape"]), {"FNGU", "MSTR", "SOXL"})
-        self.assertEqual(set(payload["posterior_pnl"]["mirror"]), {"FNGU_QQQ", "MSTR_QQQ", "SOXL_SOXX"})
+        self.assertEqual(set(payload["posterior_pnl"]["mirror"]), {"FNGU_QQQ", "SOXL_SOXX"})
 
     def test_read_only_server_health_and_api(self) -> None:
         server = create_server("127.0.0.1", 0, "2026-05-29")
