@@ -1,5 +1,6 @@
 | Phase | 状态 | 分支/PR | 回测达标 | 阻塞 | 更新时间 |
 |---|---|---|---|---|---|
+| 22 镜像参考 WebUI 8768 恢复 | DONE | hermes-docs | n/a | 当前 IBKR 为 snapshot；live 取决于 Gateway/TWS 在线 | 2026-06-04 |
 | 21 WebUI 宏观 A 模块紧凑中文化 | DONE | hermes-docs | n/a | IBKR live 超时不影响该 UI 调整 | 2026-06-04 |
 | 20 WebUI 宏观评分与底层资金流恢复 | DONE | hermes-docs | n/a | 当前 IBKR live 超时会显示 snapshot；宏观/flow 正常 | 2026-06-04 |
 | 19 WebUI 持仓刷新与总资产框 | DONE | hermes-docs | n/a | 8766 已重启；`POST /api/refresh_positions` 返回 `source=tws` | 2026-06-04 |

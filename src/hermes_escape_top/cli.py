@@ -12,6 +12,8 @@ from .core.backtest.reports import write_full_backtest_markdown, write_json_repo
 from .core.backtest.run_full import run_full_backtest
 from .core.data.manifest import freeze_manifest, verify_manifest, write_manifest
 from .scripts.backfill_history import all_backfill_symbols, backfill, default_store_dir, write_coverage_report
+from .web.mirror_render import write_mirror_dashboard
+from .web.mirror_server import create_mirror_server
 from .web.render import write_dashboard
 from .web.server import create_server
 
@@ -67,10 +69,17 @@ def main() -> None:
     p_dash = sub.add_parser("dashboard", help="Render a read-only HTML dashboard snapshot")
     p_dash.add_argument("--as-of", required=True)
     p_dash.add_argument("--output", required=True)
+    p_mirror_dash = sub.add_parser("mirror-dashboard", help="Render a read-only mirror reference HTML dashboard snapshot")
+    p_mirror_dash.add_argument("--as-of", required=True)
+    p_mirror_dash.add_argument("--output", required=True)
     p_serve = sub.add_parser("serve", help="Start read-only local dashboard server")
     p_serve.add_argument("--as-of", required=True)
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=8776)
+    p_serve_mirror = sub.add_parser("serve-mirror", help="Start standalone mirror reference WebUI server")
+    p_serve_mirror.add_argument("--as-of", required=True)
+    p_serve_mirror.add_argument("--host", default="127.0.0.1")
+    p_serve_mirror.add_argument("--port", type=int, default=8768)
     args = parser.parse_args()
 
     if args.command == "bootstrap":
@@ -127,9 +136,21 @@ def main() -> None:
         payload = score_pipeline(args.as_of)
         path = write_dashboard(payload, Path(args.output))
         payload = {"as_of": args.as_of, "output": str(path)}
+    elif args.command == "mirror-dashboard":
+        payload = score_pipeline(args.as_of)
+        path = write_mirror_dashboard(payload, Path(args.output))
+        payload = {"as_of": args.as_of, "output": str(path)}
     elif args.command == "serve":
         server = create_server(args.host, args.port, args.as_of)
         print(json.dumps({"url": f"http://{args.host}:{server.server_port}/", "as_of": args.as_of}, ensure_ascii=False))
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        return
+    elif args.command == "serve-mirror":
+        server = create_mirror_server(args.host, args.port, args.as_of)
+        print(json.dumps({"url": f"http://{args.host}:{server.server_port}/", "as_of": args.as_of, "app": "mirror"}, ensure_ascii=False))
         try:
             server.serve_forever()
         except KeyboardInterrupt:
