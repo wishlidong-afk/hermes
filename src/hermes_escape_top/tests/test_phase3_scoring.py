@@ -113,6 +113,14 @@ class Phase3ScoringTest(unittest.TestCase):
         self.assertGreater(fngu_flow["max_score"], 0)
         self.assertGreater(soxl_flow["max_score"], 0)
 
+    def test_missing_b6_valuation_counts_as_blind_spot_weight(self) -> None:
+        config = load_config()
+        snapshots = base_snapshots()
+        result = score_symbol("MSTR", snapshots, config).result
+        b6 = next(factor for factor in result.factor_scores["B"] if factor["factor_id"] == "B6_VALUATION_HEAT")
+        self.assertEqual(b6["missing_fields"], ["B6 valuation"])
+        self.assertGreaterEqual(result.missing_weight, config["missing"]["weights"]["B6 valuation"])
+
 
 if __name__ == "__main__":
     unittest.main()

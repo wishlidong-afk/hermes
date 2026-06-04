@@ -1,12 +1,13 @@
-"""Unified Pipeline -- wires all integration components into a single daily flow.
+"""Integration pipeline harness -- wires integration components into one flow.
 
 Data flow (per INTEGRATION_ARCHITECTURE §9):
   sanitize/failover → score(calibrated/deduplicated) → verdict(hard-valve priority)
   → single risk engine → fragility/disagreement → confidence spine
   → unified optimizer(R3) → routing → audit
 
-This module is the ONLY entry point for daily decisions.
-All downstream code calls score_pipeline(); nothing bypasses it.
+Production daily decisions use :mod:`hermes_escape_top.pipeline`.  This module is
+kept as a deterministic integration harness for component-level tests and
+architecture experiments.
 """
 
 from __future__ import annotations
@@ -227,7 +228,15 @@ def score_pipeline(
     )
 
     # ── Step 9: Sizing Optimizer (single entry, R3 enforced) ──
-    sizing = optimize_targets(verdicts, risk_state, confidence, cfg)
+    liquidity_data = _liquidity_data(clean_store, symbols, cfg)
+    sizing = optimize_targets(
+        verdicts,
+        risk_state,
+        confidence,
+        cfg,
+        leg_returns=leg_returns,
+        liquidity_data=liquidity_data,
+    )
 
     # ── Step 10: Attribution ──
     attr_results: Dict[str, List] = {}
@@ -332,6 +341,37 @@ def _compute_staleness(
         days = (as_of_dt - latest).days
         max_stale = max(max_stale, float(max(0, days)))
     return max_stale
+
+
+def _liquidity_data(store: Dict[str, pd.DataFrame], symbols: List[str], cfg: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
+    netliq = float(cfg.get("portfolio", {}).get("netliq", cfg.get("netliq", 100_000.0)))
+    out: Dict[str, Dict[str, float]] = {}
+    for sym in symbols:
+        df = store.get(sym, pd.DataFrame())
+        if df.empty:
+            continue
+        close_col = "close" if "close" in df.columns else ("Close" if "Close" in df.columns else None)
+        if close_col is None:
+            continue
+        close = pd.to_numeric(df[close_col], errors="coerce").dropna()
+        if close.empty:
+            continue
+        price = float(close.iloc[-1])
+        volume_col = "volume" if "volume" in df.columns else ("Volume" if "Volume" in df.columns else None)
+        adv20_shares = float("inf")
+        adv20_notional = float("inf")
+        if volume_col is not None:
+            volume = pd.to_numeric(df[volume_col], errors="coerce").dropna().tail(20)
+            if len(volume) >= 5:
+                adv20_shares = float(volume.mean())
+                adv20_notional = adv20_shares * price
+        out[sym] = {
+            "adv20_shares": adv20_shares,
+            "adv20_notional": adv20_notional,
+            "price": price,
+            "netliq": netliq,
+        }
+    return out
 
 
 def _build_audit(

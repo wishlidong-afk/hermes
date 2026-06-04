@@ -97,17 +97,26 @@ def quality_from_snapshots(snapshots: Iterable[SymbolSnapshot]) -> DataQuality:
     completeness = 100.0
     quality = 100.0
     latency = 100.0
+    proxy_groups: Dict[tuple, Dict[str, Any]] = {}
+    latency_groups: Dict[tuple, Dict[str, Any]] = {}
     for snap in snapshots:
         for name, item in snap.fields.items():
             if item.missing and name in {"close", "ma200"}:
                 critical_missing.append(f"{snap.symbol}.{name}")
             if item.is_proxy:
-                quality -= item.quality_penalty or 2.0
-                penalties.append({"field": f"{snap.symbol}.{name}", "reason": "proxy", "penalty": item.quality_penalty or 2.0})
+                penalty = item.quality_penalty or 2.0
+                key = (snap.symbol, item.source, "proxy")
+                _merge_penalty_group(proxy_groups, key, f"{snap.symbol}.{name}", penalty)
             if item.latency_days > 0:
                 penalty = min(20.0, item.latency_days * 3.0)
-                latency -= penalty
-                penalties.append({"field": f"{snap.symbol}.{name}", "reason": "latency", "penalty": penalty})
+                key = (snap.symbol, item.source, "latency", item.latency_days)
+                _merge_penalty_group(latency_groups, key, f"{snap.symbol}.{name}", penalty)
+    for group in proxy_groups.values():
+        quality -= float(group["penalty"])
+        penalties.append({"field": ",".join(group["fields"]), "reason": "proxy", "penalty": group["penalty"]})
+    for group in latency_groups.values():
+        latency -= float(group["penalty"])
+        penalties.append({"field": ",".join(group["fields"]), "reason": "latency", "penalty": group["penalty"]})
     if critical_missing:
         completeness = 35.0
         penalties.append({"field": ",".join(critical_missing), "reason": "critical_missing", "penalty": 65.0})
@@ -116,3 +125,9 @@ def quality_from_snapshots(snapshots: Iterable[SymbolSnapshot]) -> DataQuality:
     latency = max(0.0, min(100.0, latency))
     overall = min(completeness, quality, latency) if critical_missing else completeness * 0.50 + quality * 0.30 + latency * 0.20
     return DataQuality(completeness, quality, latency, overall, penalties)
+
+
+def _merge_penalty_group(groups: Dict[tuple, Dict[str, Any]], key: tuple, field: str, penalty: float) -> None:
+    current = groups.setdefault(key, {"fields": [], "penalty": 0.0})
+    current["fields"].append(field)
+    current["penalty"] = max(float(current["penalty"]), float(penalty))

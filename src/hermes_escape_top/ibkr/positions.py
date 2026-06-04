@@ -7,6 +7,7 @@ All position data is tagged with a sync_time so consumers know staleness.
 from __future__ import annotations
 
 import json
+import socket
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -71,21 +72,43 @@ def read_positions(config: Optional[Dict[str, Any]] = None) -> PositionSnapshot:
     host = cfg.get("host", "127.0.0.1")
     ports = cfg.get("ports", [4001, 4002, 7496, 7497])
     client_id = int(cfg.get("client_id", 991))
+    connect_timeout = float(cfg.get("connect_timeout", 5))
+    preflight_timeout = float(cfg.get("preflight_timeout", min(connect_timeout, 0.5)))
+
+    open_ports = []
+    last_error = ""
+    for port in ports:
+        if _tcp_port_open(host, int(port), preflight_timeout):
+            open_ports.append(int(port))
+        else:
+            last_error = f"No TCP listener on {host}:{port}"
+
+    if not open_ports:
+        detail = f": {last_error}" if last_error else ""
+        return _load_snapshot(error=f"Could not connect to TWS on any of {ports}{detail}")
 
     try:
         from ib_insync import IB
         ib = IB()
         connected = False
-        for port in ports:
+        for port in open_ports:
             try:
-                ib.connect(host, port, clientId=client_id, readonly=True, timeout=5)
+                ib.connect(
+                    host,
+                    port,
+                    clientId=client_id,
+                    readonly=True,
+                    timeout=connect_timeout,
+                )
                 connected = True
                 break
-            except Exception:
+            except Exception as exc:
+                last_error = str(exc)
                 continue
 
         if not connected:
-            raise ConnectionError(f"Could not connect to TWS on any of {ports}")
+            detail = f": {last_error}" if last_error else ""
+            raise ConnectionError(f"Could not connect to TWS on any of {open_ports}{detail}")
 
         try:
             return _read_from_tws(ib, config)
@@ -182,6 +205,15 @@ def _load_snapshot(error: Optional[str] = None) -> PositionSnapshot:
         source="unavailable",
         error=error or "no snapshot available",
     )
+
+
+def _tcp_port_open(host: str, port: int, timeout: float) -> bool:
+    """Return whether a TWS/Gateway TCP port is listening before ib_insync connects."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 def _is_numeric(s: str) -> bool:

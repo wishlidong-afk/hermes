@@ -86,14 +86,32 @@ def reconcile(
             pipeline_sizing.get(sym, {}).get("target_weight", 0.0) or 0.0
         )
 
-    # Collect expected route leg destinations
+    # Collect expected route leg destinations.  Route legs receive the residual
+    # sleeve capital (sleeve cap minus risky target), not the risky target itself.
     route_targets: Dict[str, float] = {}
     if pipeline_routing:
         for sym, rout in pipeline_routing.items():
+            if rout.get("applies") is False:
+                continue
             dest = str(rout.get("destination", "") or "")
             if dest and dest not in ("HOLD", "NONE", "-", ""):
-                wt = float(pipeline_sizing.get(sym, {}).get("target_weight", 0.0) or 0.0)
-                route_targets[dest] = route_targets.get(dest, 0.0) + wt
+                row = pipeline_sizing.get(sym, {})
+                target_w = float(row.get("target_weight", 0.0) or 0.0)
+                sleeve_cap = float(
+                    row.get(
+                        "sleeve_cap",
+                        row.get("rule_sleeve_cap", row.get("reference_sleeve_cap", target_w)),
+                    )
+                    or 0.0
+                )
+                residual = max(0.0, sleeve_cap - target_w)
+                weights = rout.get("weights") if isinstance(rout.get("weights"), dict) else {}
+                if weights:
+                    for leg, share in weights.items():
+                        leg_name = str(leg)
+                        route_targets[leg_name] = route_targets.get(leg_name, 0.0) + residual * float(share)
+                else:
+                    route_targets[dest] = route_targets.get(dest, 0.0) + residual
 
     # Build deltas for trade symbols
     trade_deltas: List[SymbolDelta] = []
@@ -161,8 +179,8 @@ def reconcile(
 
     all_deltas = trade_deltas + route_deltas
     max_abs = max((abs(d.delta_weight) for d in all_deltas), default=0.0)
-    total_ideal = sum(d.ideal_weight for d in trade_deltas)
-    total_actual = sum(d.actual_weight for d in trade_deltas)
+    total_ideal = sum(d.ideal_weight for d in all_deltas)
+    total_actual = sum(d.actual_weight for d in all_deltas)
 
     return ReconcileReport(
         account_id=snapshot.account_id,

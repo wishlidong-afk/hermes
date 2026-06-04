@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from html import escape
 from pathlib import Path
 from typing import Any, Dict
@@ -369,6 +370,10 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
 
     risk = payload.get("portfolio_risk", {})
     regime = payload.get("regime", {})
+    cache = payload.get("cache_status", {})
+    cache_label = "cache hit" if cache.get("hit") else "no cache"
+    cache_color = "#d1fae5" if cache.get("hit") else "#fee2e2"
+    cache_text = "#065f46" if cache.get("hit") else "#991b1b"
 
     # Confidence / Gate 4 info
     sizing_first = next(iter(payload.get("sizing", {}).values()), {})
@@ -435,10 +440,51 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
   </style>
 </head>
 <body>
-  <h1>Hermes Escape Top</h1>
-  <p class="meta">as_of={escape(str(payload.get('as_of')))} &nbsp;|&nbsp; schema={escape(str(payload.get('schema_version')))}</p>
+	  <h1>Hermes Escape Top</h1>
+	  <p class="meta">as_of={escape(str(payload.get('as_of')))} &nbsp;|&nbsp; schema={escape(str(payload.get('schema_version')))}</p>
+	  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 16px">
+	    <button onclick="refreshScore()" id="refresh-score-btn"
+	      style="background:#111827;color:white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">
+	      更新策略数据
+	    </button>
+	    <span id="refresh-score-status" style="font-size:12px;color:#6b7280"></span>
+	    <span style="background:{cache_color};color:{cache_text};padding:3px 8px;border-radius:4px;font-size:12px;font-weight:700">
+	      {escape(cache_label)}
+	    </span>
+	  </div>
+	  <script>
+	  window.refreshScore = function(){{
+	    var btn = document.getElementById('refresh-score-btn');
+	    var st = document.getElementById('refresh-score-status');
+	    var asOf = {json.dumps(str(payload.get('as_of') or ''))};
+	    btn.disabled = true;
+	    btn.style.opacity = '0.6';
+	    st.textContent = '正在拉取/计算最新策略数据...';
+	    fetch('/api/refresh_score', {{
+	      method: 'POST',
+	      headers: {{'Content-Type': 'application/json'}},
+	      body: JSON.stringify({{as_of: asOf}})
+	    }})
+	    .then(function(r){{ return r.json(); }})
+	    .then(function(d){{
+	      if(d && d.scores){{
+	        st.textContent = '完成，正在刷新页面';
+	        setTimeout(function(){{ location.reload(); }}, 500);
+	      }} else {{
+	        btn.disabled = false;
+	        btn.style.opacity = '1';
+	        st.textContent = '刷新失败: ' + (d.message || 'unknown');
+	      }}
+	    }})
+	    .catch(function(e){{
+	      btn.disabled = false;
+	      btn.style.opacity = '1';
+	      st.textContent = '刷新失败: ' + e;
+	    }});
+	  }};
+	  </script>
 
-  {_render_m4_panel(shadow_status)}
+	  {_render_m4_panel(shadow_status)}
 
   <section>
     <h2>System Health</h2>

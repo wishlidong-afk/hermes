@@ -8,11 +8,11 @@ from typing import Any, Dict, Iterable, Optional
 import pandas as pd
 
 from ...config import CONFIG_PATH, load_config, trade_symbols
+from ...pipeline import _optimize_sizing
 from ..data.manifest import freeze_manifest
 from ..data.store import LocalStore
 from ..features.regime import Regime, RegimeInput, classify_regime
 from ..portfolio.risk_budget import compute_portfolio_risk
-from ..portfolio.sizing import size_portfolio
 from ..routing.capital_routing import route_capital
 from ..routing.leg_proxy import leg_price_series, leg_proxy_metadata
 from ..scoring.scorer import score_symbol
@@ -96,7 +96,14 @@ def run_full_backtest(
         }
         hard_excluded = {symbol for symbol, bundle in bundles.items() if bundle.result.hard_valve_hits or bundle.result.sell_fraction >= 1.0}
         risk = compute_portfolio_risk(day_histories, cap_targets, config, excluded_symbols=hard_excluded)
-        sizing = size_portfolio(day_histories, {symbol: bundle.result for symbol, bundle in bundles.items()}, config, gross_scaler=risk.effective_gross_scaler)
+        sizing = _optimize_sizing(
+            bundles,
+            day_histories,
+            risk,
+            config,
+            as_of=as_of,
+            signal_journal_path=None,
+        )
         routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=day_histories) for symbol, bundle in bundles.items()}
         weights = route_leg_weights(config, {symbol: decision.to_dict() for symbol, decision in sizing.items()}, {symbol: decision.to_dict() for symbol, decision in routing.items()})
         decisions.append(DayDecision(as_of, weights))
@@ -108,6 +115,7 @@ def run_full_backtest(
                 "sizing": {symbol: decision.to_dict() for symbol, decision in sorted(sizing.items())},
                 "routing": {symbol: decision.to_dict() for symbol, decision in sorted(routing.items())},
                 "route_leg_weights": weights,
+                "portfolio_risk_legacy_shadow": risk.to_dict(),
             }
         )
 

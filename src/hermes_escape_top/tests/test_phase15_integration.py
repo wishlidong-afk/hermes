@@ -39,8 +39,20 @@ class Phase15IntegrationTest(unittest.TestCase):
                 self.assertEqual(json.loads(response.read().decode("utf-8"))["ok"], True)
             with urllib.request.urlopen(f"{base}/api/score", timeout=10) as response:
                 payload = json.loads(response.read().decode("utf-8"))
+                self.assertIn("as_of", payload)
+            request = urllib.request.Request(
+                f"{base}/api/refresh_score",
+                data=b"",
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=30) as response:
+                payload = json.loads(response.read().decode("utf-8"))
                 self.assertIn("posterior_pnl", payload)
                 self.assertIn("mirror", payload)
+            with urllib.request.urlopen(f"{base}/api/score", timeout=10) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+                self.assertIn("posterior_pnl", payload)
+                self.assertTrue(payload.get("cache_status", {}).get("hit"))
             with urllib.request.urlopen(f"{base}/", timeout=10) as response:
                 html = response.read().decode("utf-8")
                 self.assertIn("Posterior Ideal P/L", html)

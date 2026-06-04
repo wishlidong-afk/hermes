@@ -8,8 +8,10 @@ from pathlib import Path
 import pandas as pd
 
 from hermes_escape_top.config import load_config
+from hermes_escape_top.core.data.base import Field, SymbolSnapshot
 from hermes_escape_top.core.data.flow import chaikin_money_flow, money_flow_index, money_flow_metrics
 from hermes_escape_top.core.data.network_guard import assert_no_network
+from hermes_escape_top.core.data.quality import quality_from_snapshots
 from hermes_escape_top.core.data.store import LocalStore
 from hermes_escape_top.pipeline import archive_soft_inputs, flow_snapshot
 
@@ -70,6 +72,23 @@ class Phase1DataFlowTest(unittest.TestCase):
         self.assertIn("enrichment_cache", payload["archives"])
         for path in payload["archives"].values():
             self.assertTrue(Path(path).exists())
+
+    def test_quality_penalties_are_grouped_by_source(self) -> None:
+        day = pd.Timestamp("2026-05-29").date()
+        snap = SymbolSnapshot(
+            "SOFT",
+            day,
+            {
+                "aaii": Field("aaii", 0.1, "AAII", day, latency_days=8, quality_penalty=1.5),
+                "aaii_bull": Field("aaii_bull", 0.5, "AAII", day, latency_days=8, quality_penalty=1.5),
+                "aaii_spread": Field("aaii_spread", 0.2, "AAII", day, latency_days=8, quality_penalty=1.5),
+                "pcr": Field("pcr", 0.6, "PCR_PROXY", day, is_proxy=True, quality_penalty=1.5),
+                "pcr_pctl": Field("pcr_pctl", 20.0, "PCR_PROXY", day, is_proxy=True, quality_penalty=1.5),
+            },
+        )
+        quality = quality_from_snapshots([snap])
+        self.assertEqual(quality.latency_score, 80.0)
+        self.assertEqual(quality.quality_score, 98.5)
 
 
 if __name__ == "__main__":

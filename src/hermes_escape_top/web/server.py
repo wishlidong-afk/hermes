@@ -2,7 +2,8 @@
 
 Endpoints:
   GET  /                   Dashboard
-  GET  /api/score          Raw JSON from score_pipeline
+  GET  /api/score          Latest cached score JSON (read-only)
+  POST /api/refresh_score  Recompute score JSON and update archive
   GET  /api/shadow_status  M4 shadow log + latest shadow precheck
   POST /api/m4_shadow      M4-2: run package engine in shadow mode
   POST /api/m4_golive      M4-3: flip run_daily.py to package (human gate)
@@ -25,6 +26,7 @@ SHADOW_LOG = BASE_DIR / "reports" / "shadow" / "M4_shadow_log.jsonl"
 RUN_DAILY = BASE_DIR / "scripts" / "run_daily.py"
 RUN_DAILY_PKG = BASE_DIR / "scripts" / "run_daily_package.py"
 
+from ..config import load_config, resolve_path
 from ..pipeline import score_pipeline
 from .render import render_dashboard
 
@@ -43,6 +45,56 @@ def _latest_precheck(as_of: str) -> dict | None:
     except Exception:
         pass
     return None
+
+
+def _latest_score_payload(as_of: str) -> dict | None:
+    """Load the newest package score payload from audit_log.jsonl without rerunning."""
+    try:
+        target = str(as_of)[:10]
+        path = resolve_path(load_config(), "archive_dir") / "audit_log.jsonl"
+        if not path.exists():
+            return None
+        fallback = None
+        for line in reversed(path.read_text(encoding="utf-8").splitlines()):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except Exception:
+                continue
+            payload = record.get("payload") if isinstance(record, dict) else None
+            if not isinstance(payload, dict) or "scores" not in payload:
+                continue
+            pday = str(payload.get("as_of", ""))[:10]
+            if pday == target:
+                payload = dict(payload)
+                payload["cache_status"] = {"hit": True, "source": str(path), "exact": True}
+                return payload
+            if pday and pday <= target and fallback is None:
+                fallback = dict(payload)
+                fallback["cache_status"] = {"hit": True, "source": str(path), "exact": False, "requested_as_of": target}
+        return fallback
+    except Exception:
+        return None
+
+
+def _empty_dashboard_payload(as_of: str) -> dict:
+    return {
+        "schema_version": "escape-top-greenfield-dashboard-cache-miss-v1",
+        "as_of": str(as_of)[:10],
+        "scores": {},
+        "sizing": {},
+        "routing": {},
+        "reentry": {},
+        "mirror": {"decisions": {}},
+        "posterior_pnl": {"portfolio_value": 0.0, "escape": {}, "mirror": {}},
+        "portfolio_risk": {},
+        "regime": {"current": "NO_CACHE"},
+        "data_quality": {"level": "NO_CACHE", "overall_score": 0.0},
+        "cache_status": {"hit": False, "message": "No cached score payload. Use POST /api/refresh_score."},
+        "ibkr": {"source": "disabled", "note": "No cached score payload."},
+    }
 
 
 def _read_run_daily_mode() -> str:
@@ -165,14 +217,16 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             as_of = params.get("as_of", [default_as_of])[0]
 
             if parsed.path in {"/", "/index.html"}:
-                payload = _latest_precheck(as_of) or score_pipeline(as_of)
+                payload = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
                 shadow = _shadow_status()
                 self._send(200, "text/html; charset=utf-8",
                            render_dashboard(payload, shadow_status=shadow).encode())
                 return
 
             if parsed.path == "/api/score":
-                payload = score_pipeline(as_of)
+                payload = _latest_score_payload(as_of)
+                if payload is None:
+                    payload = {"ok": False, "as_of": as_of, "message": "No cached score payload. POST /api/refresh_score to refresh."}
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())
@@ -214,6 +268,14 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 result = _flip_to_package()
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(result, ensure_ascii=False, default=str).encode())
+                return
+
+            if parsed.path in {"/api/refresh_score", "/api/score"}:
+                as_of = req.get("as_of", default_as_of)
+                payload = score_pipeline(as_of)
+                self._send(200, "application/json; charset=utf-8",
+                           json.dumps(payload, ensure_ascii=False, indent=2,
+                                      sort_keys=True, default=str).encode())
                 return
 
             self._send(404, "text/plain; charset=utf-8", b"not found")

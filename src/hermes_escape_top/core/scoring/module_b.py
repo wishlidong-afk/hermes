@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from .registry import FactorContext, FactorDefinition, missing_only
 
 
-def module_b_factors() -> list[FactorDefinition]:
+def module_b_factors(symbol: Optional[str] = None) -> list[FactorDefinition]:
+    valuation_dependencies = [f"SOFT.{symbol}_valuation_pctl"] if symbol else []
     return [
         FactorDefinition("B1_RSI_OVERHEAT", "B", 5.0, ["rsi14"], _rsi_overheat),
         FactorDefinition("B2_MA200_EXTENSION", "B", 5.0, ["close", "ma200"], _ma200_extension),
         FactorDefinition("B3_POST_PEAK_DAMAGE", "B", 5.0, ["drawdown_60d_high_pct"], _post_peak_damage),
         FactorDefinition("B4_CBOE_OPTIONS_STRESS", "B", 6.0, ["SOFT.vvix_pctl", "SOFT.skew_index", "SOFT.skew_pctl"], _cboe_options_stress, "B4 options"),
         missing_only("B5_SOCIAL_EUPHORIA", "B", "B5 social"),
-        FactorDefinition("B6_VALUATION_HEAT", "B", 5.0, [], _valuation_heat, "B6 valuation"),
+        FactorDefinition("B6_VALUATION_HEAT", "B", 5.0, valuation_dependencies, _valuation_heat, "B6 valuation"),
     ]
 
 
@@ -20,8 +23,8 @@ def _valuation_heat(ctx: FactorContext) -> tuple[float, str]:
     Reads SOFT.<symbol>_valuation_pctl (populated from valuation_snapshot.json:
     FNGU→FNGS fwd PE pctl, SOXL→SOXX fwd PE pctl, MSTR→mNAV premium pctl).
     Scoring per SKILL.md §4/B6: >=95→5, >=90→3, >=80→2, >=70→1.
-    Empty dependency list so the factor always runs; returns 0 when valuation is
-    unavailable (does not add blind-spot weight — valuation is now a live input).
+    The symbol-specific dependency is registered by module_b_factors(symbol), so
+    unavailable valuation contributes missing-weight instead of silently scoring 0.
     """
     pctl = ctx.get(f"SOFT.{ctx.symbol}_valuation_pctl")
     if pctl is None:

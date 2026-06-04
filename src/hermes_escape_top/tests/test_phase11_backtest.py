@@ -60,6 +60,10 @@ class Phase11BacktestTest(unittest.TestCase):
         self.assertIn("data_manifest_id", payload)
         self.assertTrue(payload["dates"])
         self.assertIn("simulation", payload)
+        first_row = payload["rows"][0]
+        self.assertTrue(
+            all(row.get("sizing_engine") == "optimize_targets_v1" for row in first_row["sizing"].values())
+        )
 
 
 if __name__ == "__main__":

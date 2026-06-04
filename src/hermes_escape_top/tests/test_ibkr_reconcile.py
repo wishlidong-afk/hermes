@@ -84,12 +84,37 @@ class TestReconcileRouteLeg(unittest.TestCase):
     def test_soxx_in_route_legs_when_routing_provided(self):
         """When routing dict includes SOXX destination, it appears in route_legs."""
         snap = _snap([_pos("SOXX", 10_000)])
-        sizing = {"SOXL": {"target_weight": 0.10}}
-        routing = {"SOXL": {"destination": "SOXX"}}
+        sizing = {"SOXL": {"sleeve_cap": 0.30, "target_weight": 0.10}}
+        routing = {"SOXL": {"applies": True, "destination": "SOXX", "weights": {"SOXX": 1.0}}}
         report = reconcile(snap, sizing, routing)
         # SOXX is in route_legs (destination of SOXL)
         soxx = next((d for d in report.route_legs if d.symbol == "SOXX"), None)
         self.assertIsNotNone(soxx)
+        self.assertAlmostEqual(soxx.ideal_weight, 0.20)
+
+    def test_route_leg_uses_residual_when_risky_target_is_zero(self):
+        snap = _snap([])
+        sizing = {"SOXL": {"sleeve_cap": 0.30, "target_weight": 0.0}}
+        routing = {"SOXL": {"applies": True, "destination": "SOXX", "weights": {"SOXX": 1.0}}}
+        report = reconcile(snap, sizing, routing)
+        soxx = next(d for d in report.route_legs if d.symbol == "SOXX")
+        self.assertAlmostEqual(soxx.ideal_weight, 0.30)
+        self.assertEqual(soxx.status, "MISSING")
+
+    def test_route_leg_respects_multi_destination_weights(self):
+        snap = _snap([])
+        sizing = {"MSTR": {"sleeve_cap": 0.15, "target_weight": 0.0}}
+        routing = {
+            "MSTR": {
+                "applies": True,
+                "destination": "BOXX",
+                "weights": {"BOXX": 0.70, "DBMF": 0.30},
+            }
+        }
+        report = reconcile(snap, sizing, routing)
+        targets = {row.symbol: row.ideal_weight for row in report.route_legs}
+        self.assertAlmostEqual(targets["BOXX"], 0.105)
+        self.assertAlmostEqual(targets["DBMF"], 0.045)
 
     def test_soxx_is_route_leg_without_routing_dict(self):
         """Without routing dict, SOXX in account is flagged ROUTE_LEG via ROUTE_LEGS set."""
