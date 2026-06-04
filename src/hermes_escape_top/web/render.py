@@ -158,16 +158,21 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
     .bar span.warn {{ background: #d97706; }}
     .bar span.danger {{ background: #dc2626; }}
     .facts {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }}
-    .macro-grid {{ display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 12px; align-items: start; }}
-    .macro-score-box {{
+    .macro-summary {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }}
+    .macro-tile {{
       background: #f8fafc;
       border: 1px solid #dbe3ee;
-      border-radius: 8px;
-      padding: 14px;
+      border-radius: 6px;
+      padding: 8px;
       min-width: 0;
     }}
-    .macro-score-box .score-main {{ font-size: 34px; font-weight: 900; line-height: 1; }}
-    .macro-score-box .score-main small {{ color: var(--muted); font-size: 14px; font-weight: 800; }}
+    .macro-tile .label {{ color: var(--muted); font-size: 11px; margin-bottom: 5px; }}
+    .macro-tile .value {{ font-size: 15px; font-weight: 850; overflow-wrap: anywhere; }}
+    .macro-factors {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }}
+    .macro-factor {{ border: 1px solid #e5e7eb; border-radius: 6px; background: #fbfdff; padding: 8px; min-width: 0; }}
+    .macro-factor b {{ display:block; font-size: 12px; margin-bottom: 4px; overflow-wrap: anywhere; }}
+    .macro-factor .pts {{ font-weight: 900; font-size: 15px; }}
+    .macro-details {{ margin-top: 8px; }}
     .flow-header {{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap; margin: 12px 0 8px; }}
     .flow-grid {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }}
     .flow-card {{ border: 1px solid #e5e7eb; border-radius: 8px; background: #fbfdff; overflow: hidden; }}
@@ -211,12 +216,13 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
       .command-grid {{ grid-template-columns: 1fr; }}
       .two-col {{ grid-template-columns: 1fr; }}
       .ibkr-head {{ grid-template-columns: 1fr; }}
-      .macro-grid {{ grid-template-columns: 1fr; }}
+      .macro-summary, .macro-factors {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .flow-grid {{ grid-template-columns: 1fr; }}
     }}
     @media (max-width: 720px) {{
       .shell {{ padding: 10px; }}
       .kpis, .facts, .mini-grid, .module-row {{ grid-template-columns: 1fr; }}
+      .macro-summary, .macro-factors {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       h1 {{ font-size: 22px; }}
     }}
   </style>
@@ -329,7 +335,7 @@ def _render_macro_section(payload: Dict[str, Any]) -> str:
     regime = payload.get("regime") or {}
     verdict = "BOXX 避险阈值已触发" if module_score >= 12 else "未触发 BOXX 宏观核爆阈值"
     verdict_kind = "danger" if module_score >= 12 else "ok"
-    rows = []
+    rows: List[str] = []
     for row in factors:
         max_points = _float(row.get("max_score"), 0.0)
         if max_points <= 0 and not row.get("missing_fields"):
@@ -342,24 +348,55 @@ def _render_macro_section(payload: Dict[str, Any]) -> str:
             f"<td>{esc(', '.join(row.get('missing_fields') or [])) or '-'}</td>"
             "</tr>"
         )
+    key_cards = []
+    visible_factors = sorted(
+        [row for row in factors if _float(row.get("max_score"), 0.0) > 0],
+        key=lambda row: (_float(row.get("score"), 0.0), _float(row.get("max_score"), 0.0)),
+        reverse=True,
+    )[:4]
+    for row in visible_factors:
+        key_cards.append(
+            "<div class='macro-factor'>"
+            f"<b>{esc(_short_factor_id(row.get('factor_id')))}</b>"
+            f"<div class='pts'>{_fmt_num(row.get('score'))} / {_fmt_num(row.get('max_score'))}</div>"
+            f"<div class='subtle'>{esc(row.get('explain'))}</div>"
+            "</div>"
+        )
     return f"""
     <section>
-      <h2>主要宏观模块评分 / A Macro Module</h2>
-      <div class="macro-grid">
-        <div class="macro-score-box">
-          <div class="subtle">A 模块总分</div>
-          <div class="score-main">{_fmt_num(module_score)}<small> / {_fmt_num(max_score)}</small></div>
-          <div style="margin-top:10px">{_badge(verdict, verdict_kind)}</div>
-          <div class="subtle" style="margin-top:8px">Regime={esc(regime.get('current', 'NA'))} · VIX pct {_fmt_num(regime.get('vix_percentile'))}</div>
-          <div class="subtle">QQQ={_fmt_money((regime.get('inputs') or {}).get('QQQ.close'))} · MA200={_fmt_money((regime.get('inputs') or {}).get('QQQ.ma200'))}</div>
+      <h2>宏观 A 模块评分</h2>
+      <div class="macro-summary">
+        <div class="macro-tile">
+          <div class="label">A 模块总分</div>
+          <div class="value">{_fmt_num(module_score)} / {_fmt_num(max_score)}</div>
         </div>
-        <div>
+        <div class="macro-tile">
+          <div class="label">避险阈值</div>
+          <div class="value">{_badge(verdict, verdict_kind)}</div>
+        </div>
+        <div class="macro-tile">
+          <div class="label">市场状态</div>
+          <div class="value">{esc(regime.get('current', 'NA'))}</div>
+          <div class="subtle">VIX pct {_fmt_num(regime.get('vix_percentile'))}</div>
+        </div>
+        <div class="macro-tile">
+          <div class="label">QQQ 趋势</div>
+          <div class="value">{_fmt_money((regime.get('inputs') or {}).get('QQQ.close'))}</div>
+          <div class="subtle">MA200 {_fmt_money((regime.get('inputs') or {}).get('QQQ.ma200'))}</div>
+        </div>
+      </div>
+      <div class="macro-factors">
+        {''.join(key_cards) if key_cards else '<div class="macro-factor">暂无主要触发项</div>'}
+      </div>
+      <details class="macro-details">
+        <summary>展开全部宏观 A 指标</summary>
+        <div class="detail-body">
           <table>
             <thead><tr><th>宏观指标</th><th>得分</th><th>解释</th><th>缺失</th></tr></thead>
             <tbody>{''.join(rows) if rows else '<tr><td colspan="4">暂无 A 模块评分</td></tr>'}</tbody>
           </table>
         </div>
-      </div>
+      </details>
     </section>
     """
 
@@ -899,6 +936,30 @@ def _first_score(payload: Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(score, dict):
             return score
     return {}
+
+
+def _short_factor_id(factor_id: Any) -> str:
+    mapping = {
+        "A1_QQQ_MA200_BREAK": "QQQ 跌破 MA200",
+        "A1_VIX_COMPLACENCY": "VIX 低波动",
+        "A2_CNN_FEAR_GREED": "恐惧贪婪",
+        "A2_AAII_BULL": "AAII 情绪",
+        "A2_NAAIM": "NAAIM 仓位",
+        "A2_CBOE_EQUITY_PCR": "期权 PCR",
+        "A3_CBOE_PCR": "期权 PCR",
+        "A3_COMPONENT_BREADTH": "市场宽度",
+        "A4_QQQ_STRETCH": "QQQ 乖离",
+        "A4_NET_LIQUIDITY": "宏观流动性",
+        "A5_NET_LIQUIDITY": "宏观流动性",
+        "A5_VOL_TERM_STRUCTURE": "波动率期限",
+        "A6_FUND_FLOW": "资金流",
+        "A7_BTC_FUNDING": "BTC 资金费率",
+        "A7_VIX_TERM_STRUCTURE": "VIX 期限结构",
+        "A8_BREADTH": "市场宽度",
+        "A8_QQQ_DISTRIBUTION": "QQQ 派发压力",
+    }
+    text = str(factor_id or "")
+    return mapping.get(text, text.replace("_", " "))
 
 
 def _status_kind(status: str) -> str:
