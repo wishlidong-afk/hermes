@@ -4,6 +4,7 @@ import json
 import threading
 import unittest
 import urllib.request
+from unittest import mock
 
 import pandas as pd
 
@@ -56,6 +57,31 @@ class Phase15IntegrationTest(unittest.TestCase):
             with urllib.request.urlopen(f"{base}/", timeout=10) as response:
                 html = response.read().decode("utf-8")
                 self.assertIn("Posterior Ideal P/L", html)
+                self.assertIn("IBKR Live 验收", html)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_server_ibkr_live_endpoint(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = urllib.request.Request(
+                f"{base}/api/ibkr_live_check",
+                data=b'{"as_of":"2026-05-29"}',
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with mock.patch(
+                "hermes_escape_top.web.server.run_live_check",
+                return_value={"ok": False, "status": "IBKR_NOT_LIVE", "as_of": "2026-05-29"},
+            ):
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            self.assertEqual(payload["status"], "IBKR_NOT_LIVE")
         finally:
             server.shutdown()
             server.server_close()

@@ -468,11 +468,18 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
       style="background:#111827;color:white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">
       更新策略数据
     </button>
+    <button onclick="runIbkrLiveCheck()" id="ibkr-live-btn"
+      style="background:#047857;color:white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">
+      IBKR Live 验收
+    </button>
     <span id="refresh-score-status" style="font-size:12px;color:#6b7280"></span>
+    <span id="ibkr-live-status" style="font-size:12px;color:#6b7280"></span>
     <span style="background:{cache_color};color:{cache_text};padding:3px 8px;border-radius:4px;font-size:12px;font-weight:700">
       {escape(cache_label)}
     </span>
   </div>
+  <div id="ibkr-live-result"
+    style="display:none;margin:0 0 16px;font-size:12px;font-family:monospace;white-space:pre-wrap;background:#ecfdf5;border:1px solid #10b981;border-radius:6px;padding:10px;max-height:220px;overflow:auto"></div>
   <script>
   window.refreshScore = function(){{
     var btn = document.getElementById('refresh-score-btn');
@@ -501,6 +508,53 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
       btn.disabled = false;
       btn.style.opacity = '1';
       st.textContent = '刷新失败: ' + e;
+    }});
+  }};
+  window.runIbkrLiveCheck = function(){{
+    var btn = document.getElementById('ibkr-live-btn');
+    var st = document.getElementById('ibkr-live-status');
+    var out = document.getElementById('ibkr-live-result');
+    var asOf = {json.dumps(str(payload.get('as_of') or ''))};
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    out.style.display = 'none';
+    st.textContent = '正在验收 IBKR live 连接...';
+    fetch('/api/ibkr_live_check', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{as_of: asOf}})
+    }})
+    .then(function(r){{ return r.json(); }})
+    .then(function(d){{
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      st.textContent = d.ok ? '✅ LIVE_OK' : '❌ ' + (d.status || 'LIVE_FAILED');
+      var lines = [];
+      lines.push('status=' + (d.status || 'unknown'));
+      lines.push('ok=' + !!d.ok);
+      if(d.preflight){{
+        lines.push('source=' + d.preflight.source);
+        lines.push('account=' + d.preflight.account_id);
+        lines.push('net_liq=' + d.preflight.net_liq);
+        if(d.preflight.error) lines.push('error=' + d.preflight.error);
+      }}
+      if(d.ibkr){{
+        lines.push('score_ibkr_source=' + d.ibkr.source);
+        lines.push('max_abs_delta=' + d.ibkr.max_abs_delta);
+      }}
+      if(d.report_paths){{
+        lines.push('json_report=' + d.report_paths.json);
+        lines.push('markdown_report=' + d.report_paths.markdown);
+      }}
+      if(d.message) lines.push('message=' + d.message);
+      out.textContent = lines.join('\\n');
+      out.style.display = 'block';
+      if(d.ok) setTimeout(function(){{ location.reload(); }}, 900);
+    }})
+    .catch(function(e){{
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      st.textContent = '❌ 网络错误: ' + e;
     }});
   }};
   </script>

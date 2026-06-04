@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from .pipeline import archive_soft_inputs, bootstrap, empty_score_pipeline, flow_snapshot, score_pipeline, soft_data_snapshot
+from .ibkr.live_check import run_live_check
 from .core.backtest.replay import available_replay_dates, run_score_replay, run_strategy_backtest
 from .core.backtest.param_sweep import run_param_sweep
 from .core.backtest.reports import write_full_backtest_markdown, write_json_report
@@ -40,6 +41,9 @@ def main() -> None:
     p_flow.add_argument("--as-of", required=True)
     p_score = sub.add_parser("score", help="Run Phase 3 scoring pipeline")
     p_score.add_argument("--as-of", required=True)
+    p_ibkr_live = sub.add_parser("ibkr-live", help="Run read-only IBKR live verification")
+    p_ibkr_live.add_argument("--as-of", required=True)
+    p_ibkr_live.add_argument("--no-report", action="store_true")
     p_soft = sub.add_parser("soft-data", help="Collect Phase 10 soft adapter contract snapshot")
     p_soft.add_argument("--as-of", required=True)
     p_replay = sub.add_parser("replay", help="Run deterministic score replay over local history dates")
@@ -91,6 +95,8 @@ def main() -> None:
         payload = flow_snapshot(args.as_of)
     elif args.command == "score":
         payload = score_pipeline(args.as_of)
+    elif args.command == "ibkr-live":
+        payload = run_live_check(args.as_of, write_report=not args.no_report)
     elif args.command == "soft-data":
         payload = soft_data_snapshot(args.as_of)
     elif args.command == "replay":

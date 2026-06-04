@@ -17,6 +17,7 @@ class Phase14WebTest(unittest.TestCase):
         self.assertIn("Audit Detail", html)
         self.assertIn("Portfolio Risk", html)
         self.assertIn("Mirror Reference", html)
+        self.assertIn("IBKR Live 验收", html)
 
     def test_write_dashboard_file(self) -> None:
         payload = score_pipeline("2026-05-29")

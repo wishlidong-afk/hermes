@@ -45,6 +45,7 @@ RUN_DAILY_PKG = (
 )
 
 from ..config import load_config, resolve_path
+from ..ibkr.live_check import run_live_check
 from ..pipeline import score_pipeline
 from .render import render_dashboard
 
@@ -364,6 +365,22 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path in {"/api/refresh_score", "/api/score"}:
                 as_of = req.get("as_of", default_as_of)
                 payload = score_pipeline(as_of)
+                self._send(200, "application/json; charset=utf-8",
+                           json.dumps(payload, ensure_ascii=False, indent=2,
+                                      sort_keys=True, default=str).encode())
+                return
+
+            if parsed.path == "/api/ibkr_live_check":
+                as_of = req.get("as_of", default_as_of)
+                try:
+                    payload = run_live_check(as_of)
+                except Exception:
+                    payload = {
+                        "ok": False,
+                        "status": "LIVE_CHECK_EXCEPTION",
+                        "as_of": as_of,
+                        "error": traceback.format_exc()[-2000:],
+                    }
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())
