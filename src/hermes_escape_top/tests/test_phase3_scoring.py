@@ -94,6 +94,9 @@ class Phase3ScoringTest(unittest.TestCase):
         self.assertEqual(payload["schema_version"], "escape-top-greenfield-phase3-score-v1")
         self.assertEqual(set(payload["scores"]), {"FNGU", "MSTR", "SOXL"})
         self.assertIn(payload["regime"]["current"], {"LOW_VOL_TREND", "CHOP", "HIGH_VOL", "CRISIS", "UNKNOWN"})
+        self.assertIn("flow", payload)
+        self.assertIn("FNGU", payload["flow"]["component_baskets"])
+        self.assertIn("SOXL", payload["flow"]["component_baskets"])
         for score in payload["scores"].values():
             self.assertIn(score["status"], {"HOLD", "WATCH", "TRIM", "REDUCE", "DEFENSIVE_EXIT", "EXIT"})
             self.assertIn("factor_scores", score)

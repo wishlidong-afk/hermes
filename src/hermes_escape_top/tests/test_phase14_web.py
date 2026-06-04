@@ -20,6 +20,8 @@ class Phase14WebTest(unittest.TestCase):
         self.assertIn("IBKR Live 验收", html)
         self.assertIn("更新持仓", html)
         self.assertIn("IBKR 现有总资产", html)
+        self.assertIn("主要宏观模块评分", html)
+        self.assertIn("底层持仓资金流入/流出监控", html)
 
     def test_write_dashboard_file(self) -> None:
         payload = score_pipeline("2026-05-29")

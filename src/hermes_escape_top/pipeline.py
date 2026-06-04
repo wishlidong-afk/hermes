@@ -98,19 +98,11 @@ def soft_data_snapshot(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str,
 def flow_snapshot(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any]:
     config = load_config(config_path)
     store = LocalStore(config)
-    rows: Dict[str, Any] = {}
-    for symbol in trade_symbols(config):
-        rows[symbol] = money_flow_metrics(symbol, store.load_history(symbol), as_of).to_dict()
-    component_rows = {}
-    for symbol, components in config.get("component_proxies", {}).items():
-        histories = {component: store.load_history(component) for component in components}
-        component_rows[symbol] = basket_flow(components, histories, as_of)
-    return {
-        "schema_version": "escape-top-greenfield-flow-v2-v1",
-        "as_of": as_of,
-        "symbols": rows,
-        "component_baskets": component_rows,
-    }
+    symbols = set(trade_symbols(config))
+    for components in config.get("component_proxies", {}).values():
+        symbols.update(components)
+    histories = {symbol: store.load_history(symbol) for symbol in sorted(symbols)}
+    return _flow_payload(config, histories, as_of)
 
 
 def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = False) -> Dict[str, Any]:
@@ -145,6 +137,7 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = F
     }
     mirror = build_mirror_plan(snapshots, config)
     mirror_db = write_mirror_snapshot(store.archive_dir / "mirror_reference.sqlite", str(as_of)[:10], mirror)
+    flow = _flow_payload(config, histories, as_of)
     escape_pnl = escape_posterior_pnl(
         {symbol: decision.to_dict() for symbol, decision in sizing.items()},
         histories,
@@ -164,6 +157,7 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = F
         "routing": {symbol: decision.to_dict() for symbol, decision in sorted(routing.items())},
         "reentry": {symbol: plan.to_dict() for symbol, plan in sorted(reentry.items())},
         "soft_data": soft_data,
+        "flow": flow,
         "mirror": {
             "db_path": str(mirror_db),
             "decisions": {sleeve: decision.to_dict() for sleeve, decision in sorted(mirror.items())},
@@ -227,6 +221,26 @@ def _audit_write_dir(store: LocalStore, shadow: bool) -> Path:
     path = store.archive_dir.parent / "shadow" / "archive"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def _flow_payload(config: Dict[str, Any], histories: Dict[str, Any], as_of: str) -> Dict[str, Any]:
+    symbol_rows = {
+        symbol: money_flow_metrics(symbol, histories.get(symbol, pd.DataFrame()), as_of).to_dict()
+        for symbol in trade_symbols(config)
+    }
+    component_rows = {}
+    for symbol, components in config.get("component_proxies", {}).items():
+        component_rows[symbol] = basket_flow(
+            components,
+            {component: histories.get(component, pd.DataFrame()) for component in components},
+            as_of,
+        )
+    return {
+        "schema_version": "escape-top-greenfield-flow-v2-v1",
+        "as_of": as_of,
+        "symbols": symbol_rows,
+        "component_baskets": component_rows,
+    }
 
 
 def _data_confidence(bundles: Dict[str, Any], config: Dict[str, Any]) -> float:

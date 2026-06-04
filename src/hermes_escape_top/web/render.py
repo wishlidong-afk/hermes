@@ -158,6 +158,23 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
     .bar span.warn {{ background: #d97706; }}
     .bar span.danger {{ background: #dc2626; }}
     .facts {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }}
+    .macro-grid {{ display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 12px; align-items: start; }}
+    .macro-score-box {{
+      background: #f8fafc;
+      border: 1px solid #dbe3ee;
+      border-radius: 8px;
+      padding: 14px;
+      min-width: 0;
+    }}
+    .macro-score-box .score-main {{ font-size: 34px; font-weight: 900; line-height: 1; }}
+    .macro-score-box .score-main small {{ color: var(--muted); font-size: 14px; font-weight: 800; }}
+    .flow-header {{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap; margin: 12px 0 8px; }}
+    .flow-grid {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }}
+    .flow-card {{ border: 1px solid #e5e7eb; border-radius: 8px; background: #fbfdff; overflow: hidden; }}
+    .flow-card .flow-title {{ padding: 10px 12px; border-bottom: 1px solid #e5e7eb; background: #f8fafc; }}
+    .flow-card .flow-body {{ padding: 10px; overflow-x: auto; }}
+    .flow-money.pos {{ color: #047857; font-weight: 800; }}
+    .flow-money.neg {{ color: #b91c1c; font-weight: 800; }}
     details {{ border: 1px solid #e5e7eb; border-radius: 6px; background: #fbfdff; }}
     summary {{ cursor: pointer; padding: 9px 10px; font-weight: 800; color: #334155; }}
     details .detail-body {{ padding: 0 10px 10px; }}
@@ -194,6 +211,8 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
       .command-grid {{ grid-template-columns: 1fr; }}
       .two-col {{ grid-template-columns: 1fr; }}
       .ibkr-head {{ grid-template-columns: 1fr; }}
+      .macro-grid {{ grid-template-columns: 1fr; }}
+      .flow-grid {{ grid-template-columns: 1fr; }}
     }}
     @media (max-width: 720px) {{
       .shell {{ padding: 10px; }}
@@ -232,11 +251,14 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
 
     {_render_kpis(payload)}
 
+    {_render_macro_section(payload)}
+
     <section>
       <h2>Escape Decisions / 今日处置指令</h2>
       <div class="command-grid">
         {''.join(_render_symbol_card(symbol, payload) for symbol in TRADE_SYMBOLS)}
       </div>
+      {_render_component_flow_section(payload)}
     </section>
 
     <div class="two-col">
@@ -296,6 +318,118 @@ def _render_kpis(payload: Dict[str, Any]) -> str:
       </div>
       </div>
     </section>
+    """
+
+
+def _render_macro_section(payload: Dict[str, Any]) -> str:
+    score = _first_score(payload)
+    factors = ((score.get("factor_scores") or {}).get("A") or []) if score else []
+    module_score = _float((score.get("module_scores") or {}).get("A") if score else None, 0.0)
+    max_score = sum(_float(row.get("max_score"), 0.0) for row in factors if _float(row.get("max_score"), 0.0) > 0)
+    regime = payload.get("regime") or {}
+    verdict = "BOXX 避险阈值已触发" if module_score >= 12 else "未触发 BOXX 宏观核爆阈值"
+    verdict_kind = "danger" if module_score >= 12 else "ok"
+    rows = []
+    for row in factors:
+        max_points = _float(row.get("max_score"), 0.0)
+        if max_points <= 0 and not row.get("missing_fields"):
+            continue
+        rows.append(
+            "<tr>"
+            f"<td><b>{esc(row.get('factor_id'))}</b></td>"
+            f"<td>{_fmt_num(row.get('score'))} / {_fmt_num(row.get('max_score'))}</td>"
+            f"<td>{esc(row.get('explain'))}</td>"
+            f"<td>{esc(', '.join(row.get('missing_fields') or [])) or '-'}</td>"
+            "</tr>"
+        )
+    return f"""
+    <section>
+      <h2>主要宏观模块评分 / A Macro Module</h2>
+      <div class="macro-grid">
+        <div class="macro-score-box">
+          <div class="subtle">A 模块总分</div>
+          <div class="score-main">{_fmt_num(module_score)}<small> / {_fmt_num(max_score)}</small></div>
+          <div style="margin-top:10px">{_badge(verdict, verdict_kind)}</div>
+          <div class="subtle" style="margin-top:8px">Regime={esc(regime.get('current', 'NA'))} · VIX pct {_fmt_num(regime.get('vix_percentile'))}</div>
+          <div class="subtle">QQQ={_fmt_money((regime.get('inputs') or {}).get('QQQ.close'))} · MA200={_fmt_money((regime.get('inputs') or {}).get('QQQ.ma200'))}</div>
+        </div>
+        <div>
+          <table>
+            <thead><tr><th>宏观指标</th><th>得分</th><th>解释</th><th>缺失</th></tr></thead>
+            <tbody>{''.join(rows) if rows else '<tr><td colspan="4">暂无 A 模块评分</td></tr>'}</tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    """
+
+
+def _render_component_flow_section(payload: Dict[str, Any]) -> str:
+    flow = payload.get("flow") or {}
+    symbol_rows = flow.get("symbols") or {}
+    baskets = flow.get("component_baskets") or {}
+    cards = []
+    for symbol in TRADE_SYMBOLS:
+        if symbol in baskets:
+            basket = baskets.get(symbol) or {}
+            components = basket.get("components") or []
+            summary = (
+                f"severity={esc(basket.get('severity', 'NA'))} · "
+                f"avg CMF {_fmt_num(basket.get('avg_cmf20'))} · "
+                f"avg MFI {_fmt_num(basket.get('avg_mfi14'))} · "
+                f"abnormal {esc(basket.get('abnormal_components', 0))}/{esc(basket.get('component_count', 0))}"
+            )
+        else:
+            components = [symbol_rows.get(symbol, {"symbol": symbol, "severity": "MISSING"})]
+            row = components[0]
+            summary = (
+                f"severity={esc(row.get('severity', 'NA'))} · "
+                f"CMF {_fmt_num(row.get('cmf20'))} · "
+                f"MFI {_fmt_num(row.get('mfi14'))}"
+            )
+        cards.append(_render_flow_card(symbol, components, summary))
+    return f"""
+      <div class="flow-header">
+        <div>
+          <h2 style="margin-bottom:4px">底层持仓资金流入/流出监控</h2>
+          <div class="subtle">CMF20 / MFI14 / A-D slope / 5日估算净流。红色代表资金异常流出或弱流出。</div>
+        </div>
+        {_badge('flow as_of ' + esc(flow.get('as_of', 'NA')), 'watch')}
+      </div>
+      <div class="flow-grid">{''.join(cards)}</div>
+    """
+
+
+def _render_flow_card(symbol: str, components: List[Dict[str, Any]], summary: str) -> str:
+    severity_rank = {"SEVERE": 0, "ABNORMAL": 1, "WATCH": 2, "NORMAL": 3, "MISSING": 4}
+    rows = []
+    for row in sorted(components, key=lambda item: (severity_rank.get(str(item.get("severity", "MISSING")), 5), str(item.get("symbol", ""))))[:12]:
+        sev = str(row.get("severity", "MISSING"))
+        signed = _float(row.get("legacy_signed_5d"), 0.0)
+        money_class = "pos" if signed >= 0 else "neg"
+        rows.append(
+            "<tr>"
+            f"<td><b>{esc(row.get('symbol'))}</b></td>"
+            f"<td>{_badge(sev, _flow_kind(sev))}</td>"
+            f"<td>{_fmt_num(row.get('cmf20'))}</td>"
+            f"<td>{_fmt_num(row.get('mfi14'))}</td>"
+            f"<td class='flow-money {money_class}'>{_fmt_flow_money(row.get('legacy_signed_5d'))}</td>"
+            f"<td>{esc(row.get('outflow_days_5d', 'NA'))}</td>"
+            "</tr>"
+        )
+    return f"""
+    <div class="flow-card">
+      <div class="flow-title">
+        <h3 style="margin-bottom:4px">{esc(symbol)} 资金流</h3>
+        <div class="subtle">{summary}</div>
+      </div>
+      <div class="flow-body">
+        <table>
+          <thead><tr><th>持仓</th><th>状态</th><th>CMF20</th><th>MFI14</th><th>5日净流</th><th>流出天</th></tr></thead>
+          <tbody>{''.join(rows) if rows else '<tr><td colspan="6">暂无资金流数据</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
     """
 
 
@@ -756,6 +890,17 @@ def _badge(text: str, kind: str = "") -> str:
     return f'<span class="badge {kind}">{esc(text)}</span>'
 
 
+def _first_score(payload: Dict[str, Any]) -> Dict[str, Any]:
+    scores = payload.get("scores") or {}
+    for symbol in TRADE_SYMBOLS:
+        if isinstance(scores.get(symbol), dict):
+            return scores[symbol]
+    for score in scores.values():
+        if isinstance(score, dict):
+            return score
+    return {}
+
+
 def _status_kind(status: str) -> str:
     if status in {"EXIT", "DEFENSIVE_EXIT"}:
         return "danger"
@@ -794,6 +939,17 @@ def _ibkr_status_kind(status: str) -> str:
     return "watch"
 
 
+def _flow_kind(severity: str) -> str:
+    severity = str(severity or "").upper()
+    if severity in {"SEVERE", "ABNORMAL"}:
+        return "danger"
+    if severity == "WATCH":
+        return "warn"
+    if severity == "NORMAL":
+        return "ok"
+    return "watch"
+
+
 def _fmt_money(value: Any) -> str:
     if value is None:
         return "NA"
@@ -801,6 +957,21 @@ def _fmt_money(value: Any) -> str:
         return f"${float(value):,.2f}"
     except (TypeError, ValueError):
         return esc(value)
+
+
+def _fmt_flow_money(value: Any) -> str:
+    if value is None:
+        return "NA"
+    try:
+        val = float(value)
+    except (TypeError, ValueError):
+        return esc(value)
+    sign = "+" if val > 0 else "-" if val < 0 else ""
+    abs_val = abs(val)
+    for suffix, scale in [("T", 1_000_000_000_000), ("B", 1_000_000_000), ("M", 1_000_000)]:
+        if abs_val >= scale:
+            return f"{sign}${abs_val / scale:.2f}{suffix}"
+    return f"{sign}${abs_val:,.0f}"
 
 
 def _fmt_pct(value: Any, signed: bool = False) -> str:
