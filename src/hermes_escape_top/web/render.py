@@ -76,6 +76,7 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
     }}
     button:disabled {{ opacity: .55; cursor: default; }}
     .btn-primary {{ background: var(--blue); }}
+    .btn-position {{ background: #0f766e; }}
     .btn-live {{ background: var(--green); }}
     .btn-muted {{ background: #475569; }}
     .status-line {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }}
@@ -168,6 +169,23 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
     .route-text {{ font-weight: 800; color: #0f172a; }}
     .reason {{ color: var(--muted); font-size: 12px; line-height: 1.45; }}
     .warning-box {{ background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:10px; color:#7c2d12; font-size:12px; }}
+    .ibkr-head {{
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(190px, 250px);
+      gap: 10px;
+      align-items: stretch;
+      margin-bottom: 10px;
+    }}
+    .ibkr-total-box {{
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 12px;
+      min-width: 0;
+    }}
+    .ibkr-total-box .label {{ color: #166534; font-size: 12px; font-weight: 800; margin-bottom: 6px; }}
+    .ibkr-total-box .amount {{ color: #052e16; font-size: 24px; font-weight: 900; line-height: 1.1; overflow-wrap: anywhere; }}
+    .ibkr-total-box .note {{ color: #166534; font-size: 11px; margin-top: 6px; }}
     .ops details {{ background: white; }}
     @media (max-width: 1100px) {{
       .hero {{ grid-template-columns: 1fr; }}
@@ -175,6 +193,7 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
       .kpis {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .command-grid {{ grid-template-columns: 1fr; }}
       .two-col {{ grid-template-columns: 1fr; }}
+      .ibkr-head {{ grid-template-columns: 1fr; }}
     }}
     @media (max-width: 720px) {{
       .shell {{ padding: 10px; }}
@@ -199,10 +218,12 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
       <div>
         <div class="controls">
           <button class="btn-primary" onclick="refreshScore()" id="refresh-score-btn">更新策略数据</button>
+          <button class="btn-position" onclick="refreshPositions()" id="refresh-positions-btn">更新持仓</button>
           <button class="btn-live" onclick="runIbkrLiveCheck()" id="ibkr-live-btn">IBKR Live 验收</button>
           <button class="btn-muted" onclick="location.reload()">重新载入</button>
         </div>
         <div class="subtle" id="refresh-score-status" style="margin-top:8px;text-align:right"></div>
+        <div class="subtle" id="refresh-positions-status" style="margin-top:4px;text-align:right"></div>
         <div class="subtle" id="ibkr-live-status" style="margin-top:4px;text-align:right"></div>
       </div>
     </header>
@@ -400,8 +421,17 @@ def _render_ibkr_section(ibkr: Dict[str, Any]) -> str:
         rows.append(f'<tr><td colspan="9">{esc(note)}</td></tr>')
     return f"""
     <section>
-      <h2>IBKR Reconciliation / 持仓对账</h2>
-      <div class="subtle">source={esc(ibkr.get('source', 'disabled'))} · account={esc(ibkr.get('account_id', 'NA'))} · NetLiq={_fmt_money(ibkr.get('net_liq'))} · sync={esc(str(ibkr.get('sync_time', ''))[:19])}</div>
+      <div class="ibkr-head">
+        <div>
+          <h2>IBKR Reconciliation / 持仓对账</h2>
+          <div class="subtle">source={esc(ibkr.get('source', 'disabled'))} · account={esc(ibkr.get('account_id', 'NA'))} · sync={esc(str(ibkr.get('sync_time', ''))[:19])}</div>
+        </div>
+        <div class="ibkr-total-box">
+          <div class="label">IBKR 现有总资产 / NetLiq</div>
+          <div class="amount">{_fmt_money(ibkr.get('net_liq'))}</div>
+          <div class="note">source={esc(ibkr.get('source', 'disabled'))} · max delta {_fmt_pct(ibkr.get('max_abs_delta'))}</div>
+        </div>
+      </div>
       {_warning(ibkr.get('error'))}
       <table>
         <thead><tr><th>类别</th><th>标的</th><th>理想</th><th>实际</th><th>差异</th><th>市值</th><th>股数</th><th>成本</th><th>状态</th></tr></thead>
@@ -534,6 +564,29 @@ def _render_scripts(as_of: str) -> str:
       }}
     }}).catch(function(e) {{
       st.textContent = '刷新失败: ' + e;
+      setBusy(btn, false);
+    }});
+  }};
+  window.refreshPositions = function() {{
+    var btn = document.getElementById('refresh-positions-btn');
+    var st = document.getElementById('refresh-positions-status');
+    setBusy(btn, true);
+    st.textContent = '正在拉取 IBKR 持仓...';
+    fetch('/api/refresh_positions', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{as_of: {as_of_js}}})
+    }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+      var ibkr = d.ibkr || {{}};
+      if (ibkr.source) {{
+        st.textContent = '持仓刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
+        setTimeout(function() {{ location.reload(); }}, 600);
+      }} else {{
+        st.textContent = '持仓刷新失败: ' + (d.message || d.error || 'unknown');
+        setBusy(btn, false);
+      }}
+    }}).catch(function(e) {{
+      st.textContent = '持仓刷新失败: ' + e;
       setBusy(btn, false);
     }});
   }};

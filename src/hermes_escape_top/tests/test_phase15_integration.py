@@ -50,6 +50,14 @@ class Phase15IntegrationTest(unittest.TestCase):
                 payload = json.loads(response.read().decode("utf-8"))
                 self.assertIn("posterior_pnl", payload)
                 self.assertIn("mirror", payload)
+            request = urllib.request.Request(
+                f"{base}/api/refresh_positions",
+                data=b"",
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=30) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+                self.assertIn("ibkr", payload)
             with urllib.request.urlopen(f"{base}/api/score", timeout=10) as response:
                 payload = json.loads(response.read().decode("utf-8"))
                 self.assertIn("posterior_pnl", payload)

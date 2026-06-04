@@ -370,6 +370,14 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                                       sort_keys=True, default=str).encode())
                 return
 
+            if parsed.path == "/api/refresh_positions":
+                as_of = req.get("as_of", default_as_of)
+                payload = score_pipeline(as_of)
+                self._send(200, "application/json; charset=utf-8",
+                           json.dumps(payload, ensure_ascii=False, indent=2,
+                                      sort_keys=True, default=str).encode())
+                return
+
             if parsed.path == "/api/ibkr_live_check":
                 as_of = req.get("as_of", default_as_of)
                 try:

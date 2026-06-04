@@ -1,5 +1,6 @@
 | Phase | 状态 | 分支/PR | 回测达标 | 阻塞 | 更新时间 |
 |---|---|---|---|---|---|
+| 19 WebUI 持仓刷新与总资产框 | DONE | hermes-docs | n/a | 8766 已重启；`POST /api/refresh_positions` 返回 `source=tws` | 2026-06-04 |
 | 18 新系统逃顶 WebUI 重搭 | DONE | hermes-docs | n/a | 8766 已在 detached screen 运行；页面使用 `localhost:8766` 验收通过 | 2026-06-04 |
 | 17 IBKR live 验收入口 | DONE | hermes-docs | n/a | Gateway 未在线时预期返回 IBKR_NOT_LIVE | 2026-06-04 |
 | 16 run_daily/WebUI/数据接口修复 | DONE | hermes-docs | n/a | IBKR live 在线验收待 Gateway 开启 | 2026-06-04 |
