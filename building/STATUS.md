@@ -1,5 +1,6 @@
 | Phase | 状态 | 分支/PR | 回测达标 | 阻塞 | 更新时间 |
 |---|---|---|---|---|---|
+| 26 十项易用性与准确性优化 | DONE / RUNTIME-VERIFIED | hermes-docs | 333 tests OK + 8766/8768 refresh OK | IBKR live 仍依赖 Gateway 在线；当前明确显示 snapshot/stale 并降为 DEGRADED | 2026-06-05 |
 | 25 Review Gap 全量修复与 WebUI 按钮验收 | DONE | hermes-docs | 331 tests OK | IBKR live 本轮仍超时，当前明确降级 snapshot；Data 仍因软数据 proxy/latency 为 MEDIUM | 2026-06-05 |
 | 24 WebUI 全量刷新链路与 flow DB 固化 | DONE | hermes-docs | n/a | 软数据 proxy/latency 会让 Data 仍为 MEDIUM | 2026-06-05 |
 | 23 8768 镜像参考 FNGU/QQQ + SOXL/SOXX 新规则 | DONE | hermes-docs | n/a | PE 分位、真实交易批次持仓天数未接入 | 2026-06-05 |

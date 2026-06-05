@@ -17,6 +17,7 @@ from .core.data.flow_store import write_flow_snapshot
 from .core.data.market import MarketData
 from .core.data.audit import write_audit_record
 from .core.data.quality import analyze_missing_fields, quality_from_snapshots
+from .core.data.state_store import latest_execution_confirmations, write_state_snapshot
 from .core.data.store import LocalStore, bootstrap_history
 from .core.data.adapters import collect_soft_data
 from .core.backtest.posterior import escape_posterior_pnl, mirror_posterior_pnl
@@ -29,6 +30,7 @@ from .core.confidence.spine import compute_confidence
 from .core.routing.capital_routing import route_capital
 from .core.reentry.plan import build_reentry_plan
 from .core.reentry.store import read_reentry_states, write_reentry_snapshot
+from .core.decision.action_intents import build_action_context
 from .core.decision.signal_journal import SignalJournalEntry, append_signal_journal, trading_days_since_last_sell
 from .mirror.strategy import build_mirror_plan
 from .mirror.store import write_mirror_snapshot
@@ -128,11 +130,13 @@ def score_pipeline(
     portfolio_risk = compute_portfolio_risk(histories, target_weights, config, excluded_symbols=hard_excluded)
     signal_journal_path = store.archive_dir / "signal_journal.jsonl"
     signal_journal_write_path = _signal_journal_write_path(store, shadow)
+    state_db_path = store.archive_dir / "hermes_state.sqlite"
     sizing = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of,
                               signal_journal_path=signal_journal_path)
     routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=histories) for symbol, bundle in bundles.items()}
     reentry_db_path = store.archive_dir / "reentry_state.sqlite"
     reentry_states = read_reentry_states(reentry_db_path)
+    execution_confirmations = latest_execution_confirmations(state_db_path)
     reentry = {
         symbol: build_reentry_plan(
             symbol,
@@ -178,6 +182,7 @@ def score_pipeline(
         "reentry_state": {
             "db_path": str(reentry_db),
             "states": {symbol: state.to_dict() for symbol, state in sorted(reentry_states.items())},
+            "execution_confirmations": execution_confirmations,
         },
         "soft_data": soft_data,
         "flow": flow,
@@ -194,6 +199,9 @@ def score_pipeline(
         "ibkr": ibkr_payload,
     }
     payload["input_hash"] = stable_hash(payload["snapshots"])
+    payload["data_quality_breakdown"] = _quality_breakdown(payload, snapshots, flow)
+    payload.update(build_action_context(payload, snapshots))
+    payload["state"] = write_state_snapshot(state_db_path, payload)
 
     audit_path = write_audit_record(payload, _audit_write_dir(store, shadow))
     signal_path = append_signal_journal(
@@ -274,6 +282,104 @@ def _portfolio_value(config: Dict[str, Any], ibkr_payload: Dict[str, Any]) -> fl
     if net_liq > 0:
         return net_liq
     return float(config.get("portfolio", {}).get("netliq", config.get("initial_capital", 100000.0)))
+
+
+def _quality_breakdown(
+    payload: Dict[str, Any],
+    snapshots: Dict[str, SymbolSnapshot],
+    flow: Dict[str, Any],
+) -> Dict[str, Any]:
+    dq = payload.get("data_quality") or {}
+    sources = []
+    price_stale = []
+    for symbol in ["MSTR", "FNGU", "SOXL", "QQQ", "SOXX", "SPY", "^VIX"]:
+        snap = snapshots.get(symbol)
+        if not snap:
+            continue
+        close = snap.fields.get("close")
+        as_of = close.as_of.isoformat() if close and close.as_of else snap.as_of.isoformat()
+        latency = close.latency_days if close else 0
+        status = "FRESH" if latency == 0 else "STALE"
+        if latency:
+            price_stale.append(symbol)
+        sources.append({
+            "name": symbol,
+            "category": "price",
+            "as_of": as_of,
+            "status": status,
+            "is_proxy": False,
+            "latency_days": latency,
+            "quality_penalty": 0.0,
+        })
+    soft_proxy = 0
+    soft_latency = 0
+    for name, record in sorted(((payload.get("soft_data") or {}).get("records") or {}).items()):
+        is_proxy = bool(record.get("is_proxy"))
+        latency = int(record.get("latency_days") or 0)
+        available = bool(record.get("data_available"))
+        soft_proxy += int(is_proxy)
+        soft_latency += int(latency > 0)
+        sources.append({
+            "name": name,
+            "category": "soft",
+            "as_of": record.get("as_of"),
+            "status": "AVAILABLE" if available else "MISSING",
+            "is_proxy": is_proxy,
+            "latency_days": latency,
+            "quality_penalty": record.get("quality_penalty", 0.0),
+            "reason": record.get("reason", ""),
+        })
+    flow_stale = []
+    for sleeve, row in sorted((flow.get("component_baskets") or {}).items()):
+        stale_days = row.get("component_max_stale_days")
+        if stale_days:
+            flow_stale.append(sleeve)
+        sources.append({
+            "name": f"{sleeve}_component_flow",
+            "category": "flow",
+            "as_of": row.get("component_min_as_of") or flow.get("as_of"),
+            "status": row.get("severity", "MISSING"),
+            "is_proxy": True,
+            "latency_days": stale_days,
+            "quality_penalty": 2.0 if row.get("available") else 5.0,
+            "stale_components": row.get("stale_components") or [],
+        })
+    ibkr = payload.get("ibkr") or {}
+    sources.append({
+        "name": "IBKR",
+        "category": "broker",
+        "as_of": ibkr.get("sync_time"),
+        "status": ibkr.get("source", "disabled"),
+        "is_proxy": ibkr.get("source") == "snapshot",
+        "latency_days": None,
+        "quality_penalty": 5.0 if ibkr.get("snapshot_stale") else 0.0,
+        "error": ibkr.get("error"),
+    })
+    upgrade = []
+    if soft_proxy:
+        upgrade.append(f"替换 {soft_proxy} 个软数据代理源")
+    if soft_latency:
+        upgrade.append(f"降低 {soft_latency} 个软数据延迟源")
+    if flow_stale:
+        upgrade.append("刷新底层资金流: " + ", ".join(flow_stale))
+    if ibkr.get("snapshot_stale") or ibkr.get("source") == "snapshot":
+        upgrade.append("恢复 IBKR live 快照，避免 stale snapshot")
+    if price_stale:
+        upgrade.append("刷新价格历史: " + ", ".join(price_stale))
+    return {
+        "level": dq.get("level"),
+        "overall_score": dq.get("overall_score"),
+        "components": {
+            "price_fresh": not price_stale,
+            "soft_proxy_count": soft_proxy,
+            "soft_latency_count": soft_latency,
+            "flow_fresh": not flow_stale,
+            "ibkr_source": ibkr.get("source", "disabled"),
+            "ibkr_stale": bool(ibkr.get("snapshot_stale")),
+        },
+        "upgrade_to_high": upgrade or ["当前无明显数据质量阻塞"],
+        "sources": sources,
+    }
 
 
 def _data_confidence(bundles: Dict[str, Any], config: Dict[str, Any]) -> float:
@@ -636,6 +742,19 @@ def _snapshot_universe(config: Dict[str, Any]) -> list[str]:
         symbols.update(values)
     for values in config.get("component_proxies", {}).values():
         symbols.update(values)
+    routing = config.get("routing", {})
+    defcon1 = routing.get("defcon1") or {}
+    for symbol, weight in defcon1.items():
+        if symbol != "TREND" and symbol != "trend_symbol" and isinstance(weight, (int, float)):
+            symbols.add(symbol)
+    trend_symbol = defcon1.get("trend_symbol")
+    if trend_symbol:
+        symbols.add(trend_symbol)
+    for key in ["primary", "fallback"]:
+        value = (routing.get("defcon2") or {}).get(key)
+        if value:
+            symbols.add(value)
+    symbols.update((routing.get("defcon3") or {}).values())
     return sorted(symbols)
 
 

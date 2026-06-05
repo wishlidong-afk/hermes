@@ -116,6 +116,24 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
       gap: 10px;
       margin: 12px 0;
     }}
+    .ops-desk {{
+      display: grid;
+      grid-template-columns: minmax(260px, .85fr) minmax(0, 1.6fr);
+      gap: 10px;
+      align-items: stretch;
+    }}
+    .ops-main {{
+      border: 1px solid #dbe3ee;
+      border-radius: 8px;
+      padding: 12px;
+      background: #f8fafc;
+    }}
+    .ops-headline {{ font-size: 24px; font-weight: 900; margin: 6px 0; }}
+    .intent-grid {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }}
+    .intent-card {{ border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: 10px; min-width: 0; }}
+    .intent-card b {{ font-size: 16px; }}
+    .intent-card .action {{ font-weight: 900; margin-top: 8px; color: #0f172a; }}
+    .intent-card .target {{ color: var(--muted); font-size: 12px; margin-top: 5px; }}
     .kpi, section, .symbol-card {{
       background: var(--panel);
       border: 1px solid var(--line);
@@ -213,6 +231,7 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
       .hero {{ grid-template-columns: 1fr; }}
       .controls {{ justify-content: flex-start; }}
       .kpis {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+      .ops-desk, .intent-grid {{ grid-template-columns: 1fr; }}
       .command-grid {{ grid-template-columns: 1fr; }}
       .two-col {{ grid-template-columns: 1fr; }}
       .ibkr-head {{ grid-template-columns: 1fr; }}
@@ -257,6 +276,8 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
     <div id="ibkr-live-result" class="toolbar-output"></div>
 
     {_render_kpis(payload)}
+
+    {_render_today_ops(payload)}
 
     {_render_macro_section(payload)}
 
@@ -323,6 +344,48 @@ def _render_kpis(payload: Dict[str, Any]) -> str:
         <div class="value">{esc(ibkr.get('source', 'disabled'))}</div>
         <div class="note">NetLiq {_fmt_money(ibkr.get('net_liq'))} · max delta {_fmt_pct(ibkr.get('max_abs_delta'))}</div>
       </div>
+      </div>
+    </section>
+    """
+
+
+def _render_today_ops(payload: Dict[str, Any]) -> str:
+    ops = payload.get("today_ops") or {}
+    intents = payload.get("action_intents") or {}
+    state = payload.get("state") or {}
+    destinations = ops.get("destinations") or {}
+    dest_text = ", ".join(f"{esc(k)} {_fmt_money(v)}" for k, v in destinations.items()) or "无资金路由"
+    reasons = ops.get("top_reasons") or []
+    reason_rows = "".join(f"<li>{esc(item)}</li>" for item in reasons[:3])
+    cards = []
+    for symbol in TRADE_SYMBOLS:
+        row = intents.get(symbol) or {}
+        cards.append(
+            "<div class='intent-card'>"
+            f"<b>{esc(symbol)}</b> {_badge(esc(row.get('status', 'NA')), _status_kind(str(row.get('status', 'NA'))))}"
+            f"<div class='action'>{esc(_action_cn(row.get('action')))}</div>"
+            f"<div class='target'>目标: {esc(row.get('target_symbol', '-'))} · {_fmt_money(row.get('target_notional'))} · {_fmt_num(row.get('target_shares'))} 股</div>"
+            f"<div class='target'>置信度: {esc(row.get('confidence_level', 'NA'))} {_fmt_num(row.get('confidence_score'))}</div>"
+            "</div>"
+        )
+    return f"""
+    <section>
+      <h2>今日操作台 / One Command Desk</h2>
+      <div class="ops-desk">
+        <div class="ops-main">
+          <div class="subtle">advisory only · 不下单 · state_db={esc(Path(str(state.get('db_path', ''))).name if state.get('db_path') else 'NA')} · run={esc(state.get('score_run_id', 'NA'))}</div>
+          <div class="ops-headline">{esc(ops.get('headline', '暂无结论'))}</div>
+          <div class="subtle">动作数 {esc(ops.get('action_count', 0))} · 数据 {esc(ops.get('data_quality', 'NA'))} {_fmt_num(ops.get('data_quality_score'))} · IBKR {esc(ops.get('ibkr_source', 'NA'))}{' · STALE' if ops.get('ibkr_stale') else ''}</div>
+          <div style="margin-top:10px"><b>资金去向：</b>{dest_text}</div>
+          <details style="margin-top:10px">
+            <summary>核心原因 / 失效前提</summary>
+            <div class="detail-body">
+              <ol>{reason_rows or '<li>暂无强制动作原因。</li>'}</ol>
+              <div class="subtle">失效条件在每个标的卡的“唯一处置指令”里展开。</div>
+            </div>
+          </details>
+        </div>
+        <div class="intent-grid">{''.join(cards)}</div>
       </div>
     </section>
     """
@@ -475,9 +538,12 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
     score = (payload.get("scores") or {}).get(symbol, {})
     sizing = (payload.get("sizing") or {}).get(symbol, {})
     routing = (payload.get("routing") or {}).get(symbol, {})
+    intent = (payload.get("action_intents") or {}).get(symbol, {})
+    layers = (payload.get("decision_layers") or {}).get(symbol, {})
     reentry = (payload.get("reentry") or {}).get(symbol, {})
     reentry_state_payload = payload.get("reentry_state") or {}
     reentry_state = (reentry_state_payload.get("states") or {}).get(symbol, {})
+    execution_confirmation = (reentry_state_payload.get("execution_confirmations") or {}).get(symbol, {})
     pnl = (payload.get("posterior_pnl") or {}).get("escape", {}).get(symbol, {})
     ibkr_row = _ibkr_row(payload.get("ibkr") or {}, symbol)
     status = str(score.get("status", "NA"))
@@ -516,8 +582,19 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
             {''.join(_module_box(m, module_scores.get(m, 0.0)) for m in ['A','B','C','D'])}
           </div>
 
+          <div class="warning-box" style="background:#f8fafc;border-color:#cbd5e1;color:#0f172a">
+            <b>唯一处置指令：</b>{esc(_action_cn(intent.get('action')))}
+            · 目标 {esc(intent.get('target_symbol', '-'))}
+            · 金额 {_fmt_money(intent.get('target_notional'))}
+            · 股数 {_fmt_num(intent.get('target_shares'))}
+            · 置信度 {esc(intent.get('confidence_level', 'NA'))} {_fmt_num(intent.get('confidence_score'))}
+          </div>
+
           <div class="facts">
             {_metric('建议处置', f"{status} / 卖出 {_fmt_pct(sell_fraction)}")}
+            {_metric('风险温度', f"{_fmt_num(((layers.get('risk_temperature') or {}).get('score')))} · {esc(((layers.get('risk_temperature') or {}).get('status', 'NA')))}")}
+            {_metric('硬阀门', f"{esc((layers.get('hard_valve_state') or {}).get('count', 0))} 个 · {esc(', '.join((layers.get('hard_valve_state') or {}).get('ids', []) or [])) or '未触发'}")}
+            {_metric('动作置信度', f"{esc((layers.get('action_confidence') or {}).get('level', 'NA'))} · {_fmt_num((layers.get('action_confidence') or {}).get('score'))}")}
             {_metric('理想仓位', f"{_fmt_pct(sizing.get('target_weight'))} · {_fmt_money(pnl.get('notional'))}")}
             {_metric('建议股数', f"{_fmt_num(pnl.get('shares'))} 股 @ {_fmt_money(pnl.get('current_close'))}")}
             {_metric('资金路由', _route_text(routing))}
@@ -550,6 +627,7 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
                   {_tr('再建仓', esc(reentry.get('tranche', 'NA')), esc('; '.join(reentry.get('explain', [])[:2])))}
                   {_tr('解锁状态', esc(reentry.get('eligible', False)), esc(reentry.get('locked_reason', '')))}
                   {_tr('T1/T2状态', f"T1={esc(reentry_state.get('t1_active', False))} / T2={esc(reentry_state.get('t2_active', False))}", esc(reentry_state.get('updated_at', '')))}
+                  {_tr('成交确认', esc(execution_confirmation.get('tranche', '未确认')), esc(execution_confirmation.get('confirmed_at', '等待 IBKR executions 接入')))}
                   {_tr('状态库', esc(Path(str(reentry_state_payload.get('db_path', ''))).name if reentry_state_payload.get('db_path') else 'NA'), '持久化建仓状态')}
                 </tbody>
               </table>
@@ -560,6 +638,10 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
             <summary>裁决原因和关键触发项</summary>
             <div class="detail-body">
               {_hard_valves(hard)}
+              <div class="warning-box" style="margin:8px 0;background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a">
+                <b>通俗解释：</b>{esc('; '.join(intent.get('top_reasons') or []) or '暂无强触发项。')}
+                <br><b>失效条件：</b>{esc(intent.get('invalidation', 'NA'))}
+              </div>
               <table>
                 <thead><tr><th>模块</th><th>指标</th><th>得分</th><th>解释</th></tr></thead>
                 <tbody>{''.join(top_reasons) or '<tr><td colspan="4">暂无高分触发项</td></tr>'}</tbody>
@@ -669,11 +751,24 @@ def _render_mirror_section(payload: Dict[str, Any]) -> str:
 
 def _render_quality_section(payload: Dict[str, Any]) -> str:
     dq = payload.get("data_quality") or {}
+    breakdown = payload.get("data_quality_breakdown") or {}
+    components = breakdown.get("components") or {}
+    upgrades = breakdown.get("upgrade_to_high") or []
+    sources = breakdown.get("sources") or []
     penalties = dq.get("penalties") or []
     rows = [
         f"<tr><td>{esc(p.get('reason'))}</td><td>{esc(p.get('field'))}</td><td>{_fmt_num(p.get('penalty'))}</td></tr>"
         for p in penalties[:8]
     ]
+    source_rows = [
+        "<tr>"
+        f"<td>{esc(row.get('category'))}</td><td><b>{esc(row.get('name'))}</b></td>"
+        f"<td>{esc(row.get('status'))}</td><td>{esc(row.get('as_of'))}</td>"
+        f"<td>{'是' if row.get('is_proxy') else '否'}</td><td>{_fmt_num(row.get('latency_days'))}</td>"
+        "</tr>"
+        for row in sources[:16]
+    ]
+    upgrade_rows = "".join(f"<li>{esc(item)}</li>" for item in upgrades[:8])
     return f"""
     <section>
       <h2>Audit Detail / 数据质量</h2>
@@ -681,7 +776,25 @@ def _render_quality_section(payload: Dict[str, Any]) -> str:
         {_metric('Completeness', _fmt_num(dq.get('completeness_score')))}
         {_metric('Quality', _fmt_num(dq.get('quality_score')))}
         {_metric('Latency', _fmt_num(dq.get('latency_score')))}
+        {_metric('价格新鲜', '是' if components.get('price_fresh') else '否')}
+        {_metric('软数据代理', esc(components.get('soft_proxy_count', 'NA')))}
+        {_metric('IBKR 状态', f"{esc(components.get('ibkr_source', 'NA'))}{' / STALE' if components.get('ibkr_stale') else ''}")}
       </div>
+      <details style="margin-bottom:10px">
+        <summary>为什么是 {esc(dq.get('level', 'NA'))}，如何升到 HIGH</summary>
+        <div class="detail-body">
+          <ol>{upgrade_rows or '<li>暂无升级建议。</li>'}</ol>
+        </div>
+      </details>
+      <details style="margin-bottom:10px">
+        <summary>数据源明细 / source freshness</summary>
+        <div class="detail-body">
+          <table>
+            <thead><tr><th>类别</th><th>名称</th><th>状态</th><th>日期</th><th>代理</th><th>延迟天</th></tr></thead>
+            <tbody>{''.join(source_rows) if source_rows else '<tr><td colspan="6">暂无数据源明细</td></tr>'}</tbody>
+          </table>
+        </div>
+      </details>
       <table>
         <thead><tr><th>类型</th><th>字段</th><th>惩罚</th></tr></thead>
         <tbody>{''.join(rows) if rows else '<tr><td colspan="3">暂无数据质量惩罚</td></tr>'}</tbody>
@@ -936,6 +1049,16 @@ def _route_text(route: Dict[str, Any]) -> str:
     else:
         dest = str(route.get("destination", "-"))
     return f"{esc(route.get('defcon', 'ROUTE'))} -> {esc(dest)}"
+
+
+def _action_cn(action: Any) -> str:
+    mapping = {
+        "SELL_AND_ROUTE": "清仓并路由防守资产",
+        "REDUCE_AND_ROUTE": "减仓并路由防守资产",
+        "HOLD_OR_MAINTAIN": "持有或维持目标仓位",
+        "STAY_OUT": "继续场外观察",
+    }
+    return mapping.get(str(action or ""), str(action or "暂无指令"))
 
 
 def _ibkr_row(ibkr: Dict[str, Any], symbol: str) -> Optional[Dict[str, Any]]:
