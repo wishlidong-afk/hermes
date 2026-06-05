@@ -54,6 +54,16 @@ def refresh_score_with_market_data(requested_as_of: Any = "latest") -> Dict[str,
     score_start = time.perf_counter()
     payload = score_pipeline(as_of)
     steps.append(_step("score_pipeline", "OK", score_start, as_of=as_of))
+    soft = payload.get("soft_data") or {}
+    soft_records = soft.get("records") or {}
+    steps.append(_step(
+        "soft_data_snapshot",
+        "OK" if soft_records else "MISSING",
+        score_start,
+        records=len(soft_records),
+        proxy_count=sum(1 for row in soft_records.values() if row.get("is_proxy")),
+        latency_count=sum(1 for row in soft_records.values() if int(row.get("latency_days") or 0) > 0),
+    ))
     flow = payload.get("flow") or {}
     ibkr = payload.get("ibkr") or {}
     steps.append(_step(
@@ -69,6 +79,23 @@ def refresh_score_with_market_data(requested_as_of: Any = "latest") -> Dict[str,
         source=ibkr.get("source"),
         stale=ibkr.get("snapshot_stale"),
         error=ibkr.get("error"),
+    ))
+    steps.append(_step(
+        "audit_write",
+        "OK" if payload.get("audit_log_path") and payload.get("state") else "MISSING",
+        score_start,
+        audit_log_path=payload.get("audit_log_path"),
+        state_db_path=(payload.get("state") or {}).get("db_path"),
+        score_run_id=(payload.get("state") or {}).get("score_run_id"),
+    ))
+    web_ready = all(payload.get(key) for key in ["today_ops", "action_intents", "data_quality_breakdown"])
+    steps.append(_step(
+        "web_payload",
+        "OK" if web_ready else "MISSING",
+        score_start,
+        today_ops=bool(payload.get("today_ops")),
+        action_intents=len(payload.get("action_intents") or {}),
+        quality_sources=len((payload.get("data_quality_breakdown") or {}).get("sources") or []),
     ))
     overall_status = "OK"
     if any(step.get("status") in {"MISSING", "DEGRADED", "ERROR"} for step in steps):

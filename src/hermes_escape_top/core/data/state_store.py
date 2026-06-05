@@ -25,6 +25,7 @@ def write_state_snapshot(path: Path, payload: Dict[str, Any]) -> Dict[str, Any]:
         _insert_data_sources(conn, score_run_id, payload)
         _insert_posterior(conn, score_run_id, payload)
         _insert_calibration(conn, payload)
+        _insert_reentry_states(conn, score_run_id, payload)
         _insert_ibkr_snapshot(conn, payload.get("as_of"), payload.get("ibkr") or {}, now)
         meta = {
             "db_path": str(path),
@@ -32,6 +33,8 @@ def write_state_snapshot(path: Path, payload: Dict[str, Any]) -> Dict[str, Any]:
             "written_at": now,
         }
         payload["state"] = meta
+        payload["ibkr_history"] = _recent_ibkr_snapshots_conn(conn, limit=5)
+        payload["calibration_history"] = _recent_calibration_logs_conn(conn, limit=12)
         conn.execute(
             "UPDATE score_runs SET payload_json=? WHERE id=?",
             (_dumps(payload), score_run_id),
@@ -75,6 +78,51 @@ def write_refresh_run(
     return {"state_db_path": str(path), "refresh_run_id": run_id, "status": status, "steps": steps_list}
 
 
+def record_execution_confirmation(
+    path: Path,
+    *,
+    symbol: str,
+    tranche: str,
+    status: str = "CONFIRMED",
+    source: str = "manual_web",
+    confirmed_at: Optional[str] = None,
+    payload: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Append a manual/imported execution confirmation for reentry tracking."""
+    if not symbol or not tranche:
+        raise ValueError("symbol and tranche are required")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    confirmed_at = confirmed_at or _now()
+    payload = payload or {}
+    with sqlite3.connect(path) as conn:
+        _ensure_schema(conn)
+        cur = conn.execute(
+            """
+            INSERT INTO execution_confirmations
+            (symbol, tranche, status, source, confirmed_at, payload_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                symbol.upper(),
+                tranche,
+                status,
+                source,
+                confirmed_at,
+                _dumps(payload),
+            ),
+        )
+        confirmation_id = int(cur.lastrowid)
+    return {
+        "state_db_path": str(path),
+        "confirmation_id": confirmation_id,
+        "symbol": symbol.upper(),
+        "tranche": tranche,
+        "status": status,
+        "source": source,
+        "confirmed_at": confirmed_at,
+    }
+
+
 def latest_execution_confirmations(path: Path) -> Dict[str, Dict[str, Any]]:
     """Return the latest manually/imported execution confirmation per symbol.
 
@@ -109,6 +157,22 @@ def latest_execution_confirmations(path: Path) -> Dict[str, Dict[str, Any]]:
             "payload": payload,
         }
     return out
+
+
+def recent_ibkr_snapshots(path: Path, limit: int = 5) -> list[Dict[str, Any]]:
+    if not path.exists():
+        return []
+    with sqlite3.connect(path) as conn:
+        _ensure_schema(conn)
+        return _recent_ibkr_snapshots_conn(conn, limit=limit)
+
+
+def recent_calibration_logs(path: Path, limit: int = 12) -> list[Dict[str, Any]]:
+    if not path.exists():
+        return []
+    with sqlite3.connect(path) as conn:
+        _ensure_schema(conn)
+        return _recent_calibration_logs_conn(conn, limit=limit)
 
 
 def _insert_score_run(conn: sqlite3.Connection, payload: Dict[str, Any], now: str) -> int:
@@ -276,6 +340,37 @@ def _insert_calibration(conn: sqlite3.Connection, payload: Dict[str, Any]) -> No
             )
 
 
+def _insert_reentry_states(conn: sqlite3.Connection, score_run_id: int, payload: Dict[str, Any]) -> None:
+    reentry = payload.get("reentry") or {}
+    reentry_state = payload.get("reentry_state") or {}
+    states = reentry_state.get("states") or {}
+    confirmations = reentry_state.get("execution_confirmations") or {}
+    for symbol in sorted(set(reentry) | set(states)):
+        plan = reentry.get(symbol) or {}
+        state = states.get(symbol) or {}
+        confirmation = confirmations.get(symbol) or {}
+        conn.execute(
+            """
+            INSERT INTO reentry_states
+            (score_run_id, symbol, suggested_tranche, eligible, locked_reason,
+             t1_active, t2_active, confirmed_tranche, confirmed_status, payload_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                score_run_id,
+                symbol,
+                plan.get("tranche"),
+                int(bool(plan.get("eligible"))),
+                plan.get("locked_reason"),
+                int(bool(state.get("t1_active"))),
+                int(bool(state.get("t2_active"))),
+                confirmation.get("tranche"),
+                confirmation.get("status"),
+                _dumps({"plan": plan, "state": state, "confirmation": confirmation}),
+            ),
+        )
+
+
 def _insert_ibkr_snapshot(conn: sqlite3.Connection, as_of: Any, ibkr: Dict[str, Any], now: str) -> None:
     if not ibkr:
         return
@@ -298,6 +393,60 @@ def _insert_ibkr_snapshot(conn: sqlite3.Connection, as_of: Any, ibkr: Dict[str, 
             now,
         ),
     )
+
+
+def _recent_ibkr_snapshots_conn(conn: sqlite3.Connection, limit: int = 5) -> list[Dict[str, Any]]:
+    rows = conn.execute(
+        """
+        SELECT id, as_of, source, account_id, net_liq, sync_time, snapshot_stale, client_id, error, created_at
+        FROM ibkr_snapshots
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (max(1, int(limit)),),
+    ).fetchall()
+    out = []
+    for row in rows:
+        out.append({
+            "id": row[0],
+            "as_of": row[1],
+            "source": row[2],
+            "account_id": row[3],
+            "net_liq": row[4],
+            "sync_time": row[5],
+            "snapshot_stale": bool(row[6]),
+            "client_id": row[7],
+            "error": row[8],
+            "created_at": row[9],
+        })
+    return out
+
+
+def _recent_calibration_logs_conn(conn: sqlite3.Connection, limit: int = 12) -> list[Dict[str, Any]]:
+    rows = conn.execute(
+        """
+        SELECT id, as_of, system, sleeve, symbol, pnl, return_pct, notional, portfolio_value, created_at
+        FROM calibration_logs
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (max(1, int(limit)),),
+    ).fetchall()
+    out = []
+    for row in rows:
+        out.append({
+            "id": row[0],
+            "as_of": row[1],
+            "system": row[2],
+            "sleeve": row[3],
+            "symbol": row[4],
+            "pnl": row[5],
+            "return_pct": row[6],
+            "notional": row[7],
+            "portfolio_value": row[8],
+            "created_at": row[9],
+        })
+    return out
 
 
 def _ensure_schema(conn: sqlite3.Connection) -> None:
@@ -440,6 +589,23 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     )
     conn.execute(
         """
+        CREATE TABLE IF NOT EXISTS reentry_states (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          score_run_id INTEGER NOT NULL,
+          symbol TEXT NOT NULL,
+          suggested_tranche TEXT,
+          eligible INTEGER,
+          locked_reason TEXT,
+          t1_active INTEGER,
+          t2_active INTEGER,
+          confirmed_tranche TEXT,
+          confirmed_status TEXT,
+          payload_json TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS execution_confirmations (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           symbol TEXT NOT NULL,
@@ -455,6 +621,8 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_decisions_run_symbol ON decisions(score_run_id, symbol)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_refresh_runs_as_of ON refresh_runs(effective_as_of)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ibkr_snapshots_as_of ON ibkr_snapshots(as_of)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_reentry_states_run_symbol ON reentry_states(score_run_id, symbol)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_execution_confirmations_symbol ON execution_confirmations(symbol)")
 
 
 def _dumps(value: Any) -> str:

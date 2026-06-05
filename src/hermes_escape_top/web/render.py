@@ -290,7 +290,7 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
     </section>
 
     <div class="two-col">
-      {_render_ibkr_section(ibkr)}
+      {_render_ibkr_section(ibkr, payload.get("ibkr_history") or [])}
       {_render_posterior_section(payload)}
     </div>
 
@@ -628,6 +628,7 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
                   {_tr('解锁状态', esc(reentry.get('eligible', False)), esc(reentry.get('locked_reason', '')))}
                   {_tr('T1/T2状态', f"T1={esc(reentry_state.get('t1_active', False))} / T2={esc(reentry_state.get('t2_active', False))}", esc(reentry_state.get('updated_at', '')))}
                   {_tr('成交确认', esc(execution_confirmation.get('tranche', '未确认')), esc(execution_confirmation.get('confirmed_at', '等待 IBKR executions 接入')))}
+                  {_tr('确认入口', 'POST /api/confirm_execution', '字段: symbol / tranche / status / source；仅记录确认，不下单')}
                   {_tr('状态库', esc(Path(str(reentry_state_payload.get('db_path', ''))).name if reentry_state_payload.get('db_path') else 'NA'), '持久化建仓状态')}
                 </tbody>
               </table>
@@ -653,7 +654,7 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
     """
 
 
-def _render_ibkr_section(ibkr: Dict[str, Any]) -> str:
+def _render_ibkr_section(ibkr: Dict[str, Any], history: List[Dict[str, Any]]) -> str:
     age = _fmt_age(ibkr.get("snapshot_age_seconds"))
     stale_badge = _badge(
         "STALE" if ibkr.get("snapshot_stale") else "FRESH",
@@ -682,6 +683,29 @@ def _render_ibkr_section(ibkr: Dict[str, Any]) -> str:
     if not rows:
         note = ibkr.get("note") or ibkr.get("error") or "暂无 IBKR 对账数据"
         rows.append(f'<tr><td colspan="9">{esc(note)}</td></tr>')
+    history_rows = []
+    for row in history[:5]:
+        history_rows.append(
+            "<tr>"
+            f"<td>{esc(row.get('id'))}</td>"
+            f"<td>{esc(row.get('source', 'NA'))}</td>"
+            f"<td>{esc(str(row.get('sync_time', ''))[:19])}</td>"
+            f"<td>{_fmt_money(row.get('net_liq'))}</td>"
+            f"<td>{'是' if row.get('snapshot_stale') else '否'}</td>"
+            f"<td>{esc(row.get('client_id', 'NA'))}</td>"
+            "</tr>"
+        )
+    history_table = f"""
+      <details style="margin-top:10px">
+        <summary>最近 IBKR 快照 / snapshot history</summary>
+        <div class="detail-body">
+          <table>
+            <thead><tr><th>ID</th><th>来源</th><th>同步时间</th><th>NetLiq</th><th>Stale</th><th>clientId</th></tr></thead>
+            <tbody>{''.join(history_rows) if history_rows else '<tr><td colspan="6">暂无历史快照</td></tr>'}</tbody>
+          </table>
+        </div>
+      </details>
+    """
     return f"""
     <section>
       <div class="ibkr-head">
@@ -700,12 +724,14 @@ def _render_ibkr_section(ibkr: Dict[str, Any]) -> str:
         <thead><tr><th>类别</th><th>标的</th><th>理想</th><th>实际</th><th>差异</th><th>市值</th><th>股数</th><th>成本</th><th>状态</th></tr></thead>
         <tbody>{''.join(rows)}</tbody>
       </table>
+      {history_table}
     </section>
     """
 
 
 def _render_posterior_section(payload: Dict[str, Any]) -> str:
     posterior = payload.get("posterior_pnl") or {}
+    history = payload.get("calibration_history") or []
     rows = []
     for group, by_key in [("Escape", posterior.get("escape", {})), ("Mirror", posterior.get("mirror", {}))]:
         for key, row in sorted((by_key or {}).items()):
@@ -716,6 +742,16 @@ def _render_posterior_section(payload: Dict[str, Any]) -> str:
                 f"<td>{_fmt_num(row.get('shares'))}</td><td>{_fmt_money(row.get('pnl'))}</td><td>{_fmt_pct(row.get('return_pct'))}</td>"
                 "</tr>"
             )
+    history_rows = []
+    for row in history[:12]:
+        history_rows.append(
+            "<tr>"
+            f"<td>{esc(row.get('as_of'))}</td><td>{esc(row.get('system'))}</td>"
+            f"<td>{esc(row.get('sleeve'))}</td><td><b>{esc(row.get('symbol'))}</b></td>"
+            f"<td>{_fmt_money(row.get('notional'))}</td><td>{_fmt_money(row.get('pnl'))}</td>"
+            f"<td>{_fmt_pct(row.get('return_pct'))}</td>"
+            "</tr>"
+        )
     return f"""
     <section>
       <h2>Posterior Ideal P/L / 理想仓位上一交易日盈亏</h2>
@@ -724,6 +760,15 @@ def _render_posterior_section(payload: Dict[str, Any]) -> str:
         <thead><tr><th>系统</th><th>仓位桶</th><th>标的</th><th>权重</th><th>金额</th><th>股数</th><th>浮盈亏</th><th>收益</th></tr></thead>
         <tbody>{''.join(rows) if rows else '<tr><td colspan="8">暂无后验盈亏数据</td></tr>'}</tbody>
       </table>
+      <details style="margin-top:10px">
+        <summary>最近模型校准记录 / calibration history</summary>
+        <div class="detail-body">
+          <table>
+            <thead><tr><th>日期</th><th>系统</th><th>桶</th><th>标的</th><th>金额</th><th>上一交易日盈亏</th><th>收益</th></tr></thead>
+            <tbody>{''.join(history_rows) if history_rows else '<tr><td colspan="7">暂无历史校准记录</td></tr>'}</tbody>
+          </table>
+        </div>
+      </details>
     </section>
     """
 

@@ -108,6 +108,31 @@ class Phase15IntegrationTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
+    def test_server_execution_confirmation_endpoint(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = urllib.request.Request(
+                f"{base}/api/confirm_execution",
+                data=b'{"symbol":"SOXL","tranche":"T1","status":"CONFIRMED"}',
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with mock.patch(
+                "hermes_escape_top.web.server.record_execution_confirmation",
+                return_value={"confirmation_id": 7, "symbol": "SOXL", "tranche": "T1"},
+            ):
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["confirmation_id"], 7)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_refresh_error_returns_json_not_empty_response(self) -> None:
         server = create_server("127.0.0.1", 0, "2026-05-29")
         thread = threading.Thread(target=server.serve_forever, daemon=True)

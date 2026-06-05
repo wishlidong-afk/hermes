@@ -45,6 +45,7 @@ RUN_DAILY_PKG = (
 )
 
 from ..config import load_config, resolve_path
+from ..core.data.state_store import record_execution_confirmation
 from ..ibkr.live_check import run_live_check
 from ..pipeline import score_pipeline
 from .refresh import refresh_score_with_market_data
@@ -402,6 +403,30 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                         "ok": False,
                         "status": "LIVE_CHECK_EXCEPTION",
                         "as_of": as_of,
+                        "error": traceback.format_exc()[-2000:],
+                    }
+                self._send(200, "application/json; charset=utf-8",
+                           json.dumps(payload, ensure_ascii=False, indent=2,
+                                      sort_keys=True, default=str).encode())
+                return
+
+            if parsed.path == "/api/confirm_execution":
+                try:
+                    config = load_config()
+                    state_db_path = resolve_path(config, "archive_dir") / "hermes_state.sqlite"
+                    payload = record_execution_confirmation(
+                        state_db_path,
+                        symbol=str(req.get("symbol", "")).upper(),
+                        tranche=str(req.get("tranche", "")),
+                        status=str(req.get("status", "CONFIRMED")),
+                        source=str(req.get("source", "manual_web")),
+                        confirmed_at=req.get("confirmed_at"),
+                        payload=req,
+                    )
+                    payload["ok"] = True
+                except Exception:
+                    payload = {
+                        "ok": False,
                         "error": traceback.format_exc()[-2000:],
                     }
                 self._send(200, "application/json; charset=utf-8",

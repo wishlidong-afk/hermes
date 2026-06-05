@@ -406,6 +406,7 @@ def _render_stop_rules(decision: Dict[str, Any]) -> str:
 
 def _render_ibkr_positions(payload: Dict[str, Any]) -> str:
     ibkr = payload.get("ibkr") or {}
+    history = payload.get("ibkr_history") or []
     age = _fmt_age(ibkr.get("snapshot_age_seconds"))
     stale_badge = _badge(
         "STALE" if ibkr.get("snapshot_stale") else "FRESH",
@@ -431,6 +432,18 @@ def _render_ibkr_positions(payload: Dict[str, Any]) -> str:
             )
     if not rows:
         rows.append(f"<tr><td colspan='7'>{esc(ibkr.get('note') or ibkr.get('error') or '暂无 IBKR 持仓数据')}</td></tr>")
+    history_rows = []
+    for row in history[:5]:
+        history_rows.append(
+            "<tr>"
+            f"<td>{esc(row.get('id'))}</td>"
+            f"<td>{esc(row.get('source', 'NA'))}</td>"
+            f"<td>{esc(str(row.get('sync_time', ''))[:19])}</td>"
+            f"<td>{_fmt_money(row.get('net_liq'))}</td>"
+            f"<td>{'是' if row.get('snapshot_stale') else '否'}</td>"
+            f"<td>{esc(row.get('client_id', 'NA'))}</td>"
+            "</tr>"
+        )
     return f"""
     <section>
       <h2>IBKR 持仓</h2>
@@ -440,6 +453,15 @@ def _render_ibkr_positions(payload: Dict[str, Any]) -> str:
         <thead><tr><th>类别</th><th>标的</th><th>股数</th><th>市值</th><th>占比</th><th>成本</th><th>状态</th></tr></thead>
         <tbody>{''.join(rows)}</tbody>
       </table>
+      <details style="margin-top:10px">
+        <summary>最近 IBKR 快照</summary>
+        <div class="detail-body">
+          <table>
+            <thead><tr><th>ID</th><th>来源</th><th>同步时间</th><th>NetLiq</th><th>Stale</th><th>clientId</th></tr></thead>
+            <tbody>{''.join(history_rows) if history_rows else '<tr><td colspan="6">暂无历史快照</td></tr>'}</tbody>
+          </table>
+        </div>
+      </details>
     </section>
     """
 
@@ -501,6 +523,20 @@ def _render_posterior(payload: Dict[str, Any]) -> str:
             f"<td>{_fmt_pct(row.get('return_pct'))}</td>"
             "</tr>"
         )
+    history_rows = []
+    for row in payload.get("calibration_history") or []:
+        if row.get("system") != "mirror":
+            continue
+        history_rows.append(
+            "<tr>"
+            f"<td>{esc(row.get('as_of'))}</td>"
+            f"<td>{esc(row.get('sleeve'))}</td>"
+            f"<td>{esc(row.get('symbol'))}</td>"
+            f"<td>{_fmt_money(row.get('notional'))}</td>"
+            f"<td>{_fmt_money(row.get('pnl'))}</td>"
+            f"<td>{_fmt_pct(row.get('return_pct'))}</td>"
+            "</tr>"
+        )
     return f"""
     <section>
       <h2>模型校准 / 上一交易日理想 P/L</h2>
@@ -508,6 +544,15 @@ def _render_posterior(payload: Dict[str, Any]) -> str:
         <thead><tr><th>策略桶</th><th>标的</th><th>权重</th><th>昨收</th><th>今收</th><th>浮盈亏</th><th>收益</th></tr></thead>
         <tbody>{''.join(rows) if rows else '<tr><td colspan="7">暂无校准数据</td></tr>'}</tbody>
       </table>
+      <details style="margin-top:10px">
+        <summary>最近镜像校准记录</summary>
+        <div class="detail-body">
+          <table>
+            <thead><tr><th>日期</th><th>桶</th><th>标的</th><th>金额</th><th>上一交易日盈亏</th><th>收益</th></tr></thead>
+            <tbody>{''.join(history_rows[:8]) if history_rows else '<tr><td colspan="6">暂无历史校准记录</td></tr>'}</tbody>
+          </table>
+        </div>
+      </details>
     </section>
     """
 
