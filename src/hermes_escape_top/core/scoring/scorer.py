@@ -41,6 +41,15 @@ def score_symbol(
     raw_total = weighted_percent_score(symbol, module_scores, config, regime=regime)
     missing_fields = [field for factor in factors for field in factor.missing_fields]
     missing = analyze_missing_fields(missing_fields, raw_total, config)
+    confidence_missing_fields = [
+        field
+        for factor in factors
+        if float(factor.max_score) > 0
+        for field in factor.missing_fields
+    ]
+    confidence_missing = analyze_missing_fields(confidence_missing_fields, raw_total, config)
+    non_scoring_missing_fields = sorted(set(missing.missing_fields) - set(confidence_missing.missing_fields))
+    non_scoring_missing = analyze_missing_fields(non_scoring_missing_fields, raw_total, config)
     final_score = missing.adjusted_score
     status = status_from_score(final_score, config)
     hard = evaluate_hard_valves(symbol, snapshots, total_score=final_score, c_score=module_scores.get("C", 0.0), histories=histories)
@@ -67,6 +76,10 @@ def score_symbol(
         raw_total=raw_total,
         final_score=final_score,
         missing_weight=missing.missing_weight,
+        confidence_missing_weight=confidence_missing.missing_weight,
+        confidence_missing_fields=confidence_missing.missing_fields,
+        non_scoring_missing_weight=non_scoring_missing.missing_weight,
+        non_scoring_missing_fields=non_scoring_missing.missing_fields,
         blind_spot=missing.blind_spot,
         data_quality=quality_from_snapshots([snapshots[symbol]]).overall_score,
         hard_valve_hits=hard.ids,

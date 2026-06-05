@@ -24,6 +24,8 @@ from hermes_escape_top.core.data.breadth import component_breadth
 from hermes_escape_top.core.data.crypto import annualized_basis
 from hermes_escape_top.core.data.macro import CboeIndicesSource, FredNetLiquiditySource, fred_net_liquidity_frame, net_liquidity_from_series
 from hermes_escape_top.core.data.options import black_scholes_gamma, gex_proxy, skew_record
+from hermes_escape_top.core.data.pcr import PutCallSource
+from hermes_escape_top.core.data.quality import quality_from_snapshots
 from hermes_escape_top.core.data.sentiment import AaiiSource
 from hermes_escape_top.core.data.store import LocalStore
 from hermes_escape_top.core.data.valuation import valuation_missing
@@ -155,6 +157,30 @@ class GapClosureTest(unittest.TestCase):
             ).to_csv(path, index=False)
             self.assertFalse(AaiiSource().fetch("2026-01-07", cfg).data_available)
             self.assertEqual(AaiiSource().fetch("2026-01-15", cfg).fields["aaii_bull_pctl"], 99.0)
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = {
+                "paths": {"history_dir": tmp, "legacy_history_dir": tmp, "archive_dir": str(Path(tmp) / "archive"), "soft_history_dir": str(Path(tmp) / "soft")},
+                "features": {"data_cboe_pcr": True},
+                "runtime": {"offline_replay_mode": True},
+            }
+            store = LocalStore(cfg)
+            path = store.history_path("^VIX")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            dates = pd.bdate_range("2026-01-01", periods=80)
+            values = list(np.linspace(20, 12, 80))
+            pd.DataFrame({"date": dates, "open": values, "high": values, "low": values, "close": values, "adj_close": values, "volume": 0}).to_csv(path, index=False)
+            pcr = PutCallSource().fetch("2026-04-22", cfg)
+            self.assertTrue(pcr.data_available)
+            self.assertEqual(pcr.source, "PCR_VIX_LIVE_PROXY")
+            self.assertEqual(pcr.latency_days, 0)
+            self.assertIn("equity_pcr_pctl", pcr.fields)
+        soft_quality = quality_from_snapshots([
+            SymbolSnapshot("SOFT", DAY, {
+                "net_liq_chg10_pctl": Field("net_liq_chg10_pctl", 50.0, "FRED", DAY, latency_days=5),
+                "aaii_bull_pctl": Field("aaii_bull_pctl", 50.0, "AAII", DAY, latency_days=9),
+            })
+        ])
+        self.assertEqual(soft_quality.latency_score, 94.0)
         self.assertGreater(black_scholes_gamma(100, 100, 0.04, 0.30, 0.25), 0)
         self.assertTrue(gex_proxy([{"type": "call", "strike": 100, "rate": 0.04, "iv": 0.3, "tte": 0.25, "open_interest": 10}], 100, "2026-01-02").data_available)
         self.assertTrue(skew_record(0.4, 0.3, "2026-01-02").data_available)

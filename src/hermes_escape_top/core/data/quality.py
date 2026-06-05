@@ -108,7 +108,9 @@ def quality_from_snapshots(snapshots: Iterable[SymbolSnapshot]) -> DataQuality:
                 key = (snap.symbol, item.source, "proxy")
                 _merge_penalty_group(proxy_groups, key, f"{snap.symbol}.{name}", penalty)
             if item.latency_days > 0:
-                penalty = min(20.0, item.latency_days * 3.0)
+                penalty = _latency_penalty(name, item)
+                if penalty <= 0:
+                    continue
                 key = (snap.symbol, item.source, "latency", item.latency_days)
                 _merge_penalty_group(latency_groups, key, f"{snap.symbol}.{name}", penalty)
     for group in proxy_groups.values():
@@ -131,3 +133,25 @@ def _merge_penalty_group(groups: Dict[tuple, Dict[str, Any]], key: tuple, field:
     current = groups.setdefault(key, {"fields": [], "penalty": 0.0})
     current["fields"].append(field)
     current["penalty"] = max(float(current["penalty"]), float(penalty))
+
+
+def _latency_penalty(field_name: str, item: Any) -> float:
+    grace_days = _latency_grace_days(field_name, item)
+    adjusted_days = max(0, int(item.latency_days or 0) - grace_days)
+    return min(20.0, adjusted_days * 3.0)
+
+
+def _latency_grace_days(field_name: str, item: Any) -> int:
+    source = str(getattr(item, "source", "") or "").upper()
+    name = str(field_name or "").lower()
+    if source in {"FRED", "NAAIM", "AAII"}:
+        # These are weekly or naturally publication-lagged inputs. A value can be
+        # point-in-time correct and decision-grade even when it is several days old.
+        return 7
+    if "PCR" in source:
+        return 2
+    if source in {"BTC_FUNDING_PROXY", "DERIBIT", "OKX_FAILOVER"} or name.startswith("btc_"):
+        return 2
+    if source == "LOCAL_COMPONENT_HISTORY":
+        return 2
+    return 0

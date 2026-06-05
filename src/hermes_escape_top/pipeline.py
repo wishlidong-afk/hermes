@@ -61,6 +61,8 @@ def empty_score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[st
         missing = analyze_missing_fields(snap.missing_fields(), 0.0, config)
         score = ScoreResult.empty(symbol, snap.as_of)
         score.missing_weight = missing.missing_weight
+        score.confidence_missing_weight = missing.missing_weight
+        score.confidence_missing_fields = missing.missing_fields
         score.blind_spot = missing.blind_spot
         score.final_score = missing.adjusted_score
         scores[symbol] = score
@@ -486,7 +488,9 @@ def _data_confidence(bundles: Dict[str, Any], config: Dict[str, Any]) -> float:
     floor = float(config.get("confidence", {}).get("data_conf_floor", 0.3))
     weights = []
     for bundle in bundles.values():
-        mw = getattr(bundle.result, "missing_weight", None)
+        mw = getattr(bundle.result, "confidence_missing_weight", None)
+        if mw is None:
+            mw = getattr(bundle.result, "missing_weight", None)
         if mw is not None:
             weights.append(float(mw))
     if not weights or gate <= 0:

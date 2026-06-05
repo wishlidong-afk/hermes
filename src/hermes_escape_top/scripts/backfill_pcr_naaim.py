@@ -35,6 +35,9 @@ def backfill_pcr(raw_csv: Path | None = None) -> Path:
         frame = _try_fetch_cboe_pcr()
 
     if frame is None or frame.empty:
+        if out.exists():
+            print(f"PCR: no new data obtained. Keeping existing cache at {out}")
+            return out
         print("PCR: no data obtained. Initialising empty skeleton.")
         frame = pd.DataFrame(columns=["date", "publish_date", "equity_pcr", "equity_pcr_pctl"])
     else:

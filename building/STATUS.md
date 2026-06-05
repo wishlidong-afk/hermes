@@ -285,3 +285,4 @@
 8. **Phase IV 验证与治理**：实跑 PBO/CI/对抗验证。
 9. **补 NEXT-1 剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL。
 | 25 IBKR snapshot 年龄与过期提示 | DONE | hermes-docs | n/a | live 抢连失败会使用 FRESH snapshot，超过 15 分钟明确 STALE | 2026-06-05 |
+| 26 数据/动作置信度 HIGH 修复 | DONE | hermes-docs | `FIX_LOG_2026_06_05_CONFIDENCE_HIGH.md` | cadence-aware latency、PCR live proxy、非计分缺项分账、latest cache 防污染；8766 显示 Data HIGH / IBKR tws / action HIGH 88.75 | 2026-06-05 |

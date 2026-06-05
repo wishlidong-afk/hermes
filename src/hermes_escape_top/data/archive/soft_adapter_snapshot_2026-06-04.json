@@ -59,16 +59,16 @@
       "as_of": "2026-06-04",
       "data_available": true,
       "fields": {
-        "equity_pcr": 0.6298,
-        "equity_pcr_pctl": 13.89
+        "equity_pcr": 0.6151,
+        "equity_pcr_pctl": 16.27
       },
       "is_proxy": true,
-      "latency_days": 6,
+      "latency_days": 0,
       "name": "cboe_pcr",
       "quality_penalty": 1.5,
-      "reason": "",
-      "source": "PCR_VIX_PROXY",
-      "value": 0.6298
+      "reason": "cached PCR proxy stale by 6 days; derived fresh proxy from VIX percentile",
+      "source": "PCR_VIX_LIVE_PROXY",
+      "value": 0.6151
     },
     "component_breadth": {
       "as_of": "2026-06-04",
@@ -108,16 +108,16 @@
       "as_of": "2026-06-04",
       "data_available": true,
       "fields": {
-        "naaim_exposure": 98.39,
-        "naaim_pctl": 93.25
+        "naaim_exposure": 86.82,
+        "naaim_pctl": 73.41
       },
       "is_proxy": false,
-      "latency_days": 8,
+      "latency_days": 1,
       "name": "naaim",
       "quality_penalty": 0.0,
       "reason": "",
       "source": "NAAIM",
-      "value": 98.39
+      "value": 86.82
     },
     "net_liquidity": {
       "as_of": "2026-06-04",

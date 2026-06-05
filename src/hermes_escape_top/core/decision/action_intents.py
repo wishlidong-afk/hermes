@@ -43,9 +43,15 @@ def build_action_context(
 def _decision_layer(symbol: str, score: Dict[str, Any], quality_score: float, ibkr_stale: bool) -> Dict[str, Any]:
     hard = list(score.get("hard_valve_hits") or [])
     missing_weight = _float(score.get("missing_weight"), 0.0)
+    confidence_missing_weight = _float(score.get("confidence_missing_weight"), missing_weight)
+    non_scoring_missing_weight = _float(score.get("non_scoring_missing_weight"), max(0.0, missing_weight - confidence_missing_weight))
     blind_spot = bool(score.get("blind_spot"))
-    confidence_score = max(0.0, min(100.0, quality_score - missing_weight))
+    confidence_score = max(0.0, min(100.0, quality_score - confidence_missing_weight))
     reasons = []
+    if confidence_missing_weight > 0:
+        reasons.append(f"scored missing data weight {confidence_missing_weight:g} deducted from data quality")
+    if non_scoring_missing_weight > 0:
+        reasons.append(f"non-scoring placeholders tracked separately ({non_scoring_missing_weight:g} pts)")
     if blind_spot:
         confidence_score = min(confidence_score, 50.0)
         reasons.append("blind spot: missing data weight is above threshold")
@@ -75,6 +81,12 @@ def _decision_layer(symbol: str, score: Dict[str, Any], quality_score: float, ib
         "action_confidence": {
             "score": round(confidence_score, 2),
             "level": level,
+            "quality_score": round(quality_score, 2),
+            "scored_missing_weight": round(confidence_missing_weight, 2),
+            "total_missing_weight": round(missing_weight, 2),
+            "non_scoring_missing_weight": round(non_scoring_missing_weight, 2),
+            "scored_missing_fields": score.get("confidence_missing_fields") or [],
+            "non_scoring_missing_fields": score.get("non_scoring_missing_fields") or [],
             "reasons": reasons or ["data confidence acceptable for advisory use"],
         },
     }

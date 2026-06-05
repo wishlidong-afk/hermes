@@ -81,7 +81,7 @@ class Phase1DataFlowTest(unittest.TestCase):
         for path in payload["archives"].values():
             self.assertTrue(Path(path).exists())
 
-    def test_quality_penalties_are_grouped_by_source(self) -> None:
+    def test_quality_penalties_are_grouped_by_source_and_cadence_aware(self) -> None:
         day = pd.Timestamp("2026-05-29").date()
         snap = SymbolSnapshot(
             "SOFT",
@@ -95,7 +95,7 @@ class Phase1DataFlowTest(unittest.TestCase):
             },
         )
         quality = quality_from_snapshots([snap])
-        self.assertEqual(quality.latency_score, 80.0)
+        self.assertEqual(quality.latency_score, 97.0)
         self.assertEqual(quality.quality_score, 98.5)
 
 

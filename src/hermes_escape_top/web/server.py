@@ -72,11 +72,16 @@ def _latest_precheck(as_of: str) -> dict | None:
 def _latest_score_payload(as_of: str) -> dict | None:
     """Load the newest package score payload from audit_log.jsonl without rerunning."""
     try:
-        target = str(as_of)[:10]
+        raw_target = str(as_of or "latest")
+        latest_mode = raw_target.lower() in {"latest", "newest", ""}
+        target = raw_target[:10]
         path = resolve_path(load_config(), "archive_dir") / "audit_log.jsonl"
         if not path.exists():
             return None
         fallback = None
+        fallback_day = ""
+        latest = None
+        latest_day = ""
         for line in reversed(path.read_text(encoding="utf-8").splitlines()):
             line = line.strip()
             if not line:
@@ -89,14 +94,21 @@ def _latest_score_payload(as_of: str) -> dict | None:
             if not isinstance(payload, dict) or "scores" not in payload:
                 continue
             pday = str(payload.get("as_of", ""))[:10]
+            if latest_mode:
+                if pday and pday > latest_day:
+                    latest_day = pday
+                    latest = dict(payload)
+                    latest["cache_status"] = {"hit": True, "source": str(path), "exact": True, "requested_as_of": raw_target}
+                continue
             if pday == target:
                 payload = dict(payload)
                 payload["cache_status"] = {"hit": True, "source": str(path), "exact": True}
                 return payload
-            if pday and pday <= target and fallback is None:
+            if pday and pday <= target and pday > fallback_day:
+                fallback_day = pday
                 fallback = dict(payload)
                 fallback["cache_status"] = {"hit": True, "source": str(path), "exact": False, "requested_as_of": target}
-        return fallback
+        return latest if latest_mode else fallback
     except Exception:
         return None
 

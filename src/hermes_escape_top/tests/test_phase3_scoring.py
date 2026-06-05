@@ -6,6 +6,7 @@ from unittest import mock
 
 from hermes_escape_top.config import load_config
 from hermes_escape_top.core.data.base import Field, SymbolSnapshot
+from hermes_escape_top.core.decision.action_intents import build_action_context
 from hermes_escape_top.core.scoring.registry import FactorContext
 from hermes_escape_top.core.scoring.scorer import (
     build_registry,
@@ -52,6 +53,66 @@ def base_snapshots(close: float = 120.0) -> dict[str, SymbolSnapshot]:
         "BTC-USD": snap("BTC-USD", {"close": 100000.0, "ma200": 80000.0}),
         "SOXX": snap("SOXX", {"close": 300.0, "ma200": 250.0, "ema50": 280.0}),
     }
+
+
+def confidence_snapshots() -> dict[str, SymbolSnapshot]:
+    snapshots = base_snapshots()
+    snapshots["FNGU"] = snap(
+        "FNGU",
+        {
+            "close": 120.0,
+            "ma50": 115.0,
+            "ma150": 105.0,
+            "ma200": 100.0,
+            "ma220": 98.0,
+            "ema50": 112.0,
+            "rsi14": 55.0,
+            "drawdown_60d_high_pct": -0.05,
+            "return_2d": 0.01,
+            "distribution_days_25d": 2.0,
+            "chandelier_exit": 90.0,
+            "realized_vol20": 0.35,
+            "avwap_anchored_20d": 110.0,
+            "support_20d_low": 108.0,
+        },
+    )
+    snapshots["QQQ"] = snap(
+        "QQQ",
+        {
+            "close": 450.0,
+            "ma200": 400.0,
+            "ema20": 440.0,
+            "ema50": 430.0,
+            "rsi14": 55.0,
+            "cmf20": 0.05,
+            "mfi14": 60.0,
+            "ad_slope20": 1.0,
+            "distribution_days_25d": 2.0,
+        },
+    )
+    snapshots["SPY"] = snap("SPY", {"close": 520.0, "ema50": 500.0, "distribution_days_25d": 2.0})
+    snapshots["^VIX3M"] = snap("^VIX3M", {"close": 18.0})
+    snapshots["SOFT"] = snap(
+        "SOFT",
+        {
+            "aaii_bull_bear_spread": 0.0,
+            "aaii_bull_pctl": 50.0,
+            "naaim_exposure": 50.0,
+            "naaim_pctl": 50.0,
+            "equity_pcr": 0.8,
+            "equity_pcr_pctl": 50.0,
+            "aggregate_pct_above_50dma": 0.5,
+            "aggregate_pct_above_200dma": 0.5,
+            "aggregate_breadth_chg_5d": 0.0,
+            "net_liq_chg10_pctl": 50.0,
+            "vvix_pctl": 50.0,
+            "skew_index": 140.0,
+            "skew_pctl": 50.0,
+        },
+    )
+    for component in ["NVDA", "AAPL", "MSFT", "AMZN", "META", "GOOGL", "TSLA", "NFLX", "AVGO"]:
+        snapshots[component] = snap(component, {"cmf20": 0.05, "mfi14": 60.0, "ad_slope20": 1.0})
+    return snapshots
 
 
 class Phase3ScoringTest(unittest.TestCase):
@@ -126,6 +187,49 @@ class Phase3ScoringTest(unittest.TestCase):
         b6 = next(factor for factor in result.factor_scores["B"] if factor["factor_id"] == "B6_VALUATION_HEAT")
         self.assertEqual(b6["missing_fields"], ["B6 valuation"])
         self.assertGreaterEqual(result.missing_weight, config["missing"]["weights"]["B6 valuation"])
+
+    def test_action_confidence_missing_weight_excludes_non_scoring_placeholders(self) -> None:
+        config = load_config()
+        result = score_symbol("FNGU", confidence_snapshots(), config).result
+        self.assertIn("B6 valuation", result.confidence_missing_fields)
+        self.assertNotIn("A2 cnn_fear_greed", result.confidence_missing_fields)
+        self.assertNotIn("B5 social", result.confidence_missing_fields)
+        self.assertIn("A2 cnn_fear_greed", result.non_scoring_missing_fields)
+        self.assertIn("B5 social", result.non_scoring_missing_fields)
+        self.assertEqual(result.confidence_missing_weight, config["missing"]["weights"]["B6 valuation"])
+        self.assertGreater(result.missing_weight, result.confidence_missing_weight)
+
+    def test_action_layer_can_reach_high_with_only_scored_missing_weight(self) -> None:
+        snapshots = confidence_snapshots()
+        payload = {
+            "posterior_pnl": {"portfolio_value": 100000},
+            "data_quality": {"overall_score": 92.55},
+            "ibkr": {"source": "tws", "snapshot_stale": False},
+            "scores": {
+                "FNGU": {
+                    "final_score": 20,
+                    "status": "WATCH",
+                    "sell_fraction": 0,
+                    "hard_valve_hits": [],
+                    "missing_weight": 11,
+                    "confidence_missing_weight": 5,
+                    "confidence_missing_fields": ["B6 valuation"],
+                    "non_scoring_missing_weight": 6,
+                    "non_scoring_missing_fields": ["A2 cnn_fear_greed", "B5 social"],
+                    "module_scores": {},
+                    "factor_scores": {},
+                }
+            },
+            "sizing": {"FNGU": {"sleeve_cap": 0.2, "target_weight": 0.2}},
+            "routing": {"FNGU": {"applies": False}},
+            "reentry": {"FNGU": {}},
+        }
+        context = build_action_context(payload, snapshots)
+        confidence = context["decision_layers"]["FNGU"]["action_confidence"]
+        self.assertEqual(confidence["level"], "HIGH")
+        self.assertEqual(confidence["score"], 87.55)
+        self.assertEqual(confidence["scored_missing_weight"], 5)
+        self.assertEqual(confidence["non_scoring_missing_weight"], 6)
 
 
 if __name__ == "__main__":

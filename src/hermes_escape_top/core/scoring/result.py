@@ -13,6 +13,10 @@ class ScoreResult:
     raw_total: float = 0.0
     final_score: float = 0.0
     missing_weight: float = 0.0
+    confidence_missing_weight: float = 0.0
+    confidence_missing_fields: List[str] = field(default_factory=list)
+    non_scoring_missing_weight: float = 0.0
+    non_scoring_missing_fields: List[str] = field(default_factory=list)
     blind_spot: bool = False
     data_quality: float = 100.0
     hard_valve_hits: List[str] = field(default_factory=list)

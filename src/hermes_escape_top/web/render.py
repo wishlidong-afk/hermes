@@ -746,6 +746,8 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
             {_metric('风险温度', f"{_fmt_num(((layers.get('risk_temperature') or {}).get('score')))} · {esc(((layers.get('risk_temperature') or {}).get('status', 'NA')))}")}
             {_metric('硬阀门', f"{esc((layers.get('hard_valve_state') or {}).get('count', 0))} 个 · {esc(', '.join((layers.get('hard_valve_state') or {}).get('ids', []) or [])) or '未触发'}")}
             {_metric('动作置信度', f"{esc((layers.get('action_confidence') or {}).get('level', 'NA'))} · {_fmt_num((layers.get('action_confidence') or {}).get('score'))}")}
+            {_metric('实质缺项扣分', _confidence_missing_text(layers, 'scored'))}
+            {_metric('占位缺项', _confidence_missing_text(layers, 'non_scoring'))}
             {_metric('理想仓位', f"{_fmt_pct(sizing.get('target_weight'))} · {_fmt_money(pnl.get('notional'))}")}
             {_metric('建议股数', f"{_fmt_num(pnl.get('shares'))} 股 @ {_fmt_money(pnl.get('current_close'))}")}
             {_metric('资金路由', _route_text(routing))}
@@ -1381,6 +1383,22 @@ def _flow_kind(severity: str) -> str:
     if severity == "NORMAL":
         return "ok"
     return "watch"
+
+
+def _confidence_missing_text(layers: Dict[str, Any], bucket: str) -> str:
+    confidence = (layers or {}).get("action_confidence") or {}
+    if bucket == "scored":
+        weight = confidence.get("scored_missing_weight")
+        fields = confidence.get("scored_missing_fields") or []
+        suffix = "影响动作置信"
+    else:
+        weight = confidence.get("non_scoring_missing_weight")
+        fields = confidence.get("non_scoring_missing_fields") or []
+        suffix = "单独监控"
+    names = ", ".join(str(item) for item in fields[:3])
+    if len(fields) > 3:
+        names += f" +{len(fields) - 3}"
+    return f"{_fmt_num(weight)} · {esc(names or '无')} · {suffix}"
 
 
 def _fmt_money(value: Any) -> str:
