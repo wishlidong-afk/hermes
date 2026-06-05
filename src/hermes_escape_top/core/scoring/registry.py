@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, Iterable, List, Optional
 
 from ..data.base import SymbolSnapshot
+from .explain_registry import explain_factor
 
 
 ScoreFn = Callable[["FactorContext"], tuple[float, str]]
@@ -33,6 +34,7 @@ class FactorScore:
         return self.score > 0 or bool(self.missing_fields)
 
     def to_dict(self) -> Dict[str, object]:
+        explain_meta = explain_factor(self.factor_id, self.module)
         return {
             "factor_id": self.factor_id,
             "module": self.module,
@@ -40,6 +42,7 @@ class FactorScore:
             "max_score": round(float(self.max_score), 4),
             "missing_fields": self.missing_fields,
             "explain": self.explain,
+            **explain_meta,
         }
 
 

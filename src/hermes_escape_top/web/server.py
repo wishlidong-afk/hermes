@@ -12,6 +12,7 @@ Endpoints:
 from __future__ import annotations
 
 import json
+import hmac
 import os
 import subprocess
 import sys
@@ -124,6 +125,18 @@ def _empty_dashboard_payload(as_of: str) -> dict:
         "cache_status": {"hit": False, "message": "No cached score payload. Use POST /api/refresh_score."},
         "ibkr": {"source": "disabled", "note": "No cached score payload."},
     }
+
+
+def _confirm_execution_allowed(config: dict, req: dict, headers) -> tuple[bool, str]:
+    web_cfg = config.get("web", {}) if isinstance(config.get("web"), dict) else {}
+    env_name = str(web_cfg.get("confirm_execution_token_env") or "HERMES_CONFIRM_TOKEN")
+    expected = os.environ.get(env_name) or web_cfg.get("confirm_execution_token")
+    if not expected:
+        return True, "NO_TOKEN_CONFIGURED_LOCAL_ONLY"
+    supplied = headers.get("X-Hermes-Token") or req.get("token")
+    if supplied and hmac.compare_digest(str(supplied), str(expected)):
+        return True, "TOKEN_OK"
+    return False, "UNAUTHORIZED"
 
 
 def _read_run_daily_mode() -> str:
@@ -413,6 +426,17 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/confirm_execution":
                 try:
                     config = load_config()
+                    allowed, auth_status = _confirm_execution_allowed(config, req, self.headers)
+                    if not allowed:
+                        payload = {
+                            "ok": False,
+                            "status": auth_status,
+                            "message": "missing or invalid confirm token",
+                        }
+                        self._send(200, "application/json; charset=utf-8",
+                                   json.dumps(payload, ensure_ascii=False, indent=2,
+                                              sort_keys=True, default=str).encode())
+                        return
                     state_db_path = resolve_path(config, "archive_dir") / "hermes_state.sqlite"
                     payload = record_execution_confirmation(
                         state_db_path,
@@ -424,6 +448,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                         payload=req,
                     )
                     payload["ok"] = True
+                    payload["auth_status"] = auth_status
                 except Exception:
                     payload = {
                         "ok": False,

@@ -8,7 +8,21 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
 
-def write_state_snapshot(path: Path, payload: Dict[str, Any]) -> Dict[str, Any]:
+DEFAULT_STATE_RETENTION = {
+    "score_runs": 500,
+    "refresh_runs": 200,
+    "ibkr_snapshots": 200,
+    "calibration_logs": 1000,
+    "execution_confirmations": 500,
+}
+
+
+def write_state_snapshot(
+    path: Path,
+    payload: Dict[str, Any],
+    *,
+    retention: Optional[Dict[str, int]] = None,
+) -> Dict[str, Any]:
     """Persist one complete scoring payload into the unified Hermes state DB.
 
     The existing CSV/JSONL/SQLite artifacts remain in place for backwards
@@ -33,6 +47,7 @@ def write_state_snapshot(path: Path, payload: Dict[str, Any]) -> Dict[str, Any]:
             "written_at": now,
         }
         payload["state"] = meta
+        _apply_retention_conn(conn, retention)
         payload["ibkr_history"] = _recent_ibkr_snapshots_conn(conn, limit=5)
         payload["calibration_history"] = _recent_calibration_logs_conn(conn, limit=12)
         conn.execute(
@@ -51,6 +66,7 @@ def write_refresh_run(
     steps: Iterable[Dict[str, Any]],
     refresh_status: Dict[str, Any],
     payload_hash: Optional[str] = None,
+    retention: Optional[Dict[str, int]] = None,
 ) -> Dict[str, Any]:
     path.parent.mkdir(parents=True, exist_ok=True)
     now = _now()
@@ -75,6 +91,7 @@ def write_refresh_run(
             ),
         )
         run_id = int(cur.lastrowid)
+        _apply_retention_conn(conn, retention)
     return {"state_db_path": str(path), "refresh_run_id": run_id, "status": status, "steps": steps_list}
 
 
@@ -123,6 +140,71 @@ def record_execution_confirmation(
     }
 
 
+def sync_execution_confirmations(
+    path: Path,
+    confirmations: Iterable[Dict[str, Any]],
+    *,
+    retention: Optional[Dict[str, int]] = None,
+) -> Dict[str, Any]:
+    """Append imported execution confirmations with external-key dedupe.
+
+    Automatic IBKR confirmation is intentionally append-only.  The dedupe key is
+    stored in payload_json so the schema stays backwards-compatible with manual
+    confirmations already recorded by the WebUI.
+    """
+    rows = list(confirmations or [])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    inserted = []
+    skipped = []
+    with sqlite3.connect(path) as conn:
+        _ensure_schema(conn)
+        for row in rows:
+            symbol = str(row.get("symbol") or "").upper()
+            tranche = str(row.get("tranche") or "")
+            source = str(row.get("source") or "ibkr_executions")
+            external_key = str(row.get("external_key") or "")
+            if not symbol or not tranche:
+                skipped.append({"reason": "missing_symbol_or_tranche", "row": row})
+                continue
+            if external_key and _confirmation_key_exists(conn, symbol, tranche, source, external_key):
+                skipped.append({"reason": "duplicate_external_key", "symbol": symbol, "tranche": tranche, "external_key": external_key})
+                continue
+            payload = dict(row.get("payload") or {})
+            if external_key:
+                payload["external_key"] = external_key
+            payload["auto_confirmation"] = row
+            cur = conn.execute(
+                """
+                INSERT INTO execution_confirmations
+                (symbol, tranche, status, source, confirmed_at, payload_json)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    symbol,
+                    tranche,
+                    str(row.get("status") or "AUTO_CONFIRMED"),
+                    source,
+                    str(row.get("confirmed_at") or _now()),
+                    _dumps(payload),
+                ),
+            )
+            inserted.append({
+                "confirmation_id": int(cur.lastrowid),
+                "symbol": symbol,
+                "tranche": tranche,
+                "source": source,
+                "external_key": external_key,
+            })
+        _apply_retention_conn(conn, retention)
+    return {
+        "state_db_path": str(path),
+        "inserted": inserted,
+        "skipped": skipped,
+        "inserted_count": len(inserted),
+        "skipped_count": len(skipped),
+    }
+
+
 def latest_execution_confirmations(path: Path) -> Dict[str, Dict[str, Any]]:
     """Return the latest manually/imported execution confirmation per symbol.
 
@@ -157,6 +239,15 @@ def latest_execution_confirmations(path: Path) -> Dict[str, Dict[str, Any]]:
             "payload": payload,
         }
     return out
+
+
+def apply_retention(path: Path, policy: Optional[Dict[str, int]] = None) -> Dict[str, int]:
+    """Apply state DB retention and return row counts deleted per table group."""
+    if not path.exists():
+        return {}
+    with sqlite3.connect(path) as conn:
+        _ensure_schema(conn)
+        return _apply_retention_conn(conn, policy)
 
 
 def recent_ibkr_snapshots(path: Path, limit: int = 5) -> list[Dict[str, Any]]:
@@ -447,6 +538,86 @@ def _recent_calibration_logs_conn(conn: sqlite3.Connection, limit: int = 12) -> 
             "created_at": row[9],
         })
     return out
+
+
+def _confirmation_key_exists(
+    conn: sqlite3.Connection,
+    symbol: str,
+    tranche: str,
+    source: str,
+    external_key: str,
+) -> bool:
+    rows = conn.execute(
+        """
+        SELECT payload_json
+        FROM execution_confirmations
+        WHERE symbol=? AND tranche=? AND source=?
+        ORDER BY id DESC
+        LIMIT 100
+        """,
+        (symbol, tranche, source),
+    ).fetchall()
+    for (payload_json,) in rows:
+        try:
+            payload = json.loads(payload_json or "{}")
+        except Exception:
+            payload = {}
+        if str(payload.get("external_key") or "") == external_key:
+            return True
+    return False
+
+
+def _apply_retention_conn(conn: sqlite3.Connection, policy: Optional[Dict[str, int]] = None) -> Dict[str, int]:
+    cfg = dict(DEFAULT_STATE_RETENTION)
+    if policy:
+        cfg.update({key: int(value) for key, value in policy.items() if value is not None})
+    deleted: Dict[str, int] = {}
+    deleted["score_runs"] = _retain_score_runs(conn, cfg.get("score_runs", 500))
+    for table, key in [
+        ("refresh_runs", "refresh_runs"),
+        ("ibkr_snapshots", "ibkr_snapshots"),
+        ("calibration_logs", "calibration_logs"),
+        ("execution_confirmations", "execution_confirmations"),
+    ]:
+        deleted[table] = _retain_latest_ids(conn, table, cfg.get(key, DEFAULT_STATE_RETENTION[key]))
+    return deleted
+
+
+def _retain_score_runs(conn: sqlite3.Connection, keep: int) -> int:
+    keep_ids = _latest_ids(conn, "score_runs", keep)
+    child_tables = ["decisions", "factor_values", "data_sources", "posterior_pnl", "reentry_states"]
+    if not keep_ids:
+        total = 0
+        for table in child_tables:
+            conn.execute(f"DELETE FROM {table}")
+        cur = conn.execute("DELETE FROM score_runs")
+        total += int(cur.rowcount or 0)
+        return total
+    placeholders = ",".join("?" for _ in keep_ids)
+    for table in child_tables:
+        conn.execute(f"DELETE FROM {table} WHERE score_run_id NOT IN ({placeholders})", keep_ids)
+    cur = conn.execute(f"DELETE FROM score_runs WHERE id NOT IN ({placeholders})", keep_ids)
+    return int(cur.rowcount or 0)
+
+
+def _retain_latest_ids(conn: sqlite3.Connection, table: str, keep: int) -> int:
+    keep_ids = _latest_ids(conn, table, keep)
+    if not keep_ids:
+        cur = conn.execute(f"DELETE FROM {table}")
+        return int(cur.rowcount or 0)
+    placeholders = ",".join("?" for _ in keep_ids)
+    cur = conn.execute(f"DELETE FROM {table} WHERE id NOT IN ({placeholders})", keep_ids)
+    return int(cur.rowcount or 0)
+
+
+def _latest_ids(conn: sqlite3.Connection, table: str, keep: int) -> list[int]:
+    if int(keep) <= 0:
+        return []
+    rows = conn.execute(
+        f"SELECT id FROM {table} ORDER BY id DESC LIMIT ?",
+        (int(keep),),
+    ).fetchall()
+    return [int(row[0]) for row in rows]
 
 
 def _ensure_schema(conn: sqlite3.Connection) -> None:

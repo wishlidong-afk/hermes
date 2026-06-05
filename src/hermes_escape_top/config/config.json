@@ -11,6 +11,16 @@
     "soft_history_dir": "data/soft_history",
     "aaii_sentiment_xls": "data/sentiment.xls"
   },
+  "web": {
+    "confirm_execution_token_env": "HERMES_CONFIRM_TOKEN"
+  },
+  "state_retention": {
+    "score_runs": 500,
+    "refresh_runs": 200,
+    "ibkr_snapshots": 200,
+    "calibration_logs": 1000,
+    "execution_confirmations": 500
+  },
   "symbols": {
     "MSTR": {
       "sleeve_cap": 0.15,
@@ -279,7 +289,17 @@
     ],
     "client_id": 992,
     "client_id_retry_count": 8,
-    "readonly": true
+    "readonly": true,
+    "executions": {
+      "enabled": true,
+      "client_id": 1042,
+      "lookback_days": 21,
+      "auto_confirm_lookback_days": 7,
+      "auto_confirm_sources": [
+        "tws"
+      ],
+      "cache_max_age_seconds": 21600
+    }
   },
   "sizing": {
     "dd_aversion": 3.0,

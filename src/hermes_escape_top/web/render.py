@@ -408,7 +408,7 @@ def _render_macro_section(payload: Dict[str, Any]) -> str:
             "<tr>"
             f"<td><b>{esc(row.get('factor_id'))}</b></td>"
             f"<td>{_fmt_num(row.get('score'))} / {_fmt_num(row.get('max_score'))}</td>"
-            f"<td>{esc(row.get('explain'))}</td>"
+            f"<td>{_factor_explain_cell(row)}</td>"
             f"<td>{esc(', '.join(row.get('missing_fields') or [])) or '-'}</td>"
             "</tr>"
         )
@@ -423,7 +423,7 @@ def _render_macro_section(payload: Dict[str, Any]) -> str:
             "<div class='macro-factor'>"
             f"<b>{esc(_short_factor_id(row.get('factor_id')))}</b>"
             f"<div class='pts'>{_fmt_num(row.get('score'))} / {_fmt_num(row.get('max_score'))}</div>"
-            f"<div class='subtle'>{esc(row.get('explain'))}</div>"
+            f"<div class='subtle'>{esc(row.get('plain_explain') or row.get('explain'))}</div>"
             "</div>"
         )
     return f"""
@@ -1039,10 +1039,24 @@ def _top_factor_rows(score: Dict[str, Any], limit: int = 5) -> List[str]:
             f"<td>{esc(module)}</td>"
             f"<td>{esc(row.get('factor_id', row.get('name', '')))}</td>"
             f"<td>{score_text}</td>"
-            f"<td>{esc(row.get('explain', ''))}</td>"
+            f"<td>{_factor_explain_cell(row)}</td>"
             "</tr>"
         )
     return out
+
+
+def _factor_explain_cell(row: Dict[str, Any]) -> str:
+    professional = row.get("professional_explain") or row.get("explain") or ""
+    plain = row.get("plain_explain") or ""
+    data_hint = row.get("data_hint") or ""
+    parts = [f"<div>{esc(row.get('explain', ''))}</div>"]
+    if professional and professional != row.get("explain"):
+        parts.append(f"<div class='subtle'><b>专业：</b>{esc(professional)}</div>")
+    if plain:
+        parts.append(f"<div class='subtle'><b>白话：</b>{esc(plain)}</div>")
+    if data_hint:
+        parts.append(f"<div class='subtle'><b>数据：</b>{esc(data_hint)}</div>")
+    return "".join(parts)
 
 
 def _module_box(module: str, value: Any) -> str:

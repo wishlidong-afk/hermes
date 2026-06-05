@@ -124,6 +124,7 @@ def refresh_score_with_market_data(requested_as_of: Any = "latest") -> Dict[str,
         steps=steps,
         refresh_status=payload["refresh_status"],
         payload_hash=payload.get("input_hash"),
+        retention=config.get("state_retention"),
     )
     payload["refresh_status"]["state_db_path"] = refresh_meta["state_db_path"]
     payload["refresh_status"]["refresh_run_id"] = refresh_meta["refresh_run_id"]

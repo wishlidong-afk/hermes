@@ -17,7 +17,11 @@ from .core.data.flow_store import write_flow_snapshot
 from .core.data.market import MarketData
 from .core.data.audit import write_audit_record
 from .core.data.quality import analyze_missing_fields, quality_from_snapshots
-from .core.data.state_store import latest_execution_confirmations, write_state_snapshot
+from .core.data.state_store import (
+    latest_execution_confirmations,
+    sync_execution_confirmations,
+    write_state_snapshot,
+)
 from .core.data.store import LocalStore, bootstrap_history
 from .core.data.adapters import collect_soft_data
 from .core.backtest.posterior import escape_posterior_pnl, mirror_posterior_pnl
@@ -29,6 +33,7 @@ from .core.contracts import Verdict, ConfidenceState
 from .core.confidence.spine import compute_confidence
 from .core.routing.capital_routing import route_capital
 from .core.reentry.plan import build_reentry_plan
+from .core.reentry.auto_confirm import infer_execution_confirmations
 from .core.reentry.store import read_reentry_states, write_reentry_snapshot
 from .core.decision.action_intents import build_action_context
 from .core.decision.signal_journal import SignalJournalEntry, append_signal_journal, trading_days_since_last_sell
@@ -160,6 +165,8 @@ def score_pipeline(
         "source": "disabled",
         "note": "IBKR disabled for offline replay/backtest.",
     }
+    execution_sync = _execution_sync(config, state_db_path, reentry, ibkr_payload, as_of, include_ibkr)
+    execution_confirmations = execution_sync.get("latest_confirmations") or execution_confirmations
     portfolio_value = _portfolio_value(config, ibkr_payload)
     escape_pnl = escape_posterior_pnl(
         {symbol: decision.to_dict() for symbol, decision in sizing.items()},
@@ -183,7 +190,9 @@ def score_pipeline(
             "db_path": str(reentry_db),
             "states": {symbol: state.to_dict() for symbol, state in sorted(reentry_states.items())},
             "execution_confirmations": execution_confirmations,
+            "execution_sync": execution_sync,
         },
+        "execution_sync": execution_sync,
         "soft_data": soft_data,
         "flow": flow,
         "mirror": {
@@ -201,7 +210,7 @@ def score_pipeline(
     payload["input_hash"] = stable_hash(payload["snapshots"])
     payload["data_quality_breakdown"] = _quality_breakdown(payload, snapshots, flow)
     payload.update(build_action_context(payload, snapshots))
-    payload["state"] = write_state_snapshot(state_db_path, payload)
+    payload["state"] = write_state_snapshot(state_db_path, payload, retention=config.get("state_retention"))
 
     audit_path = write_audit_record(payload, _audit_write_dir(store, shadow))
     signal_path = append_signal_journal(
@@ -272,6 +281,91 @@ def _ibkr_payload(config: Dict[str, Any], sizing: Dict[str, Any], routing: Dict[
         return ibkr_reconcile(snap, sizing_for_recon, routing_for_recon).to_dict()
     except Exception as exc:
         return {"error": str(exc), "source": "unavailable"}
+
+
+def _execution_sync(
+    config: Dict[str, Any],
+    state_db_path: Path,
+    reentry: Dict[str, Any],
+    ibkr_payload: Dict[str, Any],
+    as_of: str,
+    include_ibkr: bool,
+) -> Dict[str, Any]:
+    latest = latest_execution_confirmations(state_db_path)
+    exec_cfg = config.get("ibkr", {}).get("executions", {})
+    if not include_ibkr:
+        return {"status": "SKIPPED", "reason": "include_ibkr=false", "latest_confirmations": latest}
+    if not config.get("ibkr", {}).get("enabled", False):
+        return {"status": "DISABLED", "reason": "ibkr.enabled=false", "latest_confirmations": latest}
+    if isinstance(exec_cfg, dict) and not bool(exec_cfg.get("enabled", True)):
+        return {"status": "DISABLED", "reason": "ibkr.executions.enabled=false", "latest_confirmations": latest}
+    if ibkr_payload.get("source") != "tws":
+        return {
+            "status": "DEGRADED",
+            "reason": f"IBKR positions source is {ibkr_payload.get('source', 'unknown')}; executions not trusted for auto-confirm.",
+            "latest_confirmations": latest,
+        }
+    if not ibkr_payload.get("sync_time"):
+        return {
+            "status": "SKIPPED",
+            "reason": "IBKR live payload lacks sync_time; likely a mocked or incomplete live snapshot.",
+            "latest_confirmations": latest,
+        }
+    try:
+        from hermes_escape_top.ibkr.executions import read_executions
+
+        snapshot = read_executions(config).to_dict()
+        allowed_sources = set((exec_cfg or {}).get("auto_confirm_sources", ["tws"]) if isinstance(exec_cfg, dict) else ["tws"])
+        plan_payload = {symbol: plan.to_dict() for symbol, plan in reentry.items()}
+        inferred = infer_execution_confirmations(
+            snapshot,
+            plan_payload,
+            as_of=as_of,
+            lookback_days=int((exec_cfg or {}).get("auto_confirm_lookback_days", 7)) if isinstance(exec_cfg, dict) else 7,
+        )
+        if snapshot.get("source") not in allowed_sources:
+            return {
+                "status": "DEGRADED",
+                "reason": f"executions source {snapshot.get('source')} not in auto_confirm_sources",
+                "executions": _execution_snapshot_summary(snapshot),
+                "inferred": inferred,
+                "latest_confirmations": latest,
+            }
+        sync = sync_execution_confirmations(
+            state_db_path,
+            inferred,
+            retention=config.get("state_retention"),
+        )
+        latest = latest_execution_confirmations(state_db_path)
+        return {
+            "status": "OK" if inferred else "NO_MATCH",
+            "executions": _execution_snapshot_summary(snapshot),
+            "inferred": inferred,
+            "inserted": sync.get("inserted", []),
+            "skipped": sync.get("skipped", []),
+            "inserted_count": sync.get("inserted_count", 0),
+            "skipped_count": sync.get("skipped_count", 0),
+            "latest_confirmations": latest,
+        }
+    except Exception as exc:
+        return {
+            "status": "ERROR",
+            "reason": str(exc),
+            "latest_confirmations": latest,
+        }
+
+
+def _execution_snapshot_summary(snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "source": snapshot.get("source"),
+        "sync_time": snapshot.get("sync_time"),
+        "record_count": len(snapshot.get("records") or []),
+        "lookback_days": snapshot.get("lookback_days"),
+        "snapshot_stale": bool(snapshot.get("snapshot_stale")),
+        "snapshot_age_seconds": snapshot.get("snapshot_age_seconds"),
+        "client_id": snapshot.get("client_id"),
+        "error": snapshot.get("error"),
+    }
 
 
 def _portfolio_value(config: Dict[str, Any], ibkr_payload: Dict[str, Any]) -> float:
