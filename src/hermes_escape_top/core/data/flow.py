@@ -54,8 +54,9 @@ def money_flow_metrics(symbol: str, history: pd.DataFrame, as_of: str) -> FlowMe
 def basket_flow(symbols: Iterable[str], histories: Dict[str, pd.DataFrame], as_of: str) -> Dict[str, Any]:
     rows = [money_flow_metrics(sym, histories.get(sym, pd.DataFrame()), as_of) for sym in symbols]
     available = [row for row in rows if row.severity != "MISSING"]
+    freshness = _basket_freshness(rows, as_of)
     if not available:
-        return {"available": False, "severity": "MISSING", "components": [row.to_dict() for row in rows]}
+        return {"available": False, "severity": "MISSING", **freshness, "components": [row.to_dict() for row in rows]}
     cmf_values = [row.cmf20 for row in available if row.cmf20 is not None]
     mfi_values = [row.mfi14 for row in available if row.mfi14 is not None]
     severe = sum(1 for row in available if row.severity in {"ABNORMAL", "SEVERE"})
@@ -67,7 +68,36 @@ def basket_flow(symbols: Iterable[str], histories: Dict[str, pd.DataFrame], as_o
         "avg_mfi14": float(np.mean(mfi_values)) if mfi_values else None,
         "abnormal_components": severe,
         "component_count": len(available),
+        **freshness,
         "components": [row.to_dict() for row in rows],
+    }
+
+
+def _basket_freshness(rows: list[FlowMetrics], requested_as_of: str) -> Dict[str, Any]:
+    requested = pd.Timestamp(str(requested_as_of)[:10])
+    component_dates = []
+    stale_components = []
+    for row in rows:
+        if row.severity == "MISSING":
+            stale_components.append({"symbol": row.symbol, "as_of": row.as_of, "stale_days": None, "severity": row.severity})
+            continue
+        try:
+            day = pd.Timestamp(str(row.as_of)[:10])
+        except Exception:
+            stale_components.append({"symbol": row.symbol, "as_of": row.as_of, "stale_days": None, "severity": row.severity})
+            continue
+        component_dates.append(day)
+        stale_days = max(0, int((requested - day).days))
+        if stale_days > 0:
+            stale_components.append({"symbol": row.symbol, "as_of": row.as_of, "stale_days": stale_days, "severity": row.severity})
+    if not component_dates:
+        return {"component_min_as_of": None, "component_max_stale_days": None, "stale_components": stale_components}
+    min_day = min(component_dates)
+    max_stale = max(0, int((requested - min_day).days))
+    return {
+        "component_min_as_of": min_day.date().isoformat(),
+        "component_max_stale_days": max_stale,
+        "stale_components": stale_components,
     }
 
 
@@ -93,7 +123,10 @@ def money_flow_index(frame: pd.DataFrame, window: int = 14) -> pd.Series:
     positive = raw_flow.where(direction > 0, 0.0).rolling(window).sum()
     negative = raw_flow.where(direction < 0, 0.0).rolling(window).sum()
     ratio = positive / negative.replace(0, np.nan)
-    return 100 - 100 / (1 + ratio)
+    mfi = 100 - 100 / (1 + ratio)
+    mfi = mfi.mask((negative == 0) & (positive > 0), 100.0)
+    mfi = mfi.mask((positive == 0) & (negative > 0), 0.0)
+    return mfi
 
 
 def accumulation_distribution_line(frame: pd.DataFrame) -> pd.Series:

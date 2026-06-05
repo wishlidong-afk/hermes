@@ -51,14 +51,18 @@ def route_capital(
         return RoutingDecision(False, "NONE", "-", {}, "No capital routing: status does not require selling and no hard valve hit.")
 
     a_total = float(score.module_scores.get("A", 0.0))
-    core_a = _factor(score, "A1_") + _factor(score, "A5_") + _factor(score, "A7_") + _factor(score, "A8_")
+    a1 = _factor_max(score, "A1_")
+    a5 = _factor_max(score, "A5_")
+    a7 = _factor_max(score, "A7_")
+    a8 = _factor_max(score, "A8_")
+    core_a = a1 + a5 + a7 + a8
     nuclear = (
         a_total >= 12
         or core_a >= 8
-        or _factor(score, "A1_") >= 4
-        or _factor(score, "A5_") >= 4
-        or _factor(score, "A7_") >= 4
-        or _factor(score, "A8_") >= 4
+        or a1 >= 4
+        or a5 >= 4
+        or a7 >= 4
+        or a8 >= 4
     )
     if nuclear:
         routing = config.get("routing", {}).get("defcon1", {})
@@ -77,8 +81,8 @@ def route_capital(
     internal_break = (
         float(score.module_scores.get("D", 0.0)) >= 10
         or bool(score.hard_valve_hits)
-        or _factor(score, "C8_") >= 3
-        or _factor(score, "C6_") >= 3
+        or _factor_max(score, "C8_") >= 3
+        or _factor_max(score, "C6_") >= 3
     )
     if internal_break:
         defcon2 = config.get("routing", {}).get("defcon2", {})
@@ -112,13 +116,14 @@ def route_capital(
     )
 
 
-def _factor(score: ScoreResult, prefix: str) -> float:
+def _factor_max(score: ScoreResult, prefix: str) -> float:
+    best = 0.0
     for rows in score.factor_scores.values():
         for row in rows:
             factor_id = str(row.get("factor_id", ""))
             if factor_id.startswith(prefix):
-                return float(row.get("score", 0.0) or 0.0)
-    return 0.0
+                best = max(best, float(row.get("score", 0.0) or 0.0))
+    return best
 
 
 def evaluate_brkb_defense(

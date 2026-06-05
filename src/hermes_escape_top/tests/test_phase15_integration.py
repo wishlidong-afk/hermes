@@ -24,13 +24,23 @@ class Phase15IntegrationTest(unittest.TestCase):
         self.assertAlmostEqual(row.return_pct, 0.10)
 
     def test_score_pipeline_includes_posterior_pnl(self) -> None:
-        payload = score_pipeline("2026-05-29")
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            payload = score_pipeline("2026-05-29")
         self.assertIn("posterior_pnl", payload)
         self.assertEqual(set(payload["posterior_pnl"]["escape"]), {"FNGU", "MSTR", "SOXL"})
-        self.assertEqual(set(payload["posterior_pnl"]["mirror"]), {"FNGU_QQQ", "SOXL_SOXX"})
+        self.assertEqual(set(payload["posterior_pnl"]["mirror"]), {"MSTR_QQQ", "FNGU_QQQ", "SOXL_SOXX"})
+
+    def test_score_pipeline_uses_ibkr_netliq_for_posterior_base(self) -> None:
+        with mock.patch(
+            "hermes_escape_top.pipeline._ibkr_payload",
+            return_value={"source": "tws", "net_liq": 86_005.32},
+        ):
+            payload = score_pipeline("2026-05-29")
+        self.assertEqual(payload["posterior_pnl"]["portfolio_value"], 86_005.32)
 
     def test_read_only_server_health_and_api(self) -> None:
-        refreshed_payload = score_pipeline("2026-05-29")
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            refreshed_payload = score_pipeline("2026-05-29")
         server = create_server("127.0.0.1", 0, "2026-05-29")
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -93,6 +103,28 @@ class Phase15IntegrationTest(unittest.TestCase):
                 with urllib.request.urlopen(request, timeout=10) as response:
                     payload = json.loads(response.read().decode("utf-8"))
             self.assertEqual(payload["status"], "IBKR_NOT_LIVE")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_refresh_error_returns_json_not_empty_response(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = urllib.request.Request(
+                f"{base}/api/refresh_score",
+                data=b'{"as_of":"latest"}',
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with mock.patch("hermes_escape_top.web.server.refresh_score_with_market_data", side_effect=RuntimeError("boom")):
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            self.assertFalse(payload["ok"])
+            self.assertIn("boom", payload["error"])
         finally:
             server.shutdown()
             server.server_close()

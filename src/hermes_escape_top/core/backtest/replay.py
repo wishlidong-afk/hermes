@@ -54,7 +54,7 @@ def run_score_replay(
     if limit is not None:
         used_dates = used_dates[:limit]
     for as_of in used_dates:
-        payload = score_pipeline(as_of, config_path=config_path)
+        payload = score_pipeline(as_of, config_path=config_path, include_ibkr=False)
         for symbol, score in sorted(payload["scores"].items()):
             rows.append(
                 ReplayRow(
@@ -89,7 +89,7 @@ def run_strategy_backtest(
         dates = dates[:limit]
     targets: Dict[str, Dict[str, float]] = {}
     for as_of in dates:
-        payload = score_pipeline(as_of, config_path=config_path)
+        payload = score_pipeline(as_of, config_path=config_path, include_ibkr=False)
         targets[as_of] = {symbol: float(row["target_weight"]) for symbol, row in payload["sizing"].items()}
     histories = {symbol: store.load_history(symbol) for symbol in config.get("symbols", {})}
     sim = simulate_rebalanced_weights(histories, targets)

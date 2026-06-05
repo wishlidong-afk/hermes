@@ -22,6 +22,7 @@ def _snap(positions=None, net_liq=100_000.0, account="U_TEST") -> PositionSnapsh
         positions=positions or [],
         sync_time="2026-05-29T12:00:00+00:00",
         source="snapshot",
+        client_id=993,
     )
 
 
@@ -162,6 +163,7 @@ class TestReconcileReport(unittest.TestCase):
         self.assertIsNotNone(report.error)
         self.assertTrue(report.snapshot_stale)
         self.assertEqual(report.snapshot_age_seconds, 3600)
+        self.assertEqual(report.client_id, 993)
 
     def test_r3_analogy_actual_never_exceeds_netliq(self):
         """Total actual weight must not exceed 100% (sanity check)."""

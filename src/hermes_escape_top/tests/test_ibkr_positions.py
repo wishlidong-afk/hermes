@@ -12,6 +12,13 @@ from hermes_escape_top.ibkr.positions import PositionSnapshot
 
 
 class TestReadPositionsFallback(unittest.TestCase):
+    def test_candidate_client_ids_are_sequential(self):
+        self.assertEqual(positions._candidate_client_ids(992, 4), [992, 993, 994, 995])
+
+    def test_only_client_id_conflict_is_retryable(self):
+        self.assertTrue(positions._client_id_in_use(RuntimeError("Error 326: clientId already in use")))
+        self.assertFalse(positions._client_id_in_use(TimeoutError("positions request timed out")))
+
     def test_closed_ports_return_unavailable_without_live_connect(self):
         with tempfile.TemporaryDirectory() as tmp:
             cache = Path(tmp) / "positions_cache.json"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 import numpy as np
 import pandas as pd
@@ -53,7 +54,8 @@ class Phase6PortfolioRiskTest(unittest.TestCase):
         self.assertEqual(shrunk.loc["A", "A"], 1.0)
 
     def test_score_pipeline_includes_portfolio_risk_state(self) -> None:
-        payload = score_pipeline("2026-05-29")
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            payload = score_pipeline("2026-05-29")
         risk = payload["portfolio_risk"]
         self.assertIn("legs_reported", risk)
         self.assertIn("gross_scaler", risk)

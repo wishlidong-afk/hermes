@@ -9,7 +9,7 @@ import pandas as pd
 
 from hermes_escape_top.config import load_config
 from hermes_escape_top.core.data.base import Field, SymbolSnapshot
-from hermes_escape_top.core.data.flow import chaikin_money_flow, money_flow_index, money_flow_metrics
+from hermes_escape_top.core.data.flow import basket_flow, chaikin_money_flow, money_flow_index, money_flow_metrics
 from hermes_escape_top.core.data.network_guard import assert_no_network
 from hermes_escape_top.core.data.quality import quality_from_snapshots
 from hermes_escape_top.core.data.store import LocalStore
@@ -47,6 +47,14 @@ class Phase1DataFlowTest(unittest.TestCase):
         self.assertTrue(len(mfi) > 0)
         metrics = money_flow_metrics("TEST", frame, "2026-02-15")
         self.assertIn(metrics.severity, {"WATCH", "ABNORMAL", "SEVERE"})
+
+    def test_basket_flow_reports_component_staleness(self) -> None:
+        fresh = synthetic_ohlcv("upper")
+        stale = synthetic_ohlcv("upper").iloc[:-2]
+        payload = basket_flow({"FRESH", "STALE"}, {"FRESH": fresh, "STALE": stale}, "2026-02-11")
+        self.assertEqual(payload["component_min_as_of"], stale.index[-1].date().isoformat())
+        self.assertGreater(payload["component_max_stale_days"], 0)
+        self.assertEqual(payload["stale_components"][0]["symbol"], "STALE")
 
     def test_load_dated_snapshot_never_returns_future(self) -> None:
         config = load_config()

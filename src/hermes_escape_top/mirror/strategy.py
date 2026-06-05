@@ -43,9 +43,123 @@ def build_mirror_plan(
 ) -> Dict[str, MirrorLegDecision]:
     histories = histories or {}
     return {
+        "MSTR_QQQ": _mstr_qqq_leg(snapshots, histories, as_of, 0.15),
         "FNGU_QQQ": _fngu_qqq_leg(snapshots, histories, as_of, 0.20),
         "SOXL_SOXX": _soxl_soxx_leg(snapshots, histories, as_of, 0.30),
     }
+
+
+def _mstr_qqq_leg(
+    snapshots: Dict[str, SymbolSnapshot],
+    histories: Dict[str, pd.DataFrame],
+    as_of: Optional[str],
+    cap: float,
+) -> MirrorLegDecision:
+    mstr = snapshots.get("MSTR")
+    btc = snapshots.get("BTC-USD")
+    vix = _value(snapshots, "^VIX", "close")
+    if mstr is None:
+        return _cash_decision("MSTR_QQQ", "MSTR", "QQQ", cap, "Missing MSTR snapshot.")
+    close = mstr.get("close")
+    ema20 = mstr.get("ema20")
+    ema50 = mstr.get("ema50")
+    ma200 = mstr.get("ma200")
+    rsi14 = mstr.get("rsi14")
+    macd = mstr.get("macd")
+    macd_signal = mstr.get("macd_signal")
+    btc_close = btc.get("close") if btc else None
+    btc_ma200 = btc.get("ma200") if btc else None
+    if None in {close, ema20, ema50, ma200, rsi14, macd, macd_signal, btc_close, btc_ma200}:
+        return _cash_decision("MSTR_QQQ", "MSTR", "QQQ", cap, "MSTR/BTC lacks close/EMA/MA200/RSI/MACD radar data.")
+
+    hist = _history_until(histories.get("MSTR"), as_of)
+    ret5 = _pct_return(hist, 5)
+    volume_ratio = _volume_ratio(hist, 20)
+    up3 = _consecutive_up(hist, 3)
+    macd_bull = macd > macd_signal
+    mstr_trend = close > ema20 and close > ema50 and close > ma200 and ema20 > ema50
+    btc_trend = btc_close > btc_ma200
+    risk_warning = close < ema20 or not btc_trend or _gt(vix, 30)
+    entry_ok = mstr_trend and btc_trend and macd_bull and rsi14 < 78 and _ge(ret5, 0.05)
+
+    checks = {
+        "MSTR 收盘 > EMA20": close > ema20,
+        "MSTR 收盘 > EMA50": close > ema50,
+        "MSTR 收盘 > MA200": close > ma200,
+        "EMA20 > EMA50": ema20 > ema50,
+        "BTC 收盘 > MA200": btc_trend,
+        "近5日涨幅 >= 5%": _ge(ret5, 0.05),
+        "成交量放大 >= 20%": _ge(volume_ratio, 1.2),
+        "RSI14 < 78": rsi14 < 78,
+        "MACD 多头": macd_bull,
+        "连续3日上涨": up3,
+        "风险预警: MSTR跌破EMA20/BTC破位/VIX>30": risk_warning,
+    }
+    metrics = {
+        "MSTR_close": close,
+        "MSTR_ema20": ema20,
+        "MSTR_ema50": ema50,
+        "MSTR_ma200": ma200,
+        "MSTR_return_5d": ret5,
+        "MSTR_volume_ratio_20d": volume_ratio,
+        "MSTR_rsi14": rsi14,
+        "MSTR_macd": macd,
+        "MSTR_macd_signal": macd_signal,
+        "BTC_close": btc_close,
+        "BTC_ma200": btc_ma200,
+        "VIX": vix,
+    }
+    if risk_warning:
+        return _decision(
+            sleeve="MSTR_QQQ",
+            risk_symbol="MSTR",
+            base_symbol="QQQ",
+            cap=cap,
+            cycle="BASE_DEFENSE",
+            sleeve_weights={"QQQ": 1.0, "MSTR": 0.0},
+            reason="MSTR/BTC 雷达未同时 risk-on；MSTR 桶切回 QQQ 防守腿。",
+            checks=checks,
+            metrics=metrics,
+            stop_rules=_mstr_stop_rules(),
+        )
+    if entry_ok and up3 and _ge(volume_ratio, 1.2):
+        return _decision(
+            sleeve="MSTR_QQQ",
+            risk_symbol="MSTR",
+            base_symbol="QQQ",
+            cap=cap,
+            cycle="STRONG_TREND",
+            sleeve_weights={"MSTR": 1.0},
+            reason="MSTR 自身趋势、BTC 雷达、量价动能共振；MSTR 桶满配风险腿。",
+            checks=checks,
+            metrics=metrics,
+            stop_rules=_mstr_stop_rules(),
+        )
+    if mstr_trend and btc_trend and macd_bull and rsi14 < 82:
+        return _decision(
+            sleeve="MSTR_QQQ",
+            risk_symbol="MSTR",
+            base_symbol="QQQ",
+            cap=cap,
+            cycle="WEAK_TREND",
+            sleeve_weights={"MSTR": 0.50, "QQQ": 0.50},
+            reason="MSTR/BTC 长趋势有效但动能未完全共振；MSTR 桶半仓风险腿、半仓 QQQ。",
+            checks=checks,
+            metrics=metrics,
+            stop_rules=_mstr_stop_rules(),
+        )
+    return _decision(
+        sleeve="MSTR_QQQ",
+        risk_symbol="MSTR",
+        base_symbol="QQQ",
+        cap=cap,
+        cycle="CHOP",
+        sleeve_weights={"QQQ": 1.0, "MSTR": 0.0},
+        reason="MSTR 趋势结构或动能不足；震荡期不配置 MSTR 风险腿。",
+        checks=checks,
+        metrics=metrics,
+        stop_rules=_mstr_stop_rules(),
+    )
 
 
 def _fngu_qqq_leg(
@@ -345,6 +459,16 @@ def _fngu_stop_rules() -> list[str]:
         "QQQ 盈利 8% 减 30%，盈利 15% 减 50%。",
         "FNGU 单次持仓不超过 15 个交易日。",
         "禁止在震荡市长持 FNGU；重大数据前避免重仓。",
+    ]
+
+
+def _mstr_stop_rules() -> list[str]:
+    return [
+        "MSTR 跌破 MA200：MSTR 风险腿清零，切回 QQQ/BOXX 防守。",
+        "BTC 跌破 MA200：MSTR 桶停止加仓并切回 QQQ 防守腿。",
+        "MSTR 跌破 EMA20 或 5 日动能转弱：降低风险腿暴露。",
+        "MSTR 单日极端下跌或触发吊灯止损：执行硬阀门退出。",
+        "MSTR 桶上限固定为全盘 15%，不因短期强势突破上限。",
     ]
 
 

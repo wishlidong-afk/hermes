@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
+from unittest import mock
 
 from hermes_escape_top.config import load_config
 from hermes_escape_top.core.data.base import Field, SymbolSnapshot
@@ -90,7 +91,8 @@ class Phase3ScoringTest(unittest.TestCase):
         self.assertGreater(first, 0)
 
     def test_phase3_score_pipeline_runs_all_trade_symbols(self) -> None:
-        payload = score_pipeline("2026-05-29")
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            payload = score_pipeline("2026-05-29")
         self.assertEqual(payload["schema_version"], "escape-top-greenfield-phase3-score-v1")
         self.assertEqual(set(payload["scores"]), {"FNGU", "MSTR", "SOXL"})
         self.assertIn(payload["regime"]["current"], {"LOW_VOL_TREND", "CHOP", "HIGH_VOL", "CRISIS", "UNKNOWN"})
@@ -102,7 +104,8 @@ class Phase3ScoringTest(unittest.TestCase):
             self.assertIn("factor_scores", score)
 
     def test_price_core_gaps_are_wired_to_real_fields(self) -> None:
-        payload = score_pipeline("2026-05-29")
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            payload = score_pipeline("2026-05-29")
         fngu = payload["scores"]["FNGU"]["factor_scores"]
         soxl = payload["scores"]["SOXL"]["factor_scores"]
         for factor in fngu["A"] + fngu["C"]:

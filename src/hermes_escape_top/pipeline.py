@@ -28,6 +28,7 @@ from .core.contracts import Verdict, ConfidenceState
 from .core.confidence.spine import compute_confidence
 from .core.routing.capital_routing import route_capital
 from .core.reentry.plan import build_reentry_plan
+from .core.reentry.store import read_reentry_states, write_reentry_snapshot
 from .core.decision.signal_journal import SignalJournalEntry, append_signal_journal, trading_days_since_last_sell
 from .mirror.strategy import build_mirror_plan
 from .mirror.store import write_mirror_snapshot
@@ -106,7 +107,12 @@ def flow_snapshot(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[str, Any]
     return _flow_payload(config, histories, as_of)
 
 
-def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = False) -> Dict[str, Any]:
+def score_pipeline(
+    as_of: str,
+    config_path: Path = CONFIG_PATH,
+    shadow: bool = False,
+    include_ibkr: bool = True,
+) -> Dict[str, Any]:
     config = load_config(config_path)
     store = LocalStore(config)
     market = MarketData(config=config, store=store)
@@ -125,6 +131,8 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = F
     sizing = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of,
                               signal_journal_path=signal_journal_path)
     routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=histories) for symbol, bundle in bundles.items()}
+    reentry_db_path = store.archive_dir / "reentry_state.sqlite"
+    reentry_states = read_reentry_states(reentry_db_path)
     reentry = {
         symbol: build_reentry_plan(
             symbol,
@@ -133,21 +141,29 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = F
             histories,
             config,
             days_since_last_sell=trading_days_since_last_sell(signal_journal_path, symbol, as_of),
+            t1_active=bool(reentry_states.get(symbol).t1_active) if reentry_states.get(symbol) else False,
+            t2_active=bool(reentry_states.get(symbol).t2_active) if reentry_states.get(symbol) else False,
         )
         for symbol, bundle in bundles.items()
     }
+    reentry_db = write_reentry_snapshot(reentry_db_path, str(as_of)[:10], reentry, reentry_states)
     mirror = build_mirror_plan(snapshots, config, histories=histories, as_of=as_of)
     mirror_db = write_mirror_snapshot(store.archive_dir / "mirror_reference.sqlite", str(as_of)[:10], mirror)
     flow = _flow_payload(config, histories, as_of)
     flow_db = write_flow_snapshot(store.archive_dir / "flow_reference.sqlite", flow)
     flow["db_path"] = str(flow_db)
+    ibkr_payload = _ibkr_payload(config, sizing, routing) if include_ibkr else {
+        "source": "disabled",
+        "note": "IBKR disabled for offline replay/backtest.",
+    }
+    portfolio_value = _portfolio_value(config, ibkr_payload)
     escape_pnl = escape_posterior_pnl(
         {symbol: decision.to_dict() for symbol, decision in sizing.items()},
         histories,
         as_of,
+        portfolio_value=portfolio_value,
     )
-    mirror_pnl = mirror_posterior_pnl(mirror, histories, as_of)
-    portfolio_value = float(config.get("portfolio", {}).get("netliq", config.get("initial_capital", 100000.0)))
+    mirror_pnl = mirror_posterior_pnl(mirror, histories, as_of, portfolio_value=portfolio_value)
     payload = {
         "schema_version": "escape-top-greenfield-phase3-score-v1",
         "as_of": as_of,
@@ -159,6 +175,10 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = F
         "sizing": {symbol: decision.to_dict() for symbol, decision in sorted(sizing.items())},
         "routing": {symbol: decision.to_dict() for symbol, decision in sorted(routing.items())},
         "reentry": {symbol: plan.to_dict() for symbol, plan in sorted(reentry.items())},
+        "reentry_state": {
+            "db_path": str(reentry_db),
+            "states": {symbol: state.to_dict() for symbol, state in sorted(reentry_states.items())},
+        },
         "soft_data": soft_data,
         "flow": flow,
         "mirror": {
@@ -171,24 +191,9 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = F
             "mirror": {sleeve: row.to_dict() for sleeve, row in sorted(mirror_pnl.items())},
         },
         "data_quality": quality_from_snapshots(snapshots.values()).to_dict(),
+        "ibkr": ibkr_payload,
     }
     payload["input_hash"] = stable_hash(payload["snapshots"])
-
-    # ── IBKR reconciliation (NEXT-6, read-only) ───────────────────────────────
-    if config.get("ibkr", {}).get("enabled", False):
-        try:
-            from hermes_escape_top.ibkr.positions import read_positions
-            from hermes_escape_top.ibkr.reconcile import reconcile as ibkr_reconcile
-            snap = read_positions(config)
-            # sizing: {sym: _SizingProxy} → {sym: {target_weight, ...}}
-            sizing_for_recon = {s: d.to_dict() for s, d in sizing.items()}
-            routing_for_recon = {s: d.to_dict() for s, d in routing.items()}
-            report = ibkr_reconcile(snap, sizing_for_recon, routing_for_recon)
-            payload["ibkr"] = report.to_dict()
-        except Exception as exc:
-            payload["ibkr"] = {"error": str(exc), "source": "unavailable"}
-    else:
-        payload["ibkr"] = {"source": "disabled", "note": "set ibkr.enabled=true to activate"}
 
     audit_path = write_audit_record(payload, _audit_write_dir(store, shadow))
     signal_path = append_signal_journal(
@@ -244,6 +249,31 @@ def _flow_payload(config: Dict[str, Any], histories: Dict[str, Any], as_of: str)
         "symbols": symbol_rows,
         "component_baskets": component_rows,
     }
+
+
+def _ibkr_payload(config: Dict[str, Any], sizing: Dict[str, Any], routing: Dict[str, Any]) -> Dict[str, Any]:
+    if not config.get("ibkr", {}).get("enabled", False):
+        return {"source": "disabled", "note": "set ibkr.enabled=true to activate"}
+    try:
+        from hermes_escape_top.ibkr.positions import read_positions
+        from hermes_escape_top.ibkr.reconcile import reconcile as ibkr_reconcile
+
+        snap = read_positions(config)
+        sizing_for_recon = {s: d.to_dict() for s, d in sizing.items()}
+        routing_for_recon = {s: d.to_dict() for s, d in routing.items()}
+        return ibkr_reconcile(snap, sizing_for_recon, routing_for_recon).to_dict()
+    except Exception as exc:
+        return {"error": str(exc), "source": "unavailable"}
+
+
+def _portfolio_value(config: Dict[str, Any], ibkr_payload: Dict[str, Any]) -> float:
+    try:
+        net_liq = float(ibkr_payload.get("net_liq", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        net_liq = 0.0
+    if net_liq > 0:
+        return net_liq
+    return float(config.get("portfolio", {}).get("netliq", config.get("initial_capital", 100000.0)))
 
 
 def _data_confidence(bundles: Dict[str, Any], config: Dict[str, Any]) -> float:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 import pandas as pd
 
@@ -35,7 +36,8 @@ class Phase7SizingTest(unittest.TestCase):
         self.assertEqual(decision.target_weight, 0.0)
 
     def test_score_pipeline_includes_sizing(self) -> None:
-        payload = score_pipeline("2026-05-29")
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            payload = score_pipeline("2026-05-29")
         self.assertEqual(set(payload["sizing"]), {"FNGU", "MSTR", "SOXL"})
         self.assertEqual(payload["sizing"]["MSTR"]["target_weight"], 0.0)
 

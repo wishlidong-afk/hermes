@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
+from unittest import mock
 
 from hermes_escape_top.core.data.base import Field, SymbolSnapshot
 from hermes_escape_top.core.scoring.hard_valves import evaluate_hard_valves
@@ -59,7 +60,8 @@ def clean_snapshots() -> dict[str, SymbolSnapshot]:
 
 class Phase4HardValveTest(unittest.TestCase):
     def test_historical_mstr_hard_valves_match_known_family(self) -> None:
-        payload = score_pipeline("2026-05-29")
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            payload = score_pipeline("2026-05-29")
         mstr = payload["scores"]["MSTR"]
         self.assertEqual(mstr["status"], "EXIT")
         self.assertEqual(mstr["sell_fraction"], 1.0)

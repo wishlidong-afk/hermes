@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import pandas as pd
@@ -170,7 +171,8 @@ class GapClosureTest(unittest.TestCase):
         self.assertEqual(decision.destination, "BOXX")
 
     def test_audit_and_signal_journal(self) -> None:
-        payload = score_pipeline("2026-05-29")
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            payload = score_pipeline("2026-05-29")
         audit = load_last_audit(Path(payload["audit_log_path"]))
         self.assertIsNotNone(audit)
         self.assertTrue(audit_replay_matches(audit))

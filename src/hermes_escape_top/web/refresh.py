@@ -19,20 +19,22 @@ def refresh_score_with_market_data(requested_as_of: Any = "latest") -> Dict[str,
     history_dir = resolve_path(config, "history_dir")
     symbols = all_backfill_symbols(config)
     latest_before = latest_history_date(config, _critical_symbols(config))
-    if _history_is_fresh(latest_before):
+    stale_flow_symbols = _stale_symbols(config, _flow_symbols(config), latest_before) if latest_before else []
+    if _history_is_fresh(latest_before) and not stale_flow_symbols:
         refresh = {}
         history_refreshed = False
         skip_reason = f"core history already fresh at {latest_before}"
     else:
+        refresh_symbols = symbols if not _history_is_fresh(latest_before) else stale_flow_symbols
         refresh = backfill(
-            symbols,
+            refresh_symbols,
             start=(date.today() - timedelta(days=500)).isoformat(),
             end=None,
             store_dir=history_dir,
             repair_overlap_days=5,
         )
         history_refreshed = True
-        skip_reason = ""
+        skip_reason = "" if refresh_symbols == symbols else f"core fresh; refreshed stale flow symbols: {','.join(stale_flow_symbols)}"
     as_of = latest_history_date(config, _critical_symbols(config)) or _normalize_as_of(requested_as_of)
     payload = score_pipeline(as_of)
     payload["refresh_status"] = {
@@ -42,6 +44,7 @@ def refresh_score_with_market_data(requested_as_of: Any = "latest") -> Dict[str,
         "effective_as_of": as_of,
         "history_dir": str(history_dir),
         "symbols_requested": len(symbols),
+        "symbols_refreshed_requested": len(refresh),
         "symbols_updated": sum(1 for item in refresh.values() if item.updated),
         "latest_by_symbol": {
             symbol: result.end_date
@@ -107,6 +110,43 @@ def _critical_symbols(config: Dict[str, Any]) -> set[str]:
     symbols = set(trade_symbols(config))
     symbols.update({"QQQ", "SOXX", "SPY", "^VIX"})
     return symbols
+
+
+def _flow_symbols(config: Dict[str, Any]) -> set[str]:
+    symbols = set(trade_symbols(config))
+    for components in config.get("component_proxies", {}).values():
+        symbols.update(components)
+    return symbols
+
+
+def _stale_symbols(config: Dict[str, Any], symbols: Iterable[str], reference_as_of: Optional[str]) -> list[str]:
+    if not reference_as_of:
+        return sorted(set(symbols))
+    latest = _latest_by_symbol(config, symbols)
+    out = []
+    ref = pd.Timestamp(str(reference_as_of)[:10]).date()
+    for symbol in sorted(set(symbols)):
+        day = latest.get(symbol)
+        if day is None or day < ref:
+            out.append(symbol)
+    return out
+
+
+def _latest_by_symbol(config: Dict[str, Any], symbols: Iterable[str]) -> Dict[str, Optional[date]]:
+    history_dir = resolve_path(config, "history_dir")
+    out: Dict[str, Optional[date]] = {}
+    for symbol in symbols:
+        path = history_dir / f"{safe_symbol(symbol)}.csv"
+        if not path.exists():
+            out[symbol] = None
+            continue
+        try:
+            frame = pd.read_csv(path, usecols=["date"])
+            dates = pd.to_datetime(frame["date"], errors="coerce").dropna()
+        except Exception:
+            dates = pd.Series(dtype="datetime64[ns]")
+        out[symbol] = dates.max().date() if not dates.empty else None
+    return out
 
 
 def _normalize_as_of(value: Any) -> str:

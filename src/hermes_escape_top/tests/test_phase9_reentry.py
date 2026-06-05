@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import unittest
+import tempfile
 from datetime import date
+from pathlib import Path
+from unittest import mock
 
 import pandas as pd
 
 from hermes_escape_top.config import load_config
 from hermes_escape_top.core.data.base import Field, SymbolSnapshot
 from hermes_escape_top.core.reentry.plan import build_reentry_plan
+from hermes_escape_top.core.reentry.store import ReentryState, read_reentry_states, write_reentry_snapshot
 from hermes_escape_top.core.scoring.result import ScoreResult
 from hermes_escape_top.pipeline import score_pipeline
 
@@ -53,9 +57,23 @@ class Phase9ReentryTest(unittest.TestCase):
         self.assertEqual(plan.tranche, "T2")
 
     def test_pipeline_includes_reentry_block(self) -> None:
-        payload = score_pipeline("2026-05-29")
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            payload = score_pipeline("2026-05-29")
         self.assertEqual(set(payload["reentry"]), {"FNGU", "MSTR", "SOXL"})
         self.assertEqual(payload["reentry"]["MSTR"]["eligible"], False)
+        self.assertIn("reentry_state", payload)
+        self.assertTrue(payload["reentry_state"]["db_path"].endswith("reentry_state.sqlite"))
+
+    def test_reentry_store_round_trips_state_and_plan(self) -> None:
+        config = load_config()
+        snapshots = {"SOXX": snap("SOXX", {"close": 101.0, "ema20": 100.0, "macd": 0.2, "macd_signal": 0.1})}
+        plan = build_reentry_plan("SOXL", safe_score(), snapshots, {}, config, days_since_last_sell=11)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "reentry.sqlite"
+            write_reentry_snapshot(path, "2026-05-29", {"SOXL": plan}, {"SOXL": ReentryState("SOXL", t1_active=True)})
+            states = read_reentry_states(path)
+        self.assertTrue(states["SOXL"].t1_active)
+        self.assertFalse(states["SOXL"].t2_active)
 
 
 if __name__ == "__main__":

@@ -18,12 +18,14 @@ from .render import (
 )
 
 
-MIRROR_ORDER = ["FNGU_QQQ", "SOXL_SOXX"]
+MIRROR_ORDER = ["MSTR_QQQ", "FNGU_QQQ", "SOXL_SOXX"]
 MIRROR_LABELS = {
+    "MSTR_QQQ": "MSTR / QQQ 趋势切换",
     "FNGU_QQQ": "QQQ / FNGU 双轮驱动",
     "SOXL_SOXX": "SOXX / SOXL 半导体",
 }
 RADAR_SYMBOLS = {
+    "MSTR_QQQ": ["MSTR", "BTC-USD", "QQQ", "^VIX"],
     "FNGU_QQQ": ["QQQ", "FNGU", "^VIX"],
     "SOXL_SOXX": ["SOXX", "SOXL", "SPY", "^VIX"],
 }
@@ -432,7 +434,7 @@ def _render_ibkr_positions(payload: Dict[str, Any]) -> str:
     return f"""
     <section>
       <h2>IBKR 持仓</h2>
-      <div class="subtle">account={esc(ibkr.get('account_id', 'NA'))} · source={esc(ibkr.get('source', 'disabled'))} · NetLiq={_fmt_money(ibkr.get('net_liq'))} · sync={esc(str(ibkr.get('sync_time', ''))[:19])} · age={esc(age)} {stale_badge}</div>
+      <div class="subtle">account={esc(ibkr.get('account_id', 'NA'))} · source={esc(ibkr.get('source', 'disabled'))} · clientId={esc(ibkr.get('client_id', 'NA'))} · NetLiq={_fmt_money(ibkr.get('net_liq'))} · sync={esc(str(ibkr.get('sync_time', ''))[:19])} · age={esc(age)} {stale_badge}</div>
       {_warning(ibkr.get('error'))}
       <table>
         <thead><tr><th>类别</th><th>标的</th><th>股数</th><th>市值</th><th>占比</th><th>成本</th><th>状态</th></tr></thead>
@@ -597,8 +599,25 @@ def _render_scripts(as_of: str) -> str:
   }}
   function showResult(text) {{
     var out = document.getElementById('refresh-result');
+    if (!out) return;
     out.textContent = text;
     out.style.display = 'block';
+  }}
+  function rememberRefresh(statusId, text, resultText) {{
+    try {{
+      sessionStorage.setItem('hermesMirrorLastRefresh', JSON.stringify({{statusId: statusId, text: text, resultText: resultText || text}}));
+    }} catch (e) {{}}
+  }}
+  function restoreRefreshStatus() {{
+    try {{
+      var raw = sessionStorage.getItem('hermesMirrorLastRefresh');
+      if (!raw) return;
+      sessionStorage.removeItem('hermesMirrorLastRefresh');
+      var msg = JSON.parse(raw);
+      var st = document.getElementById(msg.statusId || 'refresh-score-status');
+      if (st) st.textContent = msg.text || '';
+      if (msg.resultText) showResult(msg.resultText);
+    }} catch (e) {{}}
   }}
   window.refreshScore = function() {{
     var btn = document.getElementById('refresh-score-btn');
@@ -611,8 +630,11 @@ def _render_scripts(as_of: str) -> str:
       body: JSON.stringify({{as_of: 'latest', refresh_history: true}})
     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       if (d && d.mirror) {{
-        st.textContent = '镜像数据刷新完成，载入 ' + (d.as_of || 'latest');
-        showResult('mirror refreshed: ' + JSON.stringify(d.mirror.decisions || {{}}, null, 2));
+        var msg = '镜像数据刷新完成，载入 ' + (d.as_of || 'latest');
+        var detail = 'mirror refreshed: ' + JSON.stringify(d.mirror.decisions || {{}}, null, 2);
+        st.textContent = msg;
+        showResult(detail);
+        rememberRefresh('refresh-score-status', msg, detail);
         setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest'); }}, 700);
       }} else {{
         st.textContent = '刷新失败: ' + (d.message || d.error || 'unknown');
@@ -635,8 +657,11 @@ def _render_scripts(as_of: str) -> str:
     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       var ibkr = d.ibkr || {{}};
       if (ibkr.source) {{
-        st.textContent = '持仓刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
-        showResult('ibkr refreshed: source=' + ibkr.source + '\\nnet_liq=' + ibkr.net_liq);
+        var msg = '持仓刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
+        var detail = 'ibkr refreshed: source=' + ibkr.source + '\\nnet_liq=' + ibkr.net_liq;
+        st.textContent = msg;
+        showResult(detail);
+        rememberRefresh('refresh-positions-status', msg, detail);
         setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest'); }}, 700);
       }} else {{
         st.textContent = '持仓刷新失败: ' + (d.message || d.error || 'unknown');
@@ -647,6 +672,7 @@ def _render_scripts(as_of: str) -> str:
       setBusy(btn, false);
     }});
   }};
+  restoreRefreshStatus();
   </script>
     """
 

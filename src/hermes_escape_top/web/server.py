@@ -365,7 +365,14 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
 
             if parsed.path in {"/api/refresh_score", "/api/score"}:
                 as_of = req.get("as_of", "latest")
-                payload = refresh_score_with_market_data(as_of)
+                try:
+                    payload = refresh_score_with_market_data(as_of)
+                except Exception:
+                    payload = {
+                        "ok": False,
+                        "as_of": as_of,
+                        "error": traceback.format_exc()[-2000:],
+                    }
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())
@@ -373,7 +380,14 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
 
             if parsed.path == "/api/refresh_positions":
                 as_of = req.get("as_of", "latest")
-                payload = refresh_score_with_market_data(as_of)
+                try:
+                    payload = refresh_score_with_market_data(as_of)
+                except Exception:
+                    payload = {
+                        "ok": False,
+                        "as_of": as_of,
+                        "error": traceback.format_exc()[-2000:],
+                    }
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())

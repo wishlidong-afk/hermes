@@ -52,6 +52,7 @@ class ReconcileReport:
     error: Optional[str] = None
     snapshot_age_seconds: Optional[float] = None
     snapshot_stale: bool = False
+    client_id: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -199,6 +200,7 @@ def reconcile(
         error=snapshot.error,
         snapshot_age_seconds=snapshot.snapshot_age_seconds,
         snapshot_stale=snapshot.snapshot_stale,
+        client_id=snapshot.client_id,
     )
 
 

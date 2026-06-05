@@ -74,10 +74,10 @@
       "as_of": "2026-06-04",
       "data_available": true,
       "fields": {
-        "aggregate_breadth_chg_5d": 0.05882352941176472,
+        "aggregate_breadth_chg_5d": 0.0,
         "aggregate_pct_above_200dma": 0.8235294117647058,
         "aggregate_pct_above_50dma": 0.9411764705882353,
-        "fngu_breadth_chg_5d": 0.11111111111111105,
+        "fngu_breadth_chg_5d": 0.0,
         "fngu_pct_above_200dma": 0.6666666666666666,
         "fngu_pct_above_50dma": 0.8888888888888888,
         "soxl_breadth_chg_5d": 0.0,

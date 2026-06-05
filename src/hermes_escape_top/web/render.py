@@ -253,6 +253,7 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
       </div>
     </header>
 
+    <div id="refresh-result" class="toolbar-output"></div>
     <div id="ibkr-live-result" class="toolbar-output"></div>
 
     {_render_kpis(payload)}
@@ -475,6 +476,8 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
     sizing = (payload.get("sizing") or {}).get(symbol, {})
     routing = (payload.get("routing") or {}).get(symbol, {})
     reentry = (payload.get("reentry") or {}).get(symbol, {})
+    reentry_state_payload = payload.get("reentry_state") or {}
+    reentry_state = (reentry_state_payload.get("states") or {}).get(symbol, {})
     pnl = (payload.get("posterior_pnl") or {}).get("escape", {}).get(symbol, {})
     ibkr_row = _ibkr_row(payload.get("ibkr") or {}, symbol)
     status = str(score.get("status", "NA"))
@@ -546,6 +549,8 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
                   {_tr('60日回撤', _fmt_pct(drawdown), '高空回撤')}
                   {_tr('再建仓', esc(reentry.get('tranche', 'NA')), esc('; '.join(reentry.get('explain', [])[:2])))}
                   {_tr('解锁状态', esc(reentry.get('eligible', False)), esc(reentry.get('locked_reason', '')))}
+                  {_tr('T1/T2状态', f"T1={esc(reentry_state.get('t1_active', False))} / T2={esc(reentry_state.get('t2_active', False))}", esc(reentry_state.get('updated_at', '')))}
+                  {_tr('状态库', esc(Path(str(reentry_state_payload.get('db_path', ''))).name if reentry_state_payload.get('db_path') else 'NA'), '持久化建仓状态')}
                 </tbody>
               </table>
             </div>
@@ -600,12 +605,12 @@ def _render_ibkr_section(ibkr: Dict[str, Any]) -> str:
       <div class="ibkr-head">
         <div>
           <h2>IBKR Reconciliation / 持仓对账</h2>
-          <div class="subtle">source={esc(ibkr.get('source', 'disabled'))} · account={esc(ibkr.get('account_id', 'NA'))} · sync={esc(str(ibkr.get('sync_time', ''))[:19])} · age={esc(age)} {stale_badge}</div>
+          <div class="subtle">source={esc(ibkr.get('source', 'disabled'))} · clientId={esc(ibkr.get('client_id', 'NA'))} · account={esc(ibkr.get('account_id', 'NA'))} · sync={esc(str(ibkr.get('sync_time', ''))[:19])} · age={esc(age)} {stale_badge}</div>
         </div>
         <div class="ibkr-total-box">
           <div class="label">IBKR 现有总资产 / NetLiq</div>
           <div class="amount">{_fmt_money(ibkr.get('net_liq'))}</div>
-          <div class="note">source={esc(ibkr.get('source', 'disabled'))} · age={esc(age)} · max delta {_fmt_pct(ibkr.get('max_abs_delta'))}</div>
+          <div class="note">source={esc(ibkr.get('source', 'disabled'))} · clientId={esc(ibkr.get('client_id', 'NA'))} · age={esc(age)} · max delta {_fmt_pct(ibkr.get('max_abs_delta'))}</div>
         </div>
       </div>
       {_warning(ibkr.get('error'))}
@@ -721,6 +726,28 @@ def _render_scripts(as_of: str) -> str:
     btn.disabled = busy;
     btn.style.opacity = busy ? '0.6' : '1';
   }}
+  function showResult(text) {{
+    var out = document.getElementById('refresh-result');
+    if (!out) return;
+    out.textContent = text;
+    out.style.display = 'block';
+  }}
+  function rememberRefresh(statusId, text, resultText) {{
+    try {{
+      sessionStorage.setItem('hermesLastRefresh', JSON.stringify({{statusId: statusId, text: text, resultText: resultText || text}}));
+    }} catch (e) {{}}
+  }}
+  function restoreRefreshStatus() {{
+    try {{
+      var raw = sessionStorage.getItem('hermesLastRefresh');
+      if (!raw) return;
+      sessionStorage.removeItem('hermesLastRefresh');
+      var msg = JSON.parse(raw);
+      var st = document.getElementById(msg.statusId || 'refresh-score-status');
+      if (st) st.textContent = msg.text || '';
+      if (msg.resultText) showResult(msg.resultText);
+    }} catch (e) {{}}
+  }}
   window.refreshScore = function() {{
     var btn = document.getElementById('refresh-score-btn');
     var st = document.getElementById('refresh-score-status');
@@ -732,7 +759,9 @@ def _render_scripts(as_of: str) -> str:
       body: JSON.stringify({{as_of: 'latest', refresh_history: true}})
     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       if (d && d.scores) {{
-        st.textContent = '刷新完成，载入 ' + (d.as_of || 'latest');
+        var msg = '策略数据刷新完成，载入 ' + (d.as_of || 'latest');
+        st.textContent = msg;
+        rememberRefresh('refresh-score-status', msg, 'strategy refreshed: as_of=' + (d.as_of || 'latest'));
         setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest'); }}, 600);
       }} else {{
         st.textContent = '刷新失败: ' + (d.message || d.error || 'unknown');
@@ -755,7 +784,9 @@ def _render_scripts(as_of: str) -> str:
     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       var ibkr = d.ibkr || {{}};
       if (ibkr.source) {{
-        st.textContent = '持仓刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
+        var msg = '持仓刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
+        st.textContent = msg;
+        rememberRefresh('refresh-positions-status', msg, 'ibkr refreshed: source=' + ibkr.source + '\\nnet_liq=' + ibkr.net_liq);
         setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest'); }}, 600);
       }} else {{
         st.textContent = '持仓刷新失败: ' + (d.message || d.error || 'unknown');
@@ -826,6 +857,7 @@ def _render_scripts(as_of: str) -> str:
   }}
   window.runShadow = function() {{ m4Run('/api/m4_shadow', '影子对比'); }};
   window.runBackfill = function() {{ m4Run('/api/m4_backfill', '补基准并对比'); }};
+  restoreRefreshStatus();
   </script>
     """
 

@@ -45,6 +45,7 @@ class PositionSnapshot:
     error: Optional[str] = None
     snapshot_age_seconds: Optional[float] = None
     snapshot_stale: bool = False
+    client_id: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -77,6 +78,7 @@ def read_positions(config: Optional[Dict[str, Any]] = None) -> PositionSnapshot:
     host = cfg.get("host", "127.0.0.1")
     ports = cfg.get("ports", [4001, 4002, 7496, 7497])
     client_id = int(cfg.get("client_id", 991))
+    client_id_retry_count = max(1, int(cfg.get("client_id_retry_count", 8)))
     connect_timeout = float(cfg.get("connect_timeout", 5))
     preflight_timeout = float(cfg.get("preflight_timeout", min(connect_timeout, 0.5)))
     snapshot_max_age = float(cfg.get("snapshot_max_age_seconds", _DEFAULT_SNAPSHOT_MAX_AGE_SECONDS))
@@ -102,26 +104,33 @@ def read_positions(config: Optional[Dict[str, Any]] = None) -> PositionSnapshot:
         ib = IB()
         try:
             connected = False
+            connected_client_id = client_id
             for port in open_ports:
-                try:
-                    ib.connect(
-                        host,
-                        port,
-                        clientId=client_id,
-                        readonly=True,
-                        timeout=connect_timeout,
-                    )
-                    connected = True
+                for candidate_client_id in _candidate_client_ids(client_id, client_id_retry_count):
+                    try:
+                        ib.connect(
+                            host,
+                            port,
+                            clientId=candidate_client_id,
+                            readonly=True,
+                            timeout=connect_timeout,
+                        )
+                        connected = True
+                        connected_client_id = candidate_client_id
+                        break
+                    except Exception as exc:
+                        last_error = str(exc)
+                        if _client_id_in_use(exc):
+                            continue
+                        break
+                if connected:
                     break
-                except Exception as exc:
-                    last_error = str(exc)
-                    continue
 
             if not connected:
                 detail = f": {last_error}" if last_error else ""
                 raise ConnectionError(f"Could not connect to TWS on any of {open_ports}{detail}")
 
-            snapshot = _read_from_tws(ib, config)
+            snapshot = _read_from_tws(ib, config, connected_client_id)
         finally:
             try:
                 ib.disconnect()
@@ -155,7 +164,7 @@ def _close_thread_event_loop(loop: Optional[asyncio.AbstractEventLoop]) -> None:
     asyncio.set_event_loop(None)
 
 
-def _read_from_tws(ib: Any, config: Optional[Dict[str, Any]]) -> PositionSnapshot:
+def _read_from_tws(ib: Any, config: Optional[Dict[str, Any]], client_id: int) -> PositionSnapshot:
     """Internal: read from connected IB instance."""
     acct_vals = ib.accountValues()
     acct_map = {
@@ -210,6 +219,7 @@ def _read_from_tws(ib: Any, config: Optional[Dict[str, Any]]) -> PositionSnapsho
         source="tws",
         snapshot_age_seconds=0.0,
         snapshot_stale=False,
+        client_id=client_id,
     )
     _save_snapshot(snap)
     return snap
@@ -246,7 +256,21 @@ def _load_snapshot(error: Optional[str] = None, max_age_seconds: float = _DEFAUL
         source="unavailable",
         snapshot_age_seconds=None,
         snapshot_stale=True,
+        client_id=None,
         error=error or "no snapshot available",
+    )
+
+
+def _candidate_client_ids(base_client_id: int, retry_count: int) -> List[int]:
+    return [int(base_client_id) + offset for offset in range(max(1, int(retry_count)))]
+
+
+def _client_id_in_use(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return (
+        ("clientid" in text and "in use" in text)
+        or ("client id" in text and "in use" in text)
+        or ("326" in text and "client" in text)
     )
 
 

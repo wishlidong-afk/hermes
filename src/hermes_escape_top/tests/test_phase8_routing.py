@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
+from unittest import mock
 
 from hermes_escape_top.config import load_config
 from hermes_escape_top.core.routing.capital_routing import route_capital
@@ -31,6 +32,23 @@ class Phase8RoutingTest(unittest.TestCase):
         self.assertEqual(decision.defcon, "DEFCON1")
         self.assertIn("BOXX", decision.weights)
 
+    def test_defcon1_uses_max_factor_when_prefix_has_multiple_rows(self) -> None:
+        config = load_config()
+        decision = route_capital(
+            "SOXL",
+            result(
+                "REDUCE",
+                {"A": 4},
+                {
+                    "A1_QQQ_MA200_BREAK": 0,
+                    "A1_VIX_COMPLACENCY": 4,
+                },
+            ),
+            config,
+        )
+        self.assertEqual(decision.defcon, "DEFCON1")
+        self.assertIn("BOXX", decision.weights)
+
     def test_defcon2_hard_valve_routes_to_brkb(self) -> None:
         config = load_config()
         decision = route_capital("MSTR", result("EXIT", {"A": 0, "D": 0}, hard=["H-M1"]), config)
@@ -49,7 +67,8 @@ class Phase8RoutingTest(unittest.TestCase):
         self.assertFalse(decision.applies)
 
     def test_score_pipeline_includes_routing(self) -> None:
-        payload = score_pipeline("2026-05-29")
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            payload = score_pipeline("2026-05-29")
         self.assertEqual(set(payload["routing"]), {"FNGU", "MSTR", "SOXL"})
         self.assertEqual(payload["routing"]["MSTR"]["defcon"], "DEFCON2")
 
