@@ -47,6 +47,7 @@ RUN_DAILY_PKG = (
 from ..config import load_config, resolve_path
 from ..ibkr.live_check import run_live_check
 from ..pipeline import score_pipeline
+from .refresh import refresh_score_with_market_data
 from .render import render_dashboard
 
 
@@ -299,7 +300,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
             params = parse_qs(parsed.query)
-            as_of = params.get("as_of", [default_as_of])[0]
+            as_of = params.get("as_of", ["latest"])[0]
 
             if parsed.path in {"/", "/index.html"}:
                 payload = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
@@ -363,16 +364,16 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 return
 
             if parsed.path in {"/api/refresh_score", "/api/score"}:
-                as_of = req.get("as_of", default_as_of)
-                payload = score_pipeline(as_of)
+                as_of = req.get("as_of", "latest")
+                payload = refresh_score_with_market_data(as_of)
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())
                 return
 
             if parsed.path == "/api/refresh_positions":
-                as_of = req.get("as_of", default_as_of)
-                payload = score_pipeline(as_of)
+                as_of = req.get("as_of", "latest")
+                payload = refresh_score_with_market_data(as_of)
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())

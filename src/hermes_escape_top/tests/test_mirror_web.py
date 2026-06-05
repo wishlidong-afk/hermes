@@ -67,6 +67,7 @@ def sample_payload() -> dict:
             for symbol, close in {"QQQ": 746, "FNGU": 34, "SOXX": 300, "SOXL": 224, "SPY": 600, "^VIX": 18}.items()
         },
         "flow": {
+            "db_path": "/tmp/flow_reference.sqlite",
             "component_baskets": {
                 "FNGU": {"severity": "NORMAL", "avg_cmf20": 0.1, "avg_mfi14": 55, "abnormal_components": 0, "component_count": 1, "components": [{"symbol": "NVDA", "severity": "NORMAL", "cmf20": 0.1, "mfi14": 60, "legacy_signed_5d": 1000000}]},
                 "SOXL": {"severity": "WATCH", "avg_cmf20": -0.02, "avg_mfi14": 48, "abnormal_components": 1, "component_count": 1, "components": [{"symbol": "AVGO", "severity": "WATCH", "cmf20": -0.02, "mfi14": 48, "legacy_signed_5d": -2000000}]},
@@ -98,7 +99,7 @@ class MirrorWebTest(unittest.TestCase):
             with urllib.request.urlopen(f"{base}/health", timeout=10) as response:
                 self.assertEqual(response.status, 200)
                 self.assertEqual(json.loads(response.read().decode("utf-8"))["app"], "mirror")
-            with mock.patch("hermes_escape_top.web.mirror_server.score_pipeline", return_value=sample_payload()):
+            with mock.patch("hermes_escape_top.web.mirror_server.refresh_score_with_market_data", return_value=sample_payload()):
                 request = urllib.request.Request(f"{base}/api/refresh_score", data=b'{"as_of":"2026-06-02"}', headers={"Content-Type": "application/json"}, method="POST")
                 with urllib.request.urlopen(request, timeout=10) as response:
                     payload = json.loads(response.read().decode("utf-8"))

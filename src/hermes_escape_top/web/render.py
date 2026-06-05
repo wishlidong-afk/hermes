@@ -429,7 +429,7 @@ def _render_component_flow_section(payload: Dict[str, Any]) -> str:
       <div class="flow-header">
         <div>
           <h2 style="margin-bottom:4px">底层持仓资金流入/流出监控</h2>
-          <div class="subtle">CMF20 / MFI14 / A-D slope / 5日估算净流。红色代表资金异常流出或弱流出。</div>
+          <div class="subtle">CMF20 / MFI14 / A-D slope / 5日估算净流。红色代表资金异常流出或弱流出。db={esc(flow.get('db_path', '未固化'))}</div>
         </div>
         {_badge('flow as_of ' + esc(flow.get('as_of', 'NA')), 'watch')}
       </div>
@@ -567,6 +567,11 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
 
 
 def _render_ibkr_section(ibkr: Dict[str, Any]) -> str:
+    age = _fmt_age(ibkr.get("snapshot_age_seconds"))
+    stale_badge = _badge(
+        "STALE" if ibkr.get("snapshot_stale") else "FRESH",
+        "danger" if ibkr.get("snapshot_stale") else "ok",
+    )
     rows: List[str] = []
     for label, items in [
         ("策略标的", ibkr.get("trade_symbols", [])),
@@ -595,12 +600,12 @@ def _render_ibkr_section(ibkr: Dict[str, Any]) -> str:
       <div class="ibkr-head">
         <div>
           <h2>IBKR Reconciliation / 持仓对账</h2>
-          <div class="subtle">source={esc(ibkr.get('source', 'disabled'))} · account={esc(ibkr.get('account_id', 'NA'))} · sync={esc(str(ibkr.get('sync_time', ''))[:19])}</div>
+          <div class="subtle">source={esc(ibkr.get('source', 'disabled'))} · account={esc(ibkr.get('account_id', 'NA'))} · sync={esc(str(ibkr.get('sync_time', ''))[:19])} · age={esc(age)} {stale_badge}</div>
         </div>
         <div class="ibkr-total-box">
           <div class="label">IBKR 现有总资产 / NetLiq</div>
           <div class="amount">{_fmt_money(ibkr.get('net_liq'))}</div>
-          <div class="note">source={esc(ibkr.get('source', 'disabled'))} · max delta {_fmt_pct(ibkr.get('max_abs_delta'))}</div>
+          <div class="note">source={esc(ibkr.get('source', 'disabled'))} · age={esc(age)} · max delta {_fmt_pct(ibkr.get('max_abs_delta'))}</div>
         </div>
       </div>
       {_warning(ibkr.get('error'))}
@@ -724,11 +729,11 @@ def _render_scripts(as_of: str) -> str:
     fetch('/api/refresh_score', {{
       method: 'POST',
       headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{as_of: {as_of_js}}})
+      body: JSON.stringify({{as_of: 'latest', refresh_history: true}})
     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       if (d && d.scores) {{
-        st.textContent = '刷新完成，重新载入页面';
-        setTimeout(function() {{ location.reload(); }}, 600);
+        st.textContent = '刷新完成，载入 ' + (d.as_of || 'latest');
+        setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest'); }}, 600);
       }} else {{
         st.textContent = '刷新失败: ' + (d.message || d.error || 'unknown');
         setBusy(btn, false);
@@ -746,12 +751,12 @@ def _render_scripts(as_of: str) -> str:
     fetch('/api/refresh_positions', {{
       method: 'POST',
       headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{as_of: {as_of_js}}})
+      body: JSON.stringify({{as_of: 'latest', refresh_history: true}})
     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       var ibkr = d.ibkr || {{}};
       if (ibkr.source) {{
         st.textContent = '持仓刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
-        setTimeout(function() {{ location.reload(); }}, 600);
+        setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest'); }}, 600);
       }} else {{
         st.textContent = '持仓刷新失败: ' + (d.message || d.error || 'unknown');
         setBusy(btn, false);
@@ -982,6 +987,8 @@ def _quality_kind(level: Any) -> str:
 
 
 def _ibkr_kind(ibkr: Dict[str, Any]) -> str:
+    if ibkr.get("snapshot_stale"):
+        return "danger"
     src = str(ibkr.get("source", "")).lower()
     if src == "tws":
         return "ok"
@@ -1053,6 +1060,22 @@ def _fmt_num(value: Any) -> str:
         return f"{float(value):,.2f}"
     except (TypeError, ValueError):
         return esc(value)
+
+
+def _fmt_age(seconds: Any) -> str:
+    try:
+        value = float(seconds)
+    except (TypeError, ValueError):
+        return "NA"
+    if value < 90:
+        return f"{value:.0f}s"
+    minutes = value / 60.0
+    if minutes < 90:
+        return f"{minutes:.1f}m"
+    hours = minutes / 60.0
+    if hours < 48:
+        return f"{hours:.1f}h"
+    return f"{hours / 24.0:.1f}d"
 
 
 def _float(value: Any, default: float = 0.0) -> float:

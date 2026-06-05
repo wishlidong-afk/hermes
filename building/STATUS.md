@@ -1,5 +1,6 @@
 | Phase | 状态 | 分支/PR | 回测达标 | 阻塞 | 更新时间 |
 |---|---|---|---|---|---|
+| 24 WebUI 全量刷新链路与 flow DB 固化 | DONE | hermes-docs | n/a | 软数据 proxy/latency 会让 Data 仍为 MEDIUM | 2026-06-05 |
 | 23 8768 镜像参考 FNGU/QQQ + SOXL/SOXX 新规则 | DONE | hermes-docs | n/a | PE 分位、真实交易批次持仓天数未接入 | 2026-06-05 |
 | 22 镜像参考 WebUI 8768 恢复 | DONE | hermes-docs | n/a | 当前 IBKR 为 snapshot；live 取决于 Gateway/TWS 在线 | 2026-06-04 |
 | 21 WebUI 宏观 A 模块紧凑中文化 | DONE | hermes-docs | n/a | IBKR live 超时不影响该 UI 调整 | 2026-06-04 |
@@ -278,3 +279,4 @@
 7. **Phase III 统一处置**：daily old-vs-new comparator、WARN review、WARN sensitivity、`110/0.90` full-window + exact 复核已完成；下一步生成 updated migration acceptance pack。
 8. **Phase IV 验证与治理**：实跑 PBO/CI/对抗验证。
 9. **补 NEXT-1 剩余软数据**：PCR/NAAIM/BTC funding-basis-DVOL。
+| 25 IBKR snapshot 年龄与过期提示 | DONE | hermes-docs | n/a | live 抢连失败会使用 FRESH snapshot，超过 15 分钟明确 STALE | 2026-06-05 |

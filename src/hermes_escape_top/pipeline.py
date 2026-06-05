@@ -13,6 +13,7 @@ import pandas as pd
 from .config import CONFIG_PATH, load_config, trade_symbols
 from .core.data.base import Field, SymbolSnapshot
 from .core.data.flow import basket_flow, money_flow_metrics
+from .core.data.flow_store import write_flow_snapshot
 from .core.data.market import MarketData
 from .core.data.audit import write_audit_record
 from .core.data.quality import analyze_missing_fields, quality_from_snapshots
@@ -138,6 +139,8 @@ def score_pipeline(as_of: str, config_path: Path = CONFIG_PATH, shadow: bool = F
     mirror = build_mirror_plan(snapshots, config, histories=histories, as_of=as_of)
     mirror_db = write_mirror_snapshot(store.archive_dir / "mirror_reference.sqlite", str(as_of)[:10], mirror)
     flow = _flow_payload(config, histories, as_of)
+    flow_db = write_flow_snapshot(store.archive_dir / "flow_reference.sqlite", flow)
+    flow["db_path"] = str(flow_db)
     escape_pnl = escape_posterior_pnl(
         {symbol: decision.to_dict() for symbol, decision in sizing.items()},
         histories,

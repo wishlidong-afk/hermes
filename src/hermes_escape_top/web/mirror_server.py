@@ -6,8 +6,8 @@ import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from ..pipeline import score_pipeline
 from .mirror_render import render_mirror_dashboard
+from .refresh import refresh_score_with_market_data
 from .server import _empty_dashboard_payload, _latest_score_payload
 
 
@@ -18,7 +18,7 @@ def make_mirror_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
             params = parse_qs(parsed.query)
-            as_of = params.get("as_of", [default_as_of])[0]
+            as_of = params.get("as_of", ["latest"])[0]
 
             if parsed.path in {"/", "/index.html"}:
                 payload = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
@@ -48,9 +48,9 @@ def make_mirror_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 req = {}
 
             if parsed.path in {"/api/refresh_score", "/api/score", "/api/refresh_positions"}:
-                as_of = req.get("as_of", default_as_of)
+                as_of = req.get("as_of", "latest")
                 try:
-                    payload = score_pipeline(as_of)
+                    payload = refresh_score_with_market_data(as_of)
                 except Exception:
                     payload = {
                         "ok": False,
@@ -78,4 +78,3 @@ def make_mirror_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
 
 def create_mirror_server(host: str, port: int, default_as_of: str) -> ThreadingHTTPServer:
     return ThreadingHTTPServer((host, port), make_mirror_handler(default_as_of))
-

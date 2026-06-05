@@ -50,6 +50,8 @@ class ReconcileReport:
     max_abs_delta: float = 0.0
     all_within_tolerance: bool = False
     error: Optional[str] = None
+    snapshot_age_seconds: Optional[float] = None
+    snapshot_stale: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -195,6 +197,8 @@ def reconcile(
         max_abs_delta=round(max_abs, 4),
         all_within_tolerance=max_abs <= tolerance,
         error=snapshot.error,
+        snapshot_age_seconds=snapshot.snapshot_age_seconds,
+        snapshot_stale=snapshot.snapshot_stale,
     )
 
 

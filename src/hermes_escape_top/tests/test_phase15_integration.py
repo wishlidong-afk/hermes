@@ -30,6 +30,7 @@ class Phase15IntegrationTest(unittest.TestCase):
         self.assertEqual(set(payload["posterior_pnl"]["mirror"]), {"FNGU_QQQ", "SOXL_SOXX"})
 
     def test_read_only_server_health_and_api(self) -> None:
+        refreshed_payload = score_pipeline("2026-05-29")
         server = create_server("127.0.0.1", 0, "2026-05-29")
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -46,8 +47,9 @@ class Phase15IntegrationTest(unittest.TestCase):
                 data=b"",
                 method="POST",
             )
-            with urllib.request.urlopen(request, timeout=30) as response:
-                payload = json.loads(response.read().decode("utf-8"))
+            with mock.patch("hermes_escape_top.web.server.refresh_score_with_market_data", return_value=refreshed_payload):
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
                 self.assertIn("posterior_pnl", payload)
                 self.assertIn("mirror", payload)
             request = urllib.request.Request(
@@ -55,8 +57,9 @@ class Phase15IntegrationTest(unittest.TestCase):
                 data=b"",
                 method="POST",
             )
-            with urllib.request.urlopen(request, timeout=30) as response:
-                payload = json.loads(response.read().decode("utf-8"))
+            with mock.patch("hermes_escape_top.web.server.refresh_score_with_market_data", return_value=refreshed_payload):
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
                 self.assertIn("ibkr", payload)
             with urllib.request.urlopen(f"{base}/api/score", timeout=10) as response:
                 payload = json.loads(response.read().decode("utf-8"))

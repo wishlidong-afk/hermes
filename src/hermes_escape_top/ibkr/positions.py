@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 _SNAPSHOT_PATH = (
     Path(__file__).resolve().parents[2] / "data" / "positions_cache.json"
 )
+_DEFAULT_SNAPSHOT_MAX_AGE_SECONDS = 15 * 60
 
 
 @dataclass
@@ -42,6 +43,8 @@ class PositionSnapshot:
     sync_time: str = ""
     source: str = "tws"     # "tws" | "snapshot"
     error: Optional[str] = None
+    snapshot_age_seconds: Optional[float] = None
+    snapshot_stale: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -50,8 +53,9 @@ class PositionSnapshot:
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "PositionSnapshot":
-        positions = [PositionRecord(**p) for p in d.pop("positions", [])]
-        return cls(positions=positions, **d)
+        payload = dict(d)
+        positions = [PositionRecord(**p) for p in payload.pop("positions", [])]
+        return cls(positions=positions, **payload)
 
     def position_weight(self, symbol: str) -> float:
         """Return actual weight (market_value / net_liq) for a symbol."""
@@ -75,6 +79,7 @@ def read_positions(config: Optional[Dict[str, Any]] = None) -> PositionSnapshot:
     client_id = int(cfg.get("client_id", 991))
     connect_timeout = float(cfg.get("connect_timeout", 5))
     preflight_timeout = float(cfg.get("preflight_timeout", min(connect_timeout, 0.5)))
+    snapshot_max_age = float(cfg.get("snapshot_max_age_seconds", _DEFAULT_SNAPSHOT_MAX_AGE_SECONDS))
 
     open_ports = []
     last_error = ""
@@ -86,7 +91,10 @@ def read_positions(config: Optional[Dict[str, Any]] = None) -> PositionSnapshot:
 
     if not open_ports:
         detail = f": {last_error}" if last_error else ""
-        return _load_snapshot(error=f"Could not connect to TWS on any of {ports}{detail}")
+        return _load_snapshot(
+            error=f"Could not connect to TWS on any of {ports}{detail}",
+            max_age_seconds=snapshot_max_age,
+        )
 
     try:
         created_loop = _ensure_thread_event_loop()
@@ -123,7 +131,7 @@ def read_positions(config: Optional[Dict[str, Any]] = None) -> PositionSnapshot:
         return snapshot
 
     except Exception as exc:
-        return _load_snapshot(error=str(exc))
+        return _load_snapshot(error=str(exc), max_age_seconds=snapshot_max_age)
 
 
 def _ensure_thread_event_loop() -> Optional[asyncio.AbstractEventLoop]:
@@ -200,6 +208,8 @@ def _read_from_tws(ib: Any, config: Optional[Dict[str, Any]]) -> PositionSnapsho
         positions=records,
         sync_time=datetime.now(timezone.utc).isoformat(),
         source="tws",
+        snapshot_age_seconds=0.0,
+        snapshot_stale=False,
     )
     _save_snapshot(snap)
     return snap
@@ -212,13 +222,16 @@ def _save_snapshot(snap: PositionSnapshot) -> None:
     )
 
 
-def _load_snapshot(error: Optional[str] = None) -> PositionSnapshot:
+def _load_snapshot(error: Optional[str] = None, max_age_seconds: float = _DEFAULT_SNAPSHOT_MAX_AGE_SECONDS) -> PositionSnapshot:
     if _SNAPSHOT_PATH.exists():
         try:
             d = json.loads(_SNAPSHOT_PATH.read_text(encoding="utf-8"))
             snap = PositionSnapshot.from_dict(d)
             snap.source = "snapshot"
-            snap.error = error
+            age = _snapshot_age_seconds(snap.sync_time)
+            snap.snapshot_age_seconds = age
+            snap.snapshot_stale = bool(age is None or age > max_age_seconds)
+            snap.error = _snapshot_error(error, snap.snapshot_stale, age, max_age_seconds)
             return snap
         except Exception:
             pass
@@ -231,8 +244,41 @@ def _load_snapshot(error: Optional[str] = None) -> PositionSnapshot:
         realized_pnl=0.0,
         sync_time="",
         source="unavailable",
+        snapshot_age_seconds=None,
+        snapshot_stale=True,
         error=error or "no snapshot available",
     )
+
+
+def _snapshot_age_seconds(sync_time: str) -> Optional[float]:
+    if not sync_time:
+        return None
+    try:
+        stamped = datetime.fromisoformat(sync_time.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if stamped.tzinfo is None:
+        stamped = stamped.replace(tzinfo=timezone.utc)
+    return max(0.0, (datetime.now(timezone.utc) - stamped.astimezone(timezone.utc)).total_seconds())
+
+
+def _snapshot_error(
+    error: Optional[str],
+    stale: bool,
+    age_seconds: Optional[float],
+    max_age_seconds: float,
+) -> Optional[str]:
+    parts = []
+    if error:
+        parts.append(error)
+    if stale:
+        if age_seconds is None:
+            parts.append("snapshot stale: missing sync_time")
+        else:
+            parts.append(
+                f"snapshot stale: age {age_seconds:.0f}s exceeds {max_age_seconds:.0f}s"
+            )
+    return "; ".join(parts) if parts else None
 
 
 def _tcp_port_open(host: str, port: int, timeout: float) -> bool:

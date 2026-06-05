@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 from .render import (
     _badge,
     _flow_kind,
+    _fmt_age,
     _fmt_flow_money,
     _fmt_money,
     _fmt_num,
@@ -404,6 +404,11 @@ def _render_stop_rules(decision: Dict[str, Any]) -> str:
 
 def _render_ibkr_positions(payload: Dict[str, Any]) -> str:
     ibkr = payload.get("ibkr") or {}
+    age = _fmt_age(ibkr.get("snapshot_age_seconds"))
+    stale_badge = _badge(
+        "STALE" if ibkr.get("snapshot_stale") else "FRESH",
+        "danger" if ibkr.get("snapshot_stale") else "ok",
+    )
     rows: List[str] = []
     for label, items in [
         ("策略标的", ibkr.get("trade_symbols", [])),
@@ -427,7 +432,7 @@ def _render_ibkr_positions(payload: Dict[str, Any]) -> str:
     return f"""
     <section>
       <h2>IBKR 持仓</h2>
-      <div class="subtle">account={esc(ibkr.get('account_id', 'NA'))} · source={esc(ibkr.get('source', 'disabled'))} · NetLiq={_fmt_money(ibkr.get('net_liq'))}</div>
+      <div class="subtle">account={esc(ibkr.get('account_id', 'NA'))} · source={esc(ibkr.get('source', 'disabled'))} · NetLiq={_fmt_money(ibkr.get('net_liq'))} · sync={esc(str(ibkr.get('sync_time', ''))[:19])} · age={esc(age)} {stale_badge}</div>
       {_warning(ibkr.get('error'))}
       <table>
         <thead><tr><th>类别</th><th>标的</th><th>股数</th><th>市值</th><th>占比</th><th>成本</th><th>状态</th></tr></thead>
@@ -543,7 +548,7 @@ def _render_flow(payload: Dict[str, Any]) -> str:
     return f"""
     <section>
       <h2>主要持仓资金流入/流出</h2>
-      <div class="subtle" style="margin-bottom:10px">资金流用于辅助判断镜像腿是否有内部派发压力；红色代表异常流出或弱流出。</div>
+      <div class="subtle" style="margin-bottom:10px">资金流用于辅助判断镜像腿是否有内部派发压力；红色代表异常流出或弱流出。db={esc(flow.get('db_path', '未固化'))}</div>
       <div class="flow-grid">{''.join(cards)}</div>
     </section>
     """
@@ -583,7 +588,6 @@ def _flow_card(symbol: str, components: List[Dict[str, Any]], summary: str) -> s
 
 
 def _render_scripts(as_of: str) -> str:
-    as_of_js = json.dumps(str(as_of or ""))
     return f"""
   <script>
   function setBusy(btn, busy) {{
@@ -604,12 +608,12 @@ def _render_scripts(as_of: str) -> str:
     fetch('/api/refresh_score', {{
       method: 'POST',
       headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{as_of: {as_of_js}}})
+      body: JSON.stringify({{as_of: 'latest', refresh_history: true}})
     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       if (d && d.mirror) {{
-        st.textContent = '镜像数据刷新完成，重新载入页面';
+        st.textContent = '镜像数据刷新完成，载入 ' + (d.as_of || 'latest');
         showResult('mirror refreshed: ' + JSON.stringify(d.mirror.decisions || {{}}, null, 2));
-        setTimeout(function() {{ location.reload(); }}, 700);
+        setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest'); }}, 700);
       }} else {{
         st.textContent = '刷新失败: ' + (d.message || d.error || 'unknown');
         setBusy(btn, false);
@@ -627,13 +631,13 @@ def _render_scripts(as_of: str) -> str:
     fetch('/api/refresh_positions', {{
       method: 'POST',
       headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{as_of: {as_of_js}}})
+      body: JSON.stringify({{as_of: 'latest', refresh_history: true}})
     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       var ibkr = d.ibkr || {{}};
       if (ibkr.source) {{
         st.textContent = '持仓刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
         showResult('ibkr refreshed: source=' + ibkr.source + '\\nnet_liq=' + ibkr.net_liq);
-        setTimeout(function() {{ location.reload(); }}, 700);
+        setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest'); }}, 700);
       }} else {{
         st.textContent = '持仓刷新失败: ' + (d.message || d.error || 'unknown');
         setBusy(btn, false);

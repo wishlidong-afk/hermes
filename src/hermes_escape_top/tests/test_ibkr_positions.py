@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -37,7 +38,7 @@ class TestReadPositionsFallback(unittest.TestCase):
             total_cash=23_456.0,
             unrealized_pnl=100.0,
             realized_pnl=50.0,
-            sync_time="2026-06-04T00:00:00+00:00",
+            sync_time=datetime.now(timezone.utc).isoformat(),
             source="tws",
         )
 
@@ -50,7 +51,37 @@ class TestReadPositionsFallback(unittest.TestCase):
 
         self.assertEqual(snap.source, "snapshot")
         self.assertEqual(snap.net_liq, 123_456.0)
+        self.assertFalse(snap.snapshot_stale)
         self.assertIn("Could not connect to TWS", snap.error or "")
+
+    def test_old_snapshot_is_marked_stale(self):
+        seed = PositionSnapshot(
+            account_id="U_TEST",
+            net_liq=123_456.0,
+            gross_position_value=100_000.0,
+            total_cash=23_456.0,
+            unrealized_pnl=100.0,
+            realized_pnl=50.0,
+            sync_time=(datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
+            source="tws",
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "positions_cache.json"
+            with mock.patch.object(positions, "_SNAPSHOT_PATH", cache):
+                positions._save_snapshot(seed)
+                with mock.patch.object(positions, "_tcp_port_open", return_value=False):
+                    snap = positions.read_positions({
+                        "ibkr": {
+                            "ports": [65500],
+                            "snapshot_max_age_seconds": 60,
+                        }
+                    })
+
+        self.assertEqual(snap.source, "snapshot")
+        self.assertTrue(snap.snapshot_stale)
+        self.assertGreater(snap.snapshot_age_seconds or 0.0, 60)
+        self.assertIn("snapshot stale", snap.error or "")
 
 
 if __name__ == "__main__":

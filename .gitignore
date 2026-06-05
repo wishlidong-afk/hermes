@@ -6,3 +6,4 @@ __pycache__/
 src/hermes_escape_top/data/archive/audit_log.jsonl
 src/hermes_escape_top/data/archive/mirror_reference.sqlite
 src/hermes_escape_top/data/archive/signal_journal.jsonl
+src/data/positions_cache.json

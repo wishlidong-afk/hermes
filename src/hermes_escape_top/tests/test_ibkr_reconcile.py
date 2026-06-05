@@ -155,9 +155,13 @@ class TestReconcileReport(unittest.TestCase):
         snap = _snap([])
         snap.source = "snapshot"
         snap.error = "TWS connection refused"
+        snap.snapshot_age_seconds = 3600
+        snap.snapshot_stale = True
         report = reconcile(snap, {"MSTR": {"target_weight": 0.0}})
         self.assertEqual(report.source, "snapshot")
         self.assertIsNotNone(report.error)
+        self.assertTrue(report.snapshot_stale)
+        self.assertEqual(report.snapshot_age_seconds, 3600)
 
     def test_r3_analogy_actual_never_exceeds_netliq(self):
         """Total actual weight must not exceed 100% (sanity check)."""
