@@ -1,5 +1,6 @@
 | Phase | 状态 | 分支/PR | 回测达标 | 阻塞 | 更新时间 |
 |---|---|---|---|---|---|
+| 29 今日操作台可执行表述优化 | DONE / RUNTIME-VERIFIED | hermes-docs | 343 tests OK + 8766 Browser OK | 当前交易方向按 IBKR 差额算；若 IBKR 断线则会按缓存/0仓显示，需刷新持仓确认 | 2026-06-05 |
 | 28 下一组五项：executions/token/retention/explain | DONE / RUNTIME-VERIFIED | hermes-docs | 343 tests OK + 8766 repo WebUI OK | IBKR executions 自动确认仅信任 live `source=tws`；Gateway 外部可用性仍需实盘观察 | 2026-06-05 |
 | 27 十项优化对照复盘与补漏 | DONE / REVIEWED | hermes-docs | 335 tests OK + 8766/8768 refresh OK | IBKR live 仍为 Gateway 外部依赖；当前 snapshot/stale 正确降级 | 2026-06-05 |
 | 26 十项易用性与准确性优化 | DONE / RUNTIME-VERIFIED | hermes-docs | 333 tests OK + 8766/8768 refresh OK | IBKR live 仍依赖 Gateway 在线；当前明确显示 snapshot/stale 并降为 DEGRADED | 2026-06-05 |

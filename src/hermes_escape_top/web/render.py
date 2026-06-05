@@ -134,6 +134,22 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
     .intent-card b {{ font-size: 16px; }}
     .intent-card .action {{ font-weight: 900; margin-top: 8px; color: #0f172a; }}
     .intent-card .target {{ color: var(--muted); font-size: 12px; margin-top: 5px; }}
+    .intent-card .plain-command {{
+      margin-top: 8px;
+      padding: 8px;
+      border-radius: 6px;
+      background: #f1f5f9;
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.35;
+    }}
+    .intent-plan {{ margin-top: 8px; font-size: 12px; }}
+    .intent-plan table {{ font-size: 12px; }}
+    .intent-plan th, .intent-plan td {{ padding: 5px 6px; }}
+    .trade-buy {{ color: #047857; font-weight: 900; }}
+    .trade-sell {{ color: #b91c1c; font-weight: 900; }}
+    .trade-hold {{ color: #334155; font-weight: 900; }}
     .kpi, section, .symbol-card {{
       background: var(--panel);
       border: 1px solid var(--line);
@@ -359,15 +375,7 @@ def _render_today_ops(payload: Dict[str, Any]) -> str:
     reason_rows = "".join(f"<li>{esc(item)}</li>" for item in reasons[:3])
     cards = []
     for symbol in TRADE_SYMBOLS:
-        row = intents.get(symbol) or {}
-        cards.append(
-            "<div class='intent-card'>"
-            f"<b>{esc(symbol)}</b> {_badge(esc(row.get('status', 'NA')), _status_kind(str(row.get('status', 'NA'))))}"
-            f"<div class='action'>{esc(_action_cn(row.get('action')))}</div>"
-            f"<div class='target'>目标: {esc(row.get('target_symbol', '-'))} · {_fmt_money(row.get('target_notional'))} · {_fmt_num(row.get('target_shares'))} 股</div>"
-            f"<div class='target'>置信度: {esc(row.get('confidence_level', 'NA'))} {_fmt_num(row.get('confidence_score'))}</div>"
-            "</div>"
-        )
+        cards.append(_render_intent_card(symbol, payload))
     return f"""
     <section>
       <h2>今日操作台 / One Command Desk</h2>
@@ -389,6 +397,149 @@ def _render_today_ops(payload: Dict[str, Any]) -> str:
       </div>
     </section>
     """
+
+
+def _render_intent_card(symbol: str, payload: Dict[str, Any]) -> str:
+    row = (payload.get("action_intents") or {}).get(symbol) or {}
+    status = str(row.get("status", "NA"))
+    command_rows = _intent_trade_rows(symbol, payload)
+    command_text = _plain_command(symbol, row, command_rows)
+    table_rows = []
+    for plan in command_rows:
+        table_rows.append(
+            "<tr>"
+            f"<td><b>{esc(plan['symbol'])}</b><div class='subtle'>{esc(plan['role_label'])}</div></td>"
+            f"<td>{_fmt_pct(plan['target_weight'])}<div class='subtle'>{_fmt_money(plan['target_notional'])}</div></td>"
+            f"<td>{_fmt_num(plan['target_shares'])}<div class='subtle'>@ {_fmt_money(plan['reference_price'])}</div></td>"
+            f"<td>{_fmt_num(plan['current_shares'])}<div class='subtle'>{_fmt_pct(plan['current_weight'])}</div></td>"
+            f"<td class='{esc(plan['trade_class'])}'>{esc(plan['trade_label'])}<div class='subtle'>{_fmt_num(abs(plan['delta_shares']))}股 · {_fmt_pct(abs(plan['delta_weight']))}</div></td>"
+            "</tr>"
+        )
+    body_rows = "".join(table_rows) or "<tr><td colspan='5'>暂无计划</td></tr>"
+    return (
+        "<div class='intent-card'>"
+        f"<b>{esc(symbol)}</b> {_badge(status, _status_kind(status))}"
+        f"<div class='action'>系统裁决：{esc(_action_cn(row.get('action')))}</div>"
+        f"<div class='plain-command'>{command_text}</div>"
+        "<div class='intent-plan'>"
+        "<table>"
+        "<thead><tr><th>腿</th><th>目标占比/金额</th><th>目标股数</th><th>当前IBKR</th><th>差额动作</th></tr></thead>"
+        f"<tbody>{body_rows}</tbody>"
+        "</table>"
+        "</div>"
+        f"<div class='target'>交易方向按“当前 IBKR → 目标仓位”的差额计算 · 置信度 {esc(row.get('confidence_level', 'NA'))} {_fmt_num(row.get('confidence_score'))}</div>"
+        "</div>"
+    )
+
+
+def _intent_trade_rows(symbol: str, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    intent = (payload.get("action_intents") or {}).get(symbol) or {}
+    legs = ((intent.get("trade_plan") or {}).get("legs") or [])
+    if not legs:
+        target_symbol = str(intent.get("target_symbol") or symbol)
+        legs = [{
+            "role": "risk" if target_symbol == symbol else "defense_route",
+            "symbol": target_symbol,
+            "target_weight": intent.get("target_weight"),
+            "target_notional": intent.get("target_notional"),
+            "reference_price": intent.get("reference_price"),
+            "target_shares": intent.get("target_shares"),
+        }]
+    out = []
+    for leg in legs:
+        target_symbol = str(leg.get("symbol") or "")
+        role = str(leg.get("role") or "risk")
+        target_weight = _float(leg.get("target_weight"), 0.0)
+        target_notional = _float(leg.get("target_notional"), 0.0)
+        target_shares = _float(leg.get("target_shares"), 0.0)
+        reference_price = leg.get("reference_price")
+        current = _current_position_for_leg(payload, symbol, target_symbol, role, target_weight)
+        delta_shares = target_shares - current["shares"]
+        delta_notional = target_notional - current["notional"]
+        delta_weight = target_weight - current["weight"]
+        trade_label, trade_class = _trade_delta_label(delta_shares, delta_notional, delta_weight)
+        out.append({
+            "symbol": target_symbol,
+            "role": role,
+            "role_label": "风险腿" if role == "risk" else "防守去向",
+            "target_weight": target_weight,
+            "target_notional": target_notional,
+            "target_shares": target_shares,
+            "reference_price": reference_price,
+            "current_shares": current["shares"],
+            "current_notional": current["notional"],
+            "current_weight": current["weight"],
+            "delta_shares": delta_shares,
+            "delta_notional": delta_notional,
+            "delta_weight": delta_weight,
+            "trade_label": trade_label,
+            "trade_class": trade_class,
+        })
+    return out
+
+
+def _current_position_for_leg(
+    payload: Dict[str, Any],
+    sleeve_symbol: str,
+    leg_symbol: str,
+    role: str,
+    target_weight: float,
+) -> Dict[str, float]:
+    ibkr = payload.get("ibkr") or {}
+    row = _ibkr_row(ibkr, leg_symbol) or {}
+    shares = _float(row.get("actual_shares"), 0.0)
+    notional = _float(row.get("actual_notional"), 0.0)
+    weight = _float(row.get("actual_weight"), 0.0)
+    if role != "defense_route":
+        return {"shares": shares, "notional": notional, "weight": weight}
+    total = _route_target_total(payload, leg_symbol)
+    if total <= 0:
+        return {"shares": 0.0, "notional": 0.0, "weight": 0.0}
+    share = max(0.0, target_weight) / total
+    return {
+        "shares": shares * share,
+        "notional": notional * share,
+        "weight": weight * share,
+    }
+
+
+def _route_target_total(payload: Dict[str, Any], leg_symbol: str) -> float:
+    total = 0.0
+    for intent in (payload.get("action_intents") or {}).values():
+        for leg in ((intent.get("trade_plan") or {}).get("legs") or []):
+            if str(leg.get("role") or "") == "defense_route" and str(leg.get("symbol") or "") == leg_symbol:
+                total += _float(leg.get("target_weight"), 0.0)
+    return total
+
+
+def _trade_delta_label(delta_shares: float, delta_notional: float, delta_weight: float) -> tuple[str, str]:
+    if abs(delta_weight) < 0.002 or abs(delta_notional) < 50:
+        return "不用动", "trade-hold"
+    if delta_shares > 0:
+        return "买入", "trade-buy"
+    return "卖出", "trade-sell"
+
+
+def _plain_command(symbol: str, intent: Dict[str, Any], rows: List[Dict[str, Any]]) -> str:
+    active = [row for row in rows if row["trade_class"] != "trade-hold"]
+    if not active:
+        target = "；".join(
+            f"{row['symbol']} {_fmt_pct(row['target_weight'])} / {_fmt_num(row['target_shares'])}股"
+            for row in rows
+        )
+        return f"实际调仓：{symbol} 不需要交易；目标配置为 {target}。"
+    parts = []
+    for row in active:
+        verb = "买入" if row["trade_class"] == "trade-buy" else "卖出"
+        parts.append(
+            f"{verb} {row['symbol']} 约 {_fmt_num(abs(row['delta_shares']))} 股"
+            f"（{_fmt_money(abs(row['delta_notional']))}，占总资产 {_fmt_pct(abs(row['delta_weight']))}）"
+        )
+    target = "；".join(
+        f"{row['symbol']} 目标 {_fmt_pct(row['target_weight'])} / {_fmt_num(row['target_shares'])}股"
+        for row in rows
+    )
+    return f"实际调仓：{'；'.join(parts)}。执行后：{target}。"
 
 
 def _render_macro_section(payload: Dict[str, Any]) -> str:

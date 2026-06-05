@@ -117,6 +117,15 @@ def _action_intent(
     target_shares = target_notional / price if price and price > 0 else None
     reasons = _top_reasons(score, routing)
     invalidation = _invalidation(status, target_symbol, routing, reentry)
+    trade_plan = _trade_plan(
+        symbol=symbol,
+        target_symbol=target_symbol,
+        risk_target_weight=target_weight,
+        route_target_weight=target_weight_for_symbol if route_applies else 0.0,
+        snapshots=snapshots,
+        portfolio_value=portfolio_value,
+        route_applies=route_applies,
+    )
     return {
         "symbol": symbol,
         "status": status,
@@ -133,6 +142,7 @@ def _action_intent(
         "invalidation": invalidation,
         "confidence_level": (layer.get("action_confidence") or {}).get("level"),
         "confidence_score": (layer.get("action_confidence") or {}).get("score"),
+        "trade_plan": trade_plan,
     }
 
 
@@ -165,6 +175,47 @@ def _today_ops(action_intents: Dict[str, Dict[str, Any]], payload: Dict[str, Any
         "ibkr_source": ibkr.get("source", "disabled"),
         "ibkr_stale": bool(ibkr.get("snapshot_stale")),
         "note": "advisory only; no orders are placed",
+    }
+
+
+def _trade_plan(
+    *,
+    symbol: str,
+    target_symbol: str,
+    risk_target_weight: float,
+    route_target_weight: float,
+    snapshots: Dict[str, SymbolSnapshot],
+    portfolio_value: float,
+    route_applies: bool,
+) -> Dict[str, Any]:
+    legs = [_target_leg(symbol, risk_target_weight, snapshots, portfolio_value, "risk")]
+    if route_applies and target_symbol and target_symbol != "-":
+        legs.append(_target_leg(target_symbol, route_target_weight, snapshots, portfolio_value, "defense_route"))
+    return {
+        "portfolio_value": round(portfolio_value, 2),
+        "legs": legs,
+        "total_target_weight": round(sum(_float(row.get("target_weight"), 0.0) for row in legs), 6),
+        "total_target_notional": round(sum(_float(row.get("target_notional"), 0.0) for row in legs), 2),
+    }
+
+
+def _target_leg(
+    symbol: str,
+    target_weight: float,
+    snapshots: Dict[str, SymbolSnapshot],
+    portfolio_value: float,
+    role: str,
+) -> Dict[str, Any]:
+    price = _price_for(symbol, snapshots)
+    notional = max(0.0, target_weight) * portfolio_value
+    shares = notional / price if price and price > 0 else None
+    return {
+        "role": role,
+        "symbol": symbol,
+        "target_weight": round(max(0.0, target_weight), 6),
+        "target_notional": round(notional, 2),
+        "reference_price": round(price, 4) if price else None,
+        "target_shares": round(shares, 4) if shares is not None else None,
     }
 
 
