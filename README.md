@@ -7,7 +7,8 @@
 > 性质：只读风控/建议系统，**不下单**。覆盖标的 MSTR / FNGU / SOXL（逃顶）+ QQQ/FNGU、SOXX/SOXL、MSTR/QQQ（镜像）。
 
 > **开发者施工指引 →** [`docs/CODEX_GUIDANCE.md`](docs/CODEX_GUIDANCE.md)
-> **最新复盘 →** [`docs/PROJECT_REVIEW_2026_06_02.md`](docs/PROJECT_REVIEW_2026_06_02.md)（进度 72%、代码审查、优化建议）
+> **最新复盘 →** [`docs/PROJECT_REVIEW_2026_06_07.md`](docs/PROJECT_REVIEW_2026_06_07.md)（文档对齐 06-05、PBO 对账、scaler 迁移已完成、WebUI 数据新鲜度修复）
+> 上一版复盘 → [`docs/PROJECT_REVIEW_2026_06_02.md`](docs/PROJECT_REVIEW_2026_06_02.md)（进度 72%、代码审查）
 
 ## 阅读路线（按顺序）
 

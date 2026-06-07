@@ -9,9 +9,14 @@ from typing import Any, Dict, Iterable, List, Optional
 TRADE_SYMBOLS = ["MSTR", "FNGU", "SOXL"]
 
 
-def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | None = None) -> str:
+def render_dashboard(
+    payload: Dict[str, Any],
+    shadow_status: Dict[str, Any] | None = None,
+    manifest_status: Dict[str, Any] | None = None,
+) -> str:
     """Render the package-engine dashboard using the new payload schema."""
     shadow_status = shadow_status or {}
+    manifest_status = manifest_status or {}
     as_of = str(payload.get("as_of", ""))
     schema = str(payload.get("schema_version", ""))
     cache = payload.get("cache_status", {})
@@ -291,6 +296,8 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
     <div id="refresh-result" class="toolbar-output"></div>
     <div id="ibkr-live-result" class="toolbar-output"></div>
 
+    {_render_cache_hint(cache)}
+
     {_render_kpis(payload)}
 
     {_render_today_ops(payload)}
@@ -312,10 +319,10 @@ def render_dashboard(payload: Dict[str, Any], shadow_status: Dict[str, Any] | No
 
     <div class="two-col">
       {_render_mirror_section(payload)}
-      {_render_quality_section(payload)}
+      {_render_quality_section(payload, manifest_status)}
     </div>
 
-    {_render_ops_panel(shadow_status)}
+    {_render_ops_panel(shadow_status, manifest_status)}
   </div>
   {_render_scripts(as_of)}
 </body>
@@ -947,7 +954,33 @@ def _render_mirror_section(payload: Dict[str, Any]) -> str:
     """
 
 
-def _render_quality_section(payload: Dict[str, Any]) -> str:
+def _render_cache_hint(cache: Dict[str, Any]) -> str:
+    """Friendly empty-state banner shown only when no cached score payload exists.
+
+    A fresh checkout has no audit_log yet, so the dashboard would otherwise look
+    blank/NO_CACHE with no guidance. Layout-additive: nothing renders on cache hit.
+    """
+    if cache.get("hit"):
+        return ""
+    msg = esc(cache.get("message") or "尚无评分缓存。")
+    return f"""
+    <section class="panel" style="border-left:4px solid var(--amber);background:#fffbeb">
+      <div style="font-weight:600;color:var(--amber)">尚无评分缓存 / no cached score yet</div>
+      <div class="subtle" style="margin-top:4px">{msg} 点击右上角「更新策略数据」拉取行情并评分，或在终端运行
+        <code>python3 scripts/run_daily_package.py --as-of latest</code> 生成首个缓存。</div>
+    </section>
+    """
+
+
+def _manifest_badge(manifest_status: Dict[str, Any]) -> str:
+    status = str((manifest_status or {}).get("status") or "UNKNOWN")
+    kind = {"OK": "ok", "DRIFT": "danger", "MISSING": "warn", "UNKNOWN": "watch"}.get(status, "watch")
+    label = {"OK": "一致", "DRIFT": "漂移", "MISSING": "缺失", "UNKNOWN": "未知"}.get(status, status)
+    return _badge("数据清单 " + label, kind)
+
+
+def _render_quality_section(payload: Dict[str, Any], manifest_status: Dict[str, Any] | None = None) -> str:
+    manifest_status = manifest_status or {}
     dq = payload.get("data_quality") or {}
     breakdown = payload.get("data_quality_breakdown") or {}
     components = breakdown.get("components") or {}
@@ -967,6 +1000,15 @@ def _render_quality_section(payload: Dict[str, Any]) -> str:
         for row in sources[:16]
     ]
     upgrade_rows = "".join(f"<li>{esc(item)}</li>" for item in upgrades[:8])
+    frozen_at = str(manifest_status.get("frozen_at") or "NA")[:19].replace("T", " ")
+    manifest_line = (
+        f'<div class="subtle" style="margin-bottom:8px">{_manifest_badge(manifest_status)} '
+        f'frozen_at={esc(frozen_at)} · 数据清单(sha256)与历史 CSV 校验 '
+        f'<code>verify_manifest</code>，DRIFT 表示回填后未重冻结 '
+        f'<button class="btn-muted" style="padding:3px 9px;font-size:12px" '
+        f'onclick="refreshManifest()" id="manifest-refresh-btn">刷新数据清单</button>'
+        f'<span class="subtle" id="manifest-refresh-status" style="margin-left:8px"></span></div>'
+    )
     return f"""
     <section>
       <h2>Audit Detail / 数据质量</h2>
@@ -978,6 +1020,7 @@ def _render_quality_section(payload: Dict[str, Any]) -> str:
         {_metric('软数据代理', esc(components.get('soft_proxy_count', 'NA')))}
         {_metric('IBKR 状态', f"{esc(components.get('ibkr_source', 'NA'))}{' / STALE' if components.get('ibkr_stale') else ''}")}
       </div>
+      {manifest_line}
       <details style="margin-bottom:10px">
         <summary>为什么是 {esc(dq.get('level', 'NA'))}，如何升到 HIGH</summary>
         <div class="detail-body">
@@ -1001,7 +1044,8 @@ def _render_quality_section(payload: Dict[str, Any]) -> str:
     """
 
 
-def _render_ops_panel(shadow_status: Dict[str, Any]) -> str:
+def _render_ops_panel(shadow_status: Dict[str, Any], manifest_status: Dict[str, Any] | None = None) -> str:
+    manifest_status = manifest_status or {}
     mode = shadow_status.get("run_daily_mode", "unknown")
     latest = shadow_status.get("latest_baseline_date") or ""
     dates = ", ".join((shadow_status.get("available_dates") or [])[:8])
@@ -1014,12 +1058,19 @@ def _render_ops_panel(shadow_status: Dict[str, Any]) -> str:
             {_metric('run_daily mode', esc(mode))}
             {_metric('最新基准日', esc(latest or 'NA'))}
             {_metric('可对比日期', esc(dates or 'NA'))}
+            {_metric('数据清单', esc(str(manifest_status.get('status', 'NA'))))}
           </div>
           <div class="controls" style="justify-content:flex-start;margin-bottom:10px">
             <input id="shadow-date" type="date" value="{esc(latest)}" style="border:1px solid #cbd5e1;border-radius:6px;padding:7px 9px">
             <button class="btn-muted" onclick="runShadow()">运行影子对比</button>
             <button class="btn-muted" onclick="runBackfill()">补基准并对比</button>
           </div>
+          <div class="controls" style="justify-content:flex-start;margin-bottom:10px">
+            <button class="btn-muted" onclick="refreshSoftData()" id="softdata-btn">更新慢软数据(FRED/AAII)</button>
+            <button class="btn-muted" onclick="loadIbkrDemo()" id="ibkr-demo-btn">加载 IBKR 演示快照</button>
+          </div>
+          <div id="ops-extra-status" class="subtle"></div>
+          <div id="ops-extra-result" class="toolbar-output"></div>
           <div id="shadow-status" class="subtle"></div>
           <div id="shadow-result" class="toolbar-output"></div>
         </div>
@@ -1147,6 +1198,49 @@ def _render_scripts(as_of: str) -> str:
       setBusy(btn, false);
       st.textContent = 'Live 验收失败: ' + e;
     }});
+  }};
+  window.refreshManifest = function() {{
+    var btn = document.getElementById('manifest-refresh-btn');
+    var st = document.getElementById('manifest-refresh-status');
+    setBusy(btn, true);
+    if (st) st.textContent = '正在重冻结数据清单...';
+    fetch('/api/refresh_manifest', {{method: 'POST', headers: {{'Content-Type': 'application/json'}}, body: '{{}}'}})
+      .then(function(r) {{ return r.json(); }}).then(function(d) {{
+        setBusy(btn, false);
+        if (st) st.textContent = d.ok ? ('已重冻结 ✓ frozen_at=' + (d.frozen_at || '')) : ('失败: ' + (d.error || d.status || 'unknown'));
+        if (d.ok) setTimeout(function() {{ location.reload(); }}, 700);
+      }}).catch(function(e) {{ setBusy(btn, false); if (st) st.textContent = '失败: ' + e; }});
+  }};
+  window.refreshSoftData = function() {{
+    var btn = document.getElementById('softdata-btn');
+    var st = document.getElementById('ops-extra-status');
+    var out = document.getElementById('ops-extra-result');
+    setBusy(btn, true);
+    st.textContent = '正在联网更新 FRED/AAII（可能较慢，AAII 可能被封）...';
+    out.style.display = 'none';
+    fetch('/api/refresh_soft_data', {{method: 'POST', headers: {{'Content-Type': 'application/json'}}, body: '{{}}'}})
+      .then(function(r) {{ return r.json(); }}).then(function(d) {{
+        setBusy(btn, false);
+        st.textContent = d.ok ? '软数据更新完成（至少一个源成功）' : '软数据更新：无源写入（见详情）';
+        out.textContent = JSON.stringify(d, null, 2);
+        out.style.display = 'block';
+      }}).catch(function(e) {{ setBusy(btn, false); st.textContent = '失败: ' + e; }});
+  }};
+  window.loadIbkrDemo = function() {{
+    var btn = document.getElementById('ibkr-demo-btn');
+    var st = document.getElementById('ops-extra-status');
+    var out = document.getElementById('ops-extra-result');
+    setBusy(btn, true);
+    st.textContent = '正在写入 IBKR 演示快照并重新评分...';
+    out.style.display = 'none';
+    fetch('/api/ibkr_demo_snapshot', {{method: 'POST', headers: {{'Content-Type': 'application/json'}}, body: '{{}}'}})
+      .then(function(r) {{ return r.json(); }}).then(function(d) {{
+        setBusy(btn, false);
+        st.textContent = d.ok ? (d.message || '演示快照已加载') : (d.message || ('未写入: ' + (d.reason || 'unknown')));
+        out.textContent = JSON.stringify(d, null, 2);
+        out.style.display = 'block';
+        if (d.ok) setTimeout(function() {{ location.reload(); }}, 900);
+      }}).catch(function(e) {{ setBusy(btn, false); st.textContent = '失败: ' + e; }});
   }};
   function m4Run(endpoint, label) {{
     var date = document.getElementById('shadow-date').value || {as_of_js};

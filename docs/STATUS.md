@@ -1,7 +1,13 @@
 # STATUS（进度账本）
 
 > 每完成一步更新本表，并与 `00_MASTER_OVERVIEW.md` 元信息、`SYSTEM_OVERVIEW.md` 成熟度表对账。
-> 更新时间：2026-06-02（据 Codex + Claude 真实进度账本同步）
+> 更新时间：2026-06-07（最新复盘见 [`PROJECT_REVIEW_2026_06_07.md`](PROJECT_REVIEW_2026_06_07.md)）
+>
+> **06-07 增量**：① corr 闸 `110/0.90` 已 **P10 APPROVED**（`config.json` 已落参）；EXIT 已 80→75 闭环。
+> ② **PBO 对账**：评分阈值固定 PBO=**0.1538**、相关闸全网格 exact train-greedy PBO=**0.077**（均 <0.5，过拟合门通过）；
+> 旧文档把 `0.6154` 当相关闸警报是**全网格前的占位伪值，已被 0.077 取代**——`0.6154` 仅是评分阈值 greedy 警报（固定部署不受影响）。
+> ③ **单一处置入口**：scaler→SizingOptimizer 迁移**已完成**（0 残留乘法链，`sizing_engine=optimize_targets_v1`，R3 三日实跑 0 违规）。
+> ④ **WebUI 数据新鲜度**：数据清单重冻结并接入自动重冻结、`_history_is_fresh` 改交易日感知、FRED 净流动性回填至 06-05（latency 5→0）；AAII 端点 403 仍需人工凭证。
 
 ## 一句话现状
 

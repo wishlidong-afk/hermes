@@ -232,6 +232,74 @@ def _save_snapshot(snap: PositionSnapshot) -> None:
     )
 
 
+DEMO_ACCOUNT_ID = "DEMO-MOCK"
+
+
+def _is_real_snapshot() -> bool:
+    """True only when an existing snapshot looks like genuine TWS-sourced data."""
+    if not _SNAPSHOT_PATH.exists():
+        return False
+    try:
+        d = json.loads(_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    account = str(d.get("account_id", "")).upper()
+    source = str(d.get("source", "")).lower()
+    if account in {DEMO_ACCOUNT_ID, "DEMO", "UNKNOWN", ""}:
+        return False
+    # A real account id that wasn't written by the demo path → treat as real.
+    return source in {"tws", "snapshot"}
+
+
+def write_demo_snapshot(force: bool = False) -> Dict[str, Any]:
+    """Write a clearly-labelled DEMO positions snapshot so the reconcile panel
+    has data to show when no TWS is connected.
+
+    Safety: refuses to overwrite a real (TWS-sourced) snapshot unless ``force``.
+    The account id is ``DEMO-MOCK`` and net_liq is a round demo figure, so it can
+    never be mistaken for live positions. Read-only w.r.t. the brokerage.
+    """
+    if _is_real_snapshot() and not force:
+        return {
+            "ok": False,
+            "reason": "REFUSED_REAL_SNAPSHOT",
+            "message": "既有快照像真实持仓，拒绝覆盖（demo 仅在无真实快照时写入）。",
+            "path": str(_SNAPSHOT_PATH),
+        }
+    net_liq = 100_000.0
+    demo_positions = [
+        PositionRecord("MSTR", "STK", 30.0, 250.0, 9_300.0),
+        PositionRecord("FNGU", "STK", 400.0, 28.0, 12_800.0),
+        PositionRecord("SOXL", "STK", 60.0, 240.0, 15_600.0),
+        PositionRecord("BOXX", "STK", 180.0, 115.0, 21_000.0),
+    ]
+    gross = sum(p.market_value for p in demo_positions)
+    snap = PositionSnapshot(
+        account_id=DEMO_ACCOUNT_ID,
+        net_liq=net_liq,
+        gross_position_value=gross,
+        total_cash=net_liq - gross,
+        unrealized_pnl=0.0,
+        realized_pnl=0.0,
+        positions=demo_positions,
+        sync_time=datetime.now(timezone.utc).isoformat(),
+        source="snapshot",
+        error="演示快照（mock）— 非真实持仓，仅用于驱动对账面板",
+        snapshot_age_seconds=0.0,
+        snapshot_stale=False,
+        client_id=None,
+    )
+    _save_snapshot(snap)
+    return {
+        "ok": True,
+        "account_id": DEMO_ACCOUNT_ID,
+        "net_liq": net_liq,
+        "positions": len(demo_positions),
+        "path": str(_SNAPSHOT_PATH),
+        "message": "已写入 DEMO 持仓快照；下次评分/刷新后对账面板将显示演示数据。",
+    }
+
+
 def _load_snapshot(error: Optional[str] = None, max_age_seconds: float = _DEFAULT_SNAPSHOT_MAX_AGE_SECONDS) -> PositionSnapshot:
     if _SNAPSHOT_PATH.exists():
         try:

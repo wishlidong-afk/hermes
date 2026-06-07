@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, Optional
 import pandas as pd
 
 from ..config import load_config, resolve_path, trade_symbols
+from ..core.data.manifest import verify_manifest, write_manifest
 from ..core.data.store import safe_symbol
 from ..core.data.state_store import write_refresh_run
 from ..pipeline import score_pipeline
@@ -50,6 +51,16 @@ def refresh_score_with_market_data(requested_as_of: Any = "latest") -> Dict[str,
             symbols_updated=sum(1 for item in refresh.values() if item.updated),
             reason=skip_reason,
         ))
+    manifest_start = time.perf_counter()
+    manifest_info = _refresh_manifest(config, history_refreshed)
+    steps.append(_step(
+        "manifest_freeze",
+        manifest_info["status"],
+        manifest_start,
+        refrozen=manifest_info.get("refrozen"),
+        in_sync=manifest_info.get("in_sync"),
+        pre_in_sync=manifest_info.get("pre_in_sync"),
+    ))
     as_of = latest_history_date(config, _critical_symbols(config)) or _normalize_as_of(requested_as_of)
     score_start = time.perf_counter()
     payload = score_pipeline(as_of)
@@ -110,6 +121,8 @@ def refresh_score_with_market_data(requested_as_of: Any = "latest") -> Dict[str,
         "symbols_requested": len(symbols),
         "symbols_refreshed_requested": len(refresh),
         "symbols_updated": sum(1 for item in refresh.values() if item.updated),
+        "trading_days_stale": _completed_trading_days_after(as_of),
+        "manifest": manifest_info,
         "latest_by_symbol": {
             symbol: result.end_date
             for symbol, result in sorted(refresh.items())
@@ -141,14 +154,116 @@ def _step(name: str, status: str, step_start: float, **extra: Any) -> Dict[str, 
     }
 
 
-def _history_is_fresh(as_of: Optional[str], max_calendar_lag_days: int = 3) -> bool:
+def _completed_trading_days_after(as_of: Optional[str], today: Optional[date] = None) -> int:
+    """Count expected completed US-market trading days strictly after ``as_of``
+    and strictly before ``today``.
+
+    Weekday approximation (Mon-Fri, no holiday calendar). Holidays may slightly
+    over-report staleness, which is the safe direction — the whole point is to
+    stop hiding a real gap, not to silently pass it.
+    """
+    today = today or date.today()
+    try:
+        start = date.fromisoformat(str(as_of)[:10])
+    except (ValueError, TypeError):
+        return 0
+    count = 0
+    cur = start + timedelta(days=1)
+    while cur < today:
+        if cur.weekday() < 5:  # Mon-Fri
+            count += 1
+        cur += timedelta(days=1)
+    return count
+
+
+def _history_is_fresh(as_of: Optional[str], max_trading_day_lag: int = 0) -> bool:
+    """Fresh only when no completed trading day is missing since ``as_of``.
+
+    Replaces the old calendar-lag<=3 rule, which let a Thursday bar viewed on
+    the following Sunday pass as "fresh" while silently missing Friday's bar.
+    Trading-day aware: weekends no longer mask a missing weekday bar.
+    """
     if not as_of:
         return False
+    return _completed_trading_days_after(as_of) <= max_trading_day_lag
+
+
+def _refresh_manifest(config: Dict[str, Any], history_refreshed: bool) -> Dict[str, Any]:
+    """Re-freeze data_manifest_latest.json so it never drifts from the CSVs.
+
+    Re-freezes when history was refreshed, when the on-disk manifest no longer
+    matches the data (drift), or when it is missing. Always reports in_sync so
+    the WebUI can surface integrity. Read-only on failure.
+    """
+    history_dir = resolve_path(config, "history_dir")
+    manifest_path = resolve_path(config, "archive_dir") / "data_manifest_latest.json"
+    pre_in_sync: Optional[bool] = None
     try:
-        lag = (date.today() - date.fromisoformat(as_of)).days
-    except ValueError:
-        return False
-    return 0 <= lag <= max_calendar_lag_days
+        if manifest_path.exists():
+            pre_in_sync = verify_manifest(history_dir, manifest_path)
+    except Exception:
+        pre_in_sync = None
+    refrozen = False
+    if history_refreshed or pre_in_sync is False or not manifest_path.exists():
+        try:
+            write_manifest(history_dir, manifest_path)
+            refrozen = True
+        except Exception as exc:
+            return {
+                "status": "ERROR",
+                "refrozen": False,
+                "pre_in_sync": pre_in_sync,
+                "in_sync": None,
+                "error": str(exc),
+                "path": str(manifest_path),
+            }
+    in_sync: Optional[bool] = None
+    try:
+        in_sync = verify_manifest(history_dir, manifest_path)
+    except Exception:
+        in_sync = None
+    status = "OK" if in_sync else ("DRIFT" if in_sync is False else "MISSING")
+    return {
+        "status": status,
+        "refrozen": refrozen,
+        "pre_in_sync": pre_in_sync,
+        "in_sync": in_sync,
+        "path": str(manifest_path),
+    }
+
+
+def force_refresh_manifest(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Re-freeze the data manifest on demand (WebUI button). Returns status + frozen_at."""
+    cfg = config or load_config()
+    info = _refresh_manifest(cfg, history_refreshed=True)
+    info.update(manifest_status(cfg))
+    info["ok"] = info.get("status") == "OK"
+    return info
+
+
+def manifest_status(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Lightweight manifest integrity probe for the dashboard GET path.
+
+    Does NOT re-freeze — read-only verification so a normal page load reports
+    drift honestly without mutating anything.
+    """
+    cfg = config or load_config()
+    history_dir = resolve_path(cfg, "history_dir")
+    manifest_path = resolve_path(cfg, "archive_dir") / "data_manifest_latest.json"
+    if not manifest_path.exists():
+        return {"status": "MISSING", "in_sync": None, "frozen_at": None, "path": str(manifest_path)}
+    in_sync: Optional[bool] = None
+    try:
+        in_sync = verify_manifest(history_dir, manifest_path)
+    except Exception:
+        in_sync = None
+    frozen_at = None
+    try:
+        frozen_at = json.loads(manifest_path.read_text(encoding="utf-8")).get("frozen_at")
+    except Exception:
+        frozen_at = None
+    status = "OK" if in_sync else ("DRIFT" if in_sync is False else "UNKNOWN")
+    return {"status": status, "in_sync": in_sync, "frozen_at": frozen_at, "path": str(manifest_path)}
 
 
 def latest_history_date(config: Optional[Dict[str, Any]] = None, symbols: Optional[Iterable[str]] = None) -> Optional[str]:

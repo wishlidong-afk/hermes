@@ -12,3 +12,8 @@ src/hermes_escape_top/data/archive/signal_journal.jsonl
 src/hermes_escape_top/data/archive/live_checks/
 src/data/positions_cache.json
 src/data/executions_cache.json
+
+# Backup copies written by validated soft-data backfill (scripts/backfill_soft_data.py)
+*.csv.bak
+# Raw AAII fetch sidecar awaiting manual schema mapping
+src/hermes_escape_top/data/soft_history/aaii_sentiment_fetched_raw.csv

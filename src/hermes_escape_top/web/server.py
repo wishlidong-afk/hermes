@@ -48,8 +48,13 @@ RUN_DAILY_PKG = (
 from ..config import load_config, resolve_path
 from ..core.data.state_store import record_execution_confirmation
 from ..ibkr.live_check import run_live_check
+from ..ibkr.positions import write_demo_snapshot
 from ..pipeline import score_pipeline
-from .refresh import refresh_score_with_market_data
+from .refresh import (
+    force_refresh_manifest,
+    manifest_status,
+    refresh_score_with_market_data,
+)
 from .render import render_dashboard
 
 
@@ -331,8 +336,13 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path in {"/", "/index.html"}:
                 payload = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
                 shadow = _shadow_status()
+                try:
+                    manifest = manifest_status()
+                except Exception:
+                    manifest = {}
                 self._send(200, "text/html; charset=utf-8",
-                           render_dashboard(payload, shadow_status=shadow).encode())
+                           render_dashboard(payload, shadow_status=shadow,
+                                            manifest_status=manifest).encode())
                 return
 
             if parsed.path == "/api/score":
@@ -348,6 +358,15 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(_shadow_status(), ensure_ascii=False,
                                       indent=2, default=str).encode())
+                return
+
+            if parsed.path == "/api/manifest_status":
+                try:
+                    payload = manifest_status()
+                except Exception:
+                    payload = {"status": "ERROR", "error": traceback.format_exc()[-1000:]}
+                self._send(200, "application/json; charset=utf-8",
+                           json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode())
                 return
 
             if parsed.path == "/health":
@@ -387,6 +406,45 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 result = _flip_to_package()
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(result, ensure_ascii=False, default=str).encode())
+                return
+
+            if parsed.path == "/api/refresh_manifest":
+                try:
+                    payload = force_refresh_manifest()
+                except Exception:
+                    payload = {"ok": False, "status": "ERROR", "error": traceback.format_exc()[-2000:]}
+                self._send(200, "application/json; charset=utf-8",
+                           json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode())
+                return
+
+            if parsed.path == "/api/refresh_soft_data":
+                try:
+                    from ..scripts.backfill_soft_data import refresh_all
+                    payload = refresh_all(only=req.get("only"))
+                except Exception:
+                    payload = {"ok": False, "error": traceback.format_exc()[-2000:]}
+                self._send(200, "application/json; charset=utf-8",
+                           json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode())
+                return
+
+            if parsed.path == "/api/ibkr_demo_snapshot":
+                try:
+                    written = write_demo_snapshot(force=bool(req.get("force")))
+                    payload = dict(written)
+                    if written.get("ok"):
+                        # Re-score so the cached dashboard payload reflects demo positions.
+                        latest = _latest_score_payload("latest") or {}
+                        as_of = latest.get("as_of") or default_as_of
+                        try:
+                            rescored = score_pipeline(str(as_of)[:10])
+                            payload["rescored_as_of"] = rescored.get("as_of")
+                            payload["ibkr_source"] = (rescored.get("ibkr") or {}).get("source")
+                        except Exception:
+                            payload["rescore_error"] = traceback.format_exc()[-1000:]
+                except Exception:
+                    payload = {"ok": False, "error": traceback.format_exc()[-2000:]}
+                self._send(200, "application/json; charset=utf-8",
+                           json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode())
                 return
 
             if parsed.path in {"/api/refresh_score", "/api/score"}:
