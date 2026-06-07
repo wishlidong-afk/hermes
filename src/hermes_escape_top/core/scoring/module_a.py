@@ -3,8 +3,8 @@ from __future__ import annotations
 from .registry import FactorContext, FactorDefinition, missing_only
 
 
-def module_a_factors() -> list[FactorDefinition]:
-    return [
+def module_a_factors(config=None) -> list[FactorDefinition]:
+    base: list[FactorDefinition] = [
         FactorDefinition("A1_QQQ_MA200_BREAK", "A", 4.0, ["QQQ.close", "QQQ.ma200"], _qqq_ma200_break),
         FactorDefinition("A1_VIX_COMPLACENCY", "A", 4.0, ["^VIX.close"], _vix_complacency, "A1 VIX"),
         missing_only("A2_CNN_FEAR_GREED", "A", "A2 cnn_fear_greed"),
@@ -34,6 +34,10 @@ def module_a_factors() -> list[FactorDefinition]:
                          ["QQQ.distribution_days_25d", "SPY.distribution_days_25d"],
                          _qqq_distribution, "A8 market distribution"),
     ]
+    if config:
+        from .factors_risk import risk_factor_definitions
+        base = base + risk_factor_definitions(config)
+    return base
 
 
 def _qqq_ma200_break(ctx: FactorContext) -> tuple[float, str]:

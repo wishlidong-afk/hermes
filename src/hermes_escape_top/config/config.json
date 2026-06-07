@@ -156,7 +156,15 @@
       "D-M4": 4,
       "D-M5": 3,
       "D-F4": 3,
-      "D-S4": 3
+      "D-S4": 3,
+      "A9 hy_oas": 4,
+      "A10 real_rate": 4,
+      "A11 dollar": 4,
+      "A12 yield_curve": 4,
+      "A13 credit_etf": 4,
+      "A14 concentration": 4,
+      "A15 defensive_rotation": 4,
+      "A16 financial_stress": 4
     }
   },
   "normalize": {
@@ -276,7 +284,15 @@
     "use_regime_weights": false,
     "use_portfolio_risk_budget": false,
     "routing_v2": false,
-    "data_cboe_pcr": true
+    "data_cboe_pcr": true,
+    "data_hy_oas": false,
+    "data_real_rate": false,
+    "data_dollar": false,
+    "data_yield_curve": false,
+    "data_credit_etf": false,
+    "data_concentration": false,
+    "data_defensive_rotation": false,
+    "data_financial_stress": false
   },
   "ibkr": {
     "enabled": true,

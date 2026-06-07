@@ -192,6 +192,30 @@
       "sha256": "559677e457c153b695aec4247196424d159780f44a2e2c1055c5f86e27278cec",
       "start_date": "2018-01-02"
     },
+    "HYG.csv": {
+      "bytes": 226916,
+      "end_date": "2026-06-05",
+      "path": "HYG.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "875e84392e5db454fab604071dbe2ef551944851d3c75bbfbdb29a60cca45f3f",
+      "start_date": "2018-01-02"
+    },
+    "IEF.csv": {
+      "bytes": 229922,
+      "end_date": "2026-06-05",
+      "path": "IEF.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "f0c57f63b5245fcd58731dfba100f78c3b9f57a0d963899cb8b9aa3d22e68ca7",
+      "start_date": "2018-01-02"
+    },
     "KLAC.csv": {
       "bytes": 217720,
       "end_date": "2026-06-04",
@@ -202,6 +226,30 @@
       "proxy_start_date": null,
       "rows": 2117,
       "sha256": "8f9daf4fa70885a03a008b299051670ff8a2ad2b38e7bd2519668579fbe1a240",
+      "start_date": "2018-01-02"
+    },
+    "KRE.csv": {
+      "bytes": 229331,
+      "end_date": "2026-06-05",
+      "path": "KRE.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "dd208545738f42b6a96e0f2aa6447d7e10dad469dd2c412444fd0cb569712b79",
+      "start_date": "2018-01-02"
+    },
+    "LQD.csv": {
+      "bytes": 235293,
+      "end_date": "2026-06-05",
+      "path": "LQD.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "f817e2d411c8c908461e4fc60b05d37ecbc461eff703780d660783713d93402a",
       "start_date": "2018-01-02"
     },
     "LRCX.csv": {
@@ -312,6 +360,18 @@
       "sha256": "2bf10f4f98c097eef9f24093bc3333766de12bc326bee7cc1fa00e880a661f29",
       "start_date": "2018-01-02"
     },
+    "RSP.csv": {
+      "bytes": 232069,
+      "end_date": "2026-06-05",
+      "path": "RSP.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "d463e60b524d33e8d1943bce9537ee85e666b5a497533700c71624e04fc0248d",
+      "start_date": "2018-01-02"
+    },
     "SHV.csv": {
       "bytes": 232348,
       "end_date": "2026-06-04",
@@ -394,6 +454,78 @@
       "proxy_start_date": null,
       "rows": 2117,
       "sha256": "83f53c55c0ad297323b29ce2fabfe9d32da9e7a033be4faf2f7fbae1e8070eda",
+      "start_date": "2018-01-02"
+    },
+    "XLF.csv": {
+      "bytes": 233165,
+      "end_date": "2026-06-05",
+      "path": "XLF.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "f0e054c978d010ff26b3d3cbf45a65c42bb365bad47258d155eaa10b0d6ad112",
+      "start_date": "2018-01-02"
+    },
+    "XLI.csv": {
+      "bytes": 230139,
+      "end_date": "2026-06-05",
+      "path": "XLI.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "2933e7a8d980847e6589fef2f2f46fa2944ef520e069c460e4d7575fe419fc9e",
+      "start_date": "2018-01-02"
+    },
+    "XLP.csv": {
+      "bytes": 227471,
+      "end_date": "2026-06-05",
+      "path": "XLP.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "9c2f69d979d8affc8eed303280508407994acc2f3f1141069ab229b1d2f44b34",
+      "start_date": "2018-01-02"
+    },
+    "XLU.csv": {
+      "bytes": 232977,
+      "end_date": "2026-06-05",
+      "path": "XLU.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "b759d956be50ddf41cc89b455763b60bf07b861210f21ba9e0fa949451599eae",
+      "start_date": "2018-01-02"
+    },
+    "XLV.csv": {
+      "bytes": 232101,
+      "end_date": "2026-06-05",
+      "path": "XLV.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "ae74907a937ec681852ed781fe3c6e49dffe90192a65ba7c4a10d24b71318ceb",
+      "start_date": "2018-01-02"
+    },
+    "XLY.csv": {
+      "bytes": 228973,
+      "end_date": "2026-06-05",
+      "path": "XLY.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "2f1d609f153eed3845570c11e4635a178ec238c9111837c25a4ad103daf0b14d",
       "start_date": "2018-01-02"
     },
     "_NYFANG.csv": {
@@ -481,8 +613,8 @@
       "start_date": "2018-01-02"
     }
   },
-  "frozen_at": "2026-06-07T10:36:24.734134+00:00",
-  "manifest_id": "5965fb5069f3c12b985b9a135e5ca297ad57ad1891e97be5f6a775d1120175d0",
+  "frozen_at": "2026-06-07T15:45:31.935073+00:00",
+  "manifest_id": "5b856c2aaf079d4fafb4e21b3e94d7addfc2519154f1de1a1bc4c33c3a4de4ad",
   "root": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/data/history",
   "schema_version": "escape-top-data-manifest-v1"
 }

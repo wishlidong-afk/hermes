@@ -54,14 +54,14 @@ class MissingSource:
         )
 
 
-def default_sources() -> list[DataSource]:
+def default_sources(config: Dict[str, Any] | None = None) -> list[DataSource]:
     from .breadth import ComponentBreadthSource
     from .crypto import CryptoFundingSource
     from .macro import CboeIndicesSource, FredNetLiquiditySource
     from .pcr import PutCallSource
     from .sentiment import AaiiSource, NaaimSource
 
-    return [
+    sources: list[DataSource] = [
         MissingSource("gex", "data_gex", "GEX source credentials/API not configured"),
         CboeIndicesSource(),
         FredNetLiquiditySource(),
@@ -71,6 +71,11 @@ def default_sources() -> list[DataSource]:
         ComponentBreadthSource(),
         CryptoFundingSource(),
     ]
+    # Flag-gated Tier-1/2 risk sources: appended only when their flag is ON, so
+    # an all-OFF config yields exactly the list above (byte-identical).
+    from .risk_signals import risk_sources
+    sources.extend(risk_sources(config))
+    return sources
 
 
 def _valuation_record(as_of: str, config: Dict[str, Any], store: LocalStore) -> Dict[str, Any]:
@@ -137,7 +142,7 @@ def _valuation_record(as_of: str, config: Dict[str, Any], store: LocalStore) -> 
 
 
 def collect_soft_data(as_of: str, config: Dict[str, Any], store: LocalStore) -> Dict[str, Any]:
-    records = {source.name: source.collect(as_of, config).to_dict() for source in default_sources()}
+    records = {source.name: source.collect(as_of, config).to_dict() for source in default_sources(config)}
     records["valuation"] = _valuation_record(as_of, config, store)
     path = store.write_dated_snapshot(
         "soft_adapter_snapshot",

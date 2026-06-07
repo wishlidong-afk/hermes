@@ -36,7 +36,7 @@ def score_symbol(
 ) -> ScoreBundle:
     if symbol not in snapshots:
         raise KeyError(f"missing primary snapshot for {symbol}")
-    factors = build_registry(symbol).evaluate(FactorContext(symbol=symbol, snapshots=snapshots))
+    factors = build_registry(symbol, config).evaluate(FactorContext(symbol=symbol, snapshots=snapshots))
     module_scores = aggregate_modules(factors, config)
     raw_total = weighted_percent_score(symbol, module_scores, config, regime=regime)
     missing_fields = [field for factor in factors for field in factor.missing_fields]
@@ -91,8 +91,8 @@ def score_symbol(
     return ScoreBundle(result=result, factors=factors)
 
 
-def build_registry(symbol: str) -> FactorRegistry:
-    return FactorRegistry(module_a_factors() + module_b_factors(symbol) + module_c_factors() + module_d_factors(symbol))
+def build_registry(symbol: str, config: Optional[Dict[str, Any]] = None) -> FactorRegistry:
+    return FactorRegistry(module_a_factors(config) + module_b_factors(symbol) + module_c_factors() + module_d_factors(symbol))
 
 
 def aggregate_modules(factors: Iterable[FactorScore], config: Dict[str, Any]) -> Dict[str, float]:

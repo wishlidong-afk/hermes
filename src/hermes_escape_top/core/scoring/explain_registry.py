@@ -198,6 +198,46 @@ FACTOR_EXPLAINS: Dict[str, Dict[str, str]] = {
         "plain_explain": "半导体龙头们一起流出，SOXL 风险会被放大。",
         "data_hint": "SOXL/SOXX 成分 CMF20、MFI14、AD slope20。",
     },
+    "A9_HY_OAS": {
+        "professional_explain": "高收益信用利差走阔是 risk-off 最可靠的领先信号，独立于价/量/情绪。",
+        "plain_explain": "垃圾债开始要更高补偿，说明聪明钱在撤离风险。",
+        "data_hint": "FRED ICE BofA US HY OAS（BAMLH0A0HYM2）分位。",
+    },
+    "A10_REAL_RATE": {
+        "professional_explain": "10Y 实际利率上升直接压缩长久期成长/加密/半导体估值。",
+        "plain_explain": "扣掉通胀后的真实利率走高，高估值的票最先挨打。",
+        "data_hint": "FRED 10Y TIPS 实际收益率（DFII10）分位。",
+    },
+    "A11_DOLLAR": {
+        "professional_explain": "广义美元走强代表全球美元流动性收紧，压制风险资产，尤其加密。",
+        "plain_explain": "美元变贵，全球的钱变紧，高 beta 资产承压。",
+        "data_hint": "FRED 广义美元指数（DTWEXBGS）分位。",
+    },
+    "A12_YIELD_CURVE": {
+        "professional_explain": "10Y-3M 收益率曲线倒挂是周期/衰退压力的经典信号。",
+        "plain_explain": "短期利率比长期还高，说明市场担心经济要走弱。",
+        "data_hint": "FRED 10年-3月期限利差（T10Y3M）。",
+    },
+    "A13_CREDIT_ETF": {
+        "professional_explain": "高收益债 ETF 相对国债（HYG/IEF）走弱是 OAS 的日频免费代理。",
+        "plain_explain": "垃圾债跑输国债，风险偏好在退潮。",
+        "data_hint": "HYG/IEF 相对强弱比值的历史分位。",
+    },
+    "A14_CONCENTRATION": {
+        "professional_explain": "等权相对市值加权（RSP/SPY）走弱代表少数权重股撑盘，牛尾脆弱。",
+        "plain_explain": "只有几个大票在硬撑指数，内部其实在转弱。",
+        "data_hint": "RSP/SPY 相对强弱比值的历史分位。",
+    },
+    "A15_DEFENSIVE_ROTATION": {
+        "professional_explain": "防守板块相对周期板块跑赢代表资金转入避险，风险偏好下降。",
+        "plain_explain": "钱往公用/必需/医疗这些防守票里躲，说明在避险。",
+        "data_hint": "(XLP+XLU+XLV)/(XLY+XLI+XLF) 等权比值分位。",
+    },
+    "A16_FINANCIAL_STRESS": {
+        "professional_explain": "金融板块相对大盘（XLF/SPY）走弱常是信用/系统性压力先兆。",
+        "plain_explain": "银行金融股带头跑输，往往是系统性风险的前兆。",
+        "data_hint": "XLF/SPY 相对强弱比值分位（可叠加 KRE 区域银行）。",
+    },
 }
 
 
