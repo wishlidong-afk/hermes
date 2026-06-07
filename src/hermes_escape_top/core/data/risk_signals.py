@@ -15,17 +15,69 @@ in core/scoring/factors_risk.py.
 """
 from __future__ import annotations
 
+import os
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from ...config import resolve_path
+from ...config import load_config, resolve_path
 from .adapters import SoftDataRecord
 from .macro import fetch_fred_graph_csv
 from .pit import asof_pick
 from .store import LocalStore, safe_symbol
+
+
+def fred_api_key(config: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    """Read the FRED API key from env → gitignored data/fred_api_key.txt → config.
+
+    Never stored in the (public) repo config; the file is gitignored.
+    """
+    env = os.environ.get("FRED_API_KEY")
+    if env and env.strip():
+        return env.strip()
+    try:
+        cfg = config or load_config()
+        path = resolve_path(cfg, "soft_history_dir").parent / "fred_api_key.txt"
+        if path.exists():
+            txt = path.read_text(encoding="utf-8").strip()
+            if txt:
+                return txt
+    except Exception:
+        pass
+    if config and config.get("fred_api_key"):
+        return str(config["fred_api_key"]).strip()
+    return None
+
+
+def fetch_fred_series(series_id: str, start: str = "1990-01-01", end: Optional[str] = None,
+                      config: Optional[Dict[str, Any]] = None) -> pd.Series:
+    """Full-history FRED fetch via the API (when a key is present), else the
+    no-key fredgraph CSV. The API avoids the fredgraph export window cap and is
+    more reliable / rate-limit-friendly.
+    """
+    key = fred_api_key(config)
+    if key:
+        try:
+            import requests
+            params = {"series_id": series_id, "api_key": key, "file_type": "json",
+                      "observation_start": start, "sort_order": "asc", "limit": 100000}
+            if end:
+                params["observation_end"] = end
+            resp = requests.get("https://api.stlouisfed.org/fred/series/observations",
+                                params=params, timeout=30)
+            resp.raise_for_status()
+            obs = resp.json().get("observations", [])
+            if obs:
+                idx = pd.to_datetime([o["date"] for o in obs], errors="coerce")
+                vals = pd.to_numeric(pd.Series([o.get("value") for o in obs]).replace(".", pd.NA), errors="coerce")
+                series = pd.Series(vals.values, index=idx).dropna().sort_index()
+                if not series.empty:
+                    return series
+        except Exception:
+            pass  # fall through to the no-key endpoint
+    return fetch_fred_graph_csv(series_id, start=start, end=end)
 
 
 def _last_percentile(window: pd.Series) -> float:
@@ -56,7 +108,7 @@ class FredPercentileSource:
     """
 
     def __init__(self, name: str, feature_flag: str, series_id: str, field: str,
-                 window: int = 252, min_periods: int = 60, start: str = "2015-01-01") -> None:
+                 window: int = 252, min_periods: int = 60, start: str = "1990-01-01") -> None:
         self.name = name
         self.feature_flag = feature_flag
         self.series_id = series_id
@@ -72,8 +124,8 @@ class FredPercentileSource:
             base = Path("data/soft_history")
         return base / f"{self.name}.csv"
 
-    def build_frame(self, end: Optional[str] = None) -> pd.DataFrame:
-        series = fetch_fred_graph_csv(self.series_id, start=self.start, end=end)
+    def build_frame(self, end: Optional[str] = None, config: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+        series = fetch_fred_series(self.series_id, start=self.start, end=end, config=config)
         frame = series.rename("value").to_frame().sort_index()
         frame[f"{self.field}_pctl"] = (
             frame["value"].rolling(self.window, min_periods=self.min_periods).apply(_last_percentile, raw=False)
@@ -87,7 +139,7 @@ class FredPercentileSource:
         return out[["date", "publish_date", self.field, f"{self.field}_pctl"]]
 
     def backfill(self, config: Dict[str, Any], end: Optional[str] = None) -> Path:
-        frame = self.build_frame(end=end)
+        frame = self.build_frame(end=end, config=config)
         path = self.history_path(config)
         path.parent.mkdir(parents=True, exist_ok=True)
         frame.to_csv(path, index=False)

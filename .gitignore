@@ -17,3 +17,7 @@ src/data/executions_cache.json
 *.csv.bak
 # Raw AAII fetch sidecar awaiting manual schema mapping
 src/hermes_escape_top/data/soft_history/aaii_sentiment_fetched_raw.csv
+
+# FRED API key (secret — never commit; public repo)
+fred_api_key.txt
+**/fred_api_key.txt
