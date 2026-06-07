@@ -43,8 +43,31 @@ def _discover_runtime_paths() -> tuple[Path, Path]:
 
 BASE_DIR, PACKAGE_PARENT = _discover_runtime_paths()
 VENV_PYTHON = BASE_DIR.parent.parent.parent.parent / ".hermes" / "hermes-agent" / "venv" / "bin" / "python"
-# fall back to the same python running this script
-PYTHON = str(VENV_PYTHON) if VENV_PYTHON.exists() else sys.executable
+
+
+def _interpreter_has_deps(py: str) -> bool:
+    """True only if ``py`` can import the science stack the engine needs.
+
+    The hermes-agent venv is a minimal uv environment that may lack
+    numpy/pandas; preferring it blindly broke the OHLCV-refresh subprocess
+    (ModuleNotFoundError → live run silently fell back to cached data). Only
+    use a candidate interpreter that can actually run the pipeline.
+    """
+    try:
+        import subprocess as _sp
+        return _sp.run([py, "-c", "import numpy, pandas, scipy"],
+                       capture_output=True, timeout=30).returncode == 0
+    except Exception:
+        return False
+
+
+# Prefer the agent venv only if it has the deps; otherwise use the interpreter
+# already running this script (guaranteed importable — it just imported them).
+PYTHON = (
+    str(VENV_PYTHON)
+    if VENV_PYTHON.exists() and _interpreter_has_deps(str(VENV_PYTHON))
+    else sys.executable
+)
 
 sys.path.insert(0, str(PACKAGE_PARENT))
 

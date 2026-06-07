@@ -8,6 +8,7 @@
 > 旧文档把 `0.6154` 当相关闸警报是**全网格前的占位伪值，已被 0.077 取代**——`0.6154` 仅是评分阈值 greedy 警报（固定部署不受影响）。
 > ③ **单一处置入口**：scaler→SizingOptimizer 迁移**已完成**（0 残留乘法链，`sizing_engine=optimize_targets_v1`，R3 三日实跑 0 违规）。
 > ④ **WebUI 数据新鲜度**：数据清单重冻结并接入自动重冻结、`_history_is_fresh` 改交易日感知、FRED 净流动性回填至 06-05（latency 5→0）；AAII 端点 403 仍需人工凭证。
+> ⑤ **M4 已 LIVE**：`run_daily.py` 早在 06-04 已翻到 package 引擎（`--live --commit-state`，有 `.monolith_backup`）；06-07 修复 `run_daily_package.py` 解释器选择 bug（旧逻辑选了无 numpy 的 hermes-agent venv 做 OHLCV 刷新子进程，导致活盘静默退回缓存数据）。修复后活盘 live run 正常刷新并评分到最新交易日 **2026-06-05**（当日三标的全 EXIT，硬阀门触发，路由 BOXX70/DBMF30）。
 
 ## 一句话现状
 
