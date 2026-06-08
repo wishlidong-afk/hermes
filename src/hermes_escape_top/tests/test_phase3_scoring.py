@@ -108,6 +108,10 @@ def confidence_snapshots() -> dict[str, SymbolSnapshot]:
             "vvix_pctl": 50.0,
             "skew_index": 140.0,
             "skew_pctl": 50.0,
+            # Enabled risk factors (A10/A11/A15) — neutral so only B6 valuation is missing.
+            "real_rate_10y_pctl": 50.0,
+            "dollar_broad_pctl": 50.0,
+            "defensive_cyclical_pctl": 50.0,
         },
     )
     for component in ["NVDA", "AAPL", "MSFT", "AMZN", "META", "GOOGL", "TSLA", "NFLX", "AVGO"]:

@@ -18,6 +18,11 @@ class FactorDefinition:
     dependencies: List[str]
     score_fn: ScoreFn
     missing_name: Optional[str] = None
+    # When True, the factor is evaluated as long as *some* dependency is present
+    # (the score_fn must tolerate None for absent ones). Used for multi-component
+    # factors so one missing constituent doesn't silently zero the whole signal.
+    # Only takes effect when features.use_partial_factor_eval is on.
+    partial_ok: bool = False
 
 
 @dataclass(frozen=True)
@@ -86,9 +91,12 @@ class FactorRegistry:
 
     def evaluate(self, context: FactorContext) -> List[FactorScore]:
         results: List[FactorScore] = []
+        partial_enabled = bool((context.config or {}).get("features", {}).get("use_partial_factor_eval", False))
         for factor in self.factors:
             missing = [dep for dep in factor.dependencies if context.missing(dep)]
-            if missing:
+            all_missing = len(missing) == len(factor.dependencies)
+            use_partial = partial_enabled and factor.partial_ok and not all_missing
+            if missing and not use_partial:
                 missing_name = factor.missing_name
                 missing_fields = [missing_name] if missing_name else missing
                 results.append(

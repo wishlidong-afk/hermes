@@ -51,7 +51,16 @@ def score_symbol(
     confidence_missing = analyze_missing_fields(confidence_missing_fields, raw_total, config)
     non_scoring_missing_fields = sorted(set(missing.missing_fields) - set(confidence_missing.missing_fields))
     non_scoring_missing = analyze_missing_fields(non_scoring_missing_fields, raw_total, config)
-    final_score = missing.adjusted_score
+    # F5/F6: drive score-inflation + blind-spot off the *scoring* missing weight
+    # (max_score>0 factors only), so permanently-unwired placeholders (A2 CNN, B5,
+    # D-M4, D-M5) no longer consume the live blind-spot budget or inflate the score.
+    # Flag-gated, default OFF → byte-identical (uses the full missing weight).
+    operational_missing = (
+        confidence_missing
+        if bool(config.get("features", {}).get("use_scored_missing_weight", False))
+        else missing
+    )
+    final_score = operational_missing.adjusted_score
     status = status_from_score(final_score, config)
     hard = evaluate_hard_valves(symbol, snapshots, total_score=final_score, c_score=module_scores.get("C", 0.0), histories=histories, suspect=suspect)
     verdict = make_verdict(
@@ -60,7 +69,7 @@ def score_symbol(
             score=final_score,
             module_scores=module_scores,
             hard_valve_hits=hard.ids,
-            missing_weight=missing.missing_weight,
+            missing_weight=operational_missing.missing_weight,
             red_light_count=red_light_count(factors),
             qqq_below_ema20=_qqq_below_ema20(snapshots),
             threshold_relief=_arming_relief(snapshots, config),
@@ -68,7 +77,7 @@ def score_symbol(
         ),
         config,
     )
-    explain = build_explain(factors, missing.blind_spot)
+    explain = build_explain(factors, operational_missing.blind_spot)
     explain = verdict.reasons + explain
     if hard.triggered:
         explain.insert(0, f"Hard valve triggered {','.join(hard.ids)}: {hard.reason}")
@@ -80,12 +89,12 @@ def score_symbol(
         module_scores=module_scores,
         raw_total=raw_total,
         final_score=final_score,
-        missing_weight=missing.missing_weight,
+        missing_weight=operational_missing.missing_weight,
         confidence_missing_weight=confidence_missing.missing_weight,
         confidence_missing_fields=confidence_missing.missing_fields,
         non_scoring_missing_weight=non_scoring_missing.missing_weight,
         non_scoring_missing_fields=non_scoring_missing.missing_fields,
-        blind_spot=missing.blind_spot,
+        blind_spot=operational_missing.blind_spot,
         data_quality=quality_from_snapshots([snapshots[symbol]]).overall_score,
         hard_valve_hits=hard.ids,
         status=verdict.status,

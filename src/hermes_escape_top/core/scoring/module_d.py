@@ -111,6 +111,7 @@ def _symbol_extra_factors(symbol: str) -> list[FactorDefinition]:
                 _component_flow_dependencies(FNGU_COMPONENTS),
                 _component_flow_score("FNGU", FNGU_COMPONENTS),
                 "D-F4",
+                partial_ok=True,
             )
         ]
     if symbol == "SOXL":
@@ -122,6 +123,7 @@ def _symbol_extra_factors(symbol: str) -> list[FactorDefinition]:
                 _component_flow_dependencies(SOXL_COMPONENTS),
                 _component_flow_score("SOXL", SOXL_COMPONENTS),
                 "D-S4",
+                partial_ok=True,
             )
         ]
     return []
@@ -138,23 +140,33 @@ def _component_flow_score(symbol: str, components: list[str]):
     def score(ctx: FactorContext) -> tuple[float, str]:
         weak: list[str] = []
         severe: list[str] = []
+        available = 0
         for component in components:
             cmf = ctx.get(f"{component}.cmf20")
             mfi = ctx.get(f"{component}.mfi14")
             ad_slope = ctx.get(f"{component}.ad_slope20")
+            # Partial-eval safe: skip a constituent missing any sub-field rather
+            # than crashing / zeroing the whole factor. Gates scale to the number
+            # actually observed, so 8/9 components still produce a valid signal.
+            if cmf is None or mfi is None or ad_slope is None:
+                continue
+            available += 1
             if cmf <= -0.10 and mfi <= 45 and ad_slope < 0:
                 severe.append(component)
             if cmf < 0 and mfi < 50 and ad_slope < 0:
                 weak.append(component)
-        severe_gate = max(2, len(components) // 3)
-        weak_gate = max(3, len(components) // 2)
+        if available == 0:
+            return 0.0, f"{symbol} component flow: no constituent data"
+        cov = f"{available}/{len(components)} obs"
+        severe_gate = max(2, available // 3)
+        weak_gate = max(3, available // 2)
         if len(severe) >= severe_gate:
-            return 4.0, f"{symbol} component flow severe: {len(severe)}/{len(components)} severe outflow ({','.join(severe[:5])})"
+            return 4.0, f"{symbol} component flow severe: {len(severe)}/{available} severe outflow [{cov}] ({','.join(severe[:5])})"
         if len(weak) >= weak_gate:
-            return 3.0, f"{symbol} component flow elevated: {len(weak)}/{len(components)} weak outflow ({','.join(weak[:5])})"
+            return 3.0, f"{symbol} component flow elevated: {len(weak)}/{available} weak outflow [{cov}] ({','.join(weak[:5])})"
         if len(weak) >= 2:
-            return 1.0, f"{symbol} component flow watch: {len(weak)}/{len(components)} weak outflow ({','.join(weak[:5])})"
-        return 0.0, f"{symbol} component flow normal: {len(weak)}/{len(components)} weak outflow"
+            return 1.0, f"{symbol} component flow watch: {len(weak)}/{available} weak outflow [{cov}] ({','.join(weak[:5])})"
+        return 0.0, f"{symbol} component flow normal: {len(weak)}/{available} weak outflow [{cov}]"
 
     return score
 

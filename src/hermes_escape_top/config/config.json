@@ -308,7 +308,9 @@
     "data_ndx_concentration": false,
     "use_arm_then_fire": false,
     "use_decision_stabilizer": false,
-    "use_suspect_valve_guard": false
+    "use_suspect_valve_guard": false,
+    "use_scored_missing_weight": false,
+    "use_partial_factor_eval": false
   },
   "arm_then_fire": {
     "high_pctl": 75,
@@ -316,6 +318,20 @@
     "relief_per_factor": 2.0,
     "relief_cap": 8.0,
     "_note": "Leading macro factors in risk zone ease status thresholds (earlier fire) only while armed. OFF by default; calibrate relief_cap via PBO before enabling."
+  },
+  "naaim": {
+    "score2_exposure": 90,
+    "score2_pctl": 90,
+    "score1_exposure": 70,
+    "score1_pctl": 75,
+    "_recommendation": "F8: values above = current behaviour (byte-identical). Autopsy 2026-06-08: defaults fire ~63% of days (low discrimination). Recommended tightening after a backtest gate: score1_pctl 75->85, score1_exposure 70->80 (push score-1 into the euphoria tail, ~2x forward-return edge)."
+  },
+  "pcr": {
+    "score2_pcr": 0.52,
+    "score2_pctl": 8,
+    "score1_pcr": 0.62,
+    "score1_pctl": 20,
+    "_recommendation": "F8: values above = current behaviour (byte-identical). Equity PCR score-1 also fires broadly; candidate tightening after a backtest gate: score1_pctl 20->12, score1_pcr 0.62->0.58. Calibrate before flipping."
   },
   "ibkr": {
     "enabled": true,

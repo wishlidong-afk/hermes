@@ -70,7 +70,9 @@ class Phase8RoutingTest(unittest.TestCase):
         with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
             payload = score_pipeline("2026-05-29")
         self.assertEqual(set(payload["routing"]), {"FNGU", "MSTR", "SOXL"})
-        self.assertEqual(payload["routing"]["MSTR"]["defcon"], "DEFCON2")
+        # DEFCON1 since the 2026-06-08 calibration enabled A10/A11/A15: MSTR's A
+        # module is now 14 (>=12) with QQQ broken → macro-nuclear route to BOXX.
+        self.assertEqual(payload["routing"]["MSTR"]["defcon"], "DEFCON1")
 
 
 if __name__ == "__main__":

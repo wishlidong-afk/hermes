@@ -259,9 +259,16 @@ def _naaim_pressure(ctx: FactorContext) -> tuple[float, str]:
 def _equity_pcr_pressure(ctx: FactorContext) -> tuple[float, str]:
     pcr = ctx.get("SOFT.equity_pcr")
     pctl = ctx.get("SOFT.equity_pcr_pctl")
-    # Low equity PCR → heavy call buying → euphoria → escape-top signal
-    if pcr <= 0.52 or (pctl is not None and pctl <= 8):
+    # Low equity PCR → heavy call buying → euphoria → escape-top signal.
+    # Thresholds are config-driven (defaults reproduce the original behaviour exactly).
+    # Like NAAIM, the defaults fire broadly and discriminate weakly; tightening the
+    # score-1 trigger toward the euphoria tail (lower pctl) is the calibration lever
+    # — flip in config after a backtest gate, do not change the default blindly.
+    p = (ctx.config or {}).get("pcr", {}) if getattr(ctx, "config", None) else {}
+    pcr2 = float(p.get("score2_pcr", 0.52)); q2 = float(p.get("score2_pctl", 8))
+    pcr1 = float(p.get("score1_pcr", 0.62)); q1 = float(p.get("score1_pctl", 20))
+    if pcr <= pcr2 or (pctl is not None and pctl <= q2):
         return 2.0, f"Equity PCR very low (call euphoria): pcr={pcr:.3f}, pctl={pctl}"
-    if pcr <= 0.62 or (pctl is not None and pctl <= 20):
+    if pcr <= pcr1 or (pctl is not None and pctl <= q1):
         return 1.0, f"Equity PCR low watch: pcr={pcr:.3f}, pctl={pctl}"
     return 0.0, f"Equity PCR neutral: pcr={pcr:.3f}"
