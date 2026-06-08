@@ -94,6 +94,12 @@ def _move(ctx: FactorContext) -> tuple[float, str]:
     return _bucket_high(ctx.get("SOFT.move_pctl"), label="Bond vol (MOVE)")
 
 
+def _ndx_concentration(ctx: FactorContext) -> tuple[float, str]:
+    # Equal-weight QQQE underperforming cap-weight QQQ = Nasdaq breadth narrowing
+    # (a few mega-caps carrying the index) = classic late-cycle top tell.
+    return _bucket_low(ctx.get("SOFT.ndx_concentration_pctl"), label="QQQE/QQQ NDX breadth")
+
+
 # (feature_flag, FactorDefinition) — each appended only when its flag is ON.
 _RISK_FACTORS: List[tuple[str, FactorDefinition]] = [
     ("data_hy_oas", FactorDefinition("A9_HY_OAS", "A", 4.0, ["SOFT.hy_oas_pctl"], _hy_oas, "A9 hy_oas")),
@@ -106,6 +112,7 @@ _RISK_FACTORS: List[tuple[str, FactorDefinition]] = [
     ("data_financial_stress", FactorDefinition("A16_FINANCIAL_STRESS", "A", 4.0, ["SOFT.financial_stress_xlf_pctl"], _financial_stress, "A16 financial_stress")),
     ("data_nfci", FactorDefinition("A17_NFCI", "A", 4.0, ["SOFT.nfci_pctl"], _nfci, "A17 nfci")),
     ("data_move", FactorDefinition("A18_MOVE", "A", 4.0, ["SOFT.move_pctl"], _move, "A18 move")),
+    ("data_ndx_concentration", FactorDefinition("A19_NDX_CONCENTRATION", "A", 4.0, ["SOFT.ndx_concentration_pctl"], _ndx_concentration, "A19 ndx_concentration")),
 ]
 
 

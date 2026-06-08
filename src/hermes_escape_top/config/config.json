@@ -173,7 +173,8 @@
       "A15 defensive_rotation": 4,
       "A16 financial_stress": 4,
       "A17 nfci": 4,
-      "A18 move": 4
+      "A18 move": 4,
+      "A19 ndx_concentration": 4
     }
   },
   "normalize": {
@@ -303,7 +304,8 @@
     "data_defensive_rotation": true,
     "data_financial_stress": false,
     "data_nfci": false,
-    "data_move": false
+    "data_move": false,
+    "data_ndx_concentration": false
   },
   "ibkr": {
     "enabled": true,

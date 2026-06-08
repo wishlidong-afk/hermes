@@ -344,6 +344,9 @@ def _all_risk_sources() -> List[Any]:
         # Axis-A additions (2026-06-08): pre-built financial-conditions composite + bond vol
         FredPercentileSource("nfci", "data_nfci", "NFCI", "nfci"),
         LevelPercentileSource("move", "data_move", "^MOVE", "move"),
+        # Axis-B: equal-weight vs cap-weight Nasdaq-100 = NDX concentration/breadth
+        # (target-relevant for the tech-heavy FNGU/QQQ sleeve; distinct from A14 SPX, A3 components)
+        EtfRatioPercentileSource("ndx_concentration", "data_ndx_concentration", ["QQQE"], ["QQQ"], "ndx_concentration"),
     ]
 
 
@@ -360,4 +363,4 @@ def risk_sources(config: Optional[Dict[str, Any]]) -> List[Any]:
 
 
 # Symbols the Tier-2 ETF ratios need in the OHLCV store (for backfill wiring).
-RISK_ETF_SYMBOLS = ["HYG", "IEF", "RSP", "XLP", "XLU", "XLV", "XLY", "XLI", "XLF", "KRE", "LQD", "^MOVE"]
+RISK_ETF_SYMBOLS = ["HYG", "IEF", "RSP", "XLP", "XLU", "XLV", "XLY", "XLI", "XLF", "KRE", "LQD", "^MOVE", "QQQE"]

@@ -360,8 +360,20 @@
       "sha256": "2bf10f4f98c097eef9f24093bc3333766de12bc326bee7cc1fa00e880a661f29",
       "start_date": "2018-01-02"
     },
+    "QQQE.csv": {
+      "bytes": 222581,
+      "end_date": "2026-06-05",
+      "path": "QQQE.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "da315c574381b61d210c30bc374373176597189b85b33473e2d5aff3b13c3814",
+      "start_date": "2018-01-02"
+    },
     "RSP.csv": {
-      "bytes": 232069,
+      "bytes": 231596,
       "end_date": "2026-06-05",
       "path": "RSP.csv",
       "proxy_end_date": null,
@@ -369,7 +381,7 @@
       "proxy_sources": null,
       "proxy_start_date": null,
       "rows": 2118,
-      "sha256": "d463e60b524d33e8d1943bce9537ee85e666b5a497533700c71624e04fc0248d",
+      "sha256": "8af6b72d9600c5b29813efab8001694571658d2b259d8949186b201bd070359b",
       "start_date": "2018-01-02"
     },
     "SHV.csv": {
@@ -418,6 +430,30 @@
       "proxy_start_date": null,
       "rows": 2117,
       "sha256": "94c0942d18f88fa5d45da57a9fefff2991221a3220a9fa529d541bf15736fc84",
+      "start_date": "2018-01-02"
+    },
+    "SPHB.csv": {
+      "bytes": 224967,
+      "end_date": "2026-06-05",
+      "path": "SPHB.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "080a4d8d258986bbef11a6cb7638a3e5fbf4d7aca0648f77220ddec3052726b7",
+      "start_date": "2018-01-02"
+    },
+    "SPLV.csv": {
+      "bytes": 228616,
+      "end_date": "2026-06-05",
+      "path": "SPLV.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "9c56c6fce6373ff25f4503f233fd1fc27994c41c5024ddf378b4e469b89ccaf5",
       "start_date": "2018-01-02"
     },
     "SPY.csv": {
@@ -480,6 +516,18 @@
       "sha256": "2933e7a8d980847e6589fef2f2f46fa2944ef520e069c460e4d7575fe419fc9e",
       "start_date": "2018-01-02"
     },
+    "XLK.csv": {
+      "bytes": 230904,
+      "end_date": "2026-06-05",
+      "path": "XLK.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "0549db2c21f3d22b752baa9533034da395ccde363c1d10ca45499facf5afd001",
+      "start_date": "2018-01-02"
+    },
     "XLP.csv": {
       "bytes": 227471,
       "end_date": "2026-06-05",
@@ -526,6 +574,18 @@
       "proxy_start_date": null,
       "rows": 2118,
       "sha256": "2f1d609f153eed3845570c11e4635a178ec238c9111837c25a4ad103daf0b14d",
+      "start_date": "2018-01-02"
+    },
+    "_MID.csv": {
+      "bytes": 208963,
+      "end_date": "2026-06-05",
+      "path": "_MID.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2118,
+      "sha256": "3e764a04b602e600f5db60c8d871266a18a752aa5d381db19f0056db47d3a7b3",
       "start_date": "2018-01-02"
     },
     "_MOVE.csv": {
@@ -625,8 +685,8 @@
       "start_date": "2018-01-02"
     }
   },
-  "frozen_at": "2026-06-08T01:58:39.723472+00:00",
-  "manifest_id": "5c05f154d1ea9a64316d560b583ef4438f15412d4f89eed3db3f542e8969d690",
+  "frozen_at": "2026-06-08T02:03:32.861778+00:00",
+  "manifest_id": "cfb5a57363662ab4849df38daafd2e5dfbbdd6e9c55bf8c3b1d5a13005bddb8f",
   "root": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/data/history",
   "schema_version": "escape-top-data-manifest-v1"
 }

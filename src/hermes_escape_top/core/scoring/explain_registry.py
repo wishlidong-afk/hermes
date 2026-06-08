@@ -248,6 +248,11 @@ FACTOR_EXPLAINS: Dict[str, Dict[str, str]] = {
         "plain_explain": "债市先慌，股市后慌——债券波动率飙升往往是前兆。",
         "data_hint": "^MOVE 收盘的历史分位。",
     },
+    "A19_NDX_CONCENTRATION": {
+        "professional_explain": "等权纳指(QQQE)相对市值权(QQQ)走弱=纳指广度收窄，少数巨头撑指数，是科技顶经典 tell。",
+        "plain_explain": "纳指只剩几个大票在硬撑，等权版跑输，说明内部其实在转弱。",
+        "data_hint": "QQQE/QQQ 相对强弱比值的历史分位（低=广度差）。",
+    },
 }
 
 
