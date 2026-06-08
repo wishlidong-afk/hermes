@@ -63,6 +63,24 @@ class ConfirmationTest(unittest.TestCase):
         self.assertTrue(v.confirmation_required)
         self.assertEqual(v.status, "REDUCE")
 
+    def test_hysteresis_only_has_no_confirmation_hold(self) -> None:
+        cfg = copy.deepcopy(load_config())
+        cfg["features"]["use_status_hysteresis"] = True  # confirmation OFF
+        # Soft upgrade HOLD→REDUCE must act immediately (no second-close hold).
+        v = make_verdict(VerdictInput(symbol="FNGU", score=55, module_scores={}, previous_status="HOLD"), cfg)
+        self.assertFalse(v.confirmation_required)
+        self.assertEqual(v.status, "REDUCE")
+        # But stickiness still applies on the way down.
+        v2 = make_verdict(VerdictInput(symbol="FNGU", score=45, module_scores={}, previous_status="REDUCE"), cfg)
+        self.assertEqual(v2.status, "REDUCE")
+
+    def test_confirmation_only_has_no_hysteresis(self) -> None:
+        cfg = copy.deepcopy(load_config())
+        cfg["features"]["use_close_confirmation"] = True  # hysteresis OFF
+        # No stickiness: score 45 from REDUCE drops to TRIM (flat thresholds).
+        v = make_verdict(VerdictInput(symbol="FNGU", score=45, module_scores={}, previous_status="REDUCE"), cfg)
+        self.assertEqual(v.status, "TRIM")
+
     def test_hard_valve_bypasses_stabilizer(self) -> None:
         cfg = _stab_config()
         v = make_verdict(

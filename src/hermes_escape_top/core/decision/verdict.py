@@ -47,16 +47,22 @@ def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmat
     # Decision stabilizer (F1+F2): hysteresis on the status ladder + second-close
     # confirmation for soft upgrades. Flag-gated, default OFF → byte-identical to the
     # flat-threshold, no-confirmation behaviour. Hard valves above always bypass it.
-    stabilizer = bool(config.get("features", {}).get("use_decision_stabilizer", False))
+    feats = config.get("features", {})
+    stabilizer = bool(feats.get("use_decision_stabilizer", False))
+    # The two halves of the stabilizer can be enabled independently so a
+    # hysteresis-only variant (anti-chatter without the exit-deepening confirmation
+    # delay) can be backtested. use_decision_stabilizer = both (back-compat).
+    hysteresis_on = stabilizer or bool(feats.get("use_status_hysteresis", False))
+    confirmation_on = stabilizer or bool(feats.get("use_close_confirmation", False))
     status = status_from_score(
         inputs.score,
         config,
         relief=inputs.threshold_relief,
-        previous_status=inputs.previous_status if stabilizer else None,
-        hysteresis=stabilizer,
+        previous_status=inputs.previous_status if hysteresis_on else None,
+        hysteresis=hysteresis_on,
     )
     reasons = [f"Base score status: {status} ({inputs.score:.2f})"]
-    if stabilizer and inputs.previous_status:
+    if hysteresis_on and inputs.previous_status:
         reasons.append(f"Hysteresis active (prev={inputs.previous_status})")
     if inputs.threshold_relief > 0:
         reasons.append(f"Arm-then-fire: leading macro armed, thresholds eased {inputs.threshold_relief:.1f}")
@@ -83,7 +89,7 @@ def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmat
     raw_status = status
 
     confirmation_required = False
-    if (require_confirmation or stabilizer) and status in SELL_STATES:
+    if (require_confirmation or confirmation_on) and status in SELL_STATES:
         previous = inputs.previous_status or "HOLD"
         if risk_rank(previous) < risk_rank(status):
             confirmation_required = True

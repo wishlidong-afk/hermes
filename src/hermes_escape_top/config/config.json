@@ -314,6 +314,8 @@
     "data_ndx_concentration": false,
     "use_arm_then_fire": false,
     "use_decision_stabilizer": false,
+    "use_status_hysteresis": false,
+    "use_close_confirmation": false,
     "use_suspect_valve_guard": false,
     "use_scored_missing_weight": false,
     "use_partial_factor_eval": false

@@ -86,8 +86,9 @@ def run_full_backtest(
     # Stateful stabilizer (F1+F2) + suspect-bar guard (F3) must be threaded through
     # the replay loop to be exercised at all; both are flag-gated so the default
     # path is byte-identical to a flat, stateless backtest.
-    stabilizer_on = bool(config.get("features", {}).get("use_decision_stabilizer", False))
-    suspect_guard_on = bool(config.get("features", {}).get("use_suspect_valve_guard", False))
+    _f = config.get("features", {})
+    stabilizer_on = bool(_f.get("use_decision_stabilizer", False) or _f.get("use_status_hysteresis", False) or _f.get("use_close_confirmation", False))
+    suspect_guard_on = bool(_f.get("use_suspect_valve_guard", False))
     sanitize_cfg = config.get("sanitize", {})
     previous_raw: Dict[str, str] = {}
 

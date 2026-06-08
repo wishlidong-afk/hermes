@@ -39,6 +39,10 @@ def build_config(variant: str) -> dict:
         feats["use_partial_factor_eval"] = True
     elif variant == "decision_stabilizer":
         feats["use_decision_stabilizer"] = True
+    elif variant == "hysteresis_only":
+        feats["use_status_hysteresis"] = True
+    elif variant == "confirmation_only":
+        feats["use_close_confirmation"] = True
     elif variant == "suspect_valve_guard":
         feats["use_suspect_valve_guard"] = True
     elif variant == "f8_tightened":
@@ -89,6 +93,11 @@ def main() -> None:
     }
     path = OUT_DIR / f"{variant}.json"
     path.write_text(json.dumps(out, indent=2, default=str))
+    # Daily equity curve for fold-level walk-forward / PBO gating (separate file
+    # to keep the metrics JSON small).
+    equity = sim.get("equity_curve", {})
+    if equity:
+        (OUT_DIR / f"{variant}_equity.json").write_text(json.dumps(equity, default=str))
     print(f"[{variant}] done in {dt/60:.1f}min → {path}")
     print(json.dumps(out["metrics"], indent=2, default=str))
 

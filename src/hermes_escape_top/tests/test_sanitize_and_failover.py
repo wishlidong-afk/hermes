@@ -56,6 +56,17 @@ class TestSanitizeBadTick(unittest.TestCase):
         bad_ticks = [a for a in result.anomalies if a.kind == "BAD_TICK"]
         self.assertEqual(len(bad_ticks), 0)
 
+    def test_chronic_zero_volume_series_not_flagged(self) -> None:
+        """ETN-style series with structurally-absent volume (e.g. FNGU ~85% zero):
+        a real big move must NOT be flagged BAD_TICK, since zero-volume there is
+        uninformative (it would wrongly hold a hard valve on a real crash)."""
+        df = _make_normal_df()
+        df["volume"] = 0  # whole series unreported volume
+        df.loc[df.index[50], "close"] = df.loc[df.index[49], "close"] * 0.80  # real crash
+        result = sanitize_ohlcv(df, {"bad_tick_ret_threshold": 0.15})
+        bad_ticks = [a for a in result.anomalies if a.kind == "BAD_TICK"]
+        self.assertEqual(len(bad_ticks), 0)
+
 
 class TestSanitizeStale(unittest.TestCase):
     def test_stale_detected(self) -> None:

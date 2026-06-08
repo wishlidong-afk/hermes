@@ -143,8 +143,10 @@ def score_pipeline(
         else {}
     )
     # Decision stabilizer (F1+F2): only read prior statuses when enabled, so the
-    # default path takes no extra DB read and is byte-identical.
-    stabilizer_on = bool(config.get("features", {}).get("use_decision_stabilizer", False))
+    # default path takes no extra DB read and is byte-identical. Either sub-flag
+    # (hysteresis / confirmation) also needs the prior status.
+    _sf = config.get("features", {})
+    stabilizer_on = bool(_sf.get("use_decision_stabilizer", False) or _sf.get("use_status_hysteresis", False) or _sf.get("use_close_confirmation", False))
     previous_statuses = (
         latest_decision_statuses(store.archive_dir / "hermes_state.sqlite") if stabilizer_on else {}
     )
