@@ -108,10 +108,17 @@
   },
   "status_thresholds": {
     "EXIT": 75,
-    "DEFENSIVE_EXIT": 65,
+    "DEFENSIVE_EXIT": 70,
     "REDUCE": 50,
     "TRIM": 35,
     "WATCH": 20
+  },
+  "_risk_calibration": {
+    "swept_at": "2026-06-08",
+    "approved_by": "human-gate-2026-06-08",
+    "enabled_factors": ["A10_real_rate", "A11_dollar", "A15_defensive_rotation"],
+    "combo": "E75_D70_R50",
+    "note": "Enabled A10 real_rate + A11 dollar + A15 defensive_rotation; recalibrated DEFENSIVE_EXIT 65->70. NEXT-3 v2 PASS: deployment PBO 0.1538, train-greedy PBO 0.4615, real-only rank 0.65, next3_pass=true. Full-window 2018-2026 MaxDD -27.6%->-14.2%, Sharpe 0.88->1.11 (CAGR 18.1%->15.3%). Other 5 risk factors (A9/A12/A13/A14/A16) stay OFF -- standalone screen showed them weak/counterproductive."
   },
   "sell_fractions": {
     "MSTR": {
@@ -286,12 +293,12 @@
     "routing_v2": false,
     "data_cboe_pcr": true,
     "data_hy_oas": false,
-    "data_real_rate": false,
-    "data_dollar": false,
+    "data_real_rate": true,
+    "data_dollar": true,
     "data_yield_curve": false,
     "data_credit_etf": false,
     "data_concentration": false,
-    "data_defensive_rotation": false,
+    "data_defensive_rotation": true,
     "data_financial_stress": false
   },
   "ibkr": {
