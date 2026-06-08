@@ -24,6 +24,7 @@ from .core.data.state_store import (
 )
 from .core.data.store import LocalStore, bootstrap_history
 from .core.data.adapters import collect_soft_data
+from .core.data.sanitize import sanitize_ohlcv
 from .core.backtest.posterior import escape_posterior_pnl, mirror_posterior_pnl
 from .core.features.regime import Regime, RegimeInput, classify_regime
 from .core.portfolio.risk_budget import compute_portfolio_risk
@@ -131,7 +132,14 @@ def score_pipeline(
     soft_data = collect_soft_data(as_of, config, store)
     snapshots["SOFT"] = _soft_snapshot(soft_data, as_of)
     regime, regime_meta = _current_regime(snapshots, histories, as_of)
-    bundles = {symbol: score_symbol(symbol, snapshots, config, regime=regime, histories=histories) for symbol in trade_symbols(config)}
+    sanitize_cfg = config.get("sanitize", {})
+    suspect_flags = {symbol: _suspect_today(histories.get(symbol), as_of, sanitize_cfg) for symbol in trade_symbols(config)}
+    bundles = {
+        symbol: score_symbol(
+            symbol, snapshots, config, regime=regime, histories=histories, suspect=suspect_flags.get(symbol, False)
+        )
+        for symbol in trade_symbols(config)
+    }
     target_weights = _target_weights_after_verdict(config, bundles)
     hard_excluded = {symbol for symbol, bundle in bundles.items() if bundle.result.hard_valve_hits or bundle.result.sell_fraction >= 1.0}
     portfolio_risk = compute_portfolio_risk(histories, target_weights, config, excluded_symbols=hard_excluded)
@@ -476,6 +484,27 @@ def _quality_breakdown(
         "upgrade_to_high": upgrade or ["当前无明显数据质量阻塞"],
         "sources": sources,
     }
+
+
+def _suspect_today(history: Optional[pd.DataFrame], as_of: str, sanitize_cfg: Dict[str, Any]) -> bool:
+    """True iff the ``as_of`` bar is flagged suspect by data sanitization (E1).
+
+    Lets a hard valve be *held pending* a clean confirmation instead of forcing a
+    100% liquidation off a bad tick / split artifact / cross-source divergence.
+
+    Fail-safe by design: on any error or missing data we return ``False`` so the
+    hard valve behaves exactly as before (act on the trigger). We never *fabricate*
+    suspicion, because that would suppress a genuine valve.
+    """
+    if history is None or getattr(history, "empty", True):
+        return False
+    try:
+        df = history.rename(columns={col: str(col).lower() for col in history.columns})
+        result = sanitize_ohlcv(df, sanitize_cfg or {})
+        target = str(as_of)[:10]
+        return any(str(d)[:10] == target for d in result.suspect_dates)
+    except Exception:
+        return False
 
 
 def _data_confidence(bundles: Dict[str, Any], config: Dict[str, Any]) -> float:

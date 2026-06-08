@@ -92,6 +92,36 @@
       "source": "local_component_history",
       "value": 0.7647058823529411
     },
+    "defensive_rotation": {
+      "as_of": "2022-01-03",
+      "data_available": true,
+      "fields": {
+        "defensive_cyclical": 0.8969557507512881,
+        "defensive_cyclical_pctl": 36.507936507936506
+      },
+      "is_proxy": true,
+      "latency_days": 0,
+      "name": "defensive_rotation",
+      "quality_penalty": 0.0,
+      "reason": "",
+      "source": "ETF_RATIO",
+      "value": 36.507936507936506
+    },
+    "dollar": {
+      "as_of": "2022-01-03",
+      "data_available": true,
+      "fields": {
+        "dollar_broad": 115.283,
+        "dollar_broad_pctl": 89.68253968253968
+      },
+      "is_proxy": false,
+      "latency_days": 3,
+      "name": "dollar",
+      "quality_penalty": 0.0,
+      "reason": "",
+      "source": "FRED",
+      "value": 89.68253968253968
+    },
     "gex": {
       "as_of": "2022-01-03",
       "data_available": false,
@@ -134,6 +164,21 @@
       "reason": "",
       "source": "FRED",
       "value": 4.365079365079365
+    },
+    "real_rate": {
+      "as_of": "2022-01-03",
+      "data_available": true,
+      "fields": {
+        "real_rate_10y": -1.04,
+        "real_rate_10y_pctl": 21.428571428571427
+      },
+      "is_proxy": false,
+      "latency_days": 2,
+      "name": "real_rate",
+      "quality_penalty": 0.0,
+      "reason": "",
+      "source": "FRED",
+      "value": 21.428571428571427
     },
     "valuation": {
       "as_of": "2022-01-03",

@@ -14,13 +14,33 @@ class HardValveResult:
     triggered: bool
     ids: list[str] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
+    # When the triggering bar is flagged `suspect` by data sanitization, the valve
+    # is *held pending* a clean confirmation instead of forcing a 100% EXIT. The
+    # would-be triggers are recorded here for explainability but do NOT set
+    # ``triggered``/``ids`` (so the verdict layer never forces EXIT on bad data).
+    pending_ids: list[str] = field(default_factory=list)
+    pending_reasons: list[str] = field(default_factory=list)
 
     @property
     def reason(self) -> str:
         return "; ".join(self.reasons)
 
+    @property
+    def pending(self) -> bool:
+        return bool(self.pending_ids)
+
+    @property
+    def pending_reason(self) -> str:
+        return "; ".join(self.pending_reasons)
+
     def to_dict(self) -> dict[str, object]:
-        return {"triggered": self.triggered, "ids": self.ids, "reason": self.reason}
+        return {
+            "triggered": self.triggered,
+            "ids": self.ids,
+            "reason": self.reason,
+            "pending_ids": self.pending_ids,
+            "pending_reason": self.pending_reason,
+        }
 
 
 def evaluate_hard_valves(
@@ -29,6 +49,7 @@ def evaluate_hard_valves(
     total_score: float = 0.0,
     c_score: float = 0.0,
     histories: Optional[Dict[str, pd.DataFrame]] = None,
+    suspect: bool = False,
 ) -> HardValveResult:
     histories = histories or {}
     ids: list[str] = []
@@ -115,6 +136,16 @@ def evaluate_hard_valves(
             ids.append("H-S8")
             reasons.append("QQQ below EMA50 with 5+ distribution days and VIX curve stress")
 
+    if suspect and ids:
+        # Bad/suspect bar: hold the valve pending a clean confirmation rather than
+        # forcing a 100% liquidation off potentially corrupted data (E1 safety rail).
+        return HardValveResult(
+            triggered=False,
+            ids=[],
+            reasons=[],
+            pending_ids=ids,
+            pending_reasons=[f"suspect bar — held pending clean confirmation: {r}" for r in reasons],
+        )
     return HardValveResult(triggered=bool(ids), ids=ids, reasons=reasons)
 
 

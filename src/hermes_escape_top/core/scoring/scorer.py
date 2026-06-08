@@ -32,6 +32,7 @@ def score_symbol(
     config: Dict[str, Any],
     regime: Regime = Regime.UNKNOWN,
     histories: Optional[Dict[str, Any]] = None,
+    suspect: bool = False,
 ) -> ScoreBundle:
     if symbol not in snapshots:
         raise KeyError(f"missing primary snapshot for {symbol}")
@@ -51,7 +52,7 @@ def score_symbol(
     non_scoring_missing = analyze_missing_fields(non_scoring_missing_fields, raw_total, config)
     final_score = missing.adjusted_score
     status = status_from_score(final_score, config)
-    hard = evaluate_hard_valves(symbol, snapshots, total_score=final_score, c_score=module_scores.get("C", 0.0), histories=histories)
+    hard = evaluate_hard_valves(symbol, snapshots, total_score=final_score, c_score=module_scores.get("C", 0.0), histories=histories, suspect=suspect)
     verdict = make_verdict(
         VerdictInput(
             symbol=symbol,
@@ -69,6 +70,8 @@ def score_symbol(
     explain = verdict.reasons + explain
     if hard.triggered:
         explain.insert(0, f"Hard valve triggered {','.join(hard.ids)}: {hard.reason}")
+    elif hard.pending:
+        explain.insert(0, f"Hard valve PENDING (suspect bar) {','.join(hard.pending_ids)}: {hard.pending_reason}")
     result = ScoreResult(
         symbol=symbol,
         as_of=snapshots[symbol].as_of,
