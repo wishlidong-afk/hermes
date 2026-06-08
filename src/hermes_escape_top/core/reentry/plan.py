@@ -76,9 +76,10 @@ def build_reentry_plan(
             return ReentryPlan(symbol, True, "T2", float(tranches[1]), "", [f"{radar} broke prior 20D high close."])
         return _locked(symbol, "await_t2", [f"{radar} has not broken prior 20D high close."])
 
-    if t2_active and _market_one_year_high(snapshots, histories):
-        return ReentryPlan(symbol, True, "T3", float(tranches[2]), "", ["QQQ/SPY confirmed 252D high; T3 enabled."])
-    return _locked(symbol, "reserve_t3", ["T1/T2 active but T3 reserve remains parked until market 252D high."])
+    if t2_active and _t3_market_gate(snapshots, histories, reentry_cfg):
+        gate_mode = str(reentry_cfg.get("t3_gate_mode", "market_252d_high"))
+        return ReentryPlan(symbol, True, "T3", float(tranches[2]), "", [f"T3 market gate cleared ({gate_mode})."])
+    return _locked(symbol, "reserve_t3", ["T1/T2 active but T3 reserve remains parked until market gate clears."])
 
 
 def _locked(symbol: str, reason: str, explain: list[str]) -> ReentryPlan:
@@ -113,3 +114,69 @@ def _market_one_year_high(snapshots: Dict[str, SymbolSnapshot], histories: Dict[
         if prior is not None and close is not None and close >= prior:
             return True
     return False
+
+
+def _t3_market_gate(
+    snapshots: Dict[str, SymbolSnapshot],
+    histories: Dict[str, pd.DataFrame],
+    reentry_cfg: Dict[str, object],
+) -> bool:
+    """① Configurable T3 re-entry gate. Default ``market_252d_high`` = original
+    behaviour (parks the final 40% until QQQ/SPY makes a fresh 252-day high — the
+    main source of post-drawdown cash drag). Faster modes redeploy on a confirmed
+    trend reclaim instead of a full new high."""
+    mode = str(reentry_cfg.get("t3_gate_mode", "market_252d_high"))
+    if mode == "ma200_reclaim":
+        return _ma200_reclaim_gate(snapshots, histories, float(reentry_cfg.get("t3_off_low_pct", 0.10)))
+    if mode == "shorter_high":
+        return _shorter_high_gate(snapshots, histories, int(reentry_cfg.get("t3_high_lookback", 63)))
+    return _market_one_year_high(snapshots, histories)
+
+
+def _ma200_reclaim_gate(
+    snapshots: Dict[str, SymbolSnapshot],
+    histories: Dict[str, pd.DataFrame],
+    off_low_pct: float,
+) -> bool:
+    """QQQ/SPY back above MA200 AND already rebounded >= off_low_pct from its 60D
+    low — confirms the bottom is in without waiting for a full new high."""
+    for symbol in ["QQQ", "SPY"]:
+        snap = snapshots.get(symbol)
+        frame = histories.get(symbol)
+        if snap is None or frame is None or frame.empty or "Close" not in frame.columns:
+            continue
+        close = snap.get("close")
+        ma200 = snap.get("ma200")
+        if close is None or ma200 is None or close <= ma200:
+            continue
+        low_60 = _prior_low_close(frame, snap.as_of.isoformat(), 60)
+        if low_60 is not None and low_60 > 0 and (close / low_60 - 1.0) >= off_low_pct:
+            return True
+    return False
+
+
+def _shorter_high_gate(
+    snapshots: Dict[str, SymbolSnapshot],
+    histories: Dict[str, pd.DataFrame],
+    lookback: int,
+) -> bool:
+    """QQQ/SPY makes a fresh high over a shorter (e.g. one-quarter) window."""
+    for symbol in ["QQQ", "SPY"]:
+        snap = snapshots.get(symbol)
+        frame = histories.get(symbol)
+        if snap is None or frame is None or frame.empty or "Close" not in frame.columns:
+            continue
+        prior = _prior_high_close(frame, snap.as_of.isoformat(), lookback)
+        close = snap.get("close")
+        if prior is not None and close is not None and close >= prior:
+            return True
+    return False
+
+
+def _prior_low_close(frame: Optional[pd.DataFrame], as_of: str, window: int) -> Optional[float]:
+    if frame is None or frame.empty or "Close" not in frame.columns:
+        return None
+    local = frame.loc[frame.index <= pd.Timestamp(as_of)].tail(window)
+    if len(local) < window:
+        return None
+    return float(local["Close"].min())

@@ -96,7 +96,7 @@ def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmat
 
     return VerdictResult(
         status=status,
-        sell_fraction=sell_fraction_for(inputs.symbol, status, config),
+        sell_fraction=sell_fraction_for(inputs.symbol, status, config, score=inputs.score),
         reasons=reasons,
         confirmation_required=confirmation_required,
         raw_status=raw_status,
@@ -145,11 +145,43 @@ def status_from_score(
     return selected
 
 
-def sell_fraction_for(symbol: str, status: str, config: Dict[str, Any]) -> float:
+def sell_fraction_for(symbol: str, status: str, config: Dict[str, Any], score: Optional[float] = None) -> float:
     if status in {"HOLD", "WATCH"}:
         return 0.0
     table = config.get("sell_fractions", {}).get(symbol) or config.get("sell_fractions", {}).get("default", {})
-    return float(table.get(status, 0.0))
+    step_frac = float(table.get(status, 0.0))
+    # ② Smooth the status→fraction staircase. Default "step" = original behaviour.
+    # "continuous" interpolates the fraction by the actual score between rung anchors,
+    # killing the 69→70 cliff (a 1-pt score move no longer jumps the position ~35pp).
+    # max(continuous, step) keeps module-forced minima (e.g. C>=18 → REDUCE) intact
+    # even when the raw score sits below that rung's natural threshold.
+    mode = str(config.get("sell_fraction_mode", "step"))
+    if mode != "continuous" or score is None:
+        return step_frac
+    cont = _continuous_fraction(float(score), table, config.get("status_thresholds", {}))
+    return max(0.0, min(1.0, max(cont, step_frac)))
+
+
+def _continuous_fraction(score: float, table: Dict[str, Any], thresholds: Dict[str, Any]) -> float:
+    """Piecewise-linear fraction through the (threshold, fraction) anchors of the
+    sell rungs, sorted by threshold. Flat outside the anchor range."""
+    pts = []
+    for rung in ("TRIM", "REDUCE", "DEFENSIVE_EXIT", "EXIT"):
+        if rung in thresholds and rung in table:
+            pts.append((float(thresholds[rung]), float(table[rung])))
+    if not pts:
+        return 0.0
+    pts.sort()
+    if score <= pts[0][0]:
+        return pts[0][1]
+    if score >= pts[-1][0]:
+        return pts[-1][1]
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        if x0 <= score <= x1:
+            if x1 == x0:
+                return y1
+            return y0 + (score - x0) / (x1 - x0) * (y1 - y0)
+    return pts[-1][1]
 
 
 def at_least(status: str, minimum: str) -> str:

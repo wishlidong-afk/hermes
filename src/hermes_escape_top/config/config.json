@@ -120,6 +120,7 @@
     "combo": "E75_D70_R50",
     "note": "Enabled A10 real_rate + A11 dollar + A15 defensive_rotation; recalibrated DEFENSIVE_EXIT 65->70. NEXT-3 v2 PASS: deployment PBO 0.1538, train-greedy PBO 0.4615, real-only rank 0.65, next3_pass=true. Full-window 2018-2026 MaxDD -27.6%->-14.2%, Sharpe 0.88->1.11 (CAGR 18.1%->15.3%). Other 5 risk factors (A9/A12/A13/A14/A16) stay OFF -- standalone screen showed them weak/counterproductive."
   },
+  "sell_fraction_mode": "step",
   "sell_fractions": {
     "MSTR": {
       "TRIM": 0.25,
@@ -264,7 +265,8 @@
       "SOXL": "SOXX",
       "FNGU": "QQQ",
       "MSTR": "QQQ"
-    }
+    },
+    "_defcon3_note": "④ SOXL/FNGU are clean 3x→1x same-thesis de-levers; MSTR→QQQ instead SWITCHES thesis (BTC→tech). Backtest candidates for thesis-consistent de-lever: BTC-USD (drop mNAV premium+single-name, keep crypto; live equiv IBIT) or BRK.B (quality de-risk). Default QQQ unchanged pending backtest."
   },
   "reentry": {
     "time_lock_days": 11,
@@ -274,7 +276,11 @@
       0.3,
       0.3,
       0.4
-    ]
+    ],
+    "t3_gate_mode": "market_252d_high",
+    "t3_off_low_pct": 0.10,
+    "t3_high_lookback": 63,
+    "_t3_note": "① capital efficiency: market_252d_high = current (parks 40% until QQQ/SPY new 252D high). Candidates after backtest: ma200_reclaim (above MA200 + >=t3_off_low_pct off 60D low) or shorter_high (fresh high over t3_high_lookback days). Default unchanged."
   },
   "atr": {
     "chandelier_period": 22,
@@ -375,6 +381,10 @@
     "liquidity": {
       "max_liquidation_days": 3,
       "participation_rate": 0.1
-    }
+    },
+    "vol_gross_floor": 0.0,
+    "vol_weighted_caps": false,
+    "cap_vol_floor": 0.4,
+    "_capeff_note": "③ vol_gross_floor>0 caps how far confidence×risk-gross can cut below the status rule target (anti over-derisk/cash-drag). vol_weighted_caps shrinks high-vol sleeves' upper bound toward the calmest sleeve (factor in [cap_vol_floor,1], never raises). Both default-inert."
   }
 }

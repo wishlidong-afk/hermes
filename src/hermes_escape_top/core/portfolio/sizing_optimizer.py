@@ -192,6 +192,23 @@ def _shrink_expected_returns(
 # Core: optimize_targets
 # ---------------------------------------------------------------------------
 
+def _cap_vol_factors(syms: list, leg_vol: Dict[str, float], sizing_cfg: Dict[str, Any]) -> "np.ndarray":
+    """③b Per-sleeve cap factor in [cap_vol_floor, 1.0], inversely proportional to
+    trailing vol relative to the calmest sleeve. Only reduces (never raises), so it
+    can never make a position more aggressive than its configured sleeve cap."""
+    floor = float(sizing_cfg.get("cap_vol_floor", 0.4))
+    vols = {s: float(leg_vol.get(s, 0.0) or 0.0) for s in syms}
+    present = [v for v in vols.values() if v > 0]
+    if len(present) < 2:
+        return np.ones(len(syms))
+    ref = min(present)  # calmest sleeve anchors at full cap
+    out = []
+    for s in syms:
+        v = vols.get(s, 0.0)
+        out.append(max(floor, min(1.0, ref / v)) if v > 0 else 1.0)
+    return np.array(out)
+
+
 def optimize_targets(
     verdicts: Dict[str, Verdict],
     risk_state: RiskState,
@@ -236,7 +253,22 @@ def optimize_targets(
     rule_targets = np.array([verdicts[s].rule_target_weight for s in syms])
     conf_factor = max(0.0, min(1.0, confidence.decision_confidence))
     risk_gross_factor = max(0.0, min(1.0, float(risk_state.gross_scaler)))
-    upper_bounds = rule_targets * conf_factor * risk_gross_factor
+    # ③a De-risk governor: floor the (confidence × risk-gross) multiplier so the
+    #    non-signal de-risk controls can't stack-cut the status-set rule target below
+    #    a chosen fraction (anti over-conservatism / cash drag). Default 0.0 = no-op.
+    combined = conf_factor * risk_gross_factor
+    gov_floor = float(sizing_cfg.get("vol_gross_floor", 0.0))
+    if gov_floor > 0.0:
+        combined = max(combined, gov_floor)
+    # ③b Vol-weighted sleeve caps: extra per-sleeve reduction for the highest-vol
+    #    sleeves (factor in [floor,1], never raises → R3/never-more-aggressive safe),
+    #    evening out risk contribution so a 3x sleeve can't dominate portfolio vol.
+    #    Default OFF → factor 1.0 everywhere.
+    if bool(sizing_cfg.get("vol_weighted_caps", False)):
+        cap_vol = _cap_vol_factors(syms, risk_state.leg_vol, sizing_cfg)
+    else:
+        cap_vol = np.ones(n)
+    upper_bounds = rule_targets * combined * cap_vol
 
     # ── E26: Fractional Kelly cap ─────────────────────────────────────────────
     # OFF by default. Kelly's p_act is the probability the position WINS — it must
