@@ -80,6 +80,40 @@ def fetch_fred_series(series_id: str, start: str = "1990-01-01", end: Optional[s
     return fetch_fred_graph_csv(series_id, start=start, end=end)
 
 
+# Process-level caches keyed by (path, mtime) — safe (auto-invalidate on file
+# change) and only touched when a risk flag is ON, so OFF stays byte-identical.
+# Makes the calibration backtest feasible (no per-day disk reload of full history).
+_CSV_CACHE: Dict[tuple, pd.DataFrame] = {}
+_CLOSE_CACHE: Dict[tuple, pd.Series] = {}
+
+
+def _read_csv_cached(path: Path, parse_dates=None) -> pd.DataFrame:
+    try:
+        mtime = path.stat().st_mtime
+    except Exception:
+        mtime = 0.0
+    key = (str(path), mtime, tuple(parse_dates or ()))
+    if key not in _CSV_CACHE:
+        _CSV_CACHE[key] = pd.read_csv(path, parse_dates=list(parse_dates) if parse_dates else None)
+    return _CSV_CACHE[key]
+
+
+def _close_series_cached(store: "LocalStore", symbol: str) -> Optional[pd.Series]:
+    path = store.history_dir / f"{safe_symbol(symbol)}.csv"
+    try:
+        mtime = path.stat().st_mtime
+    except Exception:
+        mtime = 0.0
+    key = (symbol, str(path), mtime)
+    if key not in _CLOSE_CACHE:
+        hist = store.load_history(symbol)
+        if hist is None or getattr(hist, "empty", True) or "Close" not in hist:
+            _CLOSE_CACHE[key] = None
+        else:
+            _CLOSE_CACHE[key] = hist["Close"].dropna()
+    return _CLOSE_CACHE[key]
+
+
 def _last_percentile(window: pd.Series) -> float:
     current = window.iloc[-1]
     if pd.isna(current):
@@ -159,7 +193,7 @@ class FredPercentileSource:
         if not path.exists():
             return SoftDataRecord(self.name, day, None, "FRED", False, quality_penalty=5.0,
                                   reason=f"{self.name} history missing")
-        frame = pd.read_csv(path, parse_dates=["date", "publish_date"])
+        frame = _read_csv_cached(path, parse_dates=["date", "publish_date"])
         records = [(row["publish_date"].date(), row) for row in frame.to_dict("records")]
         picked = asof_pick(records, day)
         if picked is None:
@@ -199,11 +233,12 @@ class EtfRatioPercentileSource:
 
     def _basket_index(self, store: LocalStore, symbols: List[str], as_of: str) -> Optional[pd.Series]:
         cols = []
+        cutoff = pd.Timestamp(str(as_of)[:10])
         for sym in symbols:
-            hist = store.load_history(sym)
-            if hist is None or getattr(hist, "empty", True) or "Close" not in hist:
+            closes = _close_series_cached(store, sym)
+            if closes is None:
                 return None
-            local = hist.loc[hist.index <= pd.Timestamp(str(as_of)[:10]), "Close"].dropna()
+            local = closes.loc[closes.index <= cutoff].dropna()
             if local.empty or float(local.iloc[0]) == 0:
                 return None
             cols.append(local / float(local.iloc[0]))
