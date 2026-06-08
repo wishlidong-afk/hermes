@@ -307,7 +307,8 @@
     "data_move": false,
     "data_ndx_concentration": false,
     "use_arm_then_fire": false,
-    "use_decision_stabilizer": false
+    "use_decision_stabilizer": false,
+    "use_suspect_valve_guard": false
   },
   "arm_then_fire": {
     "high_pctl": 75,

@@ -134,7 +134,14 @@ def score_pipeline(
     snapshots["SOFT"] = _soft_snapshot(soft_data, as_of)
     regime, regime_meta = _current_regime(snapshots, histories, as_of)
     sanitize_cfg = config.get("sanitize", {})
-    suspect_flags = {symbol: _suspect_today(histories.get(symbol), as_of, sanitize_cfg) for symbol in trade_symbols(config)}
+    # Suspect-bar hard-valve guard (F3): only run sanitize / pass suspect when the
+    # flag is on, so the default path is byte-identical and never delays a valve.
+    suspect_guard_on = bool(config.get("features", {}).get("use_suspect_valve_guard", False))
+    suspect_flags = (
+        {symbol: _suspect_today(histories.get(symbol), as_of, sanitize_cfg) for symbol in trade_symbols(config)}
+        if suspect_guard_on
+        else {}
+    )
     # Decision stabilizer (F1+F2): only read prior statuses when enabled, so the
     # default path takes no extra DB read and is byte-identical.
     stabilizer_on = bool(config.get("features", {}).get("use_decision_stabilizer", False))
