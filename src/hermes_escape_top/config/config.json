@@ -306,7 +306,8 @@
     "data_nfci": false,
     "data_move": false,
     "data_ndx_concentration": false,
-    "use_arm_then_fire": false
+    "use_arm_then_fire": false,
+    "use_decision_stabilizer": false
   },
   "arm_then_fire": {
     "high_pctl": 75,

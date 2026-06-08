@@ -205,6 +205,31 @@ def sync_execution_confirmations(
     }
 
 
+def latest_decision_statuses(path: Path) -> Dict[str, str]:
+    """Return each symbol's status from its most recent persisted score run.
+
+    Used by the decision stabilizer (hysteresis + second-close confirmation) to
+    know the last confirmed state. Read-only and empty-safe: no prior run → {}.
+    """
+    if not path.exists():
+        return {}
+    try:
+        with sqlite3.connect(path) as conn:
+            _ensure_schema(conn)
+            rows = conn.execute(
+                """
+                SELECT d.symbol, d.status
+                FROM decisions d
+                JOIN (
+                  SELECT symbol, MAX(score_run_id) AS mrid FROM decisions GROUP BY symbol
+                ) m ON d.symbol = m.symbol AND d.score_run_id = m.mrid
+                """
+            ).fetchall()
+    except Exception:
+        return {}
+    return {str(symbol): str(status) for symbol, status in rows if status is not None}
+
+
 def latest_execution_confirmations(path: Path) -> Dict[str, Dict[str, Any]]:
     """Return the latest manually/imported execution confirmation per symbol.
 

@@ -33,6 +33,7 @@ def score_symbol(
     regime: Regime = Regime.UNKNOWN,
     histories: Optional[Dict[str, Any]] = None,
     suspect: bool = False,
+    previous_status: Optional[str] = None,
 ) -> ScoreBundle:
     if symbol not in snapshots:
         raise KeyError(f"missing primary snapshot for {symbol}")
@@ -63,6 +64,7 @@ def score_symbol(
             red_light_count=red_light_count(factors),
             qqq_below_ema20=_qqq_below_ema20(snapshots),
             threshold_relief=_arming_relief(snapshots, config),
+            previous_status=previous_status,
         ),
         config,
     )

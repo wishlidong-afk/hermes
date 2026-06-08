@@ -39,8 +39,20 @@ def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmat
             reasons=[f"Hard valve override: {','.join(inputs.hard_valve_hits)}"],
         )
 
-    status = status_from_score(inputs.score, config, relief=inputs.threshold_relief)
+    # Decision stabilizer (F1+F2): hysteresis on the status ladder + second-close
+    # confirmation for soft upgrades. Flag-gated, default OFF → byte-identical to the
+    # flat-threshold, no-confirmation behaviour. Hard valves above always bypass it.
+    stabilizer = bool(config.get("features", {}).get("use_decision_stabilizer", False))
+    status = status_from_score(
+        inputs.score,
+        config,
+        relief=inputs.threshold_relief,
+        previous_status=inputs.previous_status if stabilizer else None,
+        hysteresis=stabilizer,
+    )
     reasons = [f"Base score status: {status} ({inputs.score:.2f})"]
+    if stabilizer and inputs.previous_status:
+        reasons.append(f"Hysteresis active (prev={inputs.previous_status})")
     if inputs.threshold_relief > 0:
         reasons.append(f"Arm-then-fire: leading macro armed, thresholds eased {inputs.threshold_relief:.1f}")
     modules = inputs.module_scores
@@ -62,12 +74,16 @@ def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmat
         reasons.append("Missing data weight exceeds blind-spot threshold: upgrade one level")
 
     confirmation_required = False
-    if require_confirmation and status in SELL_STATES:
+    if (require_confirmation or stabilizer) and status in SELL_STATES:
         previous = inputs.previous_status or "HOLD"
         if risk_rank(previous) < risk_rank(status):
             confirmation_required = True
             reasons.append("Soft sell signal requires second close confirmation")
-            status = "WATCH"
+            # Hold at the previous confirmed level (spec: 保留上一已确认级别), but
+            # surface at least WATCH so the pending signal is visible. When the
+            # previous level was already a sell-state this avoids wrongly
+            # de-escalating it down to WATCH.
+            status = at_least(previous, "WATCH")
 
     return VerdictResult(
         status=status,
@@ -77,14 +93,43 @@ def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmat
     )
 
 
-def status_from_score(score: float, config: Dict[str, Any], relief: float = 0.0) -> str:
+def status_from_score(
+    score: float,
+    config: Dict[str, Any],
+    relief: float = 0.0,
+    previous_status: Optional[str] = None,
+    hysteresis: bool = False,
+) -> str:
     """Map score to status. ``relief`` (arm-then-fire) lowers every threshold so a
     given technical score triggers a more defensive status earlier — but only the
-    WATCH..EXIT ladder thresholds, never below WATCH. relief=0 (default) is the
-    original behaviour byte-for-byte."""
+    WATCH..EXIT ladder thresholds, never below WATCH.
+
+    When ``hysteresis`` is on and a ``previous_status`` is given, a rung that the
+    symbol was already at (or above) uses the lower ``exit`` threshold instead of
+    the ``enter`` threshold, making de-escalation sticky (anti-chatter). With
+    ``hysteresis=False`` / ``previous_status=None`` (defaults) the result is the
+    original flat-threshold behaviour byte-for-byte."""
+    thresholds = config.get("status_thresholds", {})
+    if not (hysteresis and previous_status):
+        selected = "HOLD"
+        for status, threshold in sorted(thresholds.items(), key=lambda item: float(item[1])):
+            eff = float(threshold) - (relief if status != "WATCH" else 0.0)
+            if score >= eff:
+                selected = status
+        return selected
+
+    hcfg = config.get("hysteresis", {})
+    enter = hcfg.get("enter", {})
+    exit_ = hcfg.get("exit", {})
+    prev_rank = risk_rank(previous_status)
     selected = "HOLD"
-    for status, threshold in sorted(config.get("status_thresholds", {}).items(), key=lambda item: float(item[1])):
-        eff = float(threshold) - (relief if status != "WATCH" else 0.0)
+    for status, base in sorted(thresholds.items(), key=lambda item: float(item[1])):
+        enter_thr = float(enter.get(status, base))
+        exit_thr = float(exit_.get(status, base))
+        # Sticky: if we were already at/above this rung, only leave it below the
+        # (lower) exit threshold; otherwise require the (higher) enter threshold.
+        chosen = exit_thr if prev_rank >= risk_rank(status) else enter_thr
+        eff = chosen - (relief if status != "WATCH" else 0.0)
         if score >= eff:
             selected = status
     return selected

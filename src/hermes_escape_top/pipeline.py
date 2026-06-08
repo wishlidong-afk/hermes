@@ -18,6 +18,7 @@ from .core.data.market import MarketData
 from .core.data.audit import write_audit_record
 from .core.data.quality import analyze_missing_fields, quality_from_snapshots
 from .core.data.state_store import (
+    latest_decision_statuses,
     latest_execution_confirmations,
     sync_execution_confirmations,
     write_state_snapshot,
@@ -134,9 +135,21 @@ def score_pipeline(
     regime, regime_meta = _current_regime(snapshots, histories, as_of)
     sanitize_cfg = config.get("sanitize", {})
     suspect_flags = {symbol: _suspect_today(histories.get(symbol), as_of, sanitize_cfg) for symbol in trade_symbols(config)}
+    # Decision stabilizer (F1+F2): only read prior statuses when enabled, so the
+    # default path takes no extra DB read and is byte-identical.
+    stabilizer_on = bool(config.get("features", {}).get("use_decision_stabilizer", False))
+    previous_statuses = (
+        latest_decision_statuses(store.archive_dir / "hermes_state.sqlite") if stabilizer_on else {}
+    )
     bundles = {
         symbol: score_symbol(
-            symbol, snapshots, config, regime=regime, histories=histories, suspect=suspect_flags.get(symbol, False)
+            symbol,
+            snapshots,
+            config,
+            regime=regime,
+            histories=histories,
+            suspect=suspect_flags.get(symbol, False),
+            previous_status=previous_statuses.get(symbol),
         )
         for symbol in trade_symbols(config)
     }
