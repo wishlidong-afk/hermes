@@ -15,6 +15,7 @@ from ..features.regime import Regime, RegimeInput, classify_regime
 from ..portfolio.risk_budget import compute_portfolio_risk
 from ..routing.capital_routing import route_capital
 from ..routing.leg_proxy import leg_price_series, leg_proxy_metadata
+from ..data.sanitize import is_suspect_on
 from ..scoring.scorer import score_symbol
 from .labeling import eval_labels
 from .metrics import compute_metrics
@@ -82,13 +83,37 @@ def run_full_backtest(
             {},
         )
 
+    # Stateful stabilizer (F1+F2) + suspect-bar guard (F3) must be threaded through
+    # the replay loop to be exercised at all; both are flag-gated so the default
+    # path is byte-identical to a flat, stateless backtest.
+    stabilizer_on = bool(config.get("features", {}).get("use_decision_stabilizer", False))
+    suspect_guard_on = bool(config.get("features", {}).get("use_suspect_valve_guard", False))
+    sanitize_cfg = config.get("sanitize", {})
+    previous_raw: Dict[str, str] = {}
+
     decisions: list[DayDecision] = []
     rows: list[Dict[str, Any]] = []
     for as_of in dates:
         day_histories = _truncate_histories(histories, as_of)
         snapshots = build_snapshot(as_of, store=store, cfg=config)
         regime, regime_meta = _current_regime(snapshots, day_histories, as_of)
-        bundles = {symbol: score_symbol(symbol, snapshots, config, regime=regime, histories=day_histories) for symbol in trade_symbols(config)}
+        bundles = {
+            symbol: score_symbol(
+                symbol,
+                snapshots,
+                config,
+                regime=regime,
+                histories=day_histories,
+                suspect=(is_suspect_on(day_histories.get(symbol), as_of, sanitize_cfg) if suspect_guard_on else False),
+                previous_status=(previous_raw.get(symbol) if stabilizer_on else None),
+            )
+            for symbol in trade_symbols(config)
+        }
+        if stabilizer_on:
+            # Feed back the RAW signal level (not the held status) so a persistent
+            # upgrade confirms on the next close.
+            for symbol, bundle in bundles.items():
+                previous_raw[symbol] = bundle.result.raw_status
         cap_targets = {
             symbol: float(config.get("symbols", {}).get(symbol, {}).get("sleeve_cap", 0.0))
             * (1.0 - float(bundle.result.sell_fraction))

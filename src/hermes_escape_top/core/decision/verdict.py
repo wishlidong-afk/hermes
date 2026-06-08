@@ -28,6 +28,10 @@ class VerdictResult:
     reasons: list[str]
     hard_override: bool = False
     confirmation_required: bool = False
+    # The signal level *before* any second-close hold. This is what must be fed
+    # back as next close's ``previous_status`` so a persistent upgrade confirms on
+    # the second close (feeding back the held WATCH would lock it at WATCH forever).
+    raw_status: str = "HOLD"
 
 
 def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmation: bool = False) -> VerdictResult:
@@ -37,6 +41,7 @@ def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmat
             sell_fraction=1.0,
             hard_override=True,
             reasons=[f"Hard valve override: {','.join(inputs.hard_valve_hits)}"],
+            raw_status="EXIT",
         )
 
     # Decision stabilizer (F1+F2): hysteresis on the status ladder + second-close
@@ -73,6 +78,10 @@ def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmat
         status = upgrade_one(status)
         reasons.append("Missing data weight exceeds blind-spot threshold: upgrade one level")
 
+    # Signal level before any second-close hold — fed back as next close's
+    # previous_status so a persistent upgrade confirms (rather than re-triggering).
+    raw_status = status
+
     confirmation_required = False
     if (require_confirmation or stabilizer) and status in SELL_STATES:
         previous = inputs.previous_status or "HOLD"
@@ -90,6 +99,7 @@ def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmat
         sell_fraction=sell_fraction_for(inputs.symbol, status, config),
         reasons=reasons,
         confirmation_required=confirmation_required,
+        raw_status=raw_status,
     )
 
 

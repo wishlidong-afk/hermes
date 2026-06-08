@@ -206,10 +206,13 @@ def sync_execution_confirmations(
 
 
 def latest_decision_statuses(path: Path) -> Dict[str, str]:
-    """Return each symbol's status from its most recent persisted score run.
+    """Return each symbol's *raw* status from its most recent persisted score run.
 
     Used by the decision stabilizer (hysteresis + second-close confirmation) to
-    know the last confirmed state. Read-only and empty-safe: no prior run → {}.
+    know the last signal level. We prefer the persisted ``raw_status`` (the level
+    before any second-close hold) so a persistent upgrade confirms on the next
+    close; we fall back to the acted ``status`` column for older rows.
+    Read-only and empty-safe: no prior run → {}.
     """
     if not path.exists():
         return {}
@@ -218,7 +221,7 @@ def latest_decision_statuses(path: Path) -> Dict[str, str]:
             _ensure_schema(conn)
             rows = conn.execute(
                 """
-                SELECT d.symbol, d.status
+                SELECT d.symbol, d.status, d.payload_json
                 FROM decisions d
                 JOIN (
                   SELECT symbol, MAX(score_run_id) AS mrid FROM decisions GROUP BY symbol
@@ -227,7 +230,17 @@ def latest_decision_statuses(path: Path) -> Dict[str, str]:
             ).fetchall()
     except Exception:
         return {}
-    return {str(symbol): str(status) for symbol, status in rows if status is not None}
+    out: Dict[str, str] = {}
+    for symbol, status, payload_json in rows:
+        raw = None
+        try:
+            raw = (json.loads(payload_json or "{}").get("score") or {}).get("raw_status")
+        except Exception:
+            raw = None
+        value = raw or status
+        if value is not None:
+            out[str(symbol)] = str(value)
+    return out
 
 
 def latest_execution_confirmations(path: Path) -> Dict[str, Dict[str, Any]]:

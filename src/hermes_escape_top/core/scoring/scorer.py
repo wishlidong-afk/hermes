@@ -98,6 +98,7 @@ def score_symbol(
         data_quality=quality_from_snapshots([snapshots[symbol]]).overall_score,
         hard_valve_hits=hard.ids,
         status=verdict.status,
+        raw_status=verdict.raw_status,
         sell_fraction=verdict.sell_fraction,
         explain=explain,
         factor_scores={module: [factor.to_dict() for factor in factors if factor.module == module] for module in ["A", "B", "C", "D"]},

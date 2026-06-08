@@ -25,7 +25,7 @@ from .core.data.state_store import (
 )
 from .core.data.store import LocalStore, bootstrap_history
 from .core.data.adapters import collect_soft_data
-from .core.data.sanitize import sanitize_ohlcv
+from .core.data.sanitize import is_suspect_on
 from .core.backtest.posterior import escape_posterior_pnl, mirror_posterior_pnl
 from .core.features.regime import Regime, RegimeInput, classify_regime
 from .core.portfolio.risk_budget import compute_portfolio_risk
@@ -138,7 +138,7 @@ def score_pipeline(
     # flag is on, so the default path is byte-identical and never delays a valve.
     suspect_guard_on = bool(config.get("features", {}).get("use_suspect_valve_guard", False))
     suspect_flags = (
-        {symbol: _suspect_today(histories.get(symbol), as_of, sanitize_cfg) for symbol in trade_symbols(config)}
+        {symbol: is_suspect_on(histories.get(symbol), as_of, sanitize_cfg) for symbol in trade_symbols(config)}
         if suspect_guard_on
         else {}
     )
@@ -504,27 +504,6 @@ def _quality_breakdown(
         "upgrade_to_high": upgrade or ["当前无明显数据质量阻塞"],
         "sources": sources,
     }
-
-
-def _suspect_today(history: Optional[pd.DataFrame], as_of: str, sanitize_cfg: Dict[str, Any]) -> bool:
-    """True iff the ``as_of`` bar is flagged suspect by data sanitization (E1).
-
-    Lets a hard valve be *held pending* a clean confirmation instead of forcing a
-    100% liquidation off a bad tick / split artifact / cross-source divergence.
-
-    Fail-safe by design: on any error or missing data we return ``False`` so the
-    hard valve behaves exactly as before (act on the trigger). We never *fabricate*
-    suspicion, because that would suppress a genuine valve.
-    """
-    if history is None or getattr(history, "empty", True):
-        return False
-    try:
-        df = history.rename(columns={col: str(col).lower() for col in history.columns})
-        result = sanitize_ohlcv(df, sanitize_cfg or {})
-        target = str(as_of)[:10]
-        return any(str(d)[:10] == target for d in result.suspect_dates)
-    except Exception:
-        return False
 
 
 def _data_confidence(bundles: Dict[str, Any], config: Dict[str, Any]) -> float:

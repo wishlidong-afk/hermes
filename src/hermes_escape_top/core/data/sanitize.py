@@ -87,6 +87,24 @@ def sanitize_ohlcv(
     )
 
 
+def is_suspect_on(history: Optional[pd.DataFrame], as_of: Any, cfg: Optional[Dict[str, Any]]) -> bool:
+    """True iff the ``as_of`` bar is flagged suspect (HIGH-severity anomaly).
+
+    Shared by the live pipeline and the backtest loop. Fail-safe by design: on
+    missing data or any error → False, so a hard valve behaves exactly as before
+    and we never *fabricate* suspicion (which would suppress a genuine valve).
+    """
+    if history is None or getattr(history, "empty", True):
+        return False
+    try:
+        df = history.rename(columns={c: str(c).lower() for c in history.columns})
+        result = sanitize_ohlcv(df, cfg or {})
+        target = str(as_of)[:10]
+        return any(str(d)[:10] == target for d in result.suspect_dates)
+    except Exception:
+        return False
+
+
 def _detect_bad_ticks(df: pd.DataFrame, cfg: Dict[str, Any]) -> List[Anomaly]:
     """Zero-volume bars with extreme price moves → BAD_TICK."""
     anomalies = []

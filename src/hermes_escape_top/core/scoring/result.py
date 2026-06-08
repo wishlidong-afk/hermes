@@ -21,6 +21,7 @@ class ScoreResult:
     data_quality: float = 100.0
     hard_valve_hits: List[str] = field(default_factory=list)
     status: str = "HOLD"
+    raw_status: str = "HOLD"
     sell_fraction: float = 0.0
     explain: List[str] = field(default_factory=list)
     factor_scores: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
