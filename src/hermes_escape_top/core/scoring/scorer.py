@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 from typing import Any, Dict, Iterable, List, Optional
 
 from ..data.base import SymbolSnapshot
