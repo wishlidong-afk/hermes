@@ -84,6 +84,16 @@ def _financial_stress(ctx: FactorContext) -> tuple[float, str]:
     return _bucket_low(ctx.get("SOFT.financial_stress_xlf_pctl"), label="XLF/SPY financials")
 
 
+def _nfci(ctx: FactorContext) -> tuple[float, str]:
+    # NFCI > 0 = tighter-than-average financial conditions; high percentile = stress.
+    return _bucket_high(ctx.get("SOFT.nfci_pctl"), label="Financial conditions (NFCI)")
+
+
+def _move(ctx: FactorContext) -> tuple[float, str]:
+    # MOVE = bond-market implied vol; spikes often lead equity VIX / risk-off.
+    return _bucket_high(ctx.get("SOFT.move_pctl"), label="Bond vol (MOVE)")
+
+
 # (feature_flag, FactorDefinition) — each appended only when its flag is ON.
 _RISK_FACTORS: List[tuple[str, FactorDefinition]] = [
     ("data_hy_oas", FactorDefinition("A9_HY_OAS", "A", 4.0, ["SOFT.hy_oas_pctl"], _hy_oas, "A9 hy_oas")),
@@ -94,6 +104,8 @@ _RISK_FACTORS: List[tuple[str, FactorDefinition]] = [
     ("data_concentration", FactorDefinition("A14_CONCENTRATION", "A", 4.0, ["SOFT.concentration_rsp_spy_pctl"], _concentration, "A14 concentration")),
     ("data_defensive_rotation", FactorDefinition("A15_DEFENSIVE_ROTATION", "A", 4.0, ["SOFT.defensive_cyclical_pctl"], _defensive_rotation, "A15 defensive_rotation")),
     ("data_financial_stress", FactorDefinition("A16_FINANCIAL_STRESS", "A", 4.0, ["SOFT.financial_stress_xlf_pctl"], _financial_stress, "A16 financial_stress")),
+    ("data_nfci", FactorDefinition("A17_NFCI", "A", 4.0, ["SOFT.nfci_pctl"], _nfci, "A17 nfci")),
+    ("data_move", FactorDefinition("A18_MOVE", "A", 4.0, ["SOFT.move_pctl"], _move, "A18 move")),
 ]
 
 

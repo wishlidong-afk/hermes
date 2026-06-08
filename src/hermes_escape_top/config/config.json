@@ -171,7 +171,9 @@
       "A13 credit_etf": 4,
       "A14 concentration": 4,
       "A15 defensive_rotation": 4,
-      "A16 financial_stress": 4
+      "A16 financial_stress": 4,
+      "A17 nfci": 4,
+      "A18 move": 4
     }
   },
   "normalize": {
@@ -299,7 +301,9 @@
     "data_credit_etf": false,
     "data_concentration": false,
     "data_defensive_rotation": true,
-    "data_financial_stress": false
+    "data_financial_stress": false,
+    "data_nfci": false,
+    "data_move": false
   },
   "ibkr": {
     "enabled": true,

@@ -280,6 +280,52 @@ class EtfRatioPercentileSource:
         )
 
 
+class LevelPercentileSource:
+    """Single index level (e.g. MOVE bond-vol) → SOFT.<field> + SOFT.<field>_pctl.
+
+    Reads one symbol's close from the OHLCV store and takes the trailing-window
+    percentile of the latest level. PIT-safe (only bars <= as_of). Gated.
+    """
+
+    def __init__(self, name: str, feature_flag: str, symbol: str, field: str,
+                 window: int = 252, min_periods: int = 60) -> None:
+        self.name = name
+        self.feature_flag = feature_flag
+        self.symbol = symbol
+        self.field = field
+        self.window = window
+        self.min_periods = min_periods
+
+    def collect(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:
+        day = date.fromisoformat(str(as_of)[:10])
+        if not bool(config.get("features", {}).get(self.feature_flag, False)):
+            return SoftDataRecord(self.name, day, None, "INDEX_LEVEL", False, reason=f"feature disabled: {self.feature_flag}")
+        try:
+            store = LocalStore(config)
+            closes = _close_series_cached(store, self.symbol)
+        except Exception as exc:  # noqa: BLE001
+            return SoftDataRecord(self.name, day, None, "INDEX_LEVEL", False, quality_penalty=5.0,
+                                  reason=f"{self.name} load failed: {exc}")
+        if closes is None:
+            return SoftDataRecord(self.name, day, None, "INDEX_LEVEL", False, quality_penalty=5.0,
+                                  reason=f"{self.name} missing OHLCV for {self.symbol}")
+        local = closes.loc[closes.index <= pd.Timestamp(str(as_of)[:10])].dropna()
+        if local.empty:
+            return SoftDataRecord(self.name, day, None, "INDEX_LEVEL", False, quality_penalty=5.0,
+                                  reason=f"{self.name} no data as of date")
+        window = local.iloc[-self.window:]
+        pctl = _last_percentile(window) if len(window) >= self.min_periods else float("nan")
+        value = float(local.iloc[-1]); pctl_f = _finite(pctl)
+        available = pctl_f is not None
+        return SoftDataRecord(
+            self.name, day, pctl_f, "INDEX_LEVEL", available, is_proxy=False,
+            latency_days=max(0, (day - local.index[-1].date()).days),
+            quality_penalty=0.0 if available else 5.0,
+            reason="" if available else f"{self.name} insufficient history",
+            fields={self.field: value, f"{self.field}_pctl": pctl_f},
+        )
+
+
 # ── registry: which sources are active (flag-gated) ──────────────────────────
 
 def _all_risk_sources() -> List[Any]:
@@ -295,6 +341,9 @@ def _all_risk_sources() -> List[Any]:
         EtfRatioPercentileSource("defensive_rotation", "data_defensive_rotation",
                                  ["XLP", "XLU", "XLV"], ["XLY", "XLI", "XLF"], "defensive_cyclical"),
         EtfRatioPercentileSource("financial_stress", "data_financial_stress", ["XLF"], ["SPY"], "financial_stress_xlf"),
+        # Axis-A additions (2026-06-08): pre-built financial-conditions composite + bond vol
+        FredPercentileSource("nfci", "data_nfci", "NFCI", "nfci"),
+        LevelPercentileSource("move", "data_move", "^MOVE", "move"),
     ]
 
 
@@ -311,4 +360,4 @@ def risk_sources(config: Optional[Dict[str, Any]]) -> List[Any]:
 
 
 # Symbols the Tier-2 ETF ratios need in the OHLCV store (for backfill wiring).
-RISK_ETF_SYMBOLS = ["HYG", "IEF", "RSP", "XLP", "XLU", "XLV", "XLY", "XLI", "XLF", "KRE", "LQD"]
+RISK_ETF_SYMBOLS = ["HYG", "IEF", "RSP", "XLP", "XLU", "XLV", "XLY", "XLI", "XLF", "KRE", "LQD", "^MOVE"]

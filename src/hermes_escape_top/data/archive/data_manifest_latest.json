@@ -528,6 +528,18 @@
       "sha256": "2f1d609f153eed3845570c11e4635a178ec238c9111837c25a4ad103daf0b14d",
       "start_date": "2018-01-02"
     },
+    "_MOVE.csv": {
+      "bytes": 214366,
+      "end_date": "2026-06-05",
+      "path": "_MOVE.csv",
+      "proxy_end_date": null,
+      "proxy_rows": 0,
+      "proxy_sources": null,
+      "proxy_start_date": null,
+      "rows": 2097,
+      "sha256": "fa26c16f2375eaf726033a2ecfafbc22a599e891a90e515caeb2aa05644bb5ed",
+      "start_date": "2018-01-02"
+    },
     "_NYFANG.csv": {
       "bytes": 189205,
       "end_date": "2026-06-04",
@@ -613,8 +625,8 @@
       "start_date": "2018-01-02"
     }
   },
-  "frozen_at": "2026-06-07T15:45:31.935073+00:00",
-  "manifest_id": "5b856c2aaf079d4fafb4e21b3e94d7addfc2519154f1de1a1bc4c33c3a4de4ad",
+  "frozen_at": "2026-06-08T01:58:39.723472+00:00",
+  "manifest_id": "5c05f154d1ea9a64316d560b583ef4438f15412d4f89eed3db3f542e8969d690",
   "root": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/data/history",
   "schema_version": "escape-top-data-manifest-v1"
 }

@@ -238,6 +238,16 @@ FACTOR_EXPLAINS: Dict[str, Dict[str, str]] = {
         "plain_explain": "银行金融股带头跑输，往往是系统性风险的前兆。",
         "data_hint": "XLF/SPY 相对强弱比值分位（可叠加 KRE 区域银行）。",
     },
+    "A17_NFCI": {
+        "professional_explain": "芝加哥联储金融条件指数（NFCI）是现成的金融松紧综合分；走高=条件收紧=风险上升。",
+        "plain_explain": "一个把利率/信用/杠杆都揉成一个数的'金融松紧表'，变紧时高 beta 先承压。",
+        "data_hint": "FRED NFCI 历史分位（>0 即比平均更紧）。",
+    },
+    "A18_MOVE": {
+        "professional_explain": "MOVE 指数=债市隐含波动率（债券版 VIX）；常领先股市 VIX 与 risk-off。",
+        "plain_explain": "债市先慌，股市后慌——债券波动率飙升往往是前兆。",
+        "data_hint": "^MOVE 收盘的历史分位。",
+    },
 }
 
 
