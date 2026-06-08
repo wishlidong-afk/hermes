@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from ..data.base import SymbolSnapshot
 from .explain_registry import explain_factor
@@ -50,6 +50,7 @@ class FactorScore:
 class FactorContext:
     symbol: str
     snapshots: Dict[str, SymbolSnapshot]
+    config: Optional[Dict[str, Any]] = None
 
     @property
     def snapshot(self) -> SymbolSnapshot:

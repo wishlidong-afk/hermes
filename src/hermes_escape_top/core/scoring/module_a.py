@@ -242,10 +242,16 @@ def _qqq_distribution(ctx: FactorContext) -> tuple[float, str]:
 def _naaim_pressure(ctx: FactorContext) -> tuple[float, str]:
     exposure = ctx.get("SOFT.naaim_exposure")
     pctl = ctx.get("SOFT.naaim_pctl")
-    # NAAIM exposure 0-200: high values = active managers are very long → overextension risk
-    if exposure >= 90 or (pctl is not None and pctl >= 90):
+    # NAAIM exposure 0-200: high values = active managers are very long → overextension risk.
+    # Thresholds are config-driven (defaults reproduce the original behaviour exactly).
+    # Autopsy 2026-06-08: defaults fire ~63% of days → low discrimination; tightening
+    # score-1 to the euphoria tail (pctl>=85) roughly doubles the forward-return edge.
+    n = (ctx.config or {}).get("naaim", {}) if getattr(ctx, "config", None) else {}
+    e2 = float(n.get("score2_exposure", 90)); p2 = float(n.get("score2_pctl", 90))
+    e1 = float(n.get("score1_exposure", 70)); p1 = float(n.get("score1_pctl", 75))
+    if exposure >= e2 or (pctl is not None and pctl >= p2):
         return 2.0, f"NAAIM highly bullish/exposed: exposure={exposure:.1f}, pctl={pctl}"
-    if exposure >= 70 or (pctl is not None and pctl >= 75):
+    if exposure >= e1 or (pctl is not None and pctl >= p1):
         return 1.0, f"NAAIM bullish watch: exposure={exposure:.1f}, pctl={pctl}"
     return 0.0, f"NAAIM neutral/bearish: exposure={exposure:.1f}"
 

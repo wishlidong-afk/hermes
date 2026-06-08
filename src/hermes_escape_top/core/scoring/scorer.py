@@ -36,7 +36,7 @@ def score_symbol(
 ) -> ScoreBundle:
     if symbol not in snapshots:
         raise KeyError(f"missing primary snapshot for {symbol}")
-    factors = build_registry(symbol, config).evaluate(FactorContext(symbol=symbol, snapshots=snapshots))
+    factors = build_registry(symbol, config).evaluate(FactorContext(symbol=symbol, snapshots=snapshots, config=config))
     module_scores = aggregate_modules(factors, config)
     raw_total = weighted_percent_score(symbol, module_scores, config, regime=regime)
     missing_fields = [field for factor in factors for field in factor.missing_fields]
