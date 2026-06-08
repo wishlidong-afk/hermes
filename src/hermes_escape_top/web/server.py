@@ -50,6 +50,7 @@ from ..core.data.state_store import record_execution_confirmation
 from ..ibkr.live_check import run_live_check
 from ..ibkr.positions import write_demo_snapshot
 from ..pipeline import score_pipeline
+from .health import compute_health
 from .refresh import (
     force_refresh_manifest,
     manifest_status,
@@ -340,9 +341,13 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                     manifest = manifest_status()
                 except Exception:
                     manifest = {}
+                try:
+                    health = compute_health(payload, manifest)
+                except Exception:
+                    health = {}
                 self._send(200, "text/html; charset=utf-8",
                            render_dashboard(payload, shadow_status=shadow,
-                                            manifest_status=manifest).encode())
+                                            manifest_status=manifest, health=health).encode())
                 return
 
             if parsed.path == "/api/score":
@@ -367,6 +372,20 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                     payload = {"status": "ERROR", "error": traceback.format_exc()[-1000:]}
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode())
+                return
+
+            if parsed.path == "/api/health_status":
+                try:
+                    score = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
+                    try:
+                        manifest = manifest_status()
+                    except Exception:
+                        manifest = {}
+                    out = compute_health(score, manifest)
+                except Exception:
+                    out = {"level": "ERROR", "error": traceback.format_exc()[-1000:]}
+                self._send(200, "application/json; charset=utf-8",
+                           json.dumps(out, ensure_ascii=False, indent=2, default=str).encode())
                 return
 
             if parsed.path == "/health":

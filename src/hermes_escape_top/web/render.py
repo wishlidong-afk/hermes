@@ -13,10 +13,12 @@ def render_dashboard(
     payload: Dict[str, Any],
     shadow_status: Dict[str, Any] | None = None,
     manifest_status: Dict[str, Any] | None = None,
+    health: Dict[str, Any] | None = None,
 ) -> str:
     """Render the package-engine dashboard using the new payload schema."""
     shadow_status = shadow_status or {}
     manifest_status = manifest_status or {}
+    health = health or {}
     as_of = str(payload.get("as_of", ""))
     schema = str(payload.get("schema_version", ""))
     cache = payload.get("cache_status", {})
@@ -269,6 +271,7 @@ def render_dashboard(
 </head>
 <body>
   <div class="shell">
+    {_render_health_banner(health)}
     <header class="hero">
       <div>
         <h1>Hermes Escape Top / Hermes 逃顶驾驶舱</h1>
@@ -952,6 +955,41 @@ def _render_mirror_section(payload: Dict[str, Any]) -> str:
       </table>
     </section>
     """
+
+
+def _render_health_banner(health: Dict[str, Any]) -> str:
+    """Top-of-page run-health banner. Loud red/amber when the daily run degraded
+    (stale data, dead source, IBKR down, manifest drift, no cache); slim green
+    when healthy so 'no alarm' is trustworthy. Layout-additive."""
+    if not health:
+        return ""
+    level = str(health.get("level") or "OK")
+    checks = health.get("checks") or []
+    if level == "OK":
+        return (
+            '<section class="panel" style="border-left:4px solid var(--green);'
+            'background:#ecfdf5;padding:8px 14px;margin-bottom:10px">'
+            '<span style="font-weight:600;color:var(--green)">✓ 运行健康</span>'
+            '<span class="subtle" style="margin-left:8px">行情新鲜 · 数据清单一致 · 数据质量达标</span>'
+            '</section>'
+        )
+    crit = level == "CRITICAL"
+    color = "var(--red)" if crit else "var(--amber)"
+    bg = "#fef2f2" if crit else "#fffbeb"
+    title = "🚨 运行严重降级 / CRITICAL" if crit else "⚠️ 运行降级 / DEGRADED"
+    items = "".join(
+        f'<li><b style="color:{"var(--red)" if c.get("level")=="CRITICAL" else "var(--amber)"}">'
+        f'{esc(c.get("label"))}</b>{(" — " + esc(c.get("detail"))) if c.get("detail") else ""}</li>'
+        for c in checks
+    )
+    return (
+        f'<section class="panel" style="border:2px solid {color};background:{bg};'
+        f'padding:12px 16px;margin-bottom:12px">'
+        f'<div style="font-weight:700;color:{color};font-size:15px">{title}</div>'
+        f'<div class="subtle" style="margin:4px 0 6px">今日日报基于降级的数据/连接，请先处理以下问题再据此决策：</div>'
+        f'<ul style="margin:0;padding-left:20px">{items}</ul>'
+        f'</section>'
+    )
 
 
 def _render_cache_hint(cache: Dict[str, Any]) -> str:
