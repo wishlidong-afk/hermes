@@ -101,3 +101,28 @@
 - 测试 **322 passed / 0 failed**;部署 PBO **0.1538**;硬阀门安全门达标。
 - 活盘评分**端到端验证**(unit + 真实数据 + 全窗口回测 + 重校准)。
 - M4 剩余:人工跑影子期(M4-2 按钮)≥5 日 → 人工翻闸(M4-3 按钮)。
+
+---
+
+## 2026-06-07 / 06-08 · 数据新鲜度修复 + 8 风险因子 + 校准上线
+
+### 数据新鲜度 / 完整性(commit e62b4c4)
+- 数据清单(manifest)重冻结 + 接入 `web/refresh.py` 自动重冻结/自愈;`_history_is_fresh` 改交易日感知。
+- FRED 净流动性回填至 06-05;AAII 经会员会话回填至 06-04(latency 14→1,latency_score 80→94,commit 040e191)。
+- WebUI 新增(布局不变):数据清单徽章、刷新清单/IBKR演示/更新慢软数据按钮、空盘引导、`/api/manifest_status` 等端点。
+- IBKR 安全 `write_demo_snapshot`(DEMO-MOCK,拒绝覆盖真实持仓)。
+
+### M4 / 活盘修复(commit 8fb5f7b)
+- 发现 M4 早在 06-04 已翻包引擎;修 `run_daily_package.py` 解释器选择 bug(选了无 numpy 的 venv 做 OHLCV 刷新子进程 → 活盘静默退回缓存)。修复后活盘正常刷新到最新交易日。
+
+### 8 个风险因子 A9–A16(flag-gated,默认 OFF,commit 332aee5)
+- 新 `core/data/risk_signals.py`(参数化 FRED + ETF 比值源)+ `core/scoring/factors_risk.py`。
+- 条件注册:`default_sources(config)/module_a_factors(config)/build_registry(symbol,config)` 串 config;开关 OFF ⇒ 不入列表 ⇒ **逐位一致**(含 input_hash,4 日期实证 HEAD vs OFF)。
+- FRED API key(gitignored,commit c0afa5c)+ 读历史缓存(commit 043d70b)。
+
+### 校准 + 上线 A10/A11/A15(commit d076b2b)
+- 独立信号筛选 + 全窗口回测 + `calibrate_next3_v2` walk-forward PBO。
+- 选 A10 实际利率 + A11 美元 + A15 防守轮动;组合 E75_D70_R50(DEFENSIVE_EXIT 65→70);**next3_pass=true**(部署 PBO 0.1538、train-greedy 0.4615、real-only rank 0.65)。
+- 全窗口 2018–2026:MaxDD −27.6%→−14.2%、Sharpe 0.88→1.11、CAGR 18.1%→15.3%。其余 5 因子保持 OFF。
+- 详见 `docs/RISK_FACTORS_CALIBRATION_2026_06_08.md`。
+- 抓到坑:`status_thresholds` 不能塞非数字键(`verdict.py` 遍历 .items() 取 float)。

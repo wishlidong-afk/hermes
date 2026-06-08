@@ -21,3 +21,6 @@ src/hermes_escape_top/data/soft_history/aaii_sentiment_fetched_raw.csv
 # FRED API key (secret — never commit; public repo)
 fred_api_key.txt
 **/fred_api_key.txt
+
+# Backtest/score runtime byproducts (thousands spawned per full backtest)
+src/hermes_escape_top/data/archive/soft_adapter_snapshot_*.json
