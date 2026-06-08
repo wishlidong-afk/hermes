@@ -62,6 +62,7 @@ def score_symbol(
             missing_weight=missing.missing_weight,
             red_light_count=red_light_count(factors),
             qqq_below_ema20=_qqq_below_ema20(snapshots),
+            threshold_relief=_arming_relief(snapshots, config),
         ),
         config,
     )
@@ -154,6 +155,42 @@ def _qqq_below_ema20(snapshots: Dict[str, SymbolSnapshot]) -> bool:
     close = snap.get("close")
     ema20 = snap.get("ema20")
     return close is not None and ema20 is not None and close < ema20
+
+
+# Leading/orthogonal macro signals that "arm" the system (lower the bar for the
+# coincident technical factors to fire). High-risk-direction = high percentile;
+# breadth/credit ratios = low percentile.
+_ARM_HIGH = ["real_rate_10y_pctl", "dollar_broad_pctl", "move_pctl", "nfci_pctl"]
+_ARM_LOW = ["ndx_concentration_pctl", "concentration_rsp_spy_pctl", "credit_etf_ratio_pctl"]
+
+
+def _arming_relief(snapshots: Dict[str, SymbolSnapshot], config: Dict[str, Any]) -> float:
+    """Arm-then-fire (flag-gated, default OFF → returns 0.0 → byte-identical).
+
+    Counts leading macro factors currently in their risk zone and converts that
+    into a threshold relief (points), so the *coincident* technical score trips a
+    more defensive status earlier — but only while macro conditions are stressed
+    (that conditionality is the precision lever). Bounded + calibratable."""
+    if not bool(config.get("features", {}).get("use_arm_then_fire", False)):
+        return 0.0
+    soft = snapshots.get("SOFT")
+    if soft is None:
+        return 0.0
+    cfg = config.get("arm_then_fire", {}) if isinstance(config.get("arm_then_fire"), dict) else {}
+    hi_thr = float(cfg.get("high_pctl", 75.0))
+    lo_thr = float(cfg.get("low_pctl", 25.0))
+    armed = 0
+    for fld in _ARM_HIGH:
+        v = soft.get(fld)
+        if v is not None and float(v) >= hi_thr:
+            armed += 1
+    for fld in _ARM_LOW:
+        v = soft.get(fld)
+        if v is not None and float(v) <= lo_thr:
+            armed += 1
+    per = float(cfg.get("relief_per_factor", 2.0))
+    cap = float(cfg.get("relief_cap", 8.0))
+    return min(cap, armed * per)
 
 
 def score_results_to_dict(results: Dict[str, ScoreBundle]) -> Dict[str, Any]:

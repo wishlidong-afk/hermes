@@ -18,6 +18,7 @@ class VerdictInput:
     red_light_count: int = 0
     qqq_below_ema20: bool = False
     previous_status: Optional[str] = None
+    threshold_relief: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -38,8 +39,10 @@ def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmat
             reasons=[f"Hard valve override: {','.join(inputs.hard_valve_hits)}"],
         )
 
-    status = status_from_score(inputs.score, config)
+    status = status_from_score(inputs.score, config, relief=inputs.threshold_relief)
     reasons = [f"Base score status: {status} ({inputs.score:.2f})"]
+    if inputs.threshold_relief > 0:
+        reasons.append(f"Arm-then-fire: leading macro armed, thresholds eased {inputs.threshold_relief:.1f}")
     modules = inputs.module_scores
 
     if modules.get("C", 0.0) >= 18:
@@ -74,10 +77,15 @@ def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmat
     )
 
 
-def status_from_score(score: float, config: Dict[str, Any]) -> str:
+def status_from_score(score: float, config: Dict[str, Any], relief: float = 0.0) -> str:
+    """Map score to status. ``relief`` (arm-then-fire) lowers every threshold so a
+    given technical score triggers a more defensive status earlier — but only the
+    WATCH..EXIT ladder thresholds, never below WATCH. relief=0 (default) is the
+    original behaviour byte-for-byte."""
     selected = "HOLD"
     for status, threshold in sorted(config.get("status_thresholds", {}).items(), key=lambda item: float(item[1])):
-        if score >= float(threshold):
+        eff = float(threshold) - (relief if status != "WATCH" else 0.0)
+        if score >= eff:
             selected = status
     return selected
 

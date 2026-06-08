@@ -305,7 +305,15 @@
     "data_financial_stress": false,
     "data_nfci": false,
     "data_move": false,
-    "data_ndx_concentration": false
+    "data_ndx_concentration": false,
+    "use_arm_then_fire": false
+  },
+  "arm_then_fire": {
+    "high_pctl": 75,
+    "low_pctl": 25,
+    "relief_per_factor": 2.0,
+    "relief_cap": 8.0,
+    "_note": "Leading macro factors in risk zone ease status thresholds (earlier fire) only while armed. OFF by default; calibrate relief_cap via PBO before enabling."
   },
   "ibkr": {
     "enabled": true,
