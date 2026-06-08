@@ -1,0 +1,72 @@
+flag-sweep start Mon Jun  8 23:17:08 CST 2026
+>>> [baseline] start Mon Jun  8 23:17:08 CST 2026
+[baseline] done in 39.4min → building/reports/flag_sweep/baseline.json
+{
+  "cagr": 0.153851,
+  "max_drawdown": -0.14039,
+  "sharpe": 1.115885,
+  "sortino": 1.458555,
+  "final_value": 331465.927951
+}
+>>> [baseline] exit=0 Mon Jun  8 23:56:32 CST 2026
+>>> [scored_missing_weight] start Mon Jun  8 23:56:32 CST 2026
+[scored_missing_weight] done in 39.9min → building/reports/flag_sweep/scored_missing_weight.json
+{
+  "cagr": 0.155329,
+  "max_drawdown": -0.14039,
+  "sharpe": 1.12406,
+  "sortino": 1.468877,
+  "final_value": 335042.394909
+}
+>>> [scored_missing_weight] exit=0 Tue Jun  9 00:36:28 CST 2026
+>>> [partial_factor_eval] start Tue Jun  9 00:36:28 CST 2026
+[partial_factor_eval] done in 39.3min → building/reports/flag_sweep/partial_factor_eval.json
+{
+  "cagr": 0.153893,
+  "max_drawdown": -0.14039,
+  "sharpe": 1.116091,
+  "sortino": 1.458888,
+  "final_value": 331567.688361
+}
+>>> [partial_factor_eval] exit=0 Tue Jun  9 01:15:46 CST 2026
+>>> [decision_stabilizer] start Tue Jun  9 01:15:46 CST 2026
+[decision_stabilizer] done in 39.3min → building/reports/flag_sweep/decision_stabilizer.json
+{
+  "cagr": 0.169568,
+  "max_drawdown": -0.15218,
+  "sharpe": 1.174692,
+  "sortino": 1.542828,
+  "final_value": 371264.854271
+}
+>>> [decision_stabilizer] exit=0 Tue Jun  9 01:55:04 CST 2026
+>>> [suspect_valve_guard] start Tue Jun  9 01:55:04 CST 2026
+[suspect_valve_guard] done in 41.7min → building/reports/flag_sweep/suspect_valve_guard.json
+{
+  "cagr": 0.154555,
+  "max_drawdown": -0.13302,
+  "sharpe": 1.118806,
+  "sortino": 1.463845,
+  "final_value": 333164.631333
+}
+>>> [suspect_valve_guard] exit=0 Tue Jun  9 02:36:43 CST 2026
+>>> [f8_tightened] start Tue Jun  9 02:36:43 CST 2026
+[f8_tightened] done in 39.2min → building/reports/flag_sweep/f8_tightened.json
+{
+  "cagr": 0.147866,
+  "max_drawdown": -0.151077,
+  "sharpe": 1.074531,
+  "sortino": 1.398523,
+  "final_value": 317329.492149
+}
+>>> [f8_tightened] exit=0 Tue Jun  9 03:15:53 CST 2026
+>>> [all_on] start Tue Jun  9 03:15:53 CST 2026
+[all_on] done in 41.6min → building/reports/flag_sweep/all_on.json
+{
+  "cagr": 0.17041,
+  "max_drawdown": -0.146438,
+  "sharpe": 1.170884,
+  "sortino": 1.540772,
+  "final_value": 373511.225852
+}
+>>> [all_on] exit=0 Tue Jun  9 03:57:30 CST 2026
+flag-sweep DONE Tue Jun  9 03:57:30 CST 2026
