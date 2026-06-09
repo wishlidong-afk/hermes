@@ -59,7 +59,7 @@ def default_sources(config: Dict[str, Any] | None = None) -> list[DataSource]:
     from .crypto import CryptoFundingSource
     from .macro import CboeIndicesSource, FredNetLiquiditySource
     from .pcr import PutCallSource
-    from .sentiment import AaiiSource, NaaimSource
+    from .sentiment import AaiiSource, CnnFearGreedSource, NaaimSource
 
     sources: list[DataSource] = [
         MissingSource("gex", "data_gex", "GEX source credentials/API not configured"),
@@ -75,6 +75,9 @@ def default_sources(config: Dict[str, Any] | None = None) -> list[DataSource]:
     # an all-OFF config yields exactly the list above (byte-identical).
     from .risk_signals import risk_sources
     sources.extend(risk_sources(config))
+    # CNN Fear & Greed (A2): appended only when data_cnn_fgi is ON → byte-identical off.
+    if config and bool(config.get("features", {}).get("data_cnn_fgi", False)):
+        sources.append(CnnFearGreedSource())
     return sources
 
 

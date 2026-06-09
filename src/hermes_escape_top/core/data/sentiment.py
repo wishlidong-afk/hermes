@@ -132,6 +132,53 @@ class NaaimSource:
         return base / "naaim_exposure.csv"
 
 
+class CnnFearGreedSource:
+    name = "cnn_fear_greed"
+    feature_flag = "data_cnn_fgi"
+
+    def collect(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:
+        day = date.fromisoformat(str(as_of)[:10])
+        if not bool(config.get("features", {}).get(self.feature_flag, False)):
+            return SoftDataRecord(self.name, day, None, "CNN_FGI", False, reason=f"feature disabled: {self.feature_flag}")
+        return self.fetch(as_of, config)
+
+    def fetch(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:
+        day = date.fromisoformat(str(as_of)[:10])
+        path = self.history_path(config)
+        if not path.exists():
+            return SoftDataRecord(self.name, day, None, "CNN_FGI", False, quality_penalty=5.0, reason="CNN F&G history missing")
+        frame = pd.read_csv(path, parse_dates=["date", "publish_date"])
+        records = [(row["publish_date"].date(), row) for row in frame.to_dict("records")]
+        picked = asof_pick(records, day)
+        if picked is None:
+            return SoftDataRecord(self.name, day, None, "CNN_FGI", False, quality_penalty=5.0, reason="no CNN F&G record available as of date")
+        fields = {
+            "cnn_fear_greed": _finite(picked.get("cnn_fear_greed")),
+            "cnn_fear_greed_pctl": _finite(picked.get("cnn_fear_greed_pctl")),
+        }
+        available = fields["cnn_fear_greed"] is not None
+        row_is_proxy = bool(picked.get("is_proxy", False))
+        return SoftDataRecord(
+            self.name,
+            day,
+            fields["cnn_fear_greed"],
+            "CNN_FGI_PROXY" if row_is_proxy else "CNN_FGI",
+            available,
+            is_proxy=row_is_proxy,
+            latency_days=max(0, (day - picked["publish_date"].date()).days),
+            quality_penalty=3.0 if available else 5.0,
+            reason="" if available else "CNN F&G fields unavailable",
+            fields=fields,
+        )
+
+    def history_path(self, config: Dict[str, Any]) -> Path:
+        if "paths" in config and config.get("paths", {}).get("soft_history_dir"):
+            base = resolve_path(config, "soft_history_dir")
+        else:
+            base = Path("data/soft_history")
+        return base / "cnn_fear_greed.csv"
+
+
 def parse_aaii_sentiment_xls(path: Path) -> pd.DataFrame:
     raw = pd.read_excel(path, sheet_name="SENTIMENT", header=2)
     dates = pd.to_datetime(raw["Reported"], errors="coerce")

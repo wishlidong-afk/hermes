@@ -7,7 +7,7 @@ def module_a_factors(config=None) -> list[FactorDefinition]:
     base: list[FactorDefinition] = [
         FactorDefinition("A1_QQQ_MA200_BREAK", "A", 4.0, ["QQQ.close", "QQQ.ma200"], _qqq_ma200_break),
         FactorDefinition("A1_VIX_COMPLACENCY", "A", 4.0, ["^VIX.close"], _vix_complacency, "A1 VIX"),
-        missing_only("A2_CNN_FEAR_GREED", "A", "A2 cnn_fear_greed"),
+        _cnn_factor(config),
         FactorDefinition("A2_AAII_BULL", "A", 2.0, ["SOFT.aaii_bull_bear_spread", "SOFT.aaii_bull_pctl"], _aaii_pressure, "A2 aaii_bull"),
         FactorDefinition("A2_NAAIM", "A", 2.0, ["SOFT.naaim_exposure", "SOFT.naaim_pctl"], _naaim_pressure, "A2 naaim"),
         FactorDefinition("A2_CBOE_EQUITY_PCR", "A", 2.0, ["SOFT.equity_pcr", "SOFT.equity_pcr_pctl"], _equity_pcr_pressure, "A2 cboe_equity_pcr"),
@@ -38,6 +38,36 @@ def module_a_factors(config=None) -> list[FactorDefinition]:
         from .factors_risk import risk_factor_definitions
         base = base + risk_factor_definitions(config)
     return base
+
+
+def _cnn_factor(config=None) -> FactorDefinition:
+    """A2 CNN Fear & Greed. Real factor when data_cnn_fgi is on, else the original
+    missing-only placeholder (max_score=0) so the all-OFF path is byte-identical
+    and the placeholder stays excluded from confidence-missing weight."""
+    enabled = bool((config or {}).get("features", {}).get("data_cnn_fgi", False))
+    if not enabled:
+        return missing_only("A2_CNN_FEAR_GREED", "A", "A2 cnn_fear_greed")
+    return FactorDefinition(
+        "A2_CNN_FEAR_GREED", "A", 2.0, ["SOFT.cnn_fear_greed"], _cnn_pressure, "A2 cnn_fear_greed"
+    )
+
+
+def _cnn_pressure(ctx: FactorContext) -> tuple[float, str]:
+    """High CNN Fear & Greed = greed/euphoria = escape-top pressure (A2 overheat).
+    Config-driven thresholds (defaults: extreme greed >=80 or pctl>=90 → 2;
+    greed >=70 or pctl>=80 → 1). Percentile is optional (raw value can score)."""
+    fg = ctx.get("SOFT.cnn_fear_greed")
+    pctl = ctx.get("SOFT.cnn_fear_greed_pctl")
+    if fg is None:
+        return 0.0, "CNN F&G unavailable"
+    c = (ctx.config or {}).get("cnn_fgi", {}) if getattr(ctx, "config", None) else {}
+    v2 = float(c.get("score2_value", 80)); p2 = float(c.get("score2_pctl", 90))
+    v1 = float(c.get("score1_value", 70)); p1 = float(c.get("score1_pctl", 80))
+    if fg >= v2 or (pctl is not None and pctl >= p2):
+        return 2.0, f"CNN F&G extreme greed: {fg:.0f}, pctl={pctl}"
+    if fg >= v1 or (pctl is not None and pctl >= p1):
+        return 1.0, f"CNN F&G greed watch: {fg:.0f}, pctl={pctl}"
+    return 0.0, f"CNN F&G neutral/fear: {fg:.0f}"
 
 
 def _qqq_ma200_break(ctx: FactorContext) -> tuple[float, str]:
