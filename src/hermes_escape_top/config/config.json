@@ -264,7 +264,7 @@
     "defcon3": {
       "SOXL": "SOXX",
       "FNGU": "QQQ",
-      "MSTR": "QQQ"
+      "MSTR": "BTC-USD"
     },
     "_defcon3_note": "④ SOXL/FNGU are clean 3x→1x same-thesis de-levers; MSTR→QQQ instead SWITCHES thesis (BTC→tech). Backtest candidates for thesis-consistent de-lever: BTC-USD (drop mNAV premium+single-name, keep crypto; live equiv IBIT) or BRK.B (quality de-risk). Default QQQ unchanged pending backtest."
   },
@@ -292,6 +292,7 @@
     "data_net_liquidity": true,
     "data_aaii": true,
     "data_naaim": true,
+    "data_cnn_fgi": false,
     "data_component_breadth": true,
     "data_btc_micro": false,
     "use_meta_label": false,
@@ -316,8 +317,8 @@
     "use_decision_stabilizer": false,
     "use_status_hysteresis": false,
     "use_close_confirmation": false,
-    "use_suspect_valve_guard": false,
-    "use_scored_missing_weight": false,
+    "use_suspect_valve_guard": true,
+    "use_scored_missing_weight": true,
     "use_partial_factor_eval": false
   },
   "arm_then_fire": {

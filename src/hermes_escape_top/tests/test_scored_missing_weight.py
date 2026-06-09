@@ -15,8 +15,9 @@ class ScoredMissingWeightTest(unittest.TestCase):
     (A2 CNN, B5, D-M4, D-M5) no longer inflate the operational missing weight that
     drives blind-spot escalation and score scaling."""
 
-    def test_default_off_uses_full_missing_weight(self) -> None:
-        cfg = load_config()  # flag off
+    def test_off_uses_full_missing_weight(self) -> None:
+        cfg = copy.deepcopy(load_config())
+        cfg["features"]["use_scored_missing_weight"] = False  # explicit OFF (default is now ON)
         result = score_symbol("MSTR", confidence_snapshots(), cfg).result
         # Full missing weight includes the non-scoring placeholders.
         self.assertGreater(result.missing_weight, result.confidence_missing_weight)
@@ -33,7 +34,8 @@ class ScoredMissingWeightTest(unittest.TestCase):
     def test_on_lowers_or_equals_final_score(self) -> None:
         """Removing placeholder inflation can only reduce (never raise) the score,
         because effective_max grows when missing weight shrinks."""
-        base = load_config()
+        base = copy.deepcopy(load_config())
+        base["features"]["use_scored_missing_weight"] = False  # explicit OFF baseline (default is now ON)
         on = copy.deepcopy(base)
         on["features"]["use_scored_missing_weight"] = True
         snaps = confidence_snapshots()

@@ -194,6 +194,7 @@ class Phase3ScoringTest(unittest.TestCase):
 
     def test_action_confidence_missing_weight_excludes_non_scoring_placeholders(self) -> None:
         config = load_config()
+        config["features"]["use_scored_missing_weight"] = False  # assert the full-vs-confidence split
         result = score_symbol("FNGU", confidence_snapshots(), config).result
         self.assertIn("B6 valuation", result.confidence_missing_fields)
         self.assertNotIn("A2 cnn_fear_greed", result.confidence_missing_fields)
