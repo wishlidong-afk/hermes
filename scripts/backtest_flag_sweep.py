@@ -33,6 +33,8 @@ def build_config(variant: str) -> dict:
     feats = cfg.setdefault("features", {})
     if variant == "baseline":
         pass
+    elif variant == "continuous_sell_fraction":
+        cfg["sell_fraction_mode"] = "continuous"
     elif variant == "scored_missing_weight":
         feats["use_scored_missing_weight"] = True
     elif variant == "partial_factor_eval":

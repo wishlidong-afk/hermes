@@ -12,6 +12,7 @@ Usage: PYTHONPATH=src python3 scripts/flag_gate.py
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Dict, List
 
@@ -28,7 +29,8 @@ from hermes_escape_top.scripts.calibrate_next3_v2 import (
 
 DIR = Path("building/reports/flag_sweep")
 BASELINE = "baseline"
-CANDIDATES = ["scored_missing_weight", "hysteresis_only", "decision_stabilizer"]
+# Candidates can be overridden via argv: `flag_gate.py continuous_sell_fraction`
+CANDIDATES = sys.argv[1:] or ["scored_missing_weight", "hysteresis_only", "decision_stabilizer"]
 MAXDD_TOLERANCE = 0.01  # allow ≤1pp worse MaxDD before failing the defense gate
 
 
@@ -95,7 +97,8 @@ def main() -> None:
         )
 
     report = "\n".join(lines) + "\n"
-    (DIR / "GATE_REPORT.md").write_text(report)
+    report_name = "GATE_REPORT.md" if len(sys.argv) <= 1 else "GATE_REPORT_" + "_".join(sys.argv[1:]) + ".md"
+    (DIR / report_name).write_text(report)
     print(report)
 
 
