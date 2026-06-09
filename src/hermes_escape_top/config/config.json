@@ -120,6 +120,13 @@
     "combo": "E75_D70_R50",
     "note": "Enabled A10 real_rate + A11 dollar + A15 defensive_rotation; recalibrated DEFENSIVE_EXIT 65->70. NEXT-3 v2 PASS: deployment PBO 0.1538, train-greedy PBO 0.4615, real-only rank 0.65, next3_pass=true. Full-window 2018-2026 MaxDD -27.6%->-14.2%, Sharpe 0.88->1.11 (CAGR 18.1%->15.3%). Other 5 risk factors (A9/A12/A13/A14/A16) stay OFF -- standalone screen showed them weak/counterproductive."
   },
+  "_flag_review_calibration": {
+    "enabled_at": "2026-06-09",
+    "approved_by": "human-gate-2026-06-09",
+    "enabled_flags": ["use_scored_missing_weight", "use_suspect_valve_guard", "use_partial_factor_eval"],
+    "note": "Line-review fixes (F5/F6, F3, F4) enabled after the walk-forward/PBO gate. F5/F6 (scored_missing_weight) PASSED: 13-fold median OOS objective +0.062 vs baseline, PBO 0.31, MaxDD unchanged (-14.04%), DSR up. F3 (suspect_valve_guard) + F4 (partial_factor_eval) are verified backtest no-ops on clean history (F3: 0 suspect bars after the zero-volume bad-tick fix; F4: constituents always present) — enabled for live robustness with zero backtest footprint. REJECTED (kept OFF): use_decision_stabilizer + use_status_hysteresis + use_close_confirmation (F1/F2 FAILED gate: median OOS objective below baseline, full stabilizer also +1.18pp MaxDD — the sweep CAGR gain was in-sample/regime-specific); NAAIM/PCR tightening (worse on every metric). Evidence: building/reports/flag_sweep/GATE_REPORT.md + SWEEP_SUMMARY.md. Rollback = set the 3 flags false.",
+    "gate_report": "building/reports/flag_sweep/GATE_REPORT.md"
+  },
   "sell_fraction_mode": "step",
   "sell_fractions": {
     "MSTR": {
@@ -282,6 +289,10 @@
     "t3_high_lookback": 63,
     "_t3_note": "① capital efficiency: market_252d_high = current (parks 40% until QQQ/SPY new 252D high). Candidates after backtest: ma200_reclaim (above MA200 + >=t3_off_low_pct off 60D low) or shorter_high (fresh high over t3_high_lookback days). Default unchanged."
   },
+  "hard_valves": {
+    "hm2_buffer_status": "DEFENSIVE_EXIT",
+    "_hm2_note": "⑤ When use_hm2_buffer on, a LONE H-M2 (single -15% day below EMA10, no other valve) is downgraded from instant 100% EXIT to this status floor (DEFENSIVE_EXIT=75% for MSTR). Diagnostic: H-M2 is near-pure whipsaw (0% crash-hit, median fwd20 +18%); a real continuation fires H-M1/H-M4/H-M6 to force full exit. Default OFF."
+  },
   "atr": {
     "chandelier_period": 22,
     "multiplier": 4.5
@@ -319,7 +330,8 @@
     "use_close_confirmation": false,
     "use_suspect_valve_guard": true,
     "use_scored_missing_weight": true,
-    "use_partial_factor_eval": false
+    "use_partial_factor_eval": true,
+    "use_hm2_buffer": false
   },
   "arm_then_fire": {
     "high_pctl": 75,

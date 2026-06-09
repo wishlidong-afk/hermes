@@ -45,7 +45,9 @@ class PartialFactorEvalTest(unittest.TestCase):
             self.assertEqual(f.score, 4.0)
 
     def test_missing_constituent_zeroes_when_off(self) -> None:
-        f = _d_f4(_snapshots(drop_one=True), load_config())  # flag off
+        cfg = copy.deepcopy(load_config())
+        cfg["features"]["use_partial_factor_eval"] = False  # explicit OFF (default is now ON)
+        f = _d_f4(_snapshots(drop_one=True), cfg)
         self.assertEqual(f.score, 0.0)
         self.assertTrue(f.missing_fields)  # reported as missing (all-or-nothing)
 
