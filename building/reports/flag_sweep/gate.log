@@ -1,0 +1,54 @@
+gate start Tue Jun  9 08:58:39 CST 2026
+>>> [baseline] start Tue Jun  9 08:58:39 CST 2026
+[baseline] done in 39.3min → building/reports/flag_sweep/baseline.json
+{
+  "cagr": 0.153851,
+  "max_drawdown": -0.14039,
+  "sharpe": 1.115885,
+  "sortino": 1.458555,
+  "final_value": 331465.927951
+}
+>>> [baseline] exit=0 Tue Jun  9 09:38:01 CST 2026
+>>> [scored_missing_weight] start Tue Jun  9 09:38:01 CST 2026
+[scored_missing_weight] done in 40.1min → building/reports/flag_sweep/scored_missing_weight.json
+{
+  "cagr": 0.155329,
+  "max_drawdown": -0.14039,
+  "sharpe": 1.12406,
+  "sortino": 1.468877,
+  "final_value": 335042.394909
+}
+>>> [scored_missing_weight] exit=0 Tue Jun  9 10:18:05 CST 2026
+>>> [hysteresis_only] start Tue Jun  9 10:18:05 CST 2026
+[hysteresis_only] done in 40.7min → building/reports/flag_sweep/hysteresis_only.json
+{
+  "cagr": 0.151073,
+  "max_drawdown": -0.139342,
+  "sharpe": 1.104031,
+  "sortino": 1.441207,
+  "final_value": 324837.30438
+}
+>>> [hysteresis_only] exit=0 Tue Jun  9 10:58:48 CST 2026
+>>> [decision_stabilizer] start Tue Jun  9 10:58:48 CST 2026
+[decision_stabilizer] done in 38.2min → building/reports/flag_sweep/decision_stabilizer.json
+{
+  "cagr": 0.169568,
+  "max_drawdown": -0.15218,
+  "sharpe": 1.174692,
+  "sortino": 1.542828,
+  "final_value": 371264.854271
+}
+>>> [decision_stabilizer] exit=0 Tue Jun  9 11:37:02 CST 2026
+>>> aggregating (flag_gate.py)
+# Flag Gate — Walk-Forward OOS / PBO
+
+Folds: 13 · baseline = `baseline`
+
+| variant | full CAGR | full MaxDD | median OOS obj | Δ vs base | PBO (OOS) | DSR | gate |
+|---|---:|---:|---:|---:|---:|---:|---|
+| baseline | 15.39% | -14.04% | 0.872 |  | 0.38 | 1.080 | — |
+| scored_missing_weight | 15.53% | -14.04% | 0.933 | +0.062 | 0.31 | 1.088 | ✅ PASS |
+| hysteresis_only | 15.11% | -13.93% | 0.775 | -0.097 | 0.54 | 1.068 | ❌ FAIL (OOS≤base) (PBO≥.5) |
+| decision_stabilizer | 16.96% | -15.22% | 0.814 | -0.058 | 0.23 | 1.138 | ❌ FAIL (OOS≤base) (MaxDD +1.2pp) |
+
+gate DONE Tue Jun  9 11:37:02 CST 2026

@@ -1,16 +1,16 @@
 {
-  "variant": "baseline",
+  "variant": "hysteresis_only",
   "manifest_id": "f1f455b02bfe6f44cfd74194f378c852b92fffaecb84a285d0f744591caa684e",
   "effective_start": "2018-01-02",
   "effective_end": "2026-05-29",
   "n_days": 2113,
-  "runtime_sec": 2360.8,
+  "runtime_sec": 2442.8,
   "metrics": {
-    "cagr": 0.153851,
-    "max_drawdown": -0.14039,
-    "sharpe": 1.115885,
-    "sortino": 1.458555,
-    "final_value": 331465.927951
+    "cagr": 0.151073,
+    "max_drawdown": -0.139342,
+    "sharpe": 1.104031,
+    "sortino": 1.441207,
+    "final_value": 324837.30438
   },
   "benchmarks": {
     "SPY": 0.131419,
