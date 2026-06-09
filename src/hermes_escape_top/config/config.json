@@ -271,7 +271,7 @@
     "defcon3": {
       "SOXL": "SOXX",
       "FNGU": "QQQ",
-      "MSTR": "BTC-USD"
+      "MSTR": "QQQ"
     },
     "_defcon3_note": "④ SOXL/FNGU are clean 3x→1x same-thesis de-levers; MSTR→QQQ instead SWITCHES thesis (BTC→tech). Backtest candidates for thesis-consistent de-lever: BTC-USD (drop mNAV premium+single-name, keep crypto; live equiv IBIT) or BRK.B (quality de-risk). Default QQQ unchanged pending backtest."
   },
