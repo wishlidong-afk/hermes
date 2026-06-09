@@ -49,6 +49,11 @@ def build_config(variant: str) -> dict:
         cfg["routing"]["defcon3"]["MSTR"] = "BTC-USD"
     elif variant == "mstr_brkb":
         cfg["routing"]["defcon3"]["MSTR"] = "BRK.B"
+    elif variant == "hm2_buffer":
+        cfg["features"]["use_hm2_buffer"] = True  # lone H-M2 → DEFENSIVE_EXIT floor
+    elif variant == "hm2_buffer_reduce":
+        cfg["features"]["use_hm2_buffer"] = True
+        cfg.setdefault("hard_valves", {})["hm2_buffer_status"] = "REDUCE"  # keep more (50%)
     elif variant == "capeff_all":
         reentry["t3_gate_mode"] = "ma200_reclaim"
         cfg["sell_fraction_mode"] = "continuous"

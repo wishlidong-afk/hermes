@@ -20,6 +20,12 @@ class HardValveResult:
     # ``triggered``/``ids`` (so the verdict layer never forces EXIT on bad data).
     pending_ids: list[str] = field(default_factory=list)
     pending_reasons: list[str] = field(default_factory=list)
+    # ⑤ H-M2 buffer: when H-M2 is the *lone* hard valve, it is downgraded from an
+    # instant 100% EXIT to a strong-reduce floor (``buffer_status``) instead. The
+    # would-be valve is recorded here (NOT in ``ids`` → no forced EXIT); a genuine
+    # continuation is self-confirmed by a real valve (H-M1/H-M4/H-M6) firing next.
+    buffered_ids: list[str] = field(default_factory=list)
+    buffer_status: Optional[str] = None
 
     @property
     def reason(self) -> str:
@@ -33,6 +39,10 @@ class HardValveResult:
     def pending_reason(self) -> str:
         return "; ".join(self.pending_reasons)
 
+    @property
+    def buffered(self) -> bool:
+        return bool(self.buffered_ids)
+
     def to_dict(self) -> dict[str, object]:
         return {
             "triggered": self.triggered,
@@ -40,6 +50,8 @@ class HardValveResult:
             "reason": self.reason,
             "pending_ids": self.pending_ids,
             "pending_reason": self.pending_reason,
+            "buffered_ids": self.buffered_ids,
+            "buffer_status": self.buffer_status,
         }
 
 
@@ -50,6 +62,8 @@ def evaluate_hard_valves(
     c_score: float = 0.0,
     histories: Optional[Dict[str, pd.DataFrame]] = None,
     suspect: bool = False,
+    hm2_buffer: bool = False,
+    hm2_buffer_status: str = "DEFENSIVE_EXIT",
 ) -> HardValveResult:
     histories = histories or {}
     ids: list[str] = []
@@ -145,6 +159,18 @@ def evaluate_hard_valves(
             reasons=[],
             pending_ids=ids,
             pending_reasons=[f"suspect bar — held pending clean confirmation: {r}" for r in reasons],
+        )
+    if hm2_buffer and ids == ["H-M2"]:
+        # Lone H-M2 (single −15% day below EMA10): diagnostic shows it is near-pure
+        # whipsaw for MSTR (0% led to >20% further drop, median fwd20 +18%). Downgrade
+        # the instant 100% EXIT to a strong-reduce floor; a real continuation will fire
+        # H-M1/H-M4/H-M6 and force the full exit on a later bar (self-confirming).
+        return HardValveResult(
+            triggered=False,
+            ids=[],
+            reasons=[],
+            buffered_ids=ids,
+            buffer_status=hm2_buffer_status,
         )
     return HardValveResult(triggered=bool(ids), ids=ids, reasons=reasons)
 

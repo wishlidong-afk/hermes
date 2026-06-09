@@ -62,7 +62,13 @@ def score_symbol(
     )
     final_score = operational_missing.adjusted_score
     status = status_from_score(final_score, config)
-    hard = evaluate_hard_valves(symbol, snapshots, total_score=final_score, c_score=module_scores.get("C", 0.0), histories=histories, suspect=suspect)
+    hv_cfg = config.get("hard_valves", {}) if isinstance(config.get("hard_valves"), dict) else {}
+    hm2_buffer = bool(config.get("features", {}).get("use_hm2_buffer", False))
+    hard = evaluate_hard_valves(
+        symbol, snapshots, total_score=final_score, c_score=module_scores.get("C", 0.0),
+        histories=histories, suspect=suspect, hm2_buffer=hm2_buffer,
+        hm2_buffer_status=str(hv_cfg.get("hm2_buffer_status", "DEFENSIVE_EXIT")),
+    )
     verdict = make_verdict(
         VerdictInput(
             symbol=symbol,
@@ -74,6 +80,7 @@ def score_symbol(
             qqq_below_ema20=_qqq_below_ema20(snapshots),
             threshold_relief=_arming_relief(snapshots, config),
             previous_status=previous_status,
+            hard_floor_status=hard.buffer_status if hard.buffered else None,
         ),
         config,
     )
@@ -83,6 +90,8 @@ def score_symbol(
         explain.insert(0, f"Hard valve triggered {','.join(hard.ids)}: {hard.reason}")
     elif hard.pending:
         explain.insert(0, f"Hard valve PENDING (suspect bar) {','.join(hard.pending_ids)}: {hard.pending_reason}")
+    elif hard.buffered:
+        explain.insert(0, f"Hard valve BUFFERED {','.join(hard.buffered_ids)}: lone H-M2 → {hard.buffer_status} (not instant EXIT); continuation valve will confirm full exit")
     result = ScoreResult(
         symbol=symbol,
         as_of=snapshots[symbol].as_of,

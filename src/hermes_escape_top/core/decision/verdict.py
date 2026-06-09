@@ -19,6 +19,9 @@ class VerdictInput:
     qqq_below_ema20: bool = False
     previous_status: Optional[str] = None
     threshold_relief: float = 0.0
+    # ⑤ H-M2 buffer: a downgraded lone hard valve injects a status floor that acts
+    # immediately (bypasses the soft-confirmation hold). None = no floor.
+    hard_floor_status: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -99,6 +102,14 @@ def make_verdict(inputs: VerdictInput, config: Dict[str, Any], require_confirmat
             # previous level was already a sell-state this avoids wrongly
             # de-escalating it down to WATCH.
             status = at_least(previous, "WATCH")
+
+    # ⑤ H-M2 buffer floor: a downgraded lone H-M2 sells at this floor NOW (bypasses
+    # the soft-confirmation hold) and carries forward as the confirmed level.
+    if inputs.hard_floor_status and risk_rank(inputs.hard_floor_status) > risk_rank(status):
+        status = inputs.hard_floor_status
+        raw_status = at_least(raw_status, inputs.hard_floor_status)
+        confirmation_required = False
+        reasons.append(f"H-M2 buffer floor: {inputs.hard_floor_status} (lone H-M2 downgraded from instant EXIT)")
 
     return VerdictResult(
         status=status,
