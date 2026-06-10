@@ -253,6 +253,11 @@ FACTOR_EXPLAINS: Dict[str, Dict[str, str]] = {
         "plain_explain": "纳指只剩几个大票在硬撑，等权版跑输，说明内部其实在转弱。",
         "data_hint": "QQQE/QQQ 相对强弱比值的历史分位（低=广度差）。",
     },
+    "A20_COT_NQ": {
+        "professional_explain": "CFTC COT 纳指期货（NQ）机构+杠杆基金综合净多/持仓量。分位高=多头过度拥挤，历史上是拉高出货的先兆。",
+        "plain_explain": "期货市场大资金净多头拥挤到极致，通常意味着已经没有新买家，下行风险上升。",
+        "data_hint": "CFTC 每周发布（周五，数据为周二快照）；资产管理+杠杆基金净多/持仓量历史分位。",
+    },
 }
 
 

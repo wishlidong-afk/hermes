@@ -100,6 +100,13 @@ def _ndx_concentration(ctx: FactorContext) -> tuple[float, str]:
     return _bucket_low(ctx.get("SOFT.ndx_concentration_pctl"), label="QQQE/QQQ NDX breadth")
 
 
+def _cot_nq(ctx: FactorContext) -> tuple[float, str]:
+    # CFTC COT NQ: combined asset-mgr + leveraged-fund net-long / OI.
+    # High percentile = speculative/institutional positioning crowded long
+    # = elevated unwind risk (contrarian — high score = more risk).
+    return _bucket_high(ctx.get("SOFT.cot_nq_net_oi_pct_pctl"), label="NQ COT net positioning")
+
+
 # (feature_flag, FactorDefinition) — each appended only when its flag is ON.
 _RISK_FACTORS: List[tuple[str, FactorDefinition]] = [
     ("data_hy_oas", FactorDefinition("A9_HY_OAS", "A", 4.0, ["SOFT.hy_oas_pctl"], _hy_oas, "A9 hy_oas")),
@@ -113,6 +120,7 @@ _RISK_FACTORS: List[tuple[str, FactorDefinition]] = [
     ("data_nfci", FactorDefinition("A17_NFCI", "A", 4.0, ["SOFT.nfci_pctl"], _nfci, "A17 nfci")),
     ("data_move", FactorDefinition("A18_MOVE", "A", 4.0, ["SOFT.move_pctl"], _move, "A18 move")),
     ("data_ndx_concentration", FactorDefinition("A19_NDX_CONCENTRATION", "A", 4.0, ["SOFT.ndx_concentration_pctl"], _ndx_concentration, "A19 ndx_concentration")),
+    ("data_cot_nq", FactorDefinition("A20_COT_NQ", "A", 4.0, ["SOFT.cot_nq_net_oi_pct_pctl"], _cot_nq, "A20 cot_nq")),
 ]
 
 

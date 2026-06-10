@@ -142,7 +142,8 @@ class FredPercentileSource:
     """
 
     def __init__(self, name: str, feature_flag: str, series_id: str, field: str,
-                 window: int = 252, min_periods: int = 60, start: str = "1990-01-01") -> None:
+                 window: int = 252, min_periods: int = 60, start: str = "1990-01-01",
+                 max_age_days: Optional[int] = None) -> None:
         self.name = name
         self.feature_flag = feature_flag
         self.series_id = series_id
@@ -150,6 +151,10 @@ class FredPercentileSource:
         self.window = window
         self.min_periods = min_periods
         self.start = start
+        # When set, a record older than max_age_days is returned as missing rather
+        # than as a stale value. This prevents the scoring engine from silently
+        # using weeks-old percentiles as if they were current.
+        self.max_age_days = max_age_days
 
     def history_path(self, config: Dict[str, Any]) -> Path:
         if config.get("paths", {}).get("soft_history_dir"):
@@ -201,10 +206,20 @@ class FredPercentileSource:
                                   reason="no record as of date")
         value = _finite(picked.get(self.field))
         pctl = _finite(picked.get(f"{self.field}_pctl"))
+        latency = max(0, (day - picked["publish_date"].date()).days)
+        # Stale-data guard: if max_age_days is set and the record is older than
+        # that threshold, treat it as missing so the scoring engine uses the
+        # missing_weight/blind-spot path instead of silently scoring stale values.
+        if self.max_age_days is not None and latency > self.max_age_days:
+            return SoftDataRecord(
+                self.name, day, None, "FRED", False, is_proxy=False,
+                latency_days=latency, quality_penalty=5.0,
+                reason=f"{self.name} stale ({latency}d > max {self.max_age_days}d)",
+            )
         available = value is not None
         return SoftDataRecord(
             self.name, day, pctl, "FRED", available, is_proxy=False,
-            latency_days=max(0, (day - picked["publish_date"].date()).days),
+            latency_days=latency,
             quality_penalty=0.0 if available else 5.0,
             reason="" if available else f"{self.name} unavailable",
             fields={self.field: value, f"{self.field}_pctl": pctl},
@@ -222,7 +237,8 @@ class EtfRatioPercentileSource:
     """
 
     def __init__(self, name: str, feature_flag: str, numerator: List[str], denominator: List[str],
-                 field: str, window: int = 252, min_periods: int = 60) -> None:
+                 field: str, window: int = 252, min_periods: int = 60,
+                 max_age_days: Optional[int] = None) -> None:
         self.name = name
         self.feature_flag = feature_flag
         self.numerator = numerator
@@ -230,6 +246,7 @@ class EtfRatioPercentileSource:
         self.field = field
         self.window = window
         self.min_periods = min_periods
+        self.max_age_days = max_age_days
 
     def _basket_index(self, store: LocalStore, symbols: List[str], as_of: str) -> Optional[pd.Series]:
         cols = []
@@ -269,6 +286,12 @@ class EtfRatioPercentileSource:
         pctl = _last_percentile(window) if len(window) >= self.min_periods else float("nan")
         value = float(ratio.iloc[-1])
         latency = max(0, (day - ratio.index[-1].date()).days)
+        if self.max_age_days is not None and latency > self.max_age_days:
+            return SoftDataRecord(
+                self.name, day, None, "ETF_RATIO", False, is_proxy=True,
+                latency_days=latency, quality_penalty=5.0,
+                reason=f"{self.name} stale ({latency}d > max {self.max_age_days}d)",
+            )
         pctl_f = _finite(pctl)
         available = pctl_f is not None
         return SoftDataRecord(
@@ -288,13 +311,15 @@ class LevelPercentileSource:
     """
 
     def __init__(self, name: str, feature_flag: str, symbol: str, field: str,
-                 window: int = 252, min_periods: int = 60) -> None:
+                 window: int = 252, min_periods: int = 60,
+                 max_age_days: Optional[int] = None) -> None:
         self.name = name
         self.feature_flag = feature_flag
         self.symbol = symbol
         self.field = field
         self.window = window
         self.min_periods = min_periods
+        self.max_age_days = max_age_days
 
     def collect(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:
         day = date.fromisoformat(str(as_of)[:10])
@@ -315,13 +340,92 @@ class LevelPercentileSource:
                                   reason=f"{self.name} no data as of date")
         window = local.iloc[-self.window:]
         pctl = _last_percentile(window) if len(window) >= self.min_periods else float("nan")
-        value = float(local.iloc[-1]); pctl_f = _finite(pctl)
+        value = float(local.iloc[-1])
+        latency = max(0, (day - local.index[-1].date()).days)
+        if self.max_age_days is not None and latency > self.max_age_days:
+            return SoftDataRecord(
+                self.name, day, None, "INDEX_LEVEL", False, is_proxy=False,
+                latency_days=latency, quality_penalty=5.0,
+                reason=f"{self.name} stale ({latency}d > max {self.max_age_days}d)",
+            )
+        pctl_f = _finite(pctl)
         available = pctl_f is not None
         return SoftDataRecord(
             self.name, day, pctl_f, "INDEX_LEVEL", available, is_proxy=False,
-            latency_days=max(0, (day - local.index[-1].date()).days),
+            latency_days=latency,
             quality_penalty=0.0 if available else 5.0,
             reason="" if available else f"{self.name} insufficient history",
+            fields={self.field: value, f"{self.field}_pctl": pctl_f},
+        )
+
+
+# ── CFTC COT net-positioning percentile ──────────────────────────────────────
+
+class CotPercentileSource:
+    """CFTC Commitments of Traders (TFF) → net-long/OI percentile for NQ.
+
+    Reads from a locally-maintained CSV at ``soft_history_dir/cot_<contract>.csv``.
+    Expected columns: ``date``, ``combined_net_oi_pct``
+    (= (asset_mgr_net + levered_funds_net) / open_interest).
+
+    Published weekly (Friday, for Tuesday snapshot). Backfilled by
+    ``scripts/backfill_cot.py``; max_age_days=14 allows one missed week.
+
+    Signal direction: HIGH percentile = crowded long = elevated distribution
+    risk (contrarian; use _bucket_high in factors_risk.py).
+    """
+
+    def __init__(self, name: str, feature_flag: str, contract: str, field: str,
+                 window: int = 252, min_periods: int = 52,
+                 max_age_days: Optional[int] = 14) -> None:
+        self.name = name
+        self.feature_flag = feature_flag
+        self.contract = contract
+        self.field = field
+        self.window = window
+        self.min_periods = min_periods
+        self.max_age_days = max_age_days
+
+    def history_path(self, config: Dict[str, Any]) -> Path:
+        return resolve_path(config, "soft_history_dir") / f"cot_{self.contract}.csv"
+
+    def collect(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:
+        day = date.fromisoformat(str(as_of)[:10])
+        if not bool(config.get("features", {}).get(self.feature_flag, False)):
+            return SoftDataRecord(self.name, day, None, "CFTC_COT", False,
+                                  reason=f"feature disabled: {self.feature_flag}")
+        path = self.history_path(config)
+        if not path.exists():
+            return SoftDataRecord(self.name, day, None, "CFTC_COT", False, quality_penalty=5.0,
+                                  reason=f"{self.name} CSV missing — run backfill_cot.py")
+        try:
+            df = _read_csv_cached(path, parse_dates=["date"])
+        except Exception as exc:  # noqa: BLE001
+            return SoftDataRecord(self.name, day, None, "CFTC_COT", False, quality_penalty=5.0,
+                                  reason=f"{self.name} read failed: {exc}")
+        if df.empty or "date" not in df.columns or "combined_net_oi_pct" not in df.columns:
+            return SoftDataRecord(self.name, day, None, "CFTC_COT", False, quality_penalty=5.0,
+                                  reason=f"{self.name} CSV malformed (expected date + combined_net_oi_pct)")
+        df = df.set_index("date").sort_index()
+        local = df.loc[df.index <= pd.Timestamp(str(as_of)[:10])]["combined_net_oi_pct"].dropna()
+        if local.empty:
+            return SoftDataRecord(self.name, day, None, "CFTC_COT", False, quality_penalty=5.0,
+                                  reason=f"{self.name} no data on or before {as_of}")
+        latency = max(0, (day - local.index[-1].date()).days)
+        if self.max_age_days is not None and latency > self.max_age_days:
+            return SoftDataRecord(self.name, day, None, "CFTC_COT", False, is_proxy=False,
+                                  latency_days=latency, quality_penalty=5.0,
+                                  reason=f"{self.name} stale ({latency}d > max {self.max_age_days}d)")
+        window = local.iloc[-self.window:]
+        pctl = _last_percentile(window) if len(window) >= self.min_periods else float("nan")
+        value = float(local.iloc[-1])
+        pctl_f = _finite(pctl)
+        available = pctl_f is not None
+        return SoftDataRecord(
+            self.name, day, pctl_f, "CFTC_COT", available, is_proxy=False,
+            latency_days=latency,
+            quality_penalty=0.0 if available else 5.0,
+            reason="" if available else f"{self.name} insufficient history (need {self.min_periods} weeks)",
             fields={self.field: value, f"{self.field}_pctl": pctl_f},
         )
 
@@ -330,23 +434,25 @@ class LevelPercentileSource:
 
 def _all_risk_sources() -> List[Any]:
     return [
-        # Tier 1 — FRED (free, daily, long history)
-        FredPercentileSource("hy_oas", "data_hy_oas", "BAMLH0A0HYM2", "hy_oas"),
-        FredPercentileSource("real_rate", "data_real_rate", "DFII10", "real_rate_10y"),
-        FredPercentileSource("dollar", "data_dollar", "DTWEXBGS", "dollar_broad"),
-        FredPercentileSource("yield_curve", "data_yield_curve", "T10Y3M", "yield_curve_10y3m"),
-        # Tier 2 — ETF ratios (free, from local OHLCV)
-        EtfRatioPercentileSource("credit_etf", "data_credit_etf", ["HYG"], ["IEF"], "credit_etf_ratio"),
-        EtfRatioPercentileSource("concentration", "data_concentration", ["RSP"], ["SPY"], "concentration_rsp_spy"),
+        # Tier 1 — FRED (free, daily, long history); 10-day stale window = 2 holiday weekends
+        FredPercentileSource("hy_oas", "data_hy_oas", "BAMLH0A0HYM2", "hy_oas", max_age_days=10),
+        FredPercentileSource("real_rate", "data_real_rate", "DFII10", "real_rate_10y", max_age_days=10),
+        FredPercentileSource("dollar", "data_dollar", "DTWEXBGS", "dollar_broad", max_age_days=10),
+        FredPercentileSource("yield_curve", "data_yield_curve", "T10Y3M", "yield_curve_10y3m", max_age_days=10),
+        # Tier 2 — ETF ratios (free, from local OHLCV); 7-day = one week of missing OHLCV is suspicious
+        EtfRatioPercentileSource("credit_etf", "data_credit_etf", ["HYG"], ["IEF"], "credit_etf_ratio", max_age_days=7),
+        EtfRatioPercentileSource("concentration", "data_concentration", ["RSP"], ["SPY"], "concentration_rsp_spy", max_age_days=7),
         EtfRatioPercentileSource("defensive_rotation", "data_defensive_rotation",
-                                 ["XLP", "XLU", "XLV"], ["XLY", "XLI", "XLF"], "defensive_cyclical"),
-        EtfRatioPercentileSource("financial_stress", "data_financial_stress", ["XLF"], ["SPY"], "financial_stress_xlf"),
+                                 ["XLP", "XLU", "XLV"], ["XLY", "XLI", "XLF"], "defensive_cyclical", max_age_days=7),
+        EtfRatioPercentileSource("financial_stress", "data_financial_stress", ["XLF"], ["SPY"], "financial_stress_xlf", max_age_days=7),
         # Axis-A additions (2026-06-08): pre-built financial-conditions composite + bond vol
-        FredPercentileSource("nfci", "data_nfci", "NFCI", "nfci"),
-        LevelPercentileSource("move", "data_move", "^MOVE", "move"),
+        FredPercentileSource("nfci", "data_nfci", "NFCI", "nfci", max_age_days=10),
+        LevelPercentileSource("move", "data_move", "^MOVE", "move", max_age_days=7),
         # Axis-B: equal-weight vs cap-weight Nasdaq-100 = NDX concentration/breadth
         # (target-relevant for the tech-heavy FNGU/QQQ sleeve; distinct from A14 SPX, A3 components)
-        EtfRatioPercentileSource("ndx_concentration", "data_ndx_concentration", ["QQQE"], ["QQQ"], "ndx_concentration"),
+        EtfRatioPercentileSource("ndx_concentration", "data_ndx_concentration", ["QQQE"], ["QQQ"], "ndx_concentration", max_age_days=7),
+        # CFTC COT: NQ futures asset-mgr + leveraged-fund net long / OI; weekly; orthogonal to price
+        CotPercentileSource("cot_nq", "data_cot_nq", "nq", "cot_nq_net_oi_pct"),
     ]
 
 

@@ -18,6 +18,13 @@ from .refresh import _completed_trading_days_after
 # baseline, not a degradation, so excluding them keeps "no alarm" meaningful.
 _EXPECTED_OFF_SOURCES = {"gex", "valuation"}
 
+# Soft sources backed by live market data (ETF price ratios / index levels).
+# These update on every trading day; staleness is immediately actionable.
+_ONLINE_SOFT_SOURCES = {
+    "credit_etf", "concentration", "defensive_rotation",
+    "financial_stress", "ndx_concentration", "move",
+}
+
 
 def compute_health(
     payload: Dict[str, Any],
@@ -63,14 +70,39 @@ def compute_health(
     elif level == "MEDIUM":
         add("DEGRADED", "数据质量 MEDIUM", "")
 
-    # 5. Unexpectedly-missing soft sources (exclude the always-off-by-design ones)
+    # 5. Soft source staleness and unexpected absence.
+    #    Stale = had data but max_age_days was exceeded (reason contains "stale").
+    #    Online sources (ETF-ratio / INDEX_LEVEL) going stale is CRITICAL because
+    #    they derive from live market prices and should update every trading day.
+    #    FRED/NAAIM sources going stale is DEGRADED (publication lags are normal).
+    #    Feature-disabled sources are not unexpected — skip them.
     sources = breakdown.get("sources") or []
-    missing = [
-        str(s.get("name")) for s in sources
-        if str(s.get("status")) == "MISSING" and str(s.get("name")) not in _EXPECTED_OFF_SOURCES
-    ]
-    if missing:
-        add("DEGRADED", f"软数据源意外缺失 {len(missing)}", ", ".join(missing[:6]))
+    stale_critical: List[str] = []
+    stale_degraded: List[str] = []
+    missing_unexpected: List[str] = []
+    for s in sources:
+        name = str(s.get("name") or "")
+        status = str(s.get("status") or "")
+        reason = str(s.get("reason") or "")
+        if status != "MISSING":
+            continue
+        if name in _EXPECTED_OFF_SOURCES:
+            continue
+        if "feature disabled" in reason:
+            continue
+        if "stale" in reason:
+            if name in _ONLINE_SOFT_SOURCES:
+                stale_critical.append(name)
+            else:
+                stale_degraded.append(name)
+        else:
+            missing_unexpected.append(name)
+    if stale_critical:
+        add("CRITICAL", f"在线软数据源过期 {len(stale_critical)}", ", ".join(stale_critical[:6]))
+    if stale_degraded:
+        add("DEGRADED", f"软数据源过期 {len(stale_degraded)}", ", ".join(stale_degraded[:6]))
+    if missing_unexpected:
+        add("DEGRADED", f"软数据源意外缺失 {len(missing_unexpected)}", ", ".join(missing_unexpected[:6]))
 
     # 6. IBKR connectivity (can't reconcile real positions if down)
     src = str(ibkr.get("source") or "")

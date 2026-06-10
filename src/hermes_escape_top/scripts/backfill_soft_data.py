@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
-"""Validated live refresh of the slow soft-data CSVs (FRED net-liquidity, AAII).
+"""Validated live refresh of the slow soft-data CSVs.
+
+Covers: FRED net-liquidity, FRED risk signals (real_rate/dollar/yield_curve/
+hy_oas), NAAIM exposure index, AAII sentiment (best-effort).
 
 Design rules (read-only-on-failure):
   - Fetch into memory first, validate, and only then write.
   - Network is flaky → per-series retries with backoff.
   - Never corrupt an existing CSV: back it up to ``*.csv.bak`` before replacing,
     and refuse to write a frame that fails sanity checks.
+  - Failure of any single source is non-fatal: the others still run.
   - Honest reporting: every source returns an ``ok`` flag + reason so callers
-    (CLI / WebUI button) can show exactly what happened.
+    (CLI / WebUI button / run_daily) can show exactly what happened.
 
 Usage:
-    python3 -m hermes_escape_top.scripts.backfill_soft_data            # both
+    python3 -m hermes_escape_top.scripts.backfill_soft_data
     python3 -m hermes_escape_top.scripts.backfill_soft_data --only fred
+    python3 -m hermes_escape_top.scripts.backfill_soft_data --only naaim
+    python3 -m hermes_escape_top.scripts.backfill_soft_data --only fred_risk
     python3 -m hermes_escape_top.scripts.backfill_soft_data --only aaii
 """
 from __future__ import annotations
@@ -23,7 +29,7 @@ import time
 import warnings
 from io import StringIO
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
 
@@ -34,6 +40,11 @@ from hermes_escape_top.core.data.macro import (
     FredNetLiquiditySource,
     fetch_fred_graph_csv,
     fred_net_liquidity_frame,
+)
+from hermes_escape_top.core.data.risk_signals import (
+    FredPercentileSource,
+    fetch_fred_series,
+    _all_risk_sources,
 )
 
 
@@ -92,7 +103,6 @@ def refresh_fred_net_liquidity(config: Optional[Dict[str, Any]] = None, start: s
                 "error": f"fetch failed: {exc}", "old_last": old_last}
 
     new_last, new_rows = _last_date(frame), int(len(frame))
-    # sanity: enough rows, advancing (or equal) coverage, net_liq present + in range
     if new_rows < max(100, int(old_rows * 0.9)) or new_last is None:
         return {"source": "fred_net_liquidity", "ok": False, "wrote": False,
                 "error": f"sanity fail rows={new_rows} last={new_last}", "old_last": old_last}
@@ -112,6 +122,93 @@ def refresh_fred_net_liquidity(config: Optional[Dict[str, Any]] = None, start: s
     return {"source": "fred_net_liquidity", "ok": True, "wrote": True, "advanced": advanced,
             "old_last": old_last, "new_last": new_last, "old_rows": old_rows, "new_rows": new_rows,
             "path": str(path)}
+
+
+# ── FRED risk signals (real_rate / dollar / yield_curve / hy_oas) ───────────
+
+def refresh_fred_risk_signals(config: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    """Refresh all enabled FRED-backed risk-signal CSVs (A9-A19 sources).
+
+    Calls FredPercentileSource.backfill() for each active FRED source.
+    ETF-ratio sources (defensive_rotation etc.) derive from local OHLCV and
+    do not need network refresh here — they recompute at score time.
+    Sources whose flag is OFF are skipped (no network call, no file write).
+    """
+    cfg = config or load_config()
+    feats = cfg.get("features", {}) or {}
+    results = []
+
+    for src in _all_risk_sources():
+        if not isinstance(src, FredPercentileSource):
+            continue
+        if not bool(feats.get(src.feature_flag, False)):
+            results.append({"source": src.name, "ok": True, "wrote": False,
+                            "skipped": True, "reason": f"flag {src.feature_flag} is OFF"})
+            continue
+
+        path = src.history_path(cfg)
+        old = _read_existing(path)
+        old_last, old_rows = _last_date(old), int(len(old))
+        try:
+            frame = _retry(lambda s=src: s.build_frame(config=cfg), tries=3, label=src.name)
+        except Exception as exc:  # noqa: BLE001
+            results.append({"source": src.name, "ok": False, "wrote": False,
+                            "error": f"fetch/build failed: {exc}", "old_last": old_last})
+            continue
+
+        new_last, new_rows = _last_date(frame), int(len(frame))
+        if new_rows < max(10, int(old_rows * 0.9)) or new_last is None:
+            results.append({"source": src.name, "ok": False, "wrote": False,
+                            "error": f"sanity fail rows={new_rows} last={new_last}", "old_last": old_last})
+            continue
+        if old_last is not None and new_last < old_last:
+            results.append({"source": src.name, "ok": False, "wrote": False,
+                            "error": f"refusing regression {new_last} < {old_last}", "old_last": old_last})
+            continue
+
+        advanced = old_last is None or new_last > old_last
+        _commit(path, frame)
+        results.append({"source": src.name, "ok": True, "wrote": True, "advanced": advanced,
+                        "old_last": old_last, "new_last": new_last,
+                        "old_rows": old_rows, "new_rows": new_rows, "path": str(path)})
+
+    return results
+
+
+# ── NAAIM Exposure Index ─────────────────────────────────────────────────────
+
+def refresh_naaim(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Refresh NAAIM Exposure Index from naaim.org.
+
+    Delegates to the dedicated backfill_naaim module which handles the
+    dynamic xlsx URL discovery. Returns a result dict in the same schema
+    as the other refresh functions.
+    """
+    cfg = config or load_config()
+    feats = cfg.get("features", {}) or {}
+    if not bool(feats.get("data_naaim", False)):
+        return {"source": "naaim_exposure", "ok": True, "wrote": False,
+                "skipped": True, "reason": "flag data_naaim is OFF"}
+
+    try:
+        from hermes_escape_top.scripts import backfill_naaim as _naaim_mod
+        raw = _naaim_mod.run(dry_run=False)
+        ok = "error" not in raw and int(raw.get("rows", 0)) > 0
+        return {
+            "source": "naaim_exposure",
+            "ok": ok,
+            "wrote": ok,
+            "advanced": ok,
+            "rows": raw.get("rows", 0),
+            "date_range": raw.get("date_range"),
+            "url": raw.get("url"),
+            "error": raw.get("error") if not ok else None,
+            "note": "NAAIM is published weekly (Wednesday); occasional failures are normal",
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {"source": "naaim_exposure", "ok": False, "wrote": False,
+                "error": f"NAAIM refresh failed: {exc}",
+                "note": "NAAIM is published weekly (Wednesday); occasional failures are normal"}
 
 
 # ── AAII sentiment (best-effort; endpoint historically blocked) ──────────────
@@ -148,7 +245,6 @@ def refresh_aaii_sentiment(config: Optional[Dict[str, Any]] = None) -> Dict[str,
                 "error": "all AAII endpoints unreachable/blocked", "old_last": old_last,
                 "note": "leave CSV untouched; aaii latency stays high until manual download"}
 
-    # Parse: AAII publishes an .xls (HTML table or BIFF). Try the lenient paths.
     new = None
     try:
         if used_url.endswith(".xls"):
@@ -168,9 +264,6 @@ def refresh_aaii_sentiment(config: Optional[Dict[str, Any]] = None) -> Dict[str,
         return {"source": "aaii_sentiment", "ok": False, "wrote": False,
                 "error": "fetched but no parseable table", "old_last": old_last, "url": used_url}
 
-    # The raw AAII layout differs from our normalized schema; rather than risk a
-    # bad transform that pollutes scoring, we hand the parsed frame to a sidecar
-    # file for human review instead of overwriting the canonical CSV.
     sidecar = base / "aaii_sentiment_fetched_raw.csv"
     try:
         new.to_csv(sidecar, index=False)
@@ -184,19 +277,48 @@ def refresh_aaii_sentiment(config: Optional[Dict[str, Any]] = None) -> Dict[str,
                     "(schema mapping is manual to avoid polluting scores)"}
 
 
-def refresh_all(config: Optional[Dict[str, Any]] = None, only: Optional[str] = None) -> Dict[str, Any]:
+# ── Aggregate entry points ───────────────────────────────────────────────────
+
+_VALID_ONLY = {"fred", "fred_risk", "naaim", "aaii"}
+
+
+def refresh_all(config: Optional[Dict[str, Any]] = None,
+                only: Optional[str] = None) -> Dict[str, Any]:
+    """Run all (or selected) soft-data refreshes.
+
+    ``only`` may be one of: "fred", "fred_risk", "naaim", "aaii".
+    With only=None all sources run; failures are non-fatal.
+    """
     cfg = config or load_config()
-    results = []
+    results: List[Dict[str, Any]] = []
+
     if only in (None, "fred"):
         results.append(refresh_fred_net_liquidity(cfg))
+
+    if only in (None, "fred_risk"):
+        results.extend(refresh_fred_risk_signals(cfg))
+
+    if only in (None, "naaim"):
+        results.append(refresh_naaim(cfg))
+
     if only in (None, "aaii"):
         results.append(refresh_aaii_sentiment(cfg))
-    return {"ok": any(r.get("ok") for r in results), "results": results}
+
+    any_ok = any(r.get("ok") for r in results)
+    any_wrote = any(r.get("wrote") for r in results)
+    errors = [r for r in results if not r.get("ok") and not r.get("skipped")]
+    return {
+        "ok": any_ok,
+        "wrote": any_wrote,
+        "errors": len(errors),
+        "results": results,
+    }
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validated live refresh of slow soft-data CSVs")
-    parser.add_argument("--only", choices=["fred", "aaii"], default=None)
+    parser = argparse.ArgumentParser(description="Validated live refresh of soft-data CSVs")
+    parser.add_argument("--only", choices=sorted(_VALID_ONLY), default=None,
+                        help="Refresh only this source group (default: all)")
     args = parser.parse_args()
     out = refresh_all(only=args.only)
     print(json.dumps(out, ensure_ascii=False, indent=2, default=str))

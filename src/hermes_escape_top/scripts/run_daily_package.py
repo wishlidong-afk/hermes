@@ -125,6 +125,61 @@ def refresh_history(as_of: str) -> None:
         print("[M4-1] History refresh OK.")
 
 
+# ── Step 1b: refresh slow soft data (FRED signals, NAAIM) ────────────────────
+
+def refresh_soft_data() -> None:
+    """Refresh slow-moving soft-data CSVs (FRED risk signals, NAAIM).
+
+    Non-fatal: a failure here does not block scoring; the scoring engine will
+    use whatever cached soft data exists and report staleness via health.py.
+    AAII is excluded (no auto-parseable endpoint; requires manual download or
+    Claude-in-Chrome session per prior procedure).
+    """
+    print("[M4-1b] Refreshing soft data sources (FRED risk signals + NAAIM)…")
+    result = subprocess.run(
+        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
+         "--only", "fred"],
+        cwd=str(BASE_DIR),
+        env=_subprocess_env(),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        print("[M4-1b] WARNING: FRED net-liquidity refresh failed; proceeding with cached data.")
+        print(result.stderr[-300:] if result.stderr else "")
+    else:
+        print("[M4-1b] FRED net-liquidity OK.")
+
+    result2 = subprocess.run(
+        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
+         "--only", "fred_risk"],
+        cwd=str(BASE_DIR),
+        env=_subprocess_env(),
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    if result2.returncode != 0:
+        print("[M4-1b] WARNING: FRED risk signals refresh failed; proceeding with cached data.")
+    else:
+        print("[M4-1b] FRED risk signals OK.")
+
+    result3 = subprocess.run(
+        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
+         "--only", "naaim"],
+        cwd=str(BASE_DIR),
+        env=_subprocess_env(),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if result3.returncode != 0:
+        print("[M4-1b] WARNING: NAAIM refresh failed (weekly source — normal if not Wednesday); continuing.")
+    else:
+        print("[M4-1b] NAAIM refresh OK.")
+
+
 # ── Step 2: run the package score pipeline ────────────────────────────────────
 
 def run_score_pipeline(as_of: str, shadow: bool = True) -> Dict[str, Any]:
@@ -632,6 +687,7 @@ def main() -> None:
 
     if not args.skip_refresh:
         refresh_history(refresh_end)
+        refresh_soft_data()
 
     as_of = args.as_of or _latest_available_as_of()
     if args.as_of is None:

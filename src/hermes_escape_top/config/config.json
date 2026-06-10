@@ -106,6 +106,7 @@
     "C": 35,
     "D": 20
   },
+  "_module_caps_note": "B cap is nominally 25 but only 21 pts are currently achievable: B5 social (4 pts) is a stub that always returns 0, and B6 valuation (5 pts) is unwired (no live mNAV pipeline). Effective B cap = 16 pts until B5/B6 are wired. Regime multipliers (CRISIS A×1.25/C×1.25/B×0.8, HIGH_VOL A×1.15/C×1.15/B×0.9, LOW_VOL_TREND B×1.15) are ALWAYS active in scorer.py regardless of the removed use_regime_weights flag — they are NOT gated. To disable regime multipliers, set regime.multipliers to {}.",
   "status_thresholds": {
     "EXIT": 75,
     "DEFENSIVE_EXIT": 70,
@@ -183,7 +184,8 @@
       "A16 financial_stress": 4,
       "A17 nfci": 4,
       "A18 move": 4,
-      "A19 ndx_concentration": 4
+      "A19 ndx_concentration": 4,
+      "A20 cot_nq": 4
     }
   },
   "normalize": {
@@ -306,13 +308,9 @@
     "data_naaim": true,
     "data_cnn_fgi": false,
     "data_component_breadth": true,
-    "data_btc_micro": false,
     "use_meta_label": false,
-    "use_garch": false,
-    "use_rolling_quantile": false,
-    "use_regime_weights": false,
     "use_portfolio_risk_budget": false,
-    "routing_v2": false,
+    "use_regime_multipliers": true,
     "data_cboe_pcr": true,
     "data_hy_oas": false,
     "data_real_rate": true,
@@ -325,6 +323,7 @@
     "data_nfci": false,
     "data_move": false,
     "data_ndx_concentration": false,
+    "data_cot_nq": false,
     "use_arm_then_fire": false,
     "use_decision_stabilizer": false,
     "use_status_hysteresis": false,

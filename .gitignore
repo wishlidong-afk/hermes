@@ -24,3 +24,22 @@ fred_api_key.txt
 
 # Backtest/score runtime byproducts (thousands spawned per full backtest)
 src/hermes_escape_top/data/archive/soft_adapter_snapshot_*.json
+
+# Runtime-generated OHLCV price history (refreshed by run_daily_package.py).
+# These are large machine-generated files that should not be committed.
+# To untrack already-committed files run:
+#   git rm --cached src/hermes_escape_top/data/history/*.csv
+#   git rm --cached src/hermes_escape_top/data/soft_history/*.csv
+#   git rm --cached src/hermes_escape_top/data/archive/*.json
+#   git rm --cached src/hermes_escape_top/data/archive/*.sqlite
+src/hermes_escape_top/data/history/*.csv
+src/hermes_escape_top/data/soft_history/*.csv
+src/hermes_escape_top/data/archive/*.json
+src/hermes_escape_top/data/archive/*.sqlite
+src/hermes_escape_top/data/archive/*.jsonl
+
+# scripts/output — diagnostic run outputs, not for version control
+scripts/output/
+
+# COT backfill bak files
+data/soft_history/*.csv.bak

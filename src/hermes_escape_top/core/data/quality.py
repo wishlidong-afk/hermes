@@ -58,7 +58,7 @@ class DataQuality:
 
 def missing_field_weight(field_name: str, weights: Dict[str, float]) -> float:
     for pattern, weight in weights.items():
-        if pattern == field_name or field_name.startswith(pattern) or pattern in field_name:
+        if pattern == field_name or field_name.startswith(pattern):
             return float(weight)
     return 1.0
 

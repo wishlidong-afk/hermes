@@ -139,9 +139,10 @@ def weighted_percent_score(
     for module in caps:
         weights.setdefault(module, 1.0)
     regime_name = regime.value if isinstance(regime, Regime) else str(regime)
-    for module, multiplier in config.get("regime", {}).get("multipliers", {}).get(regime_name, {}).items():
-        if module in weights:
-            weights[module] = float(weights[module]) * float(multiplier)
+    if bool(config.get("features", {}).get("use_regime_multipliers", True)):
+        for module, multiplier in config.get("regime", {}).get("multipliers", {}).get(regime_name, {}).items():
+            if module in weights:
+                weights[module] = float(weights[module]) * float(multiplier)
     weighted = sum(float(module_scores.get(module, 0.0)) * float(weights.get(module, 1.0)) for module in caps)
     weighted_cap = sum(float(caps[module]) * float(weights.get(module, 1.0)) for module in caps)
     if weighted_cap <= 0:
@@ -180,11 +181,20 @@ def _qqq_below_ema20(snapshots: Dict[str, SymbolSnapshot]) -> bool:
     return close is not None and ema20 is not None and close < ema20
 
 
-# Leading/orthogonal macro signals that "arm" the system (lower the bar for the
-# coincident technical factors to fire). High-risk-direction = high percentile;
-# breadth/credit ratios = low percentile.
-_ARM_HIGH = ["real_rate_10y_pctl", "dollar_broad_pctl", "move_pctl", "nfci_pctl"]
-_ARM_LOW = ["ndx_concentration_pctl", "concentration_rsp_spy_pctl", "credit_etf_ratio_pctl"]
+# Leading, NON-additive macro signals that "arm" the system (lower thresholds for
+# coincident technical factors). Signals already in the additive A-module score
+# (A10 real_rate, A11 dollar) are intentionally EXCLUDED to avoid double-counting:
+# they both raise the total score AND would lower the trigger bar simultaneously.
+_ARM_HIGH = [
+    "move_pctl",   # bond implied vol (MOVE) — early cross-asset stress signal
+    "nfci_pctl",   # NFCI financial conditions — leading macro tightness
+]
+_ARM_LOW = [
+    "yield_curve_10y3m_pctl",     # low = curve inverted = macro downturn signal
+    "ndx_concentration_pctl",     # low = NDX breadth narrow = late-cycle tell
+    "concentration_rsp_spy_pctl", # low = SPX breadth narrow
+    "credit_etf_ratio_pctl",      # low = HYG/IEF deteriorating = credit stress
+]
 
 
 def _arming_relief(snapshots: Dict[str, SymbolSnapshot], config: Dict[str, Any]) -> float:

@@ -283,6 +283,73 @@ def reliability_diagram(
 
 
 # ---------------------------------------------------------------------------
+# Factor lead-time analysis (how far in advance does a factor fire before tops?)
+# ---------------------------------------------------------------------------
+
+def factor_lead_time_analysis(
+    factor_series: pd.Series,
+    labeled_tops: List[Any],
+    lead_window: int = 60,
+    fire_threshold: float = 0.0,
+) -> Dict[str, Any]:
+    """Measure calendar days of advance notice each factor gives before labeled tops.
+
+    For each labeled top, searches the window [top - lead_window, top) for the
+    FIRST day the factor value exceeds ``fire_threshold``. Reports how many
+    calendar days before the top that first fire occurred.
+
+    Args:
+        factor_series: Date-indexed pd.Series (factor scores, any numeric).
+        labeled_tops: Confirmed top dates (list of str/date/Timestamp).
+        lead_window:  Look-back horizon in calendar days.
+        fire_threshold: Minimum value to count as "fired". Default 0 = any positive.
+
+    Returns dict with per-top lead times plus summary statistics.
+    """
+    if factor_series.empty or not labeled_tops:
+        return {"lead_times_days": {}, "median_lead_days": None, "mean_lead_days": None,
+                "hit_rate": 0.0, "hits": 0, "total_tops": 0, "factor_fire_rate": 0.0}
+
+    idx = pd.to_datetime(factor_series.index)
+    vals = factor_series.values
+    # overall fire rate (fraction of days above threshold)
+    fire_rate = float((pd.Series(vals) > fire_threshold).mean())
+
+    lead_times: Dict[str, Optional[int]] = {}
+    for top in labeled_tops:
+        top_ts = pd.Timestamp(top)
+        top_date_str = top_ts.date().isoformat()
+        window_start = top_ts - pd.Timedelta(days=lead_window)
+        # PIT-safe: only look at days strictly before the top
+        mask = (idx >= window_start) & (idx < top_ts)
+        if not mask.any():
+            lead_times[top_date_str] = None
+            continue
+        window_vals = pd.Series(vals[mask.values], index=idx[mask.values]).sort_index()
+        fires = window_vals[window_vals > fire_threshold]
+        if fires.empty:
+            lead_times[top_date_str] = None
+        else:
+            first_fire = fires.index[0]
+            lead_times[top_date_str] = (top_ts - first_fire).days
+
+    valid = [v for v in lead_times.values() if v is not None]
+    hits = len(valid)
+    total = len(labeled_tops)
+    return {
+        "lead_times_days": lead_times,
+        "median_lead_days": float(np.median(valid)) if valid else None,
+        "mean_lead_days": float(np.mean(valid)) if valid else None,
+        "min_lead_days": int(min(valid)) if valid else None,
+        "max_lead_days": int(max(valid)) if valid else None,
+        "hit_rate": round(hits / total, 4) if total > 0 else 0.0,
+        "hits": hits,
+        "total_tops": total,
+        "factor_fire_rate": round(fire_rate, 4),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
