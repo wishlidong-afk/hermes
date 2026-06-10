@@ -1,0 +1,45 @@
+{
+  "variant": "hm2_buffer",
+  "limit": null,
+  "effective_start": "2018-01-02",
+  "effective_end": "2026-05-29",
+  "n_days": 2113,
+  "runtime_sec": 2429.0,
+  "metrics": {
+    "cagr": 0.155372,
+    "max_drawdown": -0.14039,
+    "calmar": null,
+    "sharpe": 1.124266,
+    "sortino": 1.469211,
+    "sortino_ratio": null,
+    "turnover": null,
+    "insurance_ratio": null,
+    "final_value": 335145.253298
+  },
+  "benchmarks": {
+    "SPY": 0.131419,
+    "SPY_metrics": {
+      "final_value": 281459.988611,
+      "cagr": 0.131419,
+      "max_drawdown": -0.341047,
+      "max_drawdown_start": "2020-02-19",
+      "max_drawdown_end": "2020-03-23",
+      "sharpe": 0.736131,
+      "sortino": 0.897505,
+      "calmar": 0.38534,
+      "turnover": 0.0
+    },
+    "QQQ": 0.201525,
+    "QQQ_metrics": {
+      "final_value": 465840.09841,
+      "cagr": 0.201525,
+      "max_drawdown": -0.364777,
+      "max_drawdown_start": "2021-11-19",
+      "max_drawdown_end": "2023-01-05",
+      "sharpe": 0.890581,
+      "sortino": 1.162942,
+      "calmar": 0.552461,
+      "turnover": 0.0
+    }
+  }
+}
