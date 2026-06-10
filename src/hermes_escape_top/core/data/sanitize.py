@@ -113,11 +113,13 @@ def _detect_bad_ticks(df: pd.DataFrame, cfg: Dict[str, Any]) -> List[Anomaly]:
     if "volume" not in df.columns or "close" not in df.columns:
         return anomalies
 
-    # If volume is structurally absent for this series (e.g. FNGU and other ETNs
-    # report ~0 volume), a zero-volume bar cannot distinguish a bad tick from a
-    # real move — using it would flag genuine crash days (COVID/2022) as suspect
-    # and wrongly hold a hard valve. Disable volume-based bad-tick detection then.
-    max_zero_frac = float(cfg.get("bad_tick_max_zero_vol_frac", 0.5))
+    # If volume is structurally unreliable for this series (e.g. FNGU ~85% and
+    # FNGS ~22% report zero/absent volume), a zero-volume bar cannot distinguish a
+    # bad tick from a real move — using it would flag genuine crash days
+    # (COVID/2022) as suspect and wrongly hold a hard valve. Disable volume-based
+    # bad-tick detection then. Threshold 0.2 covers FNGS (22%) while keeping it on
+    # for genuinely-liquid names (DBMF ~3%, all equities 0%).
+    max_zero_frac = float(cfg.get("bad_tick_max_zero_vol_frac", 0.2))
     if len(df) and float((df["volume"] == 0).mean()) > max_zero_frac:
         return anomalies
 

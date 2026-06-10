@@ -14,8 +14,9 @@ def _cont_cfg():
 
 
 class ContinuousSellFractionTest(unittest.TestCase):
-    def test_step_mode_default_unchanged(self) -> None:
-        cfg = load_config()  # step
+    def test_step_mode_unchanged(self) -> None:
+        cfg = copy.deepcopy(load_config())
+        cfg["sell_fraction_mode"] = "step"  # explicit (default is now 'continuous')
         self.assertEqual(sell_fraction_for("FNGU", "REDUCE", cfg, score=69), 0.60)
         self.assertEqual(sell_fraction_for("FNGU", "DEFENSIVE_EXIT", cfg, score=70), 0.85)
         self.assertEqual(sell_fraction_for("MSTR", "TRIM", cfg, score=40), 0.25)

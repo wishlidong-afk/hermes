@@ -127,7 +127,8 @@
     "note": "Line-review fixes (F5/F6, F3, F4) enabled after the walk-forward/PBO gate. F5/F6 (scored_missing_weight) PASSED: 13-fold median OOS objective +0.062 vs baseline, PBO 0.31, MaxDD unchanged (-14.04%), DSR up. F3 (suspect_valve_guard) + F4 (partial_factor_eval) are verified backtest no-ops on clean history (F3: 0 suspect bars after the zero-volume bad-tick fix; F4: constituents always present) — enabled for live robustness with zero backtest footprint. REJECTED (kept OFF): use_decision_stabilizer + use_status_hysteresis + use_close_confirmation (F1/F2 FAILED gate: median OOS objective below baseline, full stabilizer also +1.18pp MaxDD — the sweep CAGR gain was in-sample/regime-specific); NAAIM/PCR tightening (worse on every metric). Evidence: building/reports/flag_sweep/GATE_REPORT.md + SWEEP_SUMMARY.md. Rollback = set the 3 flags false.",
     "gate_report": "building/reports/flag_sweep/GATE_REPORT.md"
   },
-  "sell_fraction_mode": "step",
+  "sell_fraction_mode": "continuous",
+  "_sell_fraction_mode_note": "2026-06-09 human-approved: continuous interpolates the sell fraction by score between rung anchors, removing the 69→70 cliff where a 1-pt score move jumped the position ~35pp. Gate: performance-NEUTRAL (median OOS obj -0.006 = tie, PBO 0.31 robust, MaxDD -13.92% slightly better, DSR flat) — enabled for the operational cliff-removal, not for returns. Rollback = 'step'. Evidence: building/reports/flag_sweep/GATE_REPORT_continuous_sell_fraction.md",
   "sell_fractions": {
     "MSTR": {
       "TRIM": 0.25,
