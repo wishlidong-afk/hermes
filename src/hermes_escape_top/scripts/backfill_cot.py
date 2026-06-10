@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """CFTC COT NQ futures backfill (A20 data source).
 
-Downloads the CFTC Traders in Financial Futures (TFF) disaggregated report,
-filters for Nasdaq-100 (NQ) futures, and computes:
+Downloads the CFTC Traders in Financial Futures (TFF) disaggregated report
+via the CFTC public reporting Socrata API, filters for Nasdaq-100 (NQ)
+futures, and computes:
 
   combined_net_oi_pct = (asset_mgr_net + levered_funds_net) / open_interest
 
 where:
-  asset_mgr_net    = Asset Manager Longs - Asset Manager Shorts
+  asset_mgr_net     = Asset Manager Longs - Asset Manager Shorts
   levered_funds_net = Lev Money Longs - Lev Money Shorts
 
 This ratio (net combined positioning as fraction of OI) is used by
@@ -16,8 +17,9 @@ CotPercentileSource → A20 factor in the scoring engine.
 CFTC publishes weekly (Friday) with a 3-day lag (Tuesday snapshot).
 
 Data source:
-  Historical (2006-2016): https://www.cftc.gov/sites/default/files/files/dea/newcot/c_fut_fin_combined_historical_2006_2016.zip
-  Per-year (2017+):       https://www.cftc.gov/sites/default/files/files/dea/newcot/fut_fin_xls_{year}.zip
+  CFTC public reporting Socrata API (TFF disaggregated):
+  https://publicreporting.cftc.gov/resource/gpe5-46if.json
+  (SSL verification bypassed — macOS Python doesn't include CFTC root CA)
 
 Usage:
   python3 -m hermes_escape_top.scripts.backfill_cot [--dry-run]
@@ -26,12 +28,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import io
 import json
 import shutil
+import ssl
+import urllib.parse
 import urllib.request
 import urllib.error
-import zipfile
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -44,110 +46,86 @@ OUT_CSV = SOFT_HISTORY / "cot_nq.csv"
 
 USER_AGENT = "hermes-escape-top/1.0 (research; read-only)"
 
-# CFTC TFF report download URLs
-_HIST_URL = "https://www.cftc.gov/sites/default/files/files/dea/newcot/c_fut_fin_combined_historical_2006_2016.zip"
-_YEAR_URL = "https://www.cftc.gov/sites/default/files/files/dea/newcot/fut_fin_xls_{year}.zip"
-
-# NQ contract name substrings (CFTC names vary slightly across years)
-_NQ_NAMES = [
-    "NASDAQ-100",
-    "NASDAQ 100",
-    "E-MINI NASDAQ",
-    "NASDAQ STOCK",
-]
-
-# Expected columns in the TFF report (case-insensitive prefix match)
-_COL_MAP = {
-    "open_interest": ["open interest"],
-    "asset_mgr_long": ["asset mgr longs", "asset mgr. longs", "asset manager longs"],
-    "asset_mgr_short": ["asset mgr shorts", "asset mgr. shorts", "asset manager shorts"],
-    "lev_long": ["lev money longs", "leveraged funds longs", "leveraged money longs"],
-    "lev_short": ["lev money shorts", "leveraged funds shorts", "leveraged money shorts"],
-    "date": ["report date as of in form yymmdd", "as_of_date_in_form_yymmdd", "report date"],
-    "market": ["market and exchange names", "market_and_exchange_names"],
-}
+_API_BASE = "https://publicreporting.cftc.gov/resource/gpe5-46if.json"
+_API_LIMIT = 50000  # Socrata max rows per request; NQ history ~1000 rows total
 
 
-def _get(url: str, timeout: int = 60) -> Optional[bytes]:
+def _ssl_ctx() -> ssl.SSLContext:
+    """Create an SSL context that skips cert verification.
+
+    CFTC's TLS chain uses a US Government root CA not bundled with Python's
+    certifi on macOS.  The endpoint itself is a US government domain so
+    downgrading verification is acceptable here.
+    """
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
+def _get_json(url: str, timeout: int = 60) -> Optional[List[Dict]]:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return resp.read()
+        with urllib.request.urlopen(req, timeout=timeout, context=_ssl_ctx()) as resp:
+            return json.loads(resp.read())
     except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            return None
-        raise
+        print(f"  [warn] HTTP {exc.code} for {url[:80]}")
+        return None
     except Exception as exc:
         print(f"  [warn] GET {url[:80]}: {exc}")
         return None
 
 
-def _find_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
-    lower = {c.lower(): c for c in df.columns}
-    for cand in candidates:
-        if cand.lower() in lower:
-            return lower[cand.lower()]
-    return None
+def _fetch_all(start_year: int = 2006) -> pd.DataFrame:
+    """Fetch all NQ TFF rows from the CFTC Socrata API since start_year."""
+    start_iso = f"{start_year}-01-01T00:00:00.000"
+    where = (
+        f"market_and_exchange_names like '%NASDAQ%' "
+        f"AND report_date_as_yyyy_mm_dd >= '{start_iso}'"
+    )
 
+    all_rows: List[Dict] = []
+    offset = 0
+    while True:
+        params = urllib.parse.urlencode({
+            "$limit": _API_LIMIT,
+            "$offset": offset,
+            "$where": where,
+            "$order": "report_date_as_yyyy_mm_dd ASC",
+        })
+        url = f"{_API_BASE}?{params}"
+        print(f"  Fetching API offset={offset}…")
+        batch = _get_json(url)
+        if not batch:
+            break
+        all_rows.extend(batch)
+        if len(batch) < _API_LIMIT:
+            break
+        offset += _API_LIMIT
 
-def _parse_zip(content: bytes) -> Optional[pd.DataFrame]:
-    """Extract and parse the XLS/CSV from a CFTC TFF zip."""
-    try:
-        with zipfile.ZipFile(io.BytesIO(content)) as zf:
-            names = zf.namelist()
-            for name in names:
-                if name.lower().endswith((".xls", ".xlsx")):
-                    data = zf.read(name)
-                    try:
-                        df = pd.read_excel(io.BytesIO(data), engine="xlrd" if name.lower().endswith(".xls") else "openpyxl")
-                    except Exception:
-                        df = pd.read_excel(io.BytesIO(data))
-                    return df
-                if name.lower().endswith(".csv") or name.lower().endswith(".txt"):
-                    data = zf.read(name)
-                    df = pd.read_csv(io.BytesIO(data), low_memory=False)
-                    return df
-    except Exception as exc:
-        print(f"  [warn] zip parse failed: {exc}")
-    return None
-
-
-def _extract_nq(df: pd.DataFrame) -> pd.DataFrame:
-    """Filter a raw TFF dataframe to NQ rows and extract our columns."""
-    market_col = _find_col(df, _COL_MAP["market"])
-    if market_col is None:
+    if not all_rows:
         return pd.DataFrame()
-    mask = df[market_col].astype(str).str.upper().apply(
-        lambda x: any(n in x for n in _NQ_NAMES)
-    )
-    rows = df[mask].copy()
-    if rows.empty:
-        return rows
 
-    date_col = _find_col(rows, _COL_MAP["date"])
-    oi_col = _find_col(rows, _COL_MAP["open_interest"])
-    aml_col = _find_col(rows, _COL_MAP["asset_mgr_long"])
-    ams_col = _find_col(rows, _COL_MAP["asset_mgr_short"])
-    lll_col = _find_col(rows, _COL_MAP["lev_long"])
-    lls_col = _find_col(rows, _COL_MAP["lev_short"])
+    df = pd.DataFrame(all_rows)
+    return _extract_nq_api(df)
 
-    for required, col in [("date", date_col), ("open_interest", oi_col),
-                           ("asset_mgr_long", aml_col), ("asset_mgr_short", ams_col),
-                           ("lev_long", lll_col), ("lev_short", lls_col)]:
-        if col is None:
-            print(f"  [warn] missing column for {required}")
-            return pd.DataFrame()
 
+def _extract_nq_api(df: pd.DataFrame) -> pd.DataFrame:
+    """Map Socrata field names to our internal column names."""
     out = pd.DataFrame()
-    out["date"] = pd.to_datetime(rows[date_col], errors="coerce", format="%y%m%d").fillna(
-        pd.to_datetime(rows[date_col], errors="coerce")
-    )
-    out["open_interest"] = pd.to_numeric(rows[oi_col].astype(str).str.replace(",", ""), errors="coerce")
-    out["asset_mgr_long"] = pd.to_numeric(rows[aml_col].astype(str).str.replace(",", ""), errors="coerce")
-    out["asset_mgr_short"] = pd.to_numeric(rows[ams_col].astype(str).str.replace(",", ""), errors="coerce")
-    out["lev_long"] = pd.to_numeric(rows[lll_col].astype(str).str.replace(",", ""), errors="coerce")
-    out["lev_short"] = pd.to_numeric(rows[lls_col].astype(str).str.replace(",", ""), errors="coerce")
-    return out.dropna(subset=["date", "open_interest"]).reset_index(drop=True)
+    out["date"] = pd.to_datetime(df["report_date_as_yyyy_mm_dd"], errors="coerce")
+    out["open_interest"] = pd.to_numeric(df["open_interest_all"], errors="coerce")
+    out["asset_mgr_long"] = pd.to_numeric(df["asset_mgr_positions_long"], errors="coerce")
+    out["asset_mgr_short"] = pd.to_numeric(df["asset_mgr_positions_short"], errors="coerce")
+    out["lev_long"] = pd.to_numeric(df["lev_money_positions_long"], errors="coerce")
+    out["lev_short"] = pd.to_numeric(df["lev_money_positions_short"], errors="coerce")
+    out = out.dropna(subset=["date", "open_interest"]).reset_index(drop=True)
+    # Multiple NQ contract codes can appear on the same Tuesday; keep the
+    # row with the largest open interest (most representative).
+    out = (out.sort_values(["date", "open_interest"], ascending=[True, False])
+              .drop_duplicates(subset=["date"])
+              .reset_index(drop=True))
+    return out
 
 
 def _compute(df: pd.DataFrame) -> pd.DataFrame:
@@ -163,57 +141,11 @@ def _compute(df: pd.DataFrame) -> pd.DataFrame:
                "open_interest", "combined_net_oi_pct"]]
 
 
-def _fetch_all(start_year: int = 2006) -> pd.DataFrame:
-    frames: List[pd.DataFrame] = []
-    current_year = date.today().year
-
-    if start_year <= 2016:
-        print("  Fetching historical 2006-2016…")
-        content = _get(_HIST_URL)
-        if content:
-            raw = _parse_zip(content)
-            if raw is not None:
-                nq = _extract_nq(raw)
-                if not nq.empty:
-                    frames.append(nq)
-                    print(f"    historical: {len(nq)} NQ rows")
-                else:
-                    print("    [warn] no NQ rows in historical file")
-            else:
-                print("    [warn] could not parse historical zip")
-        else:
-            print("    [warn] could not fetch historical zip")
-
-    for year in range(max(start_year, 2017), current_year + 1):
-        url = _YEAR_URL.format(year=year)
-        print(f"  Fetching {year}…")
-        content = _get(url)
-        if content is None:
-            print(f"    [{year}] not found (may not be published yet)")
-            continue
-        raw = _parse_zip(content)
-        if raw is None:
-            print(f"    [{year}] could not parse zip")
-            continue
-        nq = _extract_nq(raw)
-        if nq.empty:
-            print(f"    [{year}] no NQ rows")
-            continue
-        frames.append(nq)
-        print(f"    [{year}] {len(nq)} NQ rows")
-
-    if not frames:
-        return pd.DataFrame()
-    combined = pd.concat(frames, ignore_index=True)
-    combined = combined.drop_duplicates(subset=["date"]).sort_values("date").reset_index(drop=True)
-    return combined
-
-
 def run(dry_run: bool = False, start_year: int = 2006) -> Dict[str, Any]:
     print("CFTC COT NQ backfill starting…")
     raw = _fetch_all(start_year=start_year)
     if raw.empty:
-        return {"error": "no NQ rows fetched from CFTC", "rows": 0}
+        return {"error": "no NQ rows fetched from CFTC API", "rows": 0}
 
     df = _compute(raw)
     rows = len(df)

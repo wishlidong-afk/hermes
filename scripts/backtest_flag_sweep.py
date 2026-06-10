@@ -47,6 +47,8 @@ def build_config(variant: str) -> dict:
         feats["use_close_confirmation"] = True
     elif variant == "cnn_fgi":
         feats["data_cnn_fgi"] = True
+    elif variant == "cot_nq":
+        feats["data_cot_nq"] = True
     elif variant == "suspect_valve_guard":
         feats["use_suspect_valve_guard"] = True
     elif variant == "f8_tightened":

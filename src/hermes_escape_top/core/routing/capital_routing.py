@@ -70,6 +70,8 @@ def route_capital(
         trend_weight = float(routing.get("TREND", 0.0))
         if trend_weight:
             weights[str(routing.get("trend_symbol", "DBMF"))] = trend_weight
+        for leg, w in (routing.get("extra_legs") or {}).items():
+            weights[str(leg)] = float(w)
         return RoutingDecision(
             True,
             "DEFCON1",

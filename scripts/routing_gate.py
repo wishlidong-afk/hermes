@@ -1,13 +1,12 @@
-"""Walk-forward / PBO gate for the flag candidates.
+"""Walk-forward / PBO gate for routing-variant candidates.
 
-Reads the per-variant daily equity curves produced by backtest_flag_sweep.py and,
-for each walk-forward OOS fold, ranks every candidate's fold objective among the
-set (reusing calibrate_next3_v2's objective + rank + PBO primitives). A candidate
-"passes" if it beats baseline on the median OOS objective AND its PBO < 0.5 (i.e.
-it ranks in the better half on a majority of OOS folds) AND its full-window MaxDD
-is not materially worse than baseline (this is a drawdown-defense system).
+Reads equity curves from building/reports/routing_gate/ and applies the same
+13-fold walk-forward + PBO + DSR + MaxDD gate as flag_gate.py.
 
-Usage: PYTHONPATH=src python3 scripts/flag_gate.py
+Usage:
+    cd /path/to/hermes
+    PYTHONPATH=src python3 scripts/routing_gate.py                   # all candidates
+    PYTHONPATH=src python3 scripts/routing_gate.py combo mstr_btc    # specific candidates
 """
 from __future__ import annotations
 
@@ -27,15 +26,15 @@ from hermes_escape_top.scripts.calibrate_next3_v2 import (
     pbo_from_rank_percentiles,
 )
 
-DIR = Path("building/reports/flag_sweep")
+DIR = Path("building/reports/routing_gate")
 BASELINE = "baseline"
-# Candidates can be overridden via argv: `flag_gate.py continuous_sell_fraction`
-CANDIDATES = sys.argv[1:] or ["scored_missing_weight", "hysteresis_only", "decision_stabilizer"]
-MAXDD_TOLERANCE = 0.01  # allow ≤1pp worse MaxDD before failing the defense gate
+CANDIDATES = sys.argv[1:] or ["mstr_btc", "mstr_brkb", "defcon1_gld", "combo"]
+MAXDD_TOLERANCE = 0.01
 
 
 def load_equity(variant: str) -> pd.Series:
-    data = json.loads((DIR / f"{variant}_equity.json").read_text())
+    path = DIR / f"{variant}_equity.json"
+    data = json.loads(path.read_text())
     s = pd.Series({pd.Timestamp(k): float(v) for k, v in data.items()}).sort_index()
     return s
 
@@ -50,7 +49,13 @@ def fold_objective(equity: pd.Series, idx: np.ndarray) -> float:
 def main() -> None:
     variants = [BASELINE] + CANDIDATES
     equities = {v: load_equity(v) for v in variants if (DIR / f"{v}_equity.json").exists()}
+    missing = [v for v in variants if v not in equities]
+    if missing:
+        print(f"WARNING: missing equity files for: {missing} — skipping")
     variants = [v for v in variants if v in equities]
+    if len(variants) < 2:
+        raise SystemExit("Need at least baseline + 1 candidate to gate.")
+
     dates = list(equities[BASELINE].index)
     folds = walk_forward_splits([d.isoformat() for d in dates])
 
@@ -66,20 +71,26 @@ def main() -> None:
             oos_rank[v].append(rank_percentile(objs, i))
 
     lines: List[str] = []
-    lines.append("# Flag Gate — Walk-Forward OOS / PBO\n")
-    lines.append(f"Folds: {len(folds)} · baseline = `{BASELINE}`\n")
+    lines.append("# Routing Gate — Walk-Forward OOS / PBO\n")
+    lines.append(f"Folds: {len(folds)}  ·  baseline = `{BASELINE}`\n")
     lines.append("| variant | full CAGR | full MaxDD | Sharpe | Calmar | median OOS obj | Δ vs base | PBO (OOS) | DSR | gate |")
     lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---|")
     base_med = float(np.nanmedian(oos_obj[BASELINE]))
     base_dd = abs(float(full[BASELINE].get("max_drawdown") or 0.0))
+
     for v in variants:
+        m = full[v]
+        cagr = float(m.get("cagr") or 0.0)
+        dd = abs(float(m.get("max_drawdown") or 0.0))
+        sharpe = float(m.get("sharpe") or 0.0)
+        calmar = float(m.get("calmar") or 0.0)
         med = float(np.nanmedian(oos_obj[v]))
         pbo = pbo_from_rank_percentiles(oos_rank[v])
         rets = equities[v].pct_change().dropna().values
         dsr = deflated_sharpe(rets, n_trials=len(variants), skew=0.0, kurt=3.0)
-        dd = abs(float(full[v].get("max_drawdown") or 0.0))
         if v == BASELINE:
             gate = "—"
+            delta = ""
         else:
             beats = med > base_med
             pbo_ok = pbo < 0.5
@@ -90,17 +101,15 @@ def main() -> None:
             if not pbo_ok:
                 gate += " (PBO≥.5)"
             if not dd_ok:
-                gate += f" (MaxDD +{(dd-base_dd)*100:.1f}pp)"
-        d = "" if v == BASELINE else f"{med-base_med:+.3f}"
-        sharpe = float(full[v].get("sharpe") or 0.0)
-        calmar = float(full[v].get("calmar") or 0.0)
+                gate += f" (MaxDD +{(dd - base_dd)*100:.1f}pp)"
+            delta = f"{med - base_med:+.3f}"
         lines.append(
-            f"| {v} | {full[v].get('cagr',0):.2%} | {-dd:.2%} | {sharpe:.3f} | {calmar:.3f} | {med:.3f} | {d} | {pbo:.2f} | {dsr:.3f} | {gate} |"
+            f"| {v} | {cagr:.2%} | {-dd:.2%} | {sharpe:.3f} | {calmar:.3f} | {med:.3f} | {delta} | {pbo:.2f} | {dsr:.3f} | {gate} |"
         )
 
     report = "\n".join(lines) + "\n"
-    report_name = "GATE_REPORT.md" if len(sys.argv) <= 1 else "GATE_REPORT_" + "_".join(sys.argv[1:]) + ".md"
-    (DIR / report_name).write_text(report)
+    out_path = DIR / "ROUTING_GATE_REPORT.md"
+    out_path.write_text(report)
     print(report)
 
 

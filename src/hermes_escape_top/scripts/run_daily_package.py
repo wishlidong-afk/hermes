@@ -128,7 +128,7 @@ def refresh_history(as_of: str) -> None:
 # ── Step 1b: refresh slow soft data (FRED signals, NAAIM) ────────────────────
 
 def refresh_soft_data() -> None:
-    """Refresh slow-moving soft-data CSVs (FRED risk signals, NAAIM).
+    """Refresh slow-moving soft-data CSVs (FRED risk signals, NAAIM, COT).
 
     Non-fatal: a failure here does not block scoring; the scoring engine will
     use whatever cached soft data exists and report staleness via health.py.
@@ -178,6 +178,20 @@ def refresh_soft_data() -> None:
         print("[M4-1b] WARNING: NAAIM refresh failed (weekly source — normal if not Wednesday); continuing.")
     else:
         print("[M4-1b] NAAIM refresh OK.")
+
+    result4 = subprocess.run(
+        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
+         "--only", "cot"],
+        cwd=str(BASE_DIR),
+        env=_subprocess_env(),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result4.returncode != 0:
+        print("[M4-1b] WARNING: COT NQ refresh failed (weekly — normal if CFTC site is down); continuing.")
+    else:
+        print("[M4-1b] COT NQ OK.")
 
 
 # ── Step 2: run the package score pipeline ────────────────────────────────────

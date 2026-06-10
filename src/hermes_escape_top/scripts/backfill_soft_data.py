@@ -19,6 +19,7 @@ Usage:
     python3 -m hermes_escape_top.scripts.backfill_soft_data --only naaim
     python3 -m hermes_escape_top.scripts.backfill_soft_data --only fred_risk
     python3 -m hermes_escape_top.scripts.backfill_soft_data --only aaii
+    python3 -m hermes_escape_top.scripts.backfill_soft_data --only cot
 """
 from __future__ import annotations
 
@@ -211,6 +212,48 @@ def refresh_naaim(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
                 "note": "NAAIM is published weekly (Wednesday); occasional failures are normal"}
 
 
+# ── CFTC COT NQ futures (weekly, published Fridays with ~3-day lag) ────────────
+
+def refresh_cot(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Incremental refresh of CFTC COT NQ futures positioning data.
+
+    Fetches only the last 2 calendar years from CFTC (fast — 2 zip files),
+    then merges with the existing CSV so full history is preserved.
+    """
+    from datetime import date as _date_cls
+    from hermes_escape_top.scripts import backfill_cot
+
+    cfg = config or load_config()
+    out_csv = backfill_cot.OUT_CSV
+    old_last = None
+    try:
+        existing = _read_existing(out_csv)
+        existing["date"] = pd.to_datetime(existing["date"], errors="coerce")
+        old_last = _last_date(existing)
+        current_year = _date_cls.today().year
+        raw = backfill_cot._fetch_all(start_year=current_year - 1)
+        if raw.empty:
+            return {"source": "cot_nq", "ok": False, "wrote": False,
+                    "error": "no NQ rows from CFTC (site may be down)", "old_last": old_last}
+        fresh = backfill_cot._compute(raw)
+        if not existing.empty:
+            combined = (pd.concat([existing, fresh])
+                        .drop_duplicates(subset=["date"])
+                        .sort_values("date")
+                        .reset_index(drop=True))
+        else:
+            combined = fresh
+        new_last = _last_date(combined)
+        advanced = new_last != old_last
+        _commit(out_csv, combined)
+        return {"source": "cot_nq", "ok": True, "wrote": True, "advanced": advanced,
+                "rows": len(combined), "old_last": old_last, "new_last": new_last,
+                "note": "CFTC publishes every Friday; no change mid-week is normal"}
+    except Exception as exc:  # noqa: BLE001
+        return {"source": "cot_nq", "ok": False, "wrote": False,
+                "error": str(exc), "old_last": old_last}
+
+
 # ── AAII sentiment (best-effort; endpoint historically blocked) ──────────────
 
 _AAII_URLS = [
@@ -279,14 +322,14 @@ def refresh_aaii_sentiment(config: Optional[Dict[str, Any]] = None) -> Dict[str,
 
 # ── Aggregate entry points ───────────────────────────────────────────────────
 
-_VALID_ONLY = {"fred", "fred_risk", "naaim", "aaii"}
+_VALID_ONLY = {"fred", "fred_risk", "naaim", "aaii", "cot"}
 
 
 def refresh_all(config: Optional[Dict[str, Any]] = None,
                 only: Optional[str] = None) -> Dict[str, Any]:
     """Run all (or selected) soft-data refreshes.
 
-    ``only`` may be one of: "fred", "fred_risk", "naaim", "aaii".
+    ``only`` may be one of: "fred", "fred_risk", "naaim", "aaii", "cot".
     With only=None all sources run; failures are non-fatal.
     """
     cfg = config or load_config()
@@ -303,6 +346,9 @@ def refresh_all(config: Optional[Dict[str, Any]] = None,
 
     if only in (None, "aaii"):
         results.append(refresh_aaii_sentiment(cfg))
+
+    if only in (None, "cot"):
+        results.append(refresh_cot(cfg))
 
     any_ok = any(r.get("ok") for r in results)
     any_wrote = any(r.get("wrote") for r in results)
