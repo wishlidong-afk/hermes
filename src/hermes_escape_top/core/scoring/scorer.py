@@ -185,6 +185,11 @@ def _qqq_below_ema20(snapshots: Dict[str, SymbolSnapshot]) -> bool:
 # coincident technical factors). Signals already in the additive A-module score
 # (A10 real_rate, A11 dollar) are intentionally EXCLUDED to avoid double-counting:
 # they both raise the total score AND would lower the trigger bar simultaneously.
+# CAVEAT: each signal below shares its data flag with an additive factor
+# (data_move→A18, data_nfci→A17, etc.). Enabling those data flags makes the
+# signal BOTH additive and arming — same double-count. If you enable
+# use_arm_then_fire together with any of these data flags, the PBO gate must
+# evaluate that combination, not each in isolation.
 _ARM_HIGH = [
     "move_pctl",   # bond implied vol (MOVE) — early cross-asset stress signal
     "nfci_pctl",   # NFCI financial conditions — leading macro tightness

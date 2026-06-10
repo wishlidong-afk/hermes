@@ -57,7 +57,8 @@
     "^VIX3M",
     "^VIX9D",
     "^SKEW",
-    "^VVIX"
+    "^VVIX",
+    "GLD"
   ],
   "radars": {
     "MSTR": [
@@ -106,7 +107,7 @@
     "C": 35,
     "D": 20
   },
-  "_module_caps_note": "B cap is nominally 25 but only 21 pts are currently achievable: B5 social (4 pts) is a stub that always returns 0, and B6 valuation (5 pts) is unwired (no live mNAV pipeline). Effective B cap = 16 pts until B5/B6 are wired. Regime multipliers (CRISIS A×1.25/C×1.25/B×0.8, HIGH_VOL A×1.15/C×1.15/B×0.9, LOW_VOL_TREND B×1.15) are ALWAYS active in scorer.py regardless of the removed use_regime_weights flag — they are NOT gated. To disable regime multipliers, set regime.multipliers to {}.",
+  "_module_caps_note": "B cap is nominally 25 but only 21 pts are currently achievable: B5 social (4 pts) is a stub that always returns 0, and B6 valuation (5 pts) is unwired (no live mNAV pipeline). Effective B cap = 16 pts until B5/B6 are wired. Regime multipliers (CRISIS A×1.25/C×1.25/B×0.8, HIGH_VOL A×1.15/C×1.15/B×0.9, LOW_VOL_TREND B×1.15) are gated by features.use_regime_multipliers (default true = active, matching pre-2026-06-10 unconditional behaviour; the old use_regime_weights flag was inert and was removed).",
   "status_thresholds": {
     "EXIT": 75,
     "DEFENSIVE_EXIT": 70,
@@ -261,9 +262,12 @@
   },
   "routing": {
     "defcon1": {
-      "BOXX": 0.7,
+      "BOXX": 0.5,
       "TREND": 0.3,
-      "trend_symbol": "DBMF"
+      "trend_symbol": "DBMF",
+      "extra_legs": {
+        "GLD": 0.2
+      }
     },
     "defcon2": {
       "primary": "BRK.B",
@@ -274,9 +278,9 @@
     "defcon3": {
       "SOXL": "SOXX",
       "FNGU": "QQQ",
-      "MSTR": "QQQ"
+      "MSTR": "BTC-USD"
     },
-    "_defcon3_note": "④ SOXL/FNGU are clean 3x→1x same-thesis de-levers; MSTR→QQQ instead SWITCHES thesis (BTC→tech). Backtest candidates for thesis-consistent de-lever: BTC-USD (drop mNAV premium+single-name, keep crypto; live equiv IBIT) or BRK.B (quality de-risk). Default QQQ unchanged pending backtest."
+    "_defcon3_note": "④ SOXL/FNGU are clean 3x→1x same-thesis de-levers. MSTR→BTC-USD: drops mNAV premium+single-name risk, keeps crypto thesis (live equiv: IBIT). Gate-approved 2026-06-10: combo variant, 13-fold WF PBO=0.31, OOS Δ+0.117, CAGR +1.90pp vs baseline. DEFCON1: BOXX50/DBMF30/GLD20 — gold adds inflation-hedge leg orthogonal to cash+trend (gate PBO=0.31, CAGR +1.59pp standalone). Rollback: MSTR→QQQ, DEFCON1 BOXX0.7/TREND0.3, remove extra_legs."
   },
   "reentry": {
     "time_lock_days": 11,

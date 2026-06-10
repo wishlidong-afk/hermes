@@ -322,10 +322,11 @@ def factor_lead_time_analysis(
         window_start = top_ts - pd.Timedelta(days=lead_window)
         # PIT-safe: only look at days strictly before the top
         mask = (idx >= window_start) & (idx < top_ts)
+        mask = getattr(mask, "values", mask)
         if not mask.any():
             lead_times[top_date_str] = None
             continue
-        window_vals = pd.Series(vals[mask.values], index=idx[mask.values]).sort_index()
+        window_vals = pd.Series(vals[mask], index=idx[mask]).sort_index()
         fires = window_vals[window_vals > fire_threshold]
         if fires.empty:
             lead_times[top_date_str] = None

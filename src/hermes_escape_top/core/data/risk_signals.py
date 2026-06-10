@@ -434,10 +434,12 @@ class CotPercentileSource:
 
 def _all_risk_sources() -> List[Any]:
     return [
-        # Tier 1 — FRED (free, daily, long history); 10-day stale window = 2 holiday weekends
+        # Tier 1 — FRED. Daily-published series get 10d (2 holiday weekends);
+        # weekly-published series (DTWEXBGS, NFCI) get 14d — their normal
+        # publication lag can reach ~12d around holidays, 10d would false-alarm.
         FredPercentileSource("hy_oas", "data_hy_oas", "BAMLH0A0HYM2", "hy_oas", max_age_days=10),
         FredPercentileSource("real_rate", "data_real_rate", "DFII10", "real_rate_10y", max_age_days=10),
-        FredPercentileSource("dollar", "data_dollar", "DTWEXBGS", "dollar_broad", max_age_days=10),
+        FredPercentileSource("dollar", "data_dollar", "DTWEXBGS", "dollar_broad", max_age_days=14),
         FredPercentileSource("yield_curve", "data_yield_curve", "T10Y3M", "yield_curve_10y3m", max_age_days=10),
         # Tier 2 — ETF ratios (free, from local OHLCV); 7-day = one week of missing OHLCV is suspicious
         EtfRatioPercentileSource("credit_etf", "data_credit_etf", ["HYG"], ["IEF"], "credit_etf_ratio", max_age_days=7),
@@ -446,7 +448,7 @@ def _all_risk_sources() -> List[Any]:
                                  ["XLP", "XLU", "XLV"], ["XLY", "XLI", "XLF"], "defensive_cyclical", max_age_days=7),
         EtfRatioPercentileSource("financial_stress", "data_financial_stress", ["XLF"], ["SPY"], "financial_stress_xlf", max_age_days=7),
         # Axis-A additions (2026-06-08): pre-built financial-conditions composite + bond vol
-        FredPercentileSource("nfci", "data_nfci", "NFCI", "nfci", max_age_days=10),
+        FredPercentileSource("nfci", "data_nfci", "NFCI", "nfci", max_age_days=14),
         LevelPercentileSource("move", "data_move", "^MOVE", "move", max_age_days=7),
         # Axis-B: equal-weight vs cap-weight Nasdaq-100 = NDX concentration/breadth
         # (target-relevant for the tech-heavy FNGU/QQQ sleeve; distinct from A14 SPX, A3 components)

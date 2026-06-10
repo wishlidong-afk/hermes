@@ -66,10 +66,11 @@ These flags had zero code references and were removed from config.json:
 
 ---
 
-## Regime multipliers (always active)
+## Regime multipliers (gated, default ON)
 
-Despite `use_regime_weights` being removed as a dead flag, the regime multiplier logic
-in `scorer.py` is **unconditional**. Current values:
+The regime multiplier logic in `scorer.py` was unconditional until 2026-06-10
+(the old `use_regime_weights` flag was inert). It is now gated by
+`use_regime_multipliers` (default **ON** = unchanged behaviour). Current values:
 
 | Regime | A | B | C |
 |--------|---|---|---|
@@ -77,8 +78,7 @@ in `scorer.py` is **unconditional**. Current values:
 | HIGH_VOL | ×1.15 | ×0.9 | ×1.15 |
 | LOW_VOL_TREND | — | ×1.15 | — |
 
-To gate these behind a flag, add `use_regime_multipliers` (default ON) to `features`
-and wrap the multiplier lookup in `scorer.py` with a feature check.
+Set `use_regime_multipliers: false` to disable (flat module weights in all regimes).
 
 ---
 
