@@ -342,7 +342,17 @@
     "low_pctl": 25,
     "relief_per_factor": 2.0,
     "relief_cap": 8.0,
-    "_note": "Leading macro factors in risk zone ease status thresholds (earlier fire) only while armed. OFF by default; calibrate relief_cap via PBO before enabling."
+    "arm_high_fields": [
+      "move_pctl",
+      "nfci_pctl"
+    ],
+    "arm_low_fields": [
+      "yield_curve_10y3m_pctl",
+      "ndx_concentration_pctl",
+      "concentration_rsp_spy_pctl",
+      "credit_etf_ratio_pctl"
+    ],
+    "_note": "Leading macro factors in risk zone ease status thresholds (earlier fire) only while armed. OFF by default; calibrate relief_cap via PBO before enabling. arm_high/low_fields list the SOFT percentile fields used for arming — fields not collected (data_* flag OFF) return None and are skipped automatically. Fields shared with additive A-factors (e.g. move_pctl↔A18, nfci_pctl↔A17) create a coupling: enabling that data_* flag means the signal is both additive and arming; run PBO gate on the combination, not each in isolation."
   },
   "naaim": {
     "score2_exposure": 90,

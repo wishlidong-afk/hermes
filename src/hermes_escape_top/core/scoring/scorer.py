@@ -181,34 +181,20 @@ def _qqq_below_ema20(snapshots: Dict[str, SymbolSnapshot]) -> bool:
     return close is not None and ema20 is not None and close < ema20
 
 
-# Leading, NON-additive macro signals that "arm" the system (lower thresholds for
-# coincident technical factors). Signals already in the additive A-module score
-# (A10 real_rate, A11 dollar) are intentionally EXCLUDED to avoid double-counting:
-# they both raise the total score AND would lower the trigger bar simultaneously.
-# CAVEAT: each signal below shares its data flag with an additive factor
-# (data_move→A18, data_nfci→A17, etc.). Enabling those data flags makes the
-# signal BOTH additive and arming — same double-count. If you enable
-# use_arm_then_fire together with any of these data flags, the PBO gate must
-# evaluate that combination, not each in isolation.
-_ARM_HIGH = [
-    "move_pctl",   # bond implied vol (MOVE) — early cross-asset stress signal
-    "nfci_pctl",   # NFCI financial conditions — leading macro tightness
-]
-_ARM_LOW = [
-    "yield_curve_10y3m_pctl",     # low = curve inverted = macro downturn signal
-    "ndx_concentration_pctl",     # low = NDX breadth narrow = late-cycle tell
-    "concentration_rsp_spy_pctl", # low = SPX breadth narrow
-    "credit_etf_ratio_pctl",      # low = HYG/IEF deteriorating = credit stress
-]
-
-
 def _arming_relief(snapshots: Dict[str, SymbolSnapshot], config: Dict[str, Any]) -> float:
     """Arm-then-fire (flag-gated, default OFF → returns 0.0 → byte-identical).
 
     Counts leading macro factors currently in their risk zone and converts that
     into a threshold relief (points), so the *coincident* technical score trips a
-    more defensive status earlier — but only while macro conditions are stressed
-    (that conditionality is the precision lever). Bounded + calibratable."""
+    more defensive status earlier — but only while macro conditions are stressed.
+
+    Which SOFT fields count as arming signals is config-driven (arm_then_fire.
+    arm_high_fields / arm_low_fields), not hardcoded. This decouples the arming
+    set from the data/factor flag system: a field listed here that has no data
+    (because its data_* flag is OFF) simply returns None from soft.get() and is
+    skipped automatically. Fields shared with additive A-factors create a known
+    coupling — enabling that data flag makes the signal both additive AND arming;
+    the PBO gate must evaluate that combination, not each in isolation."""
     if not bool(config.get("features", {}).get("use_arm_then_fire", False)):
         return 0.0
     soft = snapshots.get("SOFT")
@@ -218,11 +204,11 @@ def _arming_relief(snapshots: Dict[str, SymbolSnapshot], config: Dict[str, Any])
     hi_thr = float(cfg.get("high_pctl", 75.0))
     lo_thr = float(cfg.get("low_pctl", 25.0))
     armed = 0
-    for fld in _ARM_HIGH:
+    for fld in cfg.get("arm_high_fields", []):
         v = soft.get(fld)
         if v is not None and float(v) >= hi_thr:
             armed += 1
-    for fld in _ARM_LOW:
+    for fld in cfg.get("arm_low_fields", []):
         v = soft.get(fld)
         if v is not None and float(v) <= lo_thr:
             armed += 1
