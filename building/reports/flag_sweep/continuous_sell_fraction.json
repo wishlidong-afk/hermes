@@ -1,16 +1,16 @@
 {
-  "variant": "baseline",
-  "manifest_id": "c43e62bdcd42159cce3a6f5fd62bc26bc1d8edf5cc01345885df9b6da366ae13",
+  "variant": "continuous_sell_fraction",
+  "manifest_id": "e0751d0d8da07cef4f9639ee614d18657fc1ebac5ef9a6547ce4ef4f988c4c06",
   "effective_start": "2018-01-02",
   "effective_end": "2026-05-29",
   "n_days": 2113,
-  "runtime_sec": 2467.2,
+  "runtime_sec": 2436.8,
   "metrics": {
-    "cagr": 0.155372,
-    "max_drawdown": -0.14039,
-    "sharpe": 1.124266,
-    "sortino": 1.469211,
-    "final_value": 335145.253298
+    "cagr": 0.154755,
+    "max_drawdown": -0.139167,
+    "sharpe": 1.122521,
+    "sortino": 1.467173,
+    "final_value": 333649.961708
   },
   "benchmarks": {
     "SPY": 0.131419,

@@ -1,0 +1,22 @@
+cnn run start Tue Jun  9 14:30:08 CST 2026
+>>> [baseline] start Tue Jun  9 14:30:08 CST 2026
+[baseline] done in 41.7min → building/reports/flag_sweep/baseline.json
+{
+  "cagr": 0.158371,
+  "max_drawdown": -0.14039,
+  "sharpe": 1.14025,
+  "sortino": 1.491106,
+  "final_value": 342506.311865
+}
+>>> [baseline] exit=0 Tue Jun  9 15:11:47 CST 2026
+>>> [cnn_fgi] start Tue Jun  9 15:11:47 CST 2026
+[cnn_fgi] done in 41.0min → building/reports/flag_sweep/cnn_fgi.json
+{
+  "cagr": 0.158029,
+  "max_drawdown": -0.14039,
+  "sharpe": 1.151363,
+  "sortino": 1.509417,
+  "final_value": 341659.932503
+}
+>>> [cnn_fgi] exit=0 Tue Jun  9 15:52:50 CST 2026
+cnn run DONE Tue Jun  9 15:52:50 CST 2026

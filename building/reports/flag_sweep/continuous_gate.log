@@ -1,0 +1,32 @@
+continuous-gate start Tue Jun  9 20:30:12 CST 2026
+>>> [baseline] start Tue Jun  9 20:30:12 CST 2026
+[baseline] done in 41.1min → building/reports/flag_sweep/baseline.json
+{
+  "cagr": 0.155372,
+  "max_drawdown": -0.14039,
+  "sharpe": 1.124266,
+  "sortino": 1.469211,
+  "final_value": 335145.253298
+}
+>>> [baseline] exit=0 Tue Jun  9 21:11:19 CST 2026
+>>> [continuous_sell_fraction] start Tue Jun  9 21:11:19 CST 2026
+[continuous_sell_fraction] done in 40.6min → building/reports/flag_sweep/continuous_sell_fraction.json
+{
+  "cagr": 0.154755,
+  "max_drawdown": -0.139167,
+  "sharpe": 1.122521,
+  "sortino": 1.467173,
+  "final_value": 333649.961708
+}
+>>> [continuous_sell_fraction] exit=0 Tue Jun  9 21:51:56 CST 2026
+>>> aggregating
+# Flag Gate — Walk-Forward OOS / PBO
+
+Folds: 13 · baseline = `baseline`
+
+| variant | full CAGR | full MaxDD | median OOS obj | Δ vs base | PBO (OOS) | DSR | gate |
+|---|---:|---:|---:|---:|---:|---:|---|
+| baseline | 15.54% | -14.04% | 0.933 |  | 0.31 | 1.099 | — |
+| continuous_sell_fraction | 15.48% | -13.92% | 0.927 | -0.006 | 0.31 | 1.097 | ❌ FAIL (OOS≤base) |
+
+continuous-gate DONE Tue Jun  9 21:51:57 CST 2026
