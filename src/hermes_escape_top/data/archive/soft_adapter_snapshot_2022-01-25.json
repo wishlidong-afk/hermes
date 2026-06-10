@@ -92,6 +92,21 @@
       "source": "local_component_history",
       "value": 0.0
     },
+    "cot_nq": {
+      "as_of": "2022-01-25",
+      "data_available": true,
+      "fields": {
+        "cot_nq_net_oi_pct": 0.1299913292541104,
+        "cot_nq_net_oi_pct_pctl": 78.96825396825396
+      },
+      "is_proxy": false,
+      "latency_days": 0,
+      "name": "cot_nq",
+      "quality_penalty": 0.0,
+      "reason": "",
+      "source": "CFTC_COT",
+      "value": 78.96825396825396
+    },
     "defensive_rotation": {
       "as_of": "2022-01-25",
       "data_available": true,

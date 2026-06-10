@@ -1,0 +1,1285 @@
+{
+  "schema_version": "escape-top-score-v2.5-package",
+  "as_of": "2026-06-04",
+  "generated_at": "2026-06-10T11:31:41.538923+00:00",
+  "data_confidence": "Package(0.888)",
+  "data_quality_profile": {
+    "completeness_score": 100.0,
+    "quality_score": 90.5,
+    "latency_score": 100.0,
+    "overall_score": 97.15,
+    "level": "HIGH",
+    "penalties": [
+      {
+        "field": "SOFT.cboe_pcr,SOFT.equity_pcr,SOFT.equity_pcr_pctl",
+        "reason": "proxy",
+        "penalty": 1.5
+      },
+      {
+        "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+        "reason": "proxy",
+        "penalty": 2.0
+      },
+      {
+        "field": "SOFT.btc_funding_basis,SOFT.btc_funding_8h_avg,SOFT.btc_funding_pctl,SOFT.btc_basis_annual,SOFT.btc_basis_pctl",
+        "reason": "proxy",
+        "penalty": 2.0
+      },
+      {
+        "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+        "reason": "proxy",
+        "penalty": 2.0
+      },
+      {
+        "field": "SOFT.valuation",
+        "reason": "proxy",
+        "penalty": 2.0
+      }
+    ]
+  },
+  "dataset": {
+    "as_of": "2026-06-04",
+    "data_confidence": "Medium",
+    "market": {
+      "QQQ": {
+        "close": 740.6099853515625,
+        "ema20": 718.8909087846841,
+        "ma200": 620.1623254394531
+      },
+      "VIX": {
+        "close": 15.399999618530272
+      }
+    },
+    "symbols": {
+      "MSTR": {
+        "status": "EXIT"
+      },
+      "FNGU": {
+        "status": "REDUCE"
+      },
+      "SOXL": {
+        "status": "REDUCE"
+      }
+    }
+  },
+  "results": {
+    "MSTR": {
+      "symbol": "MSTR",
+      "status": "EXIT",
+      "sell_pct": 100,
+      "total_score": 66.18,
+      "raw_score": 62.87,
+      "effective_max_score": 95.0,
+      "calibrated_score": 66.18,
+      "missing_score_weight": 5.0,
+      "missing_fields": [
+        "Hard valve triggered H-M1,H-M4,H-M6: MSTR close <= MA200; BTC below MA50 and MSTR two days below EMA20; MSTR 22d Chandelier 4.5x ATR trailing stop breached after 18% peak drawdown",
+        "Hard valve override: H-M1,H-M4,H-M6",
+        "VIX low/calm: 15.40",
+        "A2_CNN_FEAR_GREED: missing A2 cnn_fear_greed",
+        "NAAIM bullish watch: exposure=86.8, pctl=73.41"
+      ],
+      "hard_trigger": {
+        "triggered": true,
+        "ids": [
+          "H-M1",
+          "H-M4",
+          "H-M6"
+        ],
+        "reason": "H-M1; H-M4; H-M6"
+      },
+      "modules": {
+        "A": {
+          "score": 15.0,
+          "items": [
+            {
+              "label": "A1_VIX_COMPLACENCY",
+              "points": 2.0,
+              "reason": "VIX low/calm: 15.40",
+              "flag": "yellow"
+            },
+            {
+              "label": "A2_NAAIM",
+              "points": 1.0,
+              "reason": "NAAIM bullish watch: exposure=86.8, pctl=73.41",
+              "flag": "yellow"
+            },
+            {
+              "label": "A2_CBOE_EQUITY_PCR",
+              "points": 1.0,
+              "reason": "Equity PCR low watch: pcr=0.615, pctl=16.27",
+              "flag": "yellow"
+            },
+            {
+              "label": "A3_COMPONENT_BREADTH",
+              "points": 4.0,
+              "reason": "A3 breadth overheat: 94% >50DMA, 82% >200DMA",
+              "flag": "red"
+            },
+            {
+              "label": "A5_NET_LIQUIDITY",
+              "points": 1.0,
+              "reason": "FRED net liquidity soft watch: pctl=32.1",
+              "flag": "yellow"
+            },
+            {
+              "label": "A8_QQQ_DISTRIBUTION",
+              "points": 2.0,
+              "reason": "market distribution watch: QQQ 3.0/25, SPY 4.0/25",
+              "flag": "yellow"
+            },
+            {
+              "label": "A10_REAL_RATE",
+              "points": 4.0,
+              "reason": "10Y real yield extreme: 94th pctl",
+              "flag": "red"
+            }
+          ],
+          "missing": []
+        },
+        "B": {
+          "score": 5.0,
+          "items": [
+            {
+              "label": "B3_POST_PEAK_DAMAGE",
+              "points": 5.0,
+              "reason": "Post-peak drawdown severe: -34.0%",
+              "flag": "red"
+            }
+          ],
+          "missing": []
+        },
+        "C": {
+          "score": 26.0,
+          "items": [
+            {
+              "label": "C10_MACRO_TREND_STRUCTURE",
+              "points": 10.0,
+              "reason": "close<EMA50; Minervini structure broken; Weinstein 150/200D support broken",
+              "flag": "red"
+            },
+            {
+              "label": "C7_AVWAP_PLATFORM_SUPPORT",
+              "points": 2.0,
+              "reason": "C7: below peak-anchored AVWAP 158.66",
+              "flag": "yellow"
+            },
+            {
+              "label": "C8_DISTRIBUTION_PRESSURE",
+              "points": 4.0,
+              "reason": "Distribution pressure severe: 7/25",
+              "flag": "red"
+            },
+            {
+              "label": "C9_CHANDELIER_BREAK",
+              "points": 5.0,
+              "reason": "Close below 22D Chandelier 4.5x ATR: 129.37 < 151.57",
+              "flag": "red"
+            },
+            {
+              "label": "C11_MA220_REBUILD_GAP",
+              "points": 4.0,
+              "reason": "Close is below or equal to MA220 rebuild line",
+              "flag": "red"
+            },
+            {
+              "label": "C12_VOL_EXPANSION",
+              "points": 1.0,
+              "reason": "20D realized volatility watch: 68.2%",
+              "flag": "yellow"
+            }
+          ],
+          "missing": []
+        },
+        "D": {
+          "score": 17.0,
+          "items": [
+            {
+              "label": "D1_ASSET_MA200_BREAK",
+              "points": 5.0,
+              "reason": "Asset close is below or equal to MA200",
+              "flag": "red"
+            },
+            {
+              "label": "D2_ASSET_MA220_BREAK",
+              "points": 3.0,
+              "reason": "Asset close is below or equal to MA220",
+              "flag": "red"
+            },
+            {
+              "label": "D3_TRAILING_PEAK_DAMAGE",
+              "points": 4.0,
+              "reason": "60D peak drawdown -34.0% and close below EMA50",
+              "flag": "red"
+            },
+            {
+              "label": "D4_RADAR_CONFIRMATION",
+              "points": 4.0,
+              "reason": "BTC radar is below or equal to MA200",
+              "flag": "red"
+            },
+            {
+              "label": "D_M3_BTC_VOLATILITY_PROXY",
+              "points": 1.0,
+              "reason": "BTC proxy stress watch: vol20=30.3%, ret10=-16.8%, dd60=-22.1%",
+              "flag": "yellow"
+            }
+          ],
+          "missing": []
+        }
+      },
+      "capital_route": {
+        "applies": true,
+        "destination": "BOXX",
+        "destination_symbol": "BOXX",
+        "weights": {
+          "BOXX": 0.5,
+          "DBMF": 0.3,
+          "GLD": 0.2
+        },
+        "label": "☢️ 宏观核爆：资金撤入 BOXX/现金防空洞",
+        "protocol_step": "DEFCON1",
+        "sell_proceeds_pct": 100,
+        "status": "EXIT",
+        "reason": "Macro/liquidity nuclear condition: route sell proceeds to BOXX defensive sleeve.",
+        "hard_ids": [
+          "H-M1",
+          "H-M4",
+          "H-M6"
+        ],
+        "hard_triggered": true
+      },
+      "flag_counts": {
+        "red": 11
+      }
+    },
+    "FNGU": {
+      "symbol": "FNGU",
+      "status": "REDUCE",
+      "sell_pct": 60,
+      "total_score": 31.13,
+      "raw_score": 29.57,
+      "effective_max_score": 95.0,
+      "calibrated_score": 31.13,
+      "missing_score_weight": 5.0,
+      "missing_fields": [
+        "Base score status: WATCH (31.13)",
+        "Red-light factor count >=4: minimum REDUCE",
+        "VIX low/calm: 15.40",
+        "A2_CNN_FEAR_GREED: missing A2 cnn_fear_greed",
+        "NAAIM bullish watch: exposure=86.8, pctl=73.41"
+      ],
+      "hard_trigger": {
+        "triggered": false,
+        "ids": [],
+        "reason": ""
+      },
+      "modules": {
+        "A": {
+          "score": 15.0,
+          "items": [
+            {
+              "label": "A1_VIX_COMPLACENCY",
+              "points": 2.0,
+              "reason": "VIX low/calm: 15.40",
+              "flag": "yellow"
+            },
+            {
+              "label": "A2_NAAIM",
+              "points": 1.0,
+              "reason": "NAAIM bullish watch: exposure=86.8, pctl=73.41",
+              "flag": "yellow"
+            },
+            {
+              "label": "A2_CBOE_EQUITY_PCR",
+              "points": 1.0,
+              "reason": "Equity PCR low watch: pcr=0.615, pctl=16.27",
+              "flag": "yellow"
+            },
+            {
+              "label": "A3_COMPONENT_BREADTH",
+              "points": 4.0,
+              "reason": "A3 breadth overheat: 94% >50DMA, 82% >200DMA",
+              "flag": "red"
+            },
+            {
+              "label": "A5_NET_LIQUIDITY",
+              "points": 1.0,
+              "reason": "FRED net liquidity soft watch: pctl=32.1",
+              "flag": "yellow"
+            },
+            {
+              "label": "A8_QQQ_DISTRIBUTION",
+              "points": 2.0,
+              "reason": "market distribution watch: QQQ 3.0/25, SPY 4.0/25",
+              "flag": "yellow"
+            },
+            {
+              "label": "A10_REAL_RATE",
+              "points": 4.0,
+              "reason": "10Y real yield extreme: 94th pctl",
+              "flag": "red"
+            }
+          ],
+          "missing": []
+        },
+        "B": {
+          "score": 0.0,
+          "items": [],
+          "missing": []
+        },
+        "C": {
+          "score": 11.0,
+          "items": [
+            {
+              "label": "C10_MACRO_TREND_STRUCTURE",
+              "points": 4.0,
+              "reason": "Minervini structure broken",
+              "flag": "red"
+            },
+            {
+              "label": "C6_SHARP_DROP",
+              "points": 1.0,
+              "reason": "2-day drop watch: -10.0%",
+              "flag": "yellow"
+            },
+            {
+              "label": "C7_AVWAP_PLATFORM_SUPPORT",
+              "points": 2.0,
+              "reason": "C7: below peak-anchored AVWAP 34.81",
+              "flag": "yellow"
+            },
+            {
+              "label": "C8_DISTRIBUTION_PRESSURE",
+              "points": 3.0,
+              "reason": "Distribution pressure elevated: 5/25",
+              "flag": "red"
+            },
+            {
+              "label": "C12_VOL_EXPANSION",
+              "points": 1.0,
+              "reason": "20D realized volatility watch: 64.2%",
+              "flag": "yellow"
+            }
+          ],
+          "missing": []
+        },
+        "D": {
+          "score": 3.0,
+          "items": [
+            {
+              "label": "D_F4_COMPONENT_FLOW",
+              "points": 3.0,
+              "reason": "FNGU component flow elevated: 4/9 weak outflow [9/9 obs] (NVDA,AMZN,GOOGL,NFLX)",
+              "flag": "red"
+            }
+          ],
+          "missing": []
+        }
+      },
+      "capital_route": {
+        "applies": true,
+        "destination": "BOXX",
+        "destination_symbol": "BOXX",
+        "weights": {
+          "BOXX": 0.5,
+          "DBMF": 0.3,
+          "GLD": 0.2
+        },
+        "label": "☢️ 宏观核爆：资金撤入 BOXX/现金防空洞",
+        "protocol_step": "DEFCON1",
+        "sell_proceeds_pct": 60,
+        "status": "REDUCE",
+        "reason": "Macro/liquidity nuclear condition: route sell proceeds to BOXX defensive sleeve.",
+        "hard_ids": [],
+        "hard_triggered": false
+      },
+      "flag_counts": {
+        "red": 5
+      }
+    },
+    "SOXL": {
+      "symbol": "SOXL",
+      "status": "REDUCE",
+      "sell_pct": 60,
+      "total_score": 29.0,
+      "raw_score": 27.55,
+      "effective_max_score": 95.0,
+      "calibrated_score": 29.0,
+      "missing_score_weight": 5.0,
+      "missing_fields": [
+        "Base score status: WATCH (29.00)",
+        "Red-light factor count >=4: minimum REDUCE",
+        "VIX low/calm: 15.40",
+        "A2_CNN_FEAR_GREED: missing A2 cnn_fear_greed",
+        "NAAIM bullish watch: exposure=86.8, pctl=73.41"
+      ],
+      "hard_trigger": {
+        "triggered": false,
+        "ids": [],
+        "reason": ""
+      },
+      "modules": {
+        "A": {
+          "score": 15.0,
+          "items": [
+            {
+              "label": "A1_VIX_COMPLACENCY",
+              "points": 2.0,
+              "reason": "VIX low/calm: 15.40",
+              "flag": "yellow"
+            },
+            {
+              "label": "A2_NAAIM",
+              "points": 1.0,
+              "reason": "NAAIM bullish watch: exposure=86.8, pctl=73.41",
+              "flag": "yellow"
+            },
+            {
+              "label": "A2_CBOE_EQUITY_PCR",
+              "points": 1.0,
+              "reason": "Equity PCR low watch: pcr=0.615, pctl=16.27",
+              "flag": "yellow"
+            },
+            {
+              "label": "A3_COMPONENT_BREADTH",
+              "points": 4.0,
+              "reason": "A3 breadth overheat: 94% >50DMA, 82% >200DMA",
+              "flag": "red"
+            },
+            {
+              "label": "A5_NET_LIQUIDITY",
+              "points": 1.0,
+              "reason": "FRED net liquidity soft watch: pctl=32.1",
+              "flag": "yellow"
+            },
+            {
+              "label": "A8_QQQ_DISTRIBUTION",
+              "points": 2.0,
+              "reason": "market distribution watch: QQQ 3.0/25, SPY 4.0/25",
+              "flag": "yellow"
+            },
+            {
+              "label": "A10_REAL_RATE",
+              "points": 4.0,
+              "reason": "10Y real yield extreme: 94th pctl",
+              "flag": "red"
+            }
+          ],
+          "missing": []
+        },
+        "B": {
+          "score": 5.0,
+          "items": [
+            {
+              "label": "B2_MA200_EXTENSION",
+              "points": 5.0,
+              "reason": "Price extension above MA200 is extreme: 287.8%",
+              "flag": "red"
+            }
+          ],
+          "missing": []
+        },
+        "C": {
+          "score": 10.0,
+          "items": [
+            {
+              "label": "C7_AVWAP_PLATFORM_SUPPORT",
+              "points": 2.0,
+              "reason": "C7: below peak-anchored AVWAP 270.95",
+              "flag": "yellow"
+            },
+            {
+              "label": "C8_DISTRIBUTION_PRESSURE",
+              "points": 4.0,
+              "reason": "Distribution pressure severe: 7/25",
+              "flag": "red"
+            },
+            {
+              "label": "C12_VOL_EXPANSION",
+              "points": 4.0,
+              "reason": "20D realized volatility extreme: 144.1%",
+              "flag": "red"
+            }
+          ],
+          "missing": []
+        },
+        "D": {
+          "score": 0.0,
+          "items": [],
+          "missing": []
+        }
+      },
+      "capital_route": {
+        "applies": true,
+        "destination": "BOXX",
+        "destination_symbol": "BOXX",
+        "weights": {
+          "BOXX": 0.5,
+          "DBMF": 0.3,
+          "GLD": 0.2
+        },
+        "label": "☢️ 宏观核爆：资金撤入 BOXX/现金防空洞",
+        "protocol_step": "DEFCON1",
+        "sell_proceeds_pct": 60,
+        "status": "REDUCE",
+        "reason": "Macro/liquidity nuclear condition: route sell proceeds to BOXX defensive sleeve.",
+        "hard_ids": [],
+        "hard_triggered": false
+      },
+      "flag_counts": {
+        "red": 5
+      }
+    }
+  },
+  "portfolio_risk_shadow": {
+    "legs_reported": [
+      "FNGU",
+      "MSTR",
+      "SOXL"
+    ],
+    "legs_used": [
+      "FNGU",
+      "SOXL"
+    ],
+    "target_weights": {
+      "FNGU": 0.08,
+      "MSTR": 0.0,
+      "SOXL": 0.12
+    },
+    "forecast_portfolio_vol": 0.201758,
+    "gross_scaler": 1.0,
+    "effective_gross_scaler": 1.0,
+    "portfolio_risk_cap_active": false,
+    "avg_pairwise_corr": 0.455759,
+    "corr_percentile": 37.676228,
+    "corr_regime": "NORMAL",
+    "binding_constraint": "NONE",
+    "cov_meta": {
+      "corr_window": 60,
+      "common_samples": 60,
+      "vol_window": 20,
+      "vols": {
+        "FNGU": 0.683652,
+        "MSTR": 0.730826,
+        "SOXL": 1.355609
+      },
+      "shrinkage_lambda": 0.05
+    },
+    "explain": [
+      "Excluded hard-valve legs from gross calculation: MSTR",
+      "Portfolio risk budget feature disabled: shadow only, effective scaler=1."
+    ]
+  },
+  "state_suggestions": {
+    "symbols": {
+      "MSTR": {
+        "current_state": "HOLDING",
+        "next_state": "COOLDOWN",
+        "reason": "EXIT sell signal; enter/keep 11-trading-day jail",
+        "last_score": 66.18,
+        "last_action": "EXIT",
+        "cooldown_days_left": 11,
+        "sell_pct": 100,
+        "hard_triggered": true
+      },
+      "FNGU": {
+        "current_state": "HOLDING",
+        "next_state": "COOLDOWN",
+        "reason": "REDUCE sell signal; enter/keep 11-trading-day jail",
+        "last_score": 31.13,
+        "last_action": "REDUCE",
+        "cooldown_days_left": 11,
+        "sell_pct": 60,
+        "hard_triggered": false
+      },
+      "SOXL": {
+        "current_state": "HOLDING",
+        "next_state": "COOLDOWN",
+        "reason": "REDUCE sell signal; enter/keep 11-trading-day jail",
+        "last_score": 29.0,
+        "last_action": "REDUCE",
+        "cooldown_days_left": 11,
+        "sell_pct": 60,
+        "hard_triggered": false
+      }
+    }
+  },
+  "orders_preview": {
+    "MSTR": {
+      "action": "SIGNAL_ONLY",
+      "quantity": null,
+      "estimated_notional": null,
+      "sell_pct": 100,
+      "reason": "EXIT",
+      "capital_route": {
+        "applies": true,
+        "destination": "BOXX",
+        "destination_symbol": "BOXX",
+        "weights": {
+          "BOXX": 0.5,
+          "DBMF": 0.3,
+          "GLD": 0.2
+        },
+        "label": "☢️ 宏观核爆：资金撤入 BOXX/现金防空洞",
+        "protocol_step": "DEFCON1",
+        "sell_proceeds_pct": 100,
+        "status": "EXIT",
+        "reason": "Macro/liquidity nuclear condition: route sell proceeds to BOXX defensive sleeve.",
+        "hard_ids": [
+          "H-M1",
+          "H-M4",
+          "H-M6"
+        ],
+        "hard_triggered": true
+      },
+      "route_instruction": "斩仓资金路由：☢️ 宏观核爆：资金撤入 BOXX/现金防空洞。目的地：BOXX 50%，DBMF 30%，GLD 20%。",
+      "instruction": "卖出当前 MSTR 持仓的 100%；未读取到可用 IBKR 股数，未提交真实订单。",
+      "not_submitted": true,
+      "ibkr_source": "snapshot",
+      "sizing_engine": "optimize_targets_v1"
+    },
+    "FNGU": {
+      "action": "SIGNAL_ONLY",
+      "quantity": null,
+      "estimated_notional": null,
+      "sell_pct": 60,
+      "reason": "REDUCE",
+      "capital_route": {
+        "applies": true,
+        "destination": "BOXX",
+        "destination_symbol": "BOXX",
+        "weights": {
+          "BOXX": 0.5,
+          "DBMF": 0.3,
+          "GLD": 0.2
+        },
+        "label": "☢️ 宏观核爆：资金撤入 BOXX/现金防空洞",
+        "protocol_step": "DEFCON1",
+        "sell_proceeds_pct": 60,
+        "status": "REDUCE",
+        "reason": "Macro/liquidity nuclear condition: route sell proceeds to BOXX defensive sleeve.",
+        "hard_ids": [],
+        "hard_triggered": false
+      },
+      "route_instruction": "斩仓资金路由：☢️ 宏观核爆：资金撤入 BOXX/现金防空洞。目的地：BOXX 50%，DBMF 30%，GLD 20%。",
+      "instruction": "卖出当前 FNGU 持仓的 60%；未读取到可用 IBKR 股数，未提交真实订单。",
+      "not_submitted": true,
+      "ibkr_source": "snapshot",
+      "sizing_engine": "optimize_targets_v1"
+    },
+    "SOXL": {
+      "action": "SIGNAL_ONLY",
+      "quantity": null,
+      "estimated_notional": null,
+      "sell_pct": 60,
+      "reason": "REDUCE",
+      "capital_route": {
+        "applies": true,
+        "destination": "BOXX",
+        "destination_symbol": "BOXX",
+        "weights": {
+          "BOXX": 0.5,
+          "DBMF": 0.3,
+          "GLD": 0.2
+        },
+        "label": "☢️ 宏观核爆：资金撤入 BOXX/现金防空洞",
+        "protocol_step": "DEFCON1",
+        "sell_proceeds_pct": 60,
+        "status": "REDUCE",
+        "reason": "Macro/liquidity nuclear condition: route sell proceeds to BOXX defensive sleeve.",
+        "hard_ids": [],
+        "hard_triggered": false
+      },
+      "route_instruction": "斩仓资金路由：☢️ 宏观核爆：资金撤入 BOXX/现金防空洞。目的地：BOXX 50%，DBMF 30%，GLD 20%。",
+      "instruction": "卖出当前 SOXL 持仓的 60%；未读取到可用 IBKR 股数，未提交真实订单。",
+      "not_submitted": true,
+      "ibkr_source": "snapshot",
+      "sizing_engine": "optimize_targets_v1"
+    }
+  },
+  "action_plan": {
+    "schema_version": "escape-top-action-plan-package-v1",
+    "summary": "今日 3/3 标的有减仓信号（包引擎 optimize_targets_v1）",
+    "account_source": "package_pipeline",
+    "directives": [
+      {
+        "symbol": "MSTR",
+        "directive": "HARD_EXIT_100%",
+        "status": "EXIT",
+        "sell_pct": 100,
+        "order_action": "SIGNAL_ONLY",
+        "score": 66.18,
+        "missing_weight": 5.0,
+        "hard_triggered": true,
+        "top_reasons": [
+          "VIX low/calm: 15.40",
+          "A3 breadth overheat: 94% >50DMA, 82% >200DMA",
+          "market distribution watch: QQQ 3.0/25, SPY 4.0/25"
+        ],
+        "order_instruction": "卖出当前 MSTR 持仓的 100%；未读取到可用 IBKR 股数，未提交真实订单。"
+      },
+      {
+        "symbol": "FNGU",
+        "directive": "REDUCE_60%",
+        "status": "REDUCE",
+        "sell_pct": 60,
+        "order_action": "SIGNAL_ONLY",
+        "score": 31.13,
+        "missing_weight": 5.0,
+        "hard_triggered": false,
+        "top_reasons": [
+          "VIX low/calm: 15.40",
+          "A3 breadth overheat: 94% >50DMA, 82% >200DMA",
+          "market distribution watch: QQQ 3.0/25, SPY 4.0/25"
+        ],
+        "order_instruction": "卖出当前 FNGU 持仓的 60%；未读取到可用 IBKR 股数，未提交真实订单。"
+      },
+      {
+        "symbol": "SOXL",
+        "directive": "REDUCE_60%",
+        "status": "REDUCE",
+        "sell_pct": 60,
+        "order_action": "SIGNAL_ONLY",
+        "score": 29.0,
+        "missing_weight": 5.0,
+        "hard_triggered": false,
+        "top_reasons": [
+          "VIX low/calm: 15.40",
+          "A3 breadth overheat: 94% >50DMA, 82% >200DMA",
+          "market distribution watch: QQQ 3.0/25, SPY 4.0/25"
+        ],
+        "order_instruction": "卖出当前 SOXL 持仓的 60%；未读取到可用 IBKR 股数，未提交真实订单。"
+      }
+    ]
+  },
+  "reentry_plan": {
+    "schema_version": "escape-top-reentry-v1.0",
+    "summary": "包引擎 reentry_plan（package optimize_targets_v1）",
+    "macro_new_252d_high": false,
+    "plans": {
+      "MSTR": {
+        "phase0_unlocked": false,
+        "phase0_checks": {
+          "time_lock": false,
+          "emotion_lock": false,
+          "structure_lock": false
+        },
+        "directive": "WAIT",
+        "action": "WAIT",
+        "cash_pool_action_pct": 0,
+        "reason": "package reentry pending",
+        "t1": {
+          "triggered": false,
+          "stop_loss": null
+        },
+        "t2": {
+          "triggered": false,
+          "trailing_stop": null
+        },
+        "t3": {
+          "triggered": false,
+          "reserve_hold": false
+        }
+      },
+      "FNGU": {
+        "phase0_unlocked": false,
+        "phase0_checks": {
+          "time_lock": false,
+          "emotion_lock": false,
+          "structure_lock": false
+        },
+        "directive": "WAIT",
+        "action": "WAIT",
+        "cash_pool_action_pct": 0,
+        "reason": "package reentry pending",
+        "t1": {
+          "triggered": false,
+          "stop_loss": null
+        },
+        "t2": {
+          "triggered": false,
+          "trailing_stop": null
+        },
+        "t3": {
+          "triggered": false,
+          "reserve_hold": false
+        }
+      },
+      "SOXL": {
+        "phase0_unlocked": false,
+        "phase0_checks": {
+          "time_lock": false,
+          "emotion_lock": false,
+          "structure_lock": false
+        },
+        "directive": "WAIT",
+        "action": "WAIT",
+        "cash_pool_action_pct": 0,
+        "reason": "package reentry pending",
+        "t1": {
+          "triggered": false,
+          "stop_loss": null
+        },
+        "t2": {
+          "triggered": false,
+          "trailing_stop": null
+        },
+        "t3": {
+          "triggered": false,
+          "reserve_hold": false
+        }
+      }
+    }
+  },
+  "package_payload": {
+    "schema_version": "escape-top-greenfield-phase3-score-v1",
+    "sizing": {
+      "FNGU": {
+        "symbol": "FNGU",
+        "sleeve_cap": 0.2,
+        "sell_fraction": 0.6,
+        "reference_target_weight": 0.08,
+        "vol_scaler": 1.0,
+        "gross_scaler": 1.0,
+        "target_weight": 0.071042,
+        "clamp_applied": true,
+        "binding_constraint": "CONFIDENCE",
+        "execution_mode": "twap_3_slices",
+        "optimizer_confidence": 0.888028,
+        "explain": [
+          "optimizer binding=CONFIDENCE"
+        ],
+        "sizing_engine": "optimize_targets_v1"
+      },
+      "MSTR": {
+        "symbol": "MSTR",
+        "sleeve_cap": 0.15,
+        "sell_fraction": 1.0,
+        "reference_target_weight": 0.0,
+        "vol_scaler": 1.0,
+        "gross_scaler": 1.0,
+        "target_weight": 0.0,
+        "clamp_applied": false,
+        "binding_constraint": "ZERO",
+        "execution_mode": "execute_now",
+        "optimizer_confidence": 0.888028,
+        "explain": [
+          "optimizer binding=ZERO"
+        ],
+        "sizing_engine": "optimize_targets_v1"
+      },
+      "SOXL": {
+        "symbol": "SOXL",
+        "sleeve_cap": 0.3,
+        "sell_fraction": 0.6,
+        "reference_target_weight": 0.12,
+        "vol_scaler": 1.0,
+        "gross_scaler": 1.0,
+        "target_weight": 0.106563,
+        "clamp_applied": true,
+        "binding_constraint": "CONFIDENCE",
+        "execution_mode": "twap_3_slices",
+        "optimizer_confidence": 0.888028,
+        "explain": [
+          "optimizer binding=CONFIDENCE"
+        ],
+        "sizing_engine": "optimize_targets_v1"
+      }
+    },
+    "mirror": {
+      "db_path": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/data/archive/mirror_reference.sqlite",
+      "decisions": {
+        "FNGU_QQQ": {
+          "sleeve": "FNGU_QQQ",
+          "risk_symbol": "FNGU",
+          "base_symbol": "QQQ",
+          "selected_symbol": "QQQ",
+          "sleeve_cap": 0.2,
+          "target_weight": 0.16,
+          "cycle": "CHOP",
+          "reason": "均线/动能未形成明确方向；震荡市禁止长持 FNGU。",
+          "allocations": {
+            "QQQ": 0.16
+          },
+          "rule_checks": {
+            "QQQ 收盘 > EMA20": true,
+            "QQQ 收盘 > EMA50": true,
+            "EMA20 > EMA50": true,
+            "近5日涨幅 >= 3%": false,
+            "成交量放大 >= 20%": false,
+            "VIX < 25": true,
+            "RSI14 < 70": true,
+            "MACD 多头": false,
+            "连续3日上涨": false,
+            "风险预警: VIX>30 或跌破 EMA20": false
+          },
+          "metrics": {
+            "QQQ_close": 740.609985,
+            "QQQ_ema20": 718.890909,
+            "QQQ_ema50": 682.063273,
+            "QQQ_macd": 21.06888,
+            "QQQ_macd_signal": 21.534048,
+            "QQQ_return_5d": 0.006811,
+            "QQQ_rsi14": 64.850237,
+            "QQQ_volume_ratio_20d": 0.944329,
+            "VIX": 15.4
+          },
+          "stop_rules": [
+            "FNGU 单笔亏损 >= 8%：强制止损。",
+            "QQQ 跌破 EMA20：清 FNGU，QQQ 降至风险预警配置。",
+            "FNGU 盈利 15% 减 50%，盈利 25% 清仓。",
+            "QQQ 盈利 8% 减 30%，盈利 15% 减 50%。",
+            "FNGU 单次持仓不超过 15 个交易日。",
+            "禁止在震荡市长持 FNGU；重大数据前避免重仓。"
+          ]
+        },
+        "MSTR_QQQ": {
+          "sleeve": "MSTR_QQQ",
+          "risk_symbol": "MSTR",
+          "base_symbol": "QQQ",
+          "selected_symbol": "QQQ",
+          "sleeve_cap": 0.15,
+          "target_weight": 0.15,
+          "cycle": "BASE_DEFENSE",
+          "reason": "MSTR/BTC 雷达未同时 risk-on；MSTR 桶切回 QQQ 防守腿。",
+          "allocations": {
+            "QQQ": 0.15
+          },
+          "rule_checks": {
+            "MSTR 收盘 > EMA20": false,
+            "MSTR 收盘 > EMA50": false,
+            "MSTR 收盘 > MA200": false,
+            "EMA20 > EMA50": false,
+            "BTC 收盘 > MA200": false,
+            "近5日涨幅 >= 5%": false,
+            "成交量放大 >= 20%": true,
+            "RSI14 < 78": true,
+            "MACD 多头": false,
+            "连续3日上涨": false,
+            "风险预警: MSTR跌破EMA20/BTC破位/VIX>30": true
+          },
+          "metrics": {
+            "BTC_close": 64014.367188,
+            "BTC_ma200": 79084.558145,
+            "MSTR_close": 129.369995,
+            "MSTR_ema20": 155.404605,
+            "MSTR_ema50": 157.191246,
+            "MSTR_ma200": 202.9431,
+            "MSTR_macd": -7.835709,
+            "MSTR_macd_signal": -2.397944,
+            "MSTR_return_5d": -0.146861,
+            "MSTR_rsi14": 14.259098,
+            "MSTR_volume_ratio_20d": 1.546836,
+            "VIX": 15.4
+          },
+          "stop_rules": [
+            "MSTR 跌破 MA200：MSTR 风险腿清零，切回 QQQ/BOXX 防守。",
+            "BTC 跌破 MA200：MSTR 桶停止加仓并切回 QQQ 防守腿。",
+            "MSTR 跌破 EMA20 或 5 日动能转弱：降低风险腿暴露。",
+            "MSTR 单日极端下跌或触发吊灯止损：执行硬阀门退出。",
+            "MSTR 桶上限固定为全盘 15%，不因短期强势突破上限。"
+          ]
+        },
+        "SOXL_SOXX": {
+          "sleeve": "SOXL_SOXX",
+          "risk_symbol": "SOXL",
+          "base_symbol": "SOXX",
+          "selected_symbol": "SOXL",
+          "sleeve_cap": 0.3,
+          "target_weight": 0.3,
+          "cycle": "WEAK_BOOM",
+          "reason": "SOXX 长趋势向上但量价强度不足；执行弱繁荣均衡配置。",
+          "allocations": {
+            "SOXL": 0.15,
+            "SOXX": 0.15
+          },
+          "rule_checks": {
+            "SOXX 收盘 > EMA50": true,
+            "SOXX 收盘 > MA200": true,
+            "EMA50 > MA200": true,
+            "近10日涨幅 >= 8%": true,
+            "成交量放大 >= 30%": false,
+            "相对 SPY 强弱 RS > 1.1": true,
+            "RSI14 < 75": true,
+            "MACD 金叉/多头": true,
+            "连续5日上涨": false,
+            "衰退: 跌破 EMA50 且3日未收回": false,
+            "逃顶: 高开低走大K且放量2倍": false,
+            "逃顶: VIX > 30": false
+          },
+          "metrics": {
+            "SOXX_close": 602.719971,
+            "SOXX_ema50": 480.851897,
+            "SOXX_ma200": 342.875017,
+            "SOXX_macd": 39.587053,
+            "SOXX_macd_signal": 36.020879,
+            "SOXX_return_10d": 0.158386,
+            "SOXX_rs20_vs_spy": 1.152569,
+            "SOXX_rsi14": 70.1995,
+            "SOXX_volume_ratio_20d": 1.274545,
+            "VIX": 15.4
+          },
+          "stop_rules": [
+            "SOXL 单笔亏损 >= 15%：强制止损。",
+            "SOXX 跌破 EMA50：清 SOXL，SOXX 降仓。",
+            "SOXL 盈利 30% 减 50%，盈利 50% 清仓。",
+            "SOXX 盈利 15% 减 30%，盈利 25% 减 50%。",
+            "SOXL 单次持仓不超过 20 个交易日。",
+            "高开低走大 K + 成交量 2 倍、VIX 飙升、PE 分位>80% 时执行逃顶审计；PE 分位当前未接入。"
+          ]
+        }
+      }
+    },
+    "ibkr": {
+      "account_id": "U18122312",
+      "net_liq": 81565.37,
+      "sync_time": "2026-06-09T01:35:27.901284+00:00",
+      "source": "snapshot",
+      "trade_symbols": [
+        {
+          "symbol": "FNGU",
+          "ideal_weight": 0.071042,
+          "actual_weight": 0.0,
+          "delta_weight": -0.071042,
+          "ideal_notional": 5794.567015539999,
+          "actual_notional": 0.0,
+          "actual_shares": 0.0,
+          "avg_cost": 0.0,
+          "unrealized_pnl_est": -5794.567015539999,
+          "status": "MISSING",
+          "note": "under by 7.1% ($5,795)"
+        },
+        {
+          "symbol": "MSTR",
+          "ideal_weight": 0.0,
+          "actual_weight": 0.0,
+          "delta_weight": 0.0,
+          "ideal_notional": 0.0,
+          "actual_notional": 0.0,
+          "actual_shares": 0.0,
+          "avg_cost": 0.0,
+          "unrealized_pnl_est": 0.0,
+          "status": "MATCH",
+          "note": "within tolerance"
+        },
+        {
+          "symbol": "SOXL",
+          "ideal_weight": 0.106563,
+          "actual_weight": 0.0,
+          "delta_weight": -0.106563,
+          "ideal_notional": 8691.85052331,
+          "actual_notional": 0.0,
+          "actual_shares": 0.0,
+          "avg_cost": 0.0,
+          "unrealized_pnl_est": -8691.85052331,
+          "status": "MISSING",
+          "note": "under by 10.7% ($8,692)"
+        }
+      ],
+      "route_legs": [
+        {
+          "symbol": "BOXX",
+          "ideal_weight": 0.2361975,
+          "actual_weight": 0.0,
+          "delta_weight": -0.2361975,
+          "ideal_notional": 19265.536480575,
+          "actual_notional": 0.0,
+          "actual_shares": 0.0,
+          "avg_cost": 0.0,
+          "unrealized_pnl_est": -19265.536480575,
+          "status": "MISSING",
+          "note": "route leg (under by 23.6% ($19,266))"
+        },
+        {
+          "symbol": "DBMF",
+          "ideal_weight": 0.14171849999999997,
+          "actual_weight": 0.0,
+          "delta_weight": -0.14171849999999997,
+          "ideal_notional": 11559.321888344997,
+          "actual_notional": 0.0,
+          "actual_shares": 0.0,
+          "avg_cost": 0.0,
+          "unrealized_pnl_est": -11559.321888344997,
+          "status": "MISSING",
+          "note": "route leg (under by 14.2% ($11,559))"
+        },
+        {
+          "symbol": "GLD",
+          "ideal_weight": 0.09447900000000001,
+          "actual_weight": 0.0,
+          "delta_weight": -0.09447900000000001,
+          "ideal_notional": 7706.214592230001,
+          "actual_notional": 0.0,
+          "actual_shares": 0.0,
+          "avg_cost": 0.0,
+          "unrealized_pnl_est": -7706.214592230001,
+          "status": "MISSING",
+          "note": "route leg (under by 9.4% ($7,706))"
+        }
+      ],
+      "extra_positions": [
+        {
+          "symbol": "IBKR",
+          "ideal_weight": 0.0,
+          "actual_weight": 0.0034351992774905578,
+          "delta_weight": 0.0034351992774905578,
+          "ideal_notional": 0.0,
+          "actual_notional": 280.19330009225,
+          "actual_shares": 4.139,
+          "avg_cost": 67.69589275,
+          "unrealized_pnl_est": 0.0,
+          "status": "EXTRA",
+          "note": "not in current pipeline"
+        },
+        {
+          "symbol": "BRK B",
+          "ideal_weight": 0.0,
+          "actual_weight": 0.13483982725021662,
+          "delta_weight": 0.13483982725021662,
+          "ideal_notional": 0.0,
+          "actual_notional": 10998.2604004,
+          "actual_shares": 23.0,
+          "avg_cost": 478.1852348,
+          "unrealized_pnl_est": 0.0,
+          "status": "ROUTE_LEG",
+          "note": "known route leg"
+        },
+        {
+          "symbol": "IAU",
+          "ideal_weight": 0.0,
+          "actual_weight": 0.071153706530112,
+          "delta_weight": 0.071153706530112,
+          "ideal_notional": 0.0,
+          "actual_notional": 5803.678400000001,
+          "actual_shares": 65.0,
+          "avg_cost": 89.28736,
+          "unrealized_pnl_est": 0.0,
+          "status": "EXTRA",
+          "note": "not in current pipeline"
+        },
+        {
+          "symbol": "URA",
+          "ideal_weight": 0.0,
+          "actual_weight": 0.16127226535599606,
+          "delta_weight": 0.16127226535599606,
+          "ideal_notional": 0.0,
+          "actual_notional": 13154.2319945,
+          "actual_shares": 265.0,
+          "avg_cost": 49.6386113,
+          "unrealized_pnl_est": 0.0,
+          "status": "EXTRA",
+          "note": "not in current pipeline"
+        },
+        {
+          "symbol": "NASA",
+          "ideal_weight": 0.0,
+          "actual_weight": 0.5689657522549092,
+          "delta_weight": 0.5689657522549092,
+          "ideal_notional": 0.0,
+          "actual_notional": 46407.9021,
+          "actual_shares": 1200.0,
+          "avg_cost": 38.67325175,
+          "unrealized_pnl_est": 0.0,
+          "status": "EXTRA",
+          "note": "not in current pipeline"
+        }
+      ],
+      "total_ideal_exposure": 0.6499999999999999,
+      "total_actual_exposure": 0.0,
+      "max_abs_delta": 0.2362,
+      "all_within_tolerance": false,
+      "error": "Could not connect to TWS on any of [4001, 4002, 7496, 7497]: No TCP listener on 127.0.0.1:7497; snapshot stale: age 122174s exceeds 900s",
+      "snapshot_age_seconds": 122173.598938,
+      "snapshot_stale": true,
+      "client_id": 992
+    },
+    "posterior_pnl": {
+      "portfolio_value": 81565.37,
+      "escape": {
+        "FNGU": {
+          "sleeve": "FNGU",
+          "symbol": "FNGU",
+          "target_weight": 0.071042,
+          "notional": 5794.567016,
+          "previous_close": 34.400002,
+          "current_close": 32.16,
+          "shares": 168.446708,
+          "pnl": -377.320909,
+          "return_pct": -0.065116,
+          "data_available": true,
+          "reason": ""
+        },
+        "MSTR": {
+          "sleeve": "MSTR",
+          "symbol": "MSTR",
+          "target_weight": 0.0,
+          "notional": 0.0,
+          "previous_close": null,
+          "current_close": null,
+          "shares": 0.0,
+          "pnl": 0.0,
+          "return_pct": 0.0,
+          "data_available": true,
+          "reason": "No market-risk leg."
+        },
+        "SOXL": {
+          "sleeve": "SOXL",
+          "symbol": "SOXL",
+          "target_weight": 0.106563,
+          "notional": 8691.850523,
+          "previous_close": 280.540009,
+          "current_close": 262.700012,
+          "shares": 30.98257,
+          "pnl": -552.72894,
+          "return_pct": -0.063592,
+          "data_available": true,
+          "reason": ""
+        }
+      },
+      "mirror": {
+        "FNGU_QQQ": {
+          "sleeve": "FNGU_QQQ",
+          "symbol": "QQQ",
+          "target_weight": 0.16,
+          "notional": 13050.4592,
+          "previous_close": 744.210022,
+          "current_close": 740.609985,
+          "shares": 17.53599,
+          "pnl": -63.130205,
+          "return_pct": -0.004837,
+          "data_available": true,
+          "reason": ""
+        },
+        "MSTR_QQQ": {
+          "sleeve": "MSTR_QQQ",
+          "symbol": "QQQ",
+          "target_weight": 0.15,
+          "notional": 12234.8055,
+          "previous_close": 744.210022,
+          "current_close": 740.609985,
+          "shares": 16.43999,
+          "pnl": -59.184567,
+          "return_pct": -0.004837,
+          "data_available": true,
+          "reason": ""
+        },
+        "SOXL_SOXX": {
+          "sleeve": "SOXL_SOXX",
+          "symbol": "SOXL+SOXX",
+          "target_weight": 0.3,
+          "notional": 24469.611,
+          "previous_close": null,
+          "current_close": null,
+          "shares": 0.0,
+          "pnl": -1035.573044,
+          "return_pct": -0.042321,
+          "data_available": true,
+          "reason": ""
+        }
+      }
+    },
+    "audit_log_path": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/data/shadow/archive/audit_log.jsonl",
+    "signal_journal_path": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/data/shadow/signal_journal.jsonl"
+  }
+}

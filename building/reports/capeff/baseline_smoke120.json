@@ -1,0 +1,45 @@
+{
+  "variant": "baseline",
+  "limit": 120,
+  "effective_start": "2018-01-02",
+  "effective_end": "2018-06-22",
+  "n_days": 120,
+  "runtime_sec": 122.1,
+  "metrics": {
+    "cagr": -0.05119,
+    "max_drawdown": -0.040467,
+    "calmar": null,
+    "sharpe": -3.209324,
+    "sortino": -6.037985,
+    "sortino_ratio": null,
+    "turnover": null,
+    "insurance_ratio": null,
+    "final_value": 97451.60744
+  },
+  "benchmarks": {
+    "SPY": 0.047622,
+    "SPY_metrics": {
+      "final_value": 102221.230593,
+      "cagr": 0.047622,
+      "max_drawdown": -0.101577,
+      "max_drawdown_start": "2018-01-26",
+      "max_drawdown_end": "2018-04-02",
+      "sharpe": 0.363512,
+      "sortino": 0.426431,
+      "calmar": 0.468827,
+      "turnover": 0.0
+    },
+    "QQQ": 0.238271,
+    "QQQ_metrics": {
+      "final_value": 110618.967284,
+      "cagr": 0.238271,
+      "max_drawdown": -0.106675,
+      "max_drawdown_start": "2018-03-12",
+      "max_drawdown_end": "2018-04-02",
+      "sharpe": 1.142442,
+      "sortino": 1.442113,
+      "calmar": 2.233616,
+      "turnover": 0.0
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "MSTR": {
+    "action": "SIGNAL_ONLY",
+    "quantity": null,
+    "estimated_notional": null,
+    "sell_pct": 100,
+    "reason": "EXIT",
+    "capital_route": {
+      "applies": true,
+      "destination": "BOXX",
+      "destination_symbol": "BOXX",
+      "weights": {
+        "BOXX": 0.5,
+        "DBMF": 0.3,
+        "GLD": 0.2
+      },
+      "label": "☢️ 宏观核爆：资金撤入 BOXX/现金防空洞",
+      "protocol_step": "DEFCON1",
+      "sell_proceeds_pct": 100,
+      "status": "EXIT",
+      "reason": "Macro/liquidity nuclear condition: route sell proceeds to BOXX defensive sleeve.",
+      "hard_ids": [
+        "H-M1",
+        "H-M4",
+        "H-M6"
+      ],
+      "hard_triggered": true
+    },
+    "route_instruction": "斩仓资金路由：☢️ 宏观核爆：资金撤入 BOXX/现金防空洞。目的地：BOXX 50%，DBMF 30%，GLD 20%。",
+    "instruction": "卖出当前 MSTR 持仓的 100%；未读取到可用 IBKR 股数，未提交真实订单。",
+    "not_submitted": true,
+    "ibkr_source": "snapshot",
+    "sizing_engine": "optimize_targets_v1"
+  },
+  "FNGU": {
+    "action": "SIGNAL_ONLY",
+    "quantity": null,
+    "estimated_notional": null,
+    "sell_pct": 60,
+    "reason": "REDUCE",
+    "capital_route": {
+      "applies": true,
+      "destination": "BOXX",
+      "destination_symbol": "BOXX",
+      "weights": {
+        "BOXX": 0.5,
+        "DBMF": 0.3,
+        "GLD": 0.2
+      },
+      "label": "☢️ 宏观核爆：资金撤入 BOXX/现金防空洞",
+      "protocol_step": "DEFCON1",
+      "sell_proceeds_pct": 60,
+      "status": "REDUCE",
+      "reason": "Macro/liquidity nuclear condition: route sell proceeds to BOXX defensive sleeve.",
+      "hard_ids": [],
+      "hard_triggered": false
+    },
+    "route_instruction": "斩仓资金路由：☢️ 宏观核爆：资金撤入 BOXX/现金防空洞。目的地：BOXX 50%，DBMF 30%，GLD 20%。",
+    "instruction": "卖出当前 FNGU 持仓的 60%；未读取到可用 IBKR 股数，未提交真实订单。",
+    "not_submitted": true,
+    "ibkr_source": "snapshot",
+    "sizing_engine": "optimize_targets_v1"
+  },
+  "SOXL": {
+    "action": "SIGNAL_ONLY",
+    "quantity": null,
+    "estimated_notional": null,
+    "sell_pct": 60,
+    "reason": "REDUCE",
+    "capital_route": {
+      "applies": true,
+      "destination": "BOXX",
+      "destination_symbol": "BOXX",
+      "weights": {
+        "BOXX": 0.5,
+        "DBMF": 0.3,
+        "GLD": 0.2
+      },
+      "label": "☢️ 宏观核爆：资金撤入 BOXX/现金防空洞",
+      "protocol_step": "DEFCON1",
+      "sell_proceeds_pct": 60,
+      "status": "REDUCE",
+      "reason": "Macro/liquidity nuclear condition: route sell proceeds to BOXX defensive sleeve.",
+      "hard_ids": [],
+      "hard_triggered": false
+    },
+    "route_instruction": "斩仓资金路由：☢️ 宏观核爆：资金撤入 BOXX/现金防空洞。目的地：BOXX 50%，DBMF 30%，GLD 20%。",
+    "instruction": "卖出当前 SOXL 持仓的 60%；未读取到可用 IBKR 股数，未提交真实订单。",
+    "not_submitted": true,
+    "ibkr_source": "snapshot",
+    "sizing_engine": "optimize_targets_v1"
+  }
+}

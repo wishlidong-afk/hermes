@@ -1,0 +1,3 @@
+{"as_of": "2026-06-04", "final_score": 31.125579, "hard_valves": [], "status": "REDUCE", "symbol": "FNGU"}
+{"as_of": "2026-06-04", "final_score": 66.181474, "hard_valves": ["H-M1", "H-M4", "H-M6"], "status": "EXIT", "symbol": "MSTR"}
+{"as_of": "2026-06-04", "final_score": 29.002421, "hard_valves": [], "status": "REDUCE", "symbol": "SOXL"}
