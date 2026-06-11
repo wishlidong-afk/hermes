@@ -624,16 +624,24 @@ def translate(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 # ── Step 4: write artifacts ───────────────────────────────────────────────────
 
+def _artifact_root() -> Path:
+    """BASE_DIR unless HERMES_DATA_DIR re-roots runtime outputs (T8: keep
+    runs from dirtying the git working tree)."""
+    override = os.environ.get("HERMES_DATA_DIR")
+    return Path(override).expanduser() if override else BASE_DIR
+
+
 def write_artifacts(translated: Dict[str, Any], orders: Dict[str, Any],
                     as_of: str, shadow: bool = True) -> Dict[str, Path]:
+    root = _artifact_root()
     if shadow:
-        data_dir = BASE_DIR / "data" / "shadow"
-        report_dir = BASE_DIR / "reports" / "shadow"
-        order_dir = BASE_DIR / "orders" / "shadow"
+        data_dir = root / "data" / "shadow"
+        report_dir = root / "reports" / "shadow"
+        order_dir = root / "orders" / "shadow"
     else:
-        data_dir = BASE_DIR / "data"
-        report_dir = BASE_DIR / "reports"
-        order_dir = BASE_DIR / "orders"
+        data_dir = root / "data"
+        report_dir = root / "reports"
+        order_dir = root / "orders"
 
     for d in (data_dir, report_dir, order_dir):
         d.mkdir(parents=True, exist_ok=True)
@@ -681,6 +689,207 @@ def _render_markdown(t: Dict[str, Any], as_of: str) -> str:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def _csv_last_date(path: Path) -> Optional[str]:
+    """First column of the last non-empty row, or None."""
+    try:
+        last = None
+        with path.open() as fh:
+            for line in fh:
+                if line.strip():
+                    last = line
+        if last is None:
+            return None
+        first = last.split(",", 1)[0].strip()
+        return first if first and first[0].isdigit() else None
+    except OSError:
+        return None
+
+
+def _preflight_report(shadow: bool, as_of: str) -> None:
+    """[T5] One-screen "can today's output be trusted" check before scoring.
+
+    Informational, except the never-order red line: a live run aborts when
+    ibkr.readonly is not true.
+    """
+    print(f"[preflight] mode={'shadow' if shadow else 'LIVE'} as_of={as_of}")
+    try:
+        config = load_config()
+    except Exception as exc:
+        print(f"[preflight] WARNING: config load failed: {exc!r}")
+        return
+    readonly = (config.get("ibkr") or {}).get("readonly", True)
+    if readonly is not True and not shadow:
+        print("[preflight] CRITICAL: ibkr.readonly is not true — never-order red line. Aborting.")
+        sys.exit(2)
+    print(f"[preflight] ibkr.readonly={str(readonly).lower()}")
+
+    from hermes_escape_top.config import resolve_path
+
+    last_bar = _csv_last_date(resolve_path(config, "history_dir") / "QQQ.csv")
+    lag_note = ""
+    if last_bar:
+        try:
+            from hermes_escape_top.web.refresh import _completed_trading_days_after
+            lag_note = f" ({_completed_trading_days_after(last_bar)} trading days behind)"
+        except Exception:
+            pass
+    print(f"[preflight] OHLCV QQQ last bar: {last_bar or 'MISSING'}{lag_note}")
+
+    soft_dir = resolve_path(config, "soft_history_dir")
+    if soft_dir.exists():
+        today = date.fromisoformat(as_of)
+        for csv_path in sorted(soft_dir.glob("*.csv")):
+            d = _csv_last_date(csv_path)
+            age = (today - date.fromisoformat(d)).days if d else None
+            if age is None:
+                desc = "EMPTY"
+            elif age < 0:
+                desc = "newer than as_of"
+            else:
+                desc = f"age={age}d" + ("  <-- STALE" if age > 10 else "")
+            print(f"[preflight]   soft {csv_path.stem:<24} {d or '-':<12} {desc}")
+
+    archive_dir = resolve_path(config, "archive_dir")
+    writable = archive_dir.exists() and os.access(archive_dir, os.W_OK)
+    print(f"[preflight] archive_dir writable: {'OK' if writable else 'NOT WRITABLE'}")
+
+
+def _audit_prev_entry(audit_path: Path, before_as_of: str) -> Optional[Dict[str, Any]]:
+    """Last audit entry with as_of < before_as_of.
+
+    Reads only the file tail: audit_log.jsonl is hundreds of MB and one
+    payload line is ~1MB — never parse it front to back.
+    """
+    if not audit_path.exists():
+        return None
+    chunk = 16 * 1024 * 1024
+    with audit_path.open("rb") as fh:
+        fh.seek(0, 2)
+        size = fh.tell()
+        fh.seek(max(0, size - chunk))
+        data = fh.read()
+    lines = data.split(b"\n")
+    if size > chunk:
+        lines = lines[1:]  # drop the likely-partial first line
+    for raw in reversed(lines):
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            entry = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if str(entry.get("as_of", "")) < before_as_of:
+            return entry
+    return None
+
+
+def _factor_movers(old_s: Dict[str, Any], new_s: Dict[str, Any], top_n: int = 5):
+    """Top factors by |score delta| between two score dicts."""
+    def fmap(s: Dict[str, Any]) -> Dict[str, Any]:
+        out: Dict[str, Any] = {}
+        for factors in (s.get("factor_scores") or {}).values():
+            for f in factors or []:
+                out[f.get("factor_id")] = (float(f.get("score") or 0.0), f.get("explain") or "")
+        return out
+
+    old_f, new_f = fmap(old_s), fmap(new_s)
+    moves = []
+    for fid in set(old_f) | set(new_f):
+        delta = new_f.get(fid, (0.0, ""))[0] - old_f.get(fid, (0.0, ""))[0]
+        if abs(delta) > 1e-9:
+            moves.append((fid, delta, (new_f.get(fid) or old_f.get(fid))[1]))
+    moves.sort(key=lambda m: -abs(m[1]))
+    return moves[:top_n]
+
+
+def _shallow_diff(old: Any, new: Any) -> list:
+    if not isinstance(old, dict) or not isinstance(new, dict):
+        return []
+    changes = []
+    for k in sorted(set(old) | set(new)):
+        ov, nv = old.get(k), new.get(k)
+        if ov == nv:
+            continue
+        if isinstance(ov, (dict, list)) or isinstance(nv, (dict, list)):
+            changes.append(f"{k}: changed")
+        else:
+            changes.append(f"{k}: {ov} -> {nv}")
+    return changes
+
+
+def _post_run_diff(payload: Dict[str, Any], as_of: str, shadow: bool) -> None:
+    """[T6] Explain what changed vs the previous audit entry.
+
+    Answers "why is today's advice different from yesterday's" — compact
+    stdout summary + full markdown artifact next to the daily report.
+    """
+    try:
+        config = load_config()
+        from hermes_escape_top.config import resolve_path
+        audit_path = resolve_path(config, "archive_dir") / "audit_log.jsonl"
+        prev_entry = _audit_prev_entry(audit_path, as_of)
+    except Exception as exc:
+        print(f"[M4-diff] WARNING: diff unavailable: {exc!r}")
+        return
+    if not prev_entry:
+        print("[M4-diff] no earlier audit entry — diff skipped")
+        return
+    prev = prev_entry.get("payload") or {}
+    prev_as_of = prev_entry.get("as_of")
+    print(f"[M4-diff] vs previous audit entry {prev_as_of}:")
+    md = [f"# Daily diff {prev_as_of} -> {as_of}", ""]
+
+    for sym in TRADE_SYMBOLS:
+        new_s = (payload.get("scores") or {}).get(sym) or {}
+        old_s = (prev.get("scores") or {}).get(sym) or {}
+        if not new_s or not old_s:
+            continue
+        def _r(v: Any) -> Any:
+            return round(float(v), 1) if isinstance(v, (int, float)) else v
+
+        headline = (f"{sym}: {old_s.get('status')} -> {new_s.get('status')}, "
+                    f"score {_r(old_s.get('final_score'))} -> {_r(new_s.get('final_score'))}, "
+                    f"sell {_r(old_s.get('sell_fraction'))} -> {_r(new_s.get('sell_fraction'))}")
+        print(f"[M4-diff]   {headline}")
+        md += [f"## {sym}", "", f"- {headline}"]
+
+        mod_old = old_s.get("module_scores") or {}
+        mod_new = new_s.get("module_scores") or {}
+        mods = ", ".join(f"{m} {mod_old.get(m, 0)} -> {mod_new.get(m, 0)}"
+                         for m in sorted(set(mod_old) | set(mod_new))
+                         if mod_old.get(m) != mod_new.get(m))
+        if mods:
+            md.append(f"- modules: {mods}")
+
+        valves_old = set(old_s.get("hard_valve_hits") or [])
+        valves_new = set(new_s.get("hard_valve_hits") or [])
+        if valves_old != valves_new:
+            valve_line = f"valves +{sorted(valves_new - valves_old)} -{sorted(valves_old - valves_new)}"
+            print(f"[M4-diff]     {valve_line}")
+            md.append(f"- {valve_line}")
+
+        movers = _factor_movers(old_s, new_s)
+        if movers:
+            md.append("- top factor movers:")
+            for fid, delta, explain in movers:
+                md.append(f"  - {fid}: {delta:+.1f} — {explain}")
+
+        for block in ("routing", "reentry"):
+            changes = _shallow_diff((prev.get(block) or {}).get(sym),
+                                    (payload.get(block) or {}).get(sym))
+            if changes:
+                print(f"[M4-diff]     {block}: " + "; ".join(changes[:3]))
+                md.append(f"- {block}: " + "; ".join(changes))
+        md.append("")
+
+    out_dir = _artifact_root() / "reports" / ("shadow" if shadow else "")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"daily_diff_{as_of}.md"
+    out_path.write_text("\n".join(md))
+    print(f"[M4-diff] written: {out_path}")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="M4-1 package run-daily wrapper")
     p.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: today)")
@@ -707,10 +916,13 @@ def main() -> None:
     if args.as_of is None:
         print(f"[M4-1] Auto-selected latest available as_of={as_of}")
 
+    _preflight_report(shadow, as_of)
+
     payload = run_score_pipeline(as_of, shadow=shadow)
     translated = translate(payload)
     orders = translated.get("orders_preview", {})
     write_artifacts(translated, orders, as_of, shadow=shadow)
+    _post_run_diff(payload, as_of, shadow)
     if args.commit_state:
         if shadow:
             print("[M4-1] WARNING: --commit-state ignored in shadow mode.")

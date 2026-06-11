@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = PACKAGE_DIR / "config" / "config.json"
+
+# Relative paths.* entries normally resolve under the package dir. Setting
+# HERMES_DATA_DIR re-roots them so runtime data can live outside the git
+# working tree (serve/backtest/test isolation). Absolute paths are unaffected.
+DATA_DIR_ENV = "HERMES_DATA_DIR"
 
 
 class ConfigError(ValueError):
@@ -26,7 +32,9 @@ def resolve_path(config: Dict[str, Any], key: str) -> Path:
     path = Path(str(raw)).expanduser()
     if path.is_absolute():
         return path
-    return (PACKAGE_DIR / path).resolve()
+    override = os.environ.get(DATA_DIR_ENV)
+    base = Path(override).expanduser() if override else PACKAGE_DIR
+    return (base / path).resolve()
 
 
 def validate_config(config: Dict[str, Any]) -> None:

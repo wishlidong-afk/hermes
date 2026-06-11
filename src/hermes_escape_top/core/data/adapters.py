@@ -144,9 +144,38 @@ def _valuation_record(as_of: str, config: Dict[str, Any], store: LocalStore) -> 
     }
 
 
+def apply_soft_data_slo(records: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
+    """[T9] Degrade over-age soft records to missing (stale data != fresh data).
+
+    Gated by features.use_soft_data_max_age (default OFF => no-op). Ages are
+    latency_days (calendar); thresholds in config.soft_data_slo are sized
+    long-weekend-safe so this is a coarse safety net — precise trading-day
+    alerting lives in the watchdog/preflight, not here.
+    """
+    features = config.get("features") or {}
+    if not features.get("use_soft_data_max_age"):
+        return records
+    slo = config.get("soft_data_slo") or {}
+    default_max = int(slo.get("default_max_age_days", 13))
+    per_source = slo.get("max_age_days") or {}
+    for name, rec in records.items():
+        if not isinstance(rec, dict) or not rec.get("data_available"):
+            continue
+        max_age = int(per_source.get(name, default_max))
+        latency = int(rec.get("latency_days") or 0)
+        if latency > max_age:
+            rec["value"] = None
+            rec["data_available"] = False
+            rec["fields"] = {key: None for key in (rec.get("fields") or {})}
+            rec["reason"] = (f"stale: latency {latency}d > max_age {max_age}d; "
+                             + (rec.get("reason") or "")).rstrip("; ")
+    return records
+
+
 def collect_soft_data(as_of: str, config: Dict[str, Any], store: LocalStore) -> Dict[str, Any]:
     records = {source.name: source.collect(as_of, config).to_dict() for source in default_sources(config)}
     records["valuation"] = _valuation_record(as_of, config, store)
+    records = apply_soft_data_slo(records, config)
     path = store.write_dated_snapshot(
         "soft_adapter_snapshot",
         as_of,

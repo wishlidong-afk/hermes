@@ -747,8 +747,8 @@ def _optimize_sizing(
         failover_state={"is_degraded": False},
         staleness_days=_max_staleness_days(histories, config, as_of),
         drift_state=_drift_state(signal_journal_path, config),   # real PSI from signal journal
-        fragility=0.0,       # TODO: wire E7 fragility score
-        disagreement=0.0,    # TODO: wire E22 model disagreement
+        fragility=_spine_fragility(bundles, config) if _spine_full(config) else 0.0,
+        disagreement=_spine_disagreement(verdicts, config) if _spine_full(config) else 0.0,
         cfg=config.get("confidence", {}),
     )
 
@@ -977,3 +977,50 @@ def _soft_snapshot(soft_data: Dict[str, Any], as_of: str) -> SymbolSnapshot:
 def stable_hash(payload: Any) -> str:
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
+
+
+def _spine_full(config):
+    """T10 flag: wire E7/E22 into the confidence spine (default OFF)."""
+    return bool((config.get("features") or {}).get("use_full_confidence_spine"))
+
+
+def _spine_fragility(bundles, config):
+    """E7 (score-level wiring): threshold knife-edge fragility, worst symbol.
+
+    Perturbs each final score +/-eps through the production status ladder and
+    counts verdict flips. Input-level (per-factor) perturbation needs a
+    re-scoring callable threaded through score_symbol — documented follow-up;
+    score-level fragility already captures knife-edge decisions near thresholds.
+    """
+    from .core.governance.governance import decision_fragility
+    from .core.decision.verdict import status_from_score
+
+    eps = float((config.get("confidence") or {}).get("fragility_eps", 0.02))
+    worst = 0.0
+    for bundle in bundles.values():
+        score = float(bundle.result.final_score or 0.0)
+        if score <= 0.0:
+            continue
+        frag = decision_fragility(
+            {"score": score},
+            lambda snap: status_from_score(snap["score"], config),
+            eps=eps,
+        )
+        worst = max(worst, frag)
+    return worst
+
+
+def _spine_disagreement(verdicts, config):
+    """E22: rule vs meta vs mirror disagreement, worst symbol.
+
+    meta_p_act and mirror_cycle are truthfully None today (meta-model OFF;
+    the mirror plan is built later in the pipeline), so this contributes 0
+    until a second opinion source is threaded — wired, not faked.
+    """
+    from .core.governance.governance import detect_disagreement
+
+    cfg = config.get("confidence") or {}
+    worst = 0.0
+    for v in verdicts.values():
+        worst = max(worst, float(detect_disagreement(v.status, None, None, cfg)))
+    return worst
