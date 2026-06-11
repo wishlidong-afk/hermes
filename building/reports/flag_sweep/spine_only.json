@@ -1,10 +1,10 @@
 {
-  "variant": "baseline",
+  "variant": "spine_only",
   "cache_schema": "flag-sweep-cache-v2",
-  "cache_key": "eba41e18f47f30c6abce7770f5e2a79b2b640a12b070058fc54be4199e373807",
+  "cache_key": "571a8a3e4177b8e82f6b293568ae22a6c69a56af8062b43e8a9106378c8b4ed0",
   "manifest_id": "0bd99464b7317bcd03e9041833bc52e14e2c88688edd81b28d0841e3d9a00425",
   "git_commit": "9953cea02b96937cc2a1cff77fff3d7854e73a13",
-  "code_sha256": "8d68b3c1483659baf6197c5e8f2ebd66d13ba054cb1861da7ff43f6ddc095d5b",
+  "code_sha256": "b1be09c21ef0622e9a43959aafbb650fe2e34b4ac3c170a54858d3916710d5e6",
   "start": "2018-01-01",
   "end": "2026-05-29",
   "enable": [
@@ -13,13 +13,13 @@
   "effective_start": "2018-01-02",
   "effective_end": "2026-05-29",
   "n_days": 2113,
-  "runtime_sec": 3192.1,
+  "runtime_sec": 3157.3,
   "metrics": {
-    "cagr": 0.173785,
-    "max_drawdown": -0.137734,
-    "sharpe": 1.222571,
-    "sortino": 1.598831,
-    "final_value": 382633.810344
+    "cagr": 0.169649,
+    "max_drawdown": -0.135822,
+    "sharpe": 1.213529,
+    "sortino": 1.581937,
+    "final_value": 371480.199432
   },
   "benchmarks": {
     "SPY": 0.131419,

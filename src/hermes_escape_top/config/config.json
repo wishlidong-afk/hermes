@@ -336,11 +336,17 @@
     "use_scored_missing_weight": true,
     "use_partial_factor_eval": true,
     "use_hm2_buffer": false,
-    "use_soft_data_max_age": false,
+    "use_soft_data_max_age": true,
     "use_full_confidence_spine": false,
     "data_onchain_mstr": false,
     "data_mstr_mnav": false,
     "use_b6_mnav_valuation": false
+  },
+  "_soft_data_max_age_flip": {
+    "enabled_at": "2026-06-11",
+    "approved_by": "human-gate-2026-06-11",
+    "evidence": "building/reports/flag_sweep/slo_only.json — equity byte-identical to baseline (true no-op on complete history); live-robustness flip, F3/F4 class. Attribution: spine_only carries the full slo_spine footprint.",
+    "rollback": "set features.use_soft_data_max_age=false"
   },
   "soft_data_slo": {
     "_note": "T9: when features.use_soft_data_max_age is on, soft records whose latency_days (each source's own staleness measure, the same one data_quality consumes) exceeds max_age are degraded to missing so they flow through missing_weight instead of scoring with stale percentiles. Thresholds are long-weekend-safe (daily ~6 covers a holiday weekend; weekly 13 covers one skipped release). Default OFF; flip is an F4-class live-robustness gate (expected backtest no-op on complete history).",

@@ -60,6 +60,14 @@ def build_config(variant: str) -> dict:
         feats["data_cot_nq"] = True
     elif variant == "suspect_valve_guard":
         feats["use_suspect_valve_guard"] = True
+    elif variant == "slo_spine":
+        # T9+T10 combined run — proved NOT a no-op (confidence feeds sizing)
+        feats["use_soft_data_max_age"] = True
+        feats["use_full_confidence_spine"] = True
+    elif variant == "slo_only":
+        feats["use_soft_data_max_age"] = True
+    elif variant == "spine_only":
+        feats["use_full_confidence_spine"] = True
     elif variant == "f8_tightened":
         cfg["naaim"] = F8_NAAIM
         cfg["pcr"] = F8_PCR

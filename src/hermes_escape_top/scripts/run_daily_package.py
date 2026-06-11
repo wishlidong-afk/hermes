@@ -193,6 +193,20 @@ def refresh_soft_data() -> None:
     else:
         print("[M4-1b] COT NQ OK.")
 
+    result5 = subprocess.run(
+        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_occ_pcr",
+         "--weeks", "3"],
+        cwd=str(BASE_DIR),
+        env=_subprocess_env(),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result5.returncode != 0:
+        print("[M4-1b] WARNING: OCC PCR refresh failed (weekly Friday report); continuing.")
+    else:
+        print("[M4-1b] OCC equity PCR OK.")
+
 
 # ── Step 2: run the package score pipeline ────────────────────────────────────
 
@@ -909,8 +923,17 @@ def main() -> None:
         print(f"[M4-1] LIVE mode — writing to live dirs")
 
     if not args.skip_refresh:
-        refresh_history(refresh_end)
-        refresh_soft_data()
+        # A hung source must never kill the scoring run — degrade to cached
+        # data (the same philosophy each refresh step already applies to
+        # non-zero exits; subprocess.TimeoutExpired previously escaped it).
+        try:
+            refresh_history(refresh_end)
+        except Exception as exc:
+            print(f"[M4-1] WARNING: history refresh crashed ({exc!r}); proceeding with cached bars.")
+        try:
+            refresh_soft_data()
+        except Exception as exc:
+            print(f"[M4-1b] WARNING: soft refresh crashed ({exc!r}); proceeding with cached data.")
 
     as_of = args.as_of or _latest_available_as_of()
     if args.as_of is None:
