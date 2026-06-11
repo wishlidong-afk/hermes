@@ -1,0 +1,235 @@
+{
+  "start": "2018-01-01",
+  "end": "2026-05-29",
+  "metrics": [
+    "CapMVRVCur",
+    "FlowInExUSD",
+    "FlowOutExUSD",
+    "SplyExUSD",
+    "PriceUSD",
+    "CapMrktCurUSD",
+    "SplyCur"
+  ],
+  "unavailable_metrics": [
+    "CapRealUSD",
+    "SOPR",
+    "SOPRSth155d",
+    "SOPRLth155d",
+    "MCRC",
+    "RCTC",
+    "RevAllTimeUSD"
+  ],
+  "source_rows": 3071,
+  "aligned_rows": 2113,
+  "cm_first_date": "2018-01-01",
+  "cm_last_date": "2026-05-29",
+  "pit_shift": "Coin Metrics date + 1 calendar day, then forward-filled to MSTR trading days",
+  "labeled_tops": [
+    "2020-02-05",
+    "2021-02-09",
+    "2021-11-08",
+    "2022-03-29",
+    "2022-08-12",
+    "2023-02-15",
+    "2023-07-13",
+    "2024-01-02",
+    "2024-03-27",
+    "2024-07-22",
+    "2024-11-20",
+    "2025-07-16",
+    "2025-10-06",
+    "2026-01-14"
+  ],
+  "candidate_results": {
+    "CM_MVRV_HEAT": {
+      "column": "mvrv_pctl_252",
+      "threshold": 95.0,
+      "hypothesis": "BTC valuation heat should precede MSTR top risk.",
+      "hit_rate": 0.35714285714285715,
+      "median_lead_days": 70.0,
+      "fire_rate": 0.11921529175050302,
+      "episode_count": 19,
+      "precision": 0.5789473684210527,
+      "lead_times_days": {
+        "2020-02-05": null,
+        "2021-02-09": 90,
+        "2021-11-08": null,
+        "2022-03-29": null,
+        "2022-08-12": null,
+        "2023-02-15": null,
+        "2023-07-13": 70,
+        "2024-01-02": 70,
+        "2024-03-27": 85,
+        "2024-07-22": null,
+        "2024-11-20": 8,
+        "2025-07-16": null,
+        "2025-10-06": null,
+        "2026-01-14": null
+      },
+      "correlation": {
+        "max_abs_corr": 0.7773154196852797,
+        "top_factor": "D:D4_RADAR_CONFIRMATION",
+        "top_corr": -0.7773154196852797,
+        "by_module": {
+          "A": 0.550679755765335,
+          "B": 0.5723070551151613,
+          "C": 0.6208031663694011,
+          "D": 0.7773154196852797
+        }
+      },
+      "offline_survivor": false
+    },
+    "CM_EXCHANGE_INFLOW_PRESSURE": {
+      "column": "flow_in_ex_mcap_z90",
+      "threshold": 2.0,
+      "hypothesis": "Exchange inflow spikes indicate sell/volatility pressure.",
+      "hit_rate": 0.7142857142857143,
+      "median_lead_days": 70.0,
+      "fire_rate": 0.04059932334461092,
+      "episode_count": 35,
+      "precision": 0.4,
+      "lead_times_days": {
+        "2020-02-05": null,
+        "2021-02-09": 74,
+        "2021-11-08": null,
+        "2022-03-29": 63,
+        "2022-08-12": 59,
+        "2023-02-15": null,
+        "2023-07-13": 31,
+        "2024-01-02": 70,
+        "2024-03-27": 77,
+        "2024-07-22": 5,
+        "2024-11-20": 70,
+        "2025-07-16": null,
+        "2025-10-06": 82,
+        "2026-01-14": 70
+      },
+      "correlation": {
+        "max_abs_corr": 0.08572273371458748,
+        "top_factor": "B:B4_CBOE_OPTIONS_STRESS",
+        "top_corr": 0.08572273371458748,
+        "by_module": {
+          "A": 0.07466739604054613,
+          "B": 0.08572273371458748,
+          "C": 0.06669535170877595,
+          "D": 0.055700371618232276
+        }
+      },
+      "offline_survivor": true
+    },
+    "CM_EXCHANGE_NETFLOW_PRESSURE": {
+      "column": "flow_net_ex_mcap_z90",
+      "threshold": 2.0,
+      "hypothesis": "Net deposits to exchanges indicate spot sell pressure.",
+      "hit_rate": 0.7857142857142857,
+      "median_lead_days": 64.0,
+      "fire_rate": 0.028999516674722087,
+      "episode_count": 31,
+      "precision": 0.45161290322580644,
+      "lead_times_days": {
+        "2020-02-05": 64,
+        "2021-02-09": 74,
+        "2021-11-08": 73,
+        "2022-03-29": null,
+        "2022-08-12": 59,
+        "2023-02-15": null,
+        "2023-07-13": null,
+        "2024-01-02": 60,
+        "2024-03-27": 77,
+        "2024-07-22": 61,
+        "2024-11-20": 14,
+        "2025-07-16": 1,
+        "2025-10-06": 83,
+        "2026-01-14": 70
+      },
+      "correlation": {
+        "max_abs_corr": 0.0575179086766601,
+        "top_factor": "C:C8_DISTRIBUTION_PRESSURE",
+        "top_corr": 0.0575179086766601,
+        "by_module": {
+          "A": 0.04208027851717121,
+          "B": 0.049509339126380135,
+          "C": 0.0575179086766601,
+          "D": 0.044575199342363446
+        }
+      },
+      "offline_survivor": true
+    },
+    "CM_EXCHANGE_SUPPLY_HEAT": {
+      "column": "ex_supply_mcap_pctl_252",
+      "threshold": 95.0,
+      "hypothesis": "High exchange-held supply leaves more BTC immediately saleable.",
+      "hit_rate": 0.35714285714285715,
+      "median_lead_days": 84.0,
+      "fire_rate": 0.1926559356136821,
+      "episode_count": 28,
+      "precision": 0.39285714285714285,
+      "lead_times_days": {
+        "2020-02-05": 90,
+        "2021-02-09": null,
+        "2021-11-08": 84,
+        "2022-03-29": null,
+        "2022-08-12": null,
+        "2023-02-15": null,
+        "2023-07-13": null,
+        "2024-01-02": null,
+        "2024-03-27": 71,
+        "2024-07-22": 77,
+        "2024-11-20": 85,
+        "2025-07-16": null,
+        "2025-10-06": null,
+        "2026-01-14": null
+      },
+      "correlation": {
+        "max_abs_corr": 0.25522728004992085,
+        "top_factor": "D:D_M3_BTC_VOLATILITY_PROXY",
+        "top_corr": 0.25522728004992085,
+        "by_module": {
+          "A": 0.20628945284545694,
+          "B": 0.20779430105889685,
+          "C": 0.212619500545438,
+          "D": 0.25522728004992085
+        }
+      },
+      "offline_survivor": false
+    },
+    "CM_COMPOSITE_ONCHAIN_HEAT": {
+      "column": "composite_onchain_heat",
+      "threshold": 90.0,
+      "hypothesis": "A simple equal-weight composite should reduce single-metric noise.",
+      "hit_rate": 0.21428571428571427,
+      "median_lead_days": 61.0,
+      "fire_rate": 0.018108651911468814,
+      "episode_count": 10,
+      "precision": 0.6,
+      "lead_times_days": {
+        "2020-02-05": null,
+        "2021-02-09": null,
+        "2021-11-08": null,
+        "2022-03-29": null,
+        "2022-08-12": null,
+        "2023-02-15": null,
+        "2023-07-13": null,
+        "2024-01-02": 47,
+        "2024-03-27": 77,
+        "2024-07-22": 61,
+        "2024-11-20": null,
+        "2025-07-16": null,
+        "2025-10-06": null,
+        "2026-01-14": null
+      },
+      "correlation": {
+        "max_abs_corr": 0.4039723877507428,
+        "top_factor": "D:D2_ASSET_MA220_BREAK",
+        "top_corr": -0.4039723877507428,
+        "by_module": {
+          "A": 0.32823041618797355,
+          "B": 0.33704277625900614,
+          "C": 0.38056943238386026,
+          "D": 0.4039723877507428
+        }
+      },
+      "offline_survivor": false
+    }
+  }
+}

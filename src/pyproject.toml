@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Hermes 逃顶 + 镜像防守系统 — read-only, never orders"
 requires-python = ">=3.9"
 dependencies = [
+    "certifi>=2024.0",
     "numpy>=1.24",
     "pandas>=2.0",
     "scipy>=1.10",

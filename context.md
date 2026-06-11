@@ -464,16 +464,22 @@ PYTHONPATH=src /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_
 
 ---
 
-## 13. 当前性能基线（2026-06-11）
+## 13. 当前性能基线与路由部署态（2026-06-11）
 
-| 指标 | 值 |
-|------|---|
-| 全窗口 CAGR（2018-2026） | ~15.5-17% |
-| Max Drawdown | ~-14% |
-| Sharpe | ~1.1 |
-| 部署 PBO | 0.1538 |
-| 测试数量 | 390+ |
-| 分支 | hermes-docs |
+| 指标 | 值 | 来源 |
+|------|------|------|
+| 当前路由部署态 | DEFCON1 `BOXX50/DBMF30/GLD20`；DEFCON3 `SOXL->SOXX, FNGU->QQQ, MSTR->BTC-USD` | `src/hermes_escape_top/config/config.json` |
+| 路由 freshness | FRESH: config routing block matches `BOXX50/DBMF30/GLD20` and `MSTR->BTC-USD` | config routing block + `_defcon3_note` 校验 |
+| 路由门控依据 | ④ SOXL/FNGU are clean 3x→1x same-thesis de-levers. MSTR→BTC-USD: drops mNAV premium+single-name risk, keeps crypto thesis (live equiv: IBIT). Gate-approved 2026-06-10: combo variant, 13-fold WF PBO=0.31, OOS Δ+0.117, CAGR +1.90pp vs baseline. DEFCON1: BOXX50/DBMF30/GLD20 — gold adds inflation-hedge leg orthogonal to cash+trend (gate PBO=0.31, CAGR +1.59pp standalone). Rollback: MSTR→QQQ, DEFCON1 BOXX0.7/TREND0.3, remove extra_legs. | config `_defcon3_note` |
+| routing-gate 本地产物 | `building/reports/routing_gate/` absent in this worktree | 本地文件检查 |
+| 当前含 combo 对照基线 CAGR | 17.38% | `building/reports/flag_sweep/GATE_REPORT_cot_nq.md` baseline row |
+| 当前含 combo 对照基线 Max Drawdown | -13.77% | `building/reports/flag_sweep/GATE_REPORT_cot_nq.md` baseline row |
+| 当前含 combo 对照基线 Sharpe | 1.223 | `building/reports/flag_sweep/GATE_REPORT_cot_nq.md` baseline row |
+| 当前含 combo 对照基线 Calmar | 1.262 | `building/reports/flag_sweep/GATE_REPORT_cot_nq.md` baseline row |
+| 历史 capeff 参照 CAGR | 15.84% | `building/reports/capeff/baseline_deployed.json` |
+| 部署 PBO | 0.153846 | `building/reports/Calibration_RiskFactors_2026_06_08.json` |
+| 测试数量 | 401 `def test_*` | 静态统计 |
+| 分支 | `hermes-docs` | git |
 
 ---
 

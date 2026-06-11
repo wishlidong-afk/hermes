@@ -19,7 +19,6 @@ CFTC publishes weekly (Friday) with a 3-day lag (Tuesday snapshot).
 Data source:
   CFTC public reporting Socrata API (TFF disaggregated):
   https://publicreporting.cftc.gov/resource/gpe5-46if.json
-  (SSL verification bypassed — macOS Python doesn't include CFTC root CA)
 
 Usage:
   python3 -m hermes_escape_top.scripts.backfill_cot [--dry-run]
@@ -51,16 +50,12 @@ _API_LIMIT = 50000  # Socrata max rows per request; NQ history ~1000 rows total
 
 
 def _ssl_ctx() -> ssl.SSLContext:
-    """Create an SSL context that skips cert verification.
-
-    CFTC's TLS chain uses a US Government root CA not bundled with Python's
-    certifi on macOS.  The endpoint itself is a US government domain so
-    downgrading verification is acceptable here.
-    """
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    return ctx
+    """Create a verified SSL context, preferring certifi when installed."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
 
 
 def _get_json(url: str, timeout: int = 60) -> Optional[List[Dict]]:

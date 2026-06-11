@@ -13,6 +13,7 @@ If auto-fetch fails, place raw CSV at the paths shown below and re-run with --so
 from __future__ import annotations
 
 import argparse
+import ssl
 import sys
 from pathlib import Path
 
@@ -20,6 +21,15 @@ import pandas as pd
 
 HERMES_ROOT = Path(__file__).resolve().parents[1]
 SOFT_HISTORY = HERMES_ROOT / "data" / "soft_history"
+
+
+def _ssl_ctx() -> ssl.SSLContext:
+    """Create a verified SSL context, preferring certifi when installed."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
 
 
 # ── CBOE Equity PCR ─────────────────────────────────────────────────────────
@@ -73,10 +83,8 @@ def _parse_cboe_pcr_csv(path: Path) -> pd.DataFrame:
 
 
 def _try_fetch_cboe_pcr() -> pd.DataFrame | None:
-    import urllib.request, ssl, io, tempfile
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
+    import urllib.request, tempfile
+    ctx = _ssl_ctx()
     urls = [
         "https://cdn.cboe.com/data/us/options/market_statistics/historical_data/options_eod_put_call_ratios.csv",
         "https://www.cboe.com/publish/scheduledtask/mktdata/datahouse/equitypc.csv",
@@ -142,10 +150,8 @@ def _parse_naaim_csv(path: Path) -> pd.DataFrame:
 
 
 def _try_fetch_naaim() -> pd.DataFrame | None:
-    import urllib.request, ssl, io
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
+    import urllib.request, io
+    ctx = _ssl_ctx()
     # Stooq provides NAAIM data but requires an API key obtained interactively.
     # Try the public NAAIM site with a different approach.
     urls = [

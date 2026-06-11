@@ -5,6 +5,16 @@ All flags live in `config.json → features`. Default = **OFF** (`false`) unless
 A flag must pass the 13-fold walk-forward + PBO gate before being turned ON in production.
 Rollback = set the flag back to `false` (byte-identical behavior restored).
 
+This registry is also the experiment ledger. Every experiment should end in one
+of four states:
+
+| State | Meaning | Required evidence |
+|------|---------|-------------------|
+| Candidate | Worth researching; no live behavior change | hypothesis + affected surface + planned validation |
+| Shadow | Wired but not consumed by live decisions | byte-identical OFF proof + payload/report evidence |
+| Live | Human-approved and enabled | gate/report link + rollback path |
+| Rejected | Failed, neutral-with-no-edge, or superseded | reason + source report so it is not retried casually |
+
 ---
 
 ## Data flags — controls which soft inputs are collected
@@ -16,7 +26,7 @@ Rollback = set the flag back to `false` (byte-identical behavior restored).
 | `data_net_liquidity` | **ON** ✅ | live | FRED net-liquidity (WALCL − WTREGEN − RRP) |
 | `data_aaii` | **ON** ✅ | best-effort | AAII bull/bear sentiment (A2) |
 | `data_naaim` | **ON** ✅ | live | NAAIM Exposure Index (A2) |
-| `data_cnn_fgi` | OFF | unmaintained | CNN Fear & Greed — endpoint historically unstable |
+| `data_cnn_fgi` | OFF | rejected-for-performance | CNN Fear & Greed — wired/full coverage, but system marginal effect is noise |
 | `data_component_breadth` | **ON** ✅ | live | NDX/SOX breadth from FNGU/SOXL component proxies (A3) |
 | `data_cboe_pcr` | **ON** ✅ | live | CBOE equity put/call ratio (A2) |
 | `data_hy_oas` | OFF | calibrated-off | HY OAS spread percentile (A9) — gate-failed standalone |
@@ -28,9 +38,9 @@ Rollback = set the flag back to `false` (byte-identical behavior restored).
 | `data_defensive_rotation` | **ON** ✅ | live | XLP+XLU+XLV / XLY+XLI+XLF rotation (A15) — gate-passed 2026-06-08 |
 | `data_financial_stress` | OFF | calibrated-off | XLF/SPY financial-stress ratio (A16) — gate-failed standalone |
 | `data_nfci` | OFF | pending-gate | FRED NFCI financial-conditions index (A17) |
-| `data_move` | OFF | pending-gate | MOVE bond-vol index from local OHLCV (A18) |
-| `data_ndx_concentration` | OFF | pending-gate | QQQE/QQQ NDX equal-vs-cap concentration (A19) |
-| `data_cot_nq` | OFF | pending-gate | CFTC COT NQ futures combined net-long/OI percentile (A20) — backfill via `scripts/backfill_cot.py` |
+| `data_move` | OFF | rejected-additive | MOVE bond-vol index from local OHLCV (A18) — useful standalone, negative marginal value in saturated A module |
+| `data_ndx_concentration` | OFF | rejected-additive | QQQE/QQQ NDX equal-vs-cap concentration (A19) — failed as part of batch-2 additive experiment |
+| `data_cot_nq` | OFF | gate-failed | CFTC COT NQ futures combined net-long/OI percentile (A20) — pipeline retained, flag stays OFF |
 
 ---
 
@@ -41,14 +51,14 @@ Rollback = set the flag back to `false` (byte-identical behavior restored).
 | `use_meta_label` | OFF | unimplemented | Meta-label filtering layer — not implemented |
 | `use_portfolio_risk_budget` | OFF | pending-gate | Vol-target risk-budget overlay on sizing |
 | `use_regime_multipliers` | **ON** ✅ | live | Apply CRISIS/HIGH_VOL/LOW_VOL_TREND module-weight multipliers in scorer.py — default-ON because the logic was unconditional before this flag was added |
-| `use_arm_then_fire` | OFF | pending-gate | Macro leading signals lower trigger thresholds |
+| `use_arm_then_fire` | OFF | shadow-redesign-needed | Macro leading signals lower trigger thresholds; current design double-counts scored inputs |
 | `use_decision_stabilizer` | OFF | gate-failed | Score smoothing across days — **FAILED 2026-06-09: median OOS below baseline, +1.18pp MaxDD** |
 | `use_status_hysteresis` | OFF | gate-failed | Hysteresis band on status transitions — **FAILED 2026-06-09** |
 | `use_close_confirmation` | OFF | gate-failed | Require close confirmation before status escalation — **FAILED 2026-06-09** |
 | `use_suspect_valve_guard` | **ON** ✅ | live | Ignore hard valves on zero-volume/suspect bars (F3) — gate-passed 2026-06-09 |
 | `use_scored_missing_weight` | **ON** ✅ | live | Proportional score adjustment for missing fields (F5/F6) — gate-passed 2026-06-09 |
 | `use_partial_factor_eval` | **ON** ✅ | live | Score modules even when only partial factor data available (F4) — gate-passed 2026-06-09 |
-| `use_hm2_buffer` | OFF | pending-gate | Downgrade lone H-M2 (single -15% day) from EXIT to DEFENSIVE_EXIT |
+| `use_hm2_buffer` | OFF | gate-failed | Downgrade lone H-M2 (single -15% day) from EXIT to DEFENSIVE_EXIT — real path rejected |
 
 ---
 
@@ -63,6 +73,45 @@ These flags had zero code references and were removed from config.json:
 | `use_rolling_quantile` | Rolling-quantile normalization removed; fixed window is the only path |
 | `use_regime_weights` | **MISLEADING**: regime multipliers are ALWAYS active in `scorer.py` (lines ~140–160) regardless of this flag. The flag was inert. See `_module_caps_note` in config.json. To actually disable regime multipliers, clear `regime.multipliers`. |
 | `routing_v2` | Routing v2 logic was merged into main; flag was inert |
+
+---
+
+## Experiment ledger
+
+### Live / accepted
+
+| Experiment | State | Impact surface | Evidence | Rollback |
+|---|---|---|---|---|
+| A10 real rate + A11 dollar + A15 defensive rotation | Live | Data, A module scoring, thresholds | `docs/RISK_FACTORS_CALIBRATION_2026_06_08.md`; deployment fixed PBO 0.153846 | Set `data_real_rate`, `data_dollar`, `data_defensive_rotation` false and restore prior thresholds |
+| F3 suspect valve guard | Live | Data quality, hard valves | `building/reports/flag_sweep/GATE_REPORT.md`; risk reduction and live robustness | `features.use_suspect_valve_guard=false` |
+| F5/F6 scored missing weight | Live | Missing-data scoring semantics | `building/reports/flag_sweep/GATE_REPORT.md`; median OOS objective +0.062, PBO 0.31 | `features.use_scored_missing_weight=false` |
+| F4 partial factor eval | Live | Live robustness under partial data | `building/reports/flag_sweep/SWEEP_SUMMARY.md`; no-op on clean history, robustness win | `features.use_partial_factor_eval=false` |
+| Routing combo: MSTR→BTC-USD + DEFCON1 GLD leg | Live | Routing | `src/hermes_escape_top/config/config.json` `_defcon3_note`; combo gate PBO 0.31, OOS Δ+0.117, CAGR +1.90pp vs baseline; DEFCON1 GLD standalone +1.59pp | `routing.defcon3.MSTR="QQQ"`; restore DEFCON1 BOXX70/TREND30 and remove `extra_legs.GLD` |
+| Deployment baseline freeze | Live reference | Docs, validation provenance | `docs/BASELINE_2026_06_11.md` | Regenerate from reports if source artifacts change |
+
+### Rejected / parked
+
+| Experiment | State | Why it failed or parked | Evidence | Retry rule |
+|---|---|---|---|---|
+| `use_decision_stabilizer` | Rejected | Median OOS objective below baseline; full stabilizer worsened MaxDD by +1.18pp despite higher in-sample CAGR | `building/reports/flag_sweep/GATE_REPORT.md`; `building/reports/flag_sweep/SWEEP_SUMMARY.md` | Do not revive without a new mechanism and new prior |
+| `use_status_hysteresis` / hysteresis-only | Rejected | OOS objective below baseline and PBO >= 0.5 | `building/reports/flag_sweep/GATE_REPORT.md` | Do not re-test as a smoothing-only patch |
+| `use_close_confirmation` | Rejected | Same confirmation-delay family as stabilizer; worsens tail-exit behavior | `building/reports/flag_sweep/GATE_REPORT.md`; config `_flag_review_calibration` | Only revisit inside a clean, leading-data-only arming design |
+| NAAIM/PCR tightening (`f8_tightened`) | Rejected | Worse on every full-system metric; standalone forward edge did not survive in-system | `building/reports/flag_sweep/SWEEP_SUMMARY.md` | Do not retune A2 thresholds in the saturated A module |
+| H-M2 buffer (`use_hm2_buffer`) | Rejected | Lone H-M2 cases typically confirmed next day; delaying full exit lost about 0.30pp CAGR | `review/HM2_BUFFER_RESULTS.md` | Keep code flag-gated OFF; no second parameter search |
+| COT NQ (`data_cot_nq`) | Rejected | Pipeline works, but gate failed: OOS objective below baseline, full CAGR lower | `building/reports/flag_sweep/GATE_REPORT_cot_nq.md` | Keep data pipeline for future research; flag remains OFF |
+| MOVE + A19 + NAAIM batch-2 | Rejected | Added negative marginal value on top of A10/A11/A15; A module is cap-saturated | `docs/FACTOR_EXPLORATION_RESULTS_2026_06_08.md` | Do not add more A-module points without decoupling the cap/design |
+| CNN Fear & Greed (`data_cnn_fgi`) | Rejected for performance | Full coverage and correctly wired, but effect is within noise: CAGR -0.03pp, MaxDD flat | `building/reports/flag_sweep/CNN_RESULT.md` | May be kept as a non-decision data feed, not a performance flag |
+| Continuous sell fraction | Rejected for performance, accepted operationally | Gate was essentially neutral-to-slightly-worse; operational cliff-removal was human-approved separately | `building/reports/flag_sweep/GATE_REPORT_continuous_sell_fraction.md`; config `_sell_fraction_mode_note` | Do not sell as alpha; evaluate only as operator-experience logic |
+| Arm-then-fire current design | Parked | Current arming inputs overlap additive scored factors, creating double-counting | `docs/FACTOR_EXPLORATION_RESULTS_2026_06_08.md` | Redesign as leading-data-only before one final gate |
+
+### Candidate / next research
+
+| Experiment | State | Hypothesis | Required validation |
+|---|---|---|---|
+| MSTR on-chain D-axis | Candidate | CoinMetrics community subset suggests exchange inflow/netflow pressure may be orthogonal to existing factors | `docs/ONCHAIN_DATA_SOURCE_AUDIT_2026_06_11.md`; `building/reports/onchain_mstr_lab/ONCHAIN_MSTR_LAB_2026_06_11.md`; queue one T19 gate each for `CM_EXCHANGE_INFLOW_PRESSURE` and `CM_EXCHANGE_NETFLOW_PRESSURE` after A confirms backtest window is free |
+| B6 MSTR mNAV | Candidate | Direct MSTR valuation/premium data may fill the B6 gap without duplicate D-module scoring | `docs/MNAV_MODULE_OWNERSHIP_DECISION_2026_06_11.md`; PIT data contract, byte-identical OFF proof, one full in-system gate |
+| Soft-data max-age SLO | Candidate | Stale soft data should behave like missing data rather than fresh evidence | Byte-identical historical proof, live staleness simulation, health/UI evidence |
+| Full confidence spine wiring | Candidate | Real fragility/disagreement inputs should replace hard-coded zeros | Byte-identical OFF proof, confidence payload tests, gate/no-op replay check |
 
 ---
 
@@ -94,4 +143,4 @@ config.json also records this.
 
 ---
 
-*Last updated: 2026-06-10 (improve/free-improvements-2026-06-10)*
+*Last updated: 2026-06-11 (Agent B T15 experiment-ledger upgrade)*
