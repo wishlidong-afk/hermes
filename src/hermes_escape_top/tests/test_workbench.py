@@ -62,3 +62,17 @@ def test_lookthrough_sorts_worst_first_and_flags_divergence():
 def test_tolerates_empty_payload():
     html = render_workbench({})
     assert "区域 4" in html and "flow 数据缺失" in html
+
+
+def test_trust_zone_renders_and_orders_by_urgency():
+    from hermes_escape_top.web.workbench import _zone_trust
+    html = _zone_trust([
+        {"name": "aaii_sentiment", "cadence": "weekly", "last_date": "2026-06-11",
+         "days_left": 9, "is_proxy": False, "source": "AAII_PUBLIC_HTML"},
+        {"name": "cboe_equity_pcr", "cadence": "daily", "last_date": "2026-05-29",
+         "days_left": -8, "is_proxy": True, "source": "vix_derived_proxy"},
+    ])
+    assert "数据信任区" in html
+    assert html.index("cboe_equity_pcr") < html.index("aaii_sentiment")  # urgent first
+    assert "超期 8d" in html and "代理" in html and "真实" in html
+    assert _zone_trust(None) == ""  # offline render omits the zone

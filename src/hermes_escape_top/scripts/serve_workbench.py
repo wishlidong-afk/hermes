@@ -48,6 +48,41 @@ def _refresh_running() -> bool:
     return probe.returncode == 0
 
 
+# (name, cadence, max_age_days). Daily ages mirror config.soft_data_slo;
+# AAII gets an early-warning budget of 10 (alert before the 13d SLO).
+TRUST_SOURCES = [
+    ("cboe_equity_pcr", "daily", 6), ("fred_net_liquidity", "daily", 6),
+    ("real_rate", "daily", 6), ("dollar", "weekly", 13),
+    ("naaim_exposure", "weekly", 13), ("aaii_sentiment", "weekly", 10),
+    ("occ_equity_pcr", "weekly", 13), ("cot_nq", "weekly", 13),
+]
+
+
+def trust_rows() -> list:
+    import csv as _csv
+    from datetime import date as _date
+    config = load_config()
+    soft = resolve_path(config, "soft_history_dir")
+    out = []
+    today = _date.today()
+    for name, cadence, max_age in TRUST_SOURCES:
+        path = soft / f"{name}.csv"
+        row = {"name": name, "cadence": cadence}
+        try:
+            tail = [r for r in _csv.reader(path.open()) if r and r[0][:2] == "20"][-1]
+            header = next(_csv.reader(path.open()))
+            rec = dict(zip(header, tail))
+            last = _date.fromisoformat(tail[0][:10])
+            row["last_date"] = last.isoformat()
+            row["days_left"] = max_age - (today - last).days
+            row["is_proxy"] = str(rec.get("is_proxy", "")).lower() == "true"
+            row["source"] = rec.get("source", "")
+        except (OSError, ValueError, IndexError, StopIteration):
+            row.update(last_date="缺失", days_left=None, is_proxy=False, source="")
+        out.append(row)
+    return out
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         if self.path != "/refresh":
@@ -72,7 +107,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         try:
-            body = render_workbench(latest_payload()).encode("utf-8")
+            body = render_workbench(latest_payload(), trust=trust_rows()).encode("utf-8")
             self.send_response(200)
         except Exception as exc:  # pragma: no cover — never blank-page the operator
             body = f"<pre>workbench render failed: {exc!r}</pre>".encode("utf-8")

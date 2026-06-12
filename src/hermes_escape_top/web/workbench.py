@@ -350,7 +350,7 @@ def _zone_lookthrough(payload: Dict[str, Any]) -> str:
 
 # ── Page ─────────────────────────────────────────────────────────────────────
 
-def render_workbench(payload: Dict[str, Any]) -> str:
+def render_workbench(payload: Dict[str, Any], trust: Optional[List[Dict[str, Any]]] = None) -> str:
     as_of = payload.get("as_of", "NA")
     return f"""<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -388,4 +388,45 @@ function refreshData(btn) {{
 {_zone_target_book(payload)}
 {_zone_macro(payload)}
 {_zone_lookthrough(payload)}
+{_zone_trust(trust)}
 </body></html>"""
+
+
+# ── Zone 5: data trust ───────────────────────────────────────────────────────
+
+def _zone_trust(trust: Optional[List[Dict[str, Any]]]) -> str:
+    """Per-source freshness ledger: last date / source / proxy / SLO deadline.
+
+    `trust` rows are computed server-side (serve_workbench reads the soft CSV
+    tails); rendering a payload alone (tests, offline) just omits the zone.
+    """
+    if not trust:
+        return ""
+    rows = []
+    for t in sorted(trust, key=lambda x: x.get("days_left", 99)):
+        days_left = t.get("days_left")
+        if days_left is None:
+            color, label = "#888", "—"
+        elif days_left < 0:
+            color, label = "#A32D2D", f"超期 {-days_left}d"
+        elif days_left <= 3:
+            color, label = "#854F0B", f"剩 {days_left}d"
+        else:
+            color, label = "#0F6E56", f"剩 {days_left}d"
+        proxy = "代理" if t.get("is_proxy") else "真实"
+        rows.append(
+            f"<tr><td style='font-weight:600'>{esc(t.get('name'))}</td>"
+            f"<td>{esc(t.get('last_date', '—'))}</td>"
+            f"<td style='color:{'#854F0B' if t.get('is_proxy') else '#0F6E56'}'>{proxy}</td>"
+            f"<td style='color:#888'>{esc(t.get('source', '—'))}</td>"
+            f"<td>{esc(t.get('cadence', ''))}</td>"
+            f"<td style='color:{color}'>{label}</td></tr>")
+    return f"""
+    <section class="card">
+      <div class="zone-label">区域 5 · 数据信任区（每源：最新 / 真实性 / SLO 倒计时）</div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed">
+        <tr style="color:#888"><td style="width:120px">源</td><td>最新数据日</td><td>性质</td>
+          <td>来源</td><td>节奏</td><td>SLO</td></tr>
+        {''.join(rows)}
+      </table>
+    </section>"""

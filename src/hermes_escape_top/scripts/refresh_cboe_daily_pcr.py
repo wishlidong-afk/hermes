@@ -89,11 +89,59 @@ def append(rec: dict, dry_run: bool = False) -> None:
           f"(cross-check {rec['put_volume']}/{rec['call_volume']}) -> {OUT.name}")
 
 
+def backfill_range(start: str, end: str, sleep_s: float = 1.5) -> int:
+    """Polite historical backfill: one process, one CSV write at the end.
+
+    Replaces proxy rows date-by-date with real values (same validations per
+    day except date-monotonicity, which doesn't apply when filling history).
+    """
+    import time
+    days = pd.bdate_range(start, end)
+    frame = pd.read_csv(OUT, parse_dates=["date"]) if OUT.exists() else pd.DataFrame(
+        columns=["date", "publish_date", "equity_pcr", "equity_pcr_pctl"])
+    have_real = set()
+    if "source" in frame.columns:
+        have_real = set(frame.loc[frame["source"] == "CBOE_DAILY_HTML", "date"].dt.strftime("%Y-%m-%d"))
+    rows, fails = [], 0
+    for day in days:
+        d = day.strftime("%Y-%m-%d")
+        if d in have_real:
+            continue
+        try:
+            rec = parse_page(fetch_page(d))
+        except Exception as exc:
+            print(f"{d} FETCH FAIL: {exc!r}"); fails += 1
+            time.sleep(sleep_s); continue
+        reason = validate(rec, None)
+        if reason:
+            print(f"{d} REJECTED: {reason}"); fails += 1
+        elif rec["date"] != d:
+            print(f"{d} page returned {rec['date']} (holiday) — skip")
+        else:
+            rows.append({"date": pd.Timestamp(rec["date"]), "publish_date": date.today().isoformat(),
+                         "equity_pcr": rec["ratio"], "source": "CBOE_DAILY_HTML", "is_proxy": False})
+        time.sleep(sleep_s)
+    if rows:
+        frame = pd.concat([frame, pd.DataFrame(rows)], ignore_index=True)
+        frame = frame.sort_values("date").drop_duplicates(subset=["date"], keep="last")
+        frame["equity_pcr_pctl"] = (
+            frame["equity_pcr"].rolling(PCTL_WINDOW, min_periods=60)
+            .apply(lambda w: float((w <= w.iloc[-1]).mean() * 100.0), raw=False)
+        )
+        frame.to_csv(OUT, index=False)
+    print(f"backfill done: +{len(rows)} real rows, {fails} failures, total {len(frame)}")
+    return 0 if fails < max(5, len(days) // 10) else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", default=None, help="historical date (page ?dt=)")
+    parser.add_argument("--backfill-start", default=None)
+    parser.add_argument("--backfill-end", default=None)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if args.backfill_start and args.backfill_end:
+        return backfill_range(args.backfill_start, args.backfill_end)
     try:
         rec = parse_page(fetch_page(args.date))
     except Exception as exc:

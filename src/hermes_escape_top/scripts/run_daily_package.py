@@ -221,6 +221,19 @@ def refresh_soft_data() -> None:
     else:
         print("[M4-1b] CBOE daily PCR OK.")
 
+    result7 = subprocess.run(
+        [PYTHON, "-m", "hermes_escape_top.scripts.refresh_aaii_public"],
+        cwd=str(BASE_DIR),
+        env=_subprocess_env(),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if result7.returncode != 0:
+        print("[M4-1b] WARNING: AAII public probe failed (weekly — member-session fallback per runbook); continuing.")
+    else:
+        print("[M4-1b] AAII public probe OK.")
+
 
 # ── Step 2: run the package score pipeline ────────────────────────────────────
 

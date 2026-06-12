@@ -155,3 +155,21 @@ def test_cboe_daily_pcr_parse_and_cross_check():
     assert "not newer" in validate(rec, "2026-06-11")
     bad = dict(rec, ratio=0.90)
     assert "cross-check" in validate(bad, "2026-06-10")
+
+
+def test_aaii_public_parse_and_validation():
+    from datetime import date
+    from hermes_escape_top.scripts.refresh_aaii_public import parse_rows, validate
+    body = ('<td align="left" class="tableTxt">Jun 10</td>'
+            '<td align="right" class="tableTxt">30.4% </td>'
+            '<td align="right" class="tableTxt">22.0%</td>'
+            '<td align="right" class="tableTxt">47.7% </td>'
+            '<td align="left" class="tableTxt">Dec 31</td>'
+            '<td align="right" class="tableTxt">40.0% </td>'
+            '<td align="right" class="tableTxt">30.0%</td>'
+            '<td align="right" class="tableTxt">30.0% </td>')
+    rows = parse_rows(body, today=date(2026, 6, 12))
+    assert rows[0]["reported"] == date(2026, 6, 10)
+    assert rows[1]["reported"] == date(2025, 12, 31)   # year boundary inferred
+    assert validate(rows[0]) is None
+    assert "sum" in validate({"bull": 0.2, "neutral": 0.2, "bear": 0.2})
