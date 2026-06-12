@@ -719,6 +719,37 @@ def _csv_last_date(path: Path) -> Optional[str]:
         return None
 
 
+def _history_integrity_scan(config) -> list:
+    """Defense-in-depth after refresh: residual cross-wired bars abort a live
+    run — a stale decision plus an alert beats scoring on garbage
+    (2026-06-12: 13 files got other tickers' prices, all three symbols
+    flipped to fake EXIT). ^vol indices get a wider band (VIX can double
+    legitimately). A legit raw-price split can trip this — rare, and a human
+    look is exactly what that case deserves.
+    """
+    import csv as _csv
+    from hermes_escape_top.config import resolve_path
+
+    offenders = []
+    history_dir = resolve_path(config, "history_dir")
+    for path in sorted(history_dir.glob("*.csv")):
+        limit = 3.0 if path.name.startswith("_") else 1.5
+        try:
+            rows = list(_csv.reader(path.open()))[-12:]
+        except OSError:
+            continue
+        closes = []
+        for r in rows:
+            try:
+                closes.append((r[0], float(r[4])))
+            except (ValueError, IndexError):
+                continue
+        for (d1, c1), (d2, c2) in zip(closes, closes[1:]):
+            if c1 > 0 and not (1.0 / limit <= c2 / c1 <= limit):
+                offenders.append(f"{path.name} {d1} {c1:.2f} -> {d2} {c2:.2f}")
+    return offenders
+
+
 def _preflight_report(shadow: bool, as_of: str) -> None:
     """[T5] One-screen "can today's output be trusted" check before scoring.
 
@@ -940,6 +971,15 @@ def main() -> None:
         print(f"[M4-1] Auto-selected latest available as_of={as_of}")
 
     _preflight_report(shadow, as_of)
+
+    offenders = _history_integrity_scan(load_config())
+    if offenders:
+        for line in offenders:
+            print(f"[integrity] CRITICAL corrupted bar: {line}")
+        if not shadow:
+            print("[integrity] ABORTING live run — refusing to score on corrupted history (stale beats garbage).")
+            sys.exit(3)
+        print("[integrity] WARNING: shadow run continues despite corruption.")
 
     payload = run_score_pipeline(as_of, shadow=shadow)
     translated = translate(payload)

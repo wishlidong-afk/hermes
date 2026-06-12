@@ -44,3 +44,24 @@ def test_overlap_anchor_match_accepts_repair():
     repair = _frame([705, 708, 712, 718], start="2026-06-02")  # anchors on clean 705
     ok, _ = _sanity_check_download("FNGS", existing, repair)
     assert ok
+
+
+def test_integrity_scan_flags_cross_wired_file(tmp_path, monkeypatch):
+    import importlib
+    rdp = importlib.import_module("hermes_escape_top.scripts.run_daily_package")
+    hist = tmp_path / "data" / "history"
+    hist.mkdir(parents=True)
+    (hist / "QQQ.csv").write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-06-04,740,745,738,742,742,1000\n"
+        "2026-06-05,741,744,700,705,705,1000\n"
+        "2026-06-08,220,221,214,217,217,1000\n")
+    (hist / "_VIX.csv").write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-06-04,15,16,14,15.4,15.4,0\n"
+        "2026-06-05,20,22,19,21.5,21.5,0\n")
+    monkeypatch.setenv("HERMES_DATA_DIR", str(tmp_path))
+    from hermes_escape_top.config import load_config
+    offenders = rdp._history_integrity_scan(load_config())
+    assert any("QQQ.csv" in o for o in offenders)          # cross-wired bar caught
+    assert not any("_VIX" in o for o in offenders)          # real VIX spike tolerated
