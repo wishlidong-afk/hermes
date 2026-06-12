@@ -168,8 +168,8 @@ def score_pipeline(
     signal_journal_path = store.archive_dir / "signal_journal.jsonl"
     signal_journal_write_path = _signal_journal_write_path(store, shadow)
     state_db_path = store.archive_dir / "hermes_state.sqlite"
-    sizing = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of,
-                              signal_journal_path=signal_journal_path)
+    sizing, confidence_spine = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of,
+                                                signal_journal_path=signal_journal_path)
     routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=histories) for symbol, bundle in bundles.items()}
     reentry_db_path = store.archive_dir / "reentry_state.sqlite"
     reentry_states = read_reentry_states(reentry_db_path)
@@ -215,6 +215,7 @@ def score_pipeline(
         "scores": {symbol: bundle.result.to_dict() for symbol, bundle in sorted(bundles.items())},
         "regime": regime_meta,
         "portfolio_risk": portfolio_risk.to_dict(),
+        "confidence_spine": confidence_spine,
         "sizing": {symbol: decision.to_dict() for symbol, decision in sorted(sizing.items())},
         "routing": {symbol: decision.to_dict() for symbol, decision in sorted(routing.items())},
         "reentry": {symbol: plan.to_dict() for symbol, plan in sorted(reentry.items())},
@@ -778,7 +779,7 @@ def _optimize_sizing(
             explain = getattr(decision, "explain", None)
             if isinstance(explain, list):
                 explain.append(f"optimizer_fallback={exc!r}")
-        return fallback
+        return fallback, _confidence_spine_dict(confidence)
 
     # ── Wrap into backward-compatible SizingProxy dicts ───────────────────────
     result: Dict[str, Any] = {}
@@ -807,7 +808,7 @@ def _optimize_sizing(
             optimizer_confidence=float(opt_decision.confidence_applied),
             explain=opt_decision.notes + [f"optimizer binding={binding}"],
         )
-    return result
+    return result, _confidence_spine_dict(confidence)
 
 
 class _SizingProxy:
@@ -1024,3 +1025,19 @@ def _spine_disagreement(verdicts, config):
     for v in verdicts.values():
         worst = max(worst, float(detect_disagreement(v.status, None, None, cfg)))
     return worst
+
+
+def _confidence_spine_dict(confidence) -> dict:
+    """Export the global ConfidenceState into the payload (T20 dashboard).
+
+    fragility/disagreement read 0.0 while use_full_confidence_spine is OFF —
+    the dashboard labels them as un-wired rather than pretending they are
+    healthy measurements.
+    """
+    return {
+        "decision_confidence": round(float(confidence.decision_confidence), 6),
+        "mode": str(confidence.mode),
+        "components": {k: round(float(v), 6) for k, v in (confidence.components or {}).items()},
+        "weakest_link": str(confidence.weakest_link),
+        "notes": list(confidence.notes or []),
+    }

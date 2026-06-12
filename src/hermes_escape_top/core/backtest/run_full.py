@@ -122,7 +122,7 @@ def run_full_backtest(
         }
         hard_excluded = {symbol for symbol, bundle in bundles.items() if bundle.result.hard_valve_hits or bundle.result.sell_fraction >= 1.0}
         risk = compute_portfolio_risk(day_histories, cap_targets, config, excluded_symbols=hard_excluded)
-        sizing = _optimize_sizing(
+        sizing, _spine = _optimize_sizing(
             bundles,
             day_histories,
             risk,

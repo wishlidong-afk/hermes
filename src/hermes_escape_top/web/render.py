@@ -301,6 +301,7 @@ def render_dashboard(
 
     {_render_cache_hint(cache)}
 
+    {_render_briefing(payload, health)}
     {_render_kpis(payload)}
 
     {_render_today_ops(payload)}
@@ -1604,3 +1605,77 @@ def _float(value: Any, default: float = 0.0) -> float:
 
 def esc(value: Any) -> str:
     return escape("" if value is None else str(value))
+
+
+def _render_briefing(payload: Dict[str, Any], health: Dict[str, Any]) -> str:
+    """[T20] First-screen briefing — six questions an operator asks daily:
+    overall state / most dangerous asset / why / action / weakest confidence
+    link / what needs a human. Layout-additive strip above the KPIs."""
+    scores = payload.get("scores") or {}
+    ops = payload.get("today_ops") or {}
+    spine = payload.get("confidence_spine") or {}
+    layers = payload.get("decision_layers") or {}
+
+    worst_sym, worst = "NA", None
+    for sym, s in scores.items():
+        if worst is None or float(s.get("final_score") or 0) > float(worst.get("final_score") or 0):
+            worst_sym, worst = sym, s
+
+    why_bits = []
+    if worst:
+        valves = worst.get("hard_valve_hits") or []
+        if valves:
+            why_bits.append("硬阀门 " + ", ".join(str(v) for v in valves))
+        movers = []
+        for factors in (worst.get("factor_scores") or {}).values():
+            for f in factors or []:
+                score = float(f.get("score") or 0)
+                if score > 0:
+                    movers.append((score, str(f.get("explain") or f.get("factor_id") or "")))
+        movers.sort(key=lambda m: -m[0])
+        why_bits.extend(m[1] for m in movers[:2])
+    why_text = " · ".join(why_bits) or "无显著风险因子"
+
+    comps = spine.get("components") or {}
+    unwired = set()
+    for key in ("fragility", "disagreement"):
+        if key in comps and not comps.get(key):
+            unwired.add(key)
+    comp_text = " · ".join(
+        f"{esc(k)} {float(v):.2f}" + ("（未接线）" if k in unwired else "")
+        for k, v in comps.items()
+    ) or "spine 未导出（旧 payload）"
+
+    manual = []
+    if str(spine.get("mode", "")) == "DEGRADED":
+        manual.append("置信度 DEGRADED：决策需人工确认")
+    for sym, dl in (layers or {}).items():
+        hv = (dl or {}).get("hard_valve_state") or {}
+        pending = hv.get("pending_ids") or hv.get("pending") or []
+        if pending:
+            manual.append(f"{esc(sym)} 阀门 PENDING（{', '.join(str(x) for x in pending)}）等次日收盘确认")
+    manual_text = "；".join(manual) or "无（advisory only，今日无需人工干预项）"
+
+    statuses = " · ".join(
+        f"{esc(sym)} {esc((scores.get(sym) or {}).get('status', 'NA'))}"
+        for sym in TRADE_SYMBOLS if sym in scores
+    )
+    cells = [
+        ("今天总体状态", f"health {esc(str((health or {}).get('level', 'NA')))} · {statuses or 'NA'}"),
+        ("最危险资产", f"{esc(worst_sym)} score {_fmt_num((worst or {}).get('final_score'))} → {esc((worst or {}).get('status', 'NA'))} 卖 {_fmt_num((worst or {}).get('sell_fraction'))}"),
+        ("为什么危险", why_text if why_bits else esc(why_text)),
+        ("建议动作", esc(str(ops.get("headline", "见今日操作台")))),
+        ("置信度最弱环节", f"{esc(str(spine.get('weakest_link', 'NA')))} · mode {esc(str(spine.get('mode', 'NA')))} · {comp_text}"),
+        ("需人工确认", manual_text),
+    ]
+    cell_html = "".join(
+        f"<div style='padding:10px 12px;border:1px solid rgba(255,255,255,0.08);border-radius:10px'>"
+        f"<div class='subtle'>{label}</div><div style='margin-top:4px'>{value}</div></div>"
+        for label, value in cells
+    )
+    return f"""
+    <section>
+      <h2>首屏六问 / Daily Briefing</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">{cell_html}</div>
+    </section>
+    """
