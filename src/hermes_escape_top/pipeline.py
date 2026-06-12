@@ -168,8 +168,8 @@ def score_pipeline(
     signal_journal_path = store.archive_dir / "signal_journal.jsonl"
     signal_journal_write_path = _signal_journal_write_path(store, shadow)
     state_db_path = store.archive_dir / "hermes_state.sqlite"
-    sizing, confidence_spine = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of,
-                                                signal_journal_path=signal_journal_path)
+    sizing, sizing_extras = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of,
+                                             signal_journal_path=signal_journal_path)
     routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=histories) for symbol, bundle in bundles.items()}
     reentry_db_path = store.archive_dir / "reentry_state.sqlite"
     reentry_states = read_reentry_states(reentry_db_path)
@@ -215,7 +215,10 @@ def score_pipeline(
         "scores": {symbol: bundle.result.to_dict() for symbol, bundle in sorted(bundles.items())},
         "regime": regime_meta,
         "portfolio_risk": portfolio_risk.to_dict(),
-        "confidence_spine": confidence_spine,
+        "confidence_spine": sizing_extras.get("confidence_spine") or {},
+        "risk_contributions": sizing_extras.get("risk_contributions") or {},
+        "stress_scenarios": sizing_extras.get("stress_scenarios") or [],
+        "routing_context": _routing_context(bundles, snapshots, histories, config),
         "sizing": {symbol: decision.to_dict() for symbol, decision in sorted(sizing.items())},
         "routing": {symbol: decision.to_dict() for symbol, decision in sorted(routing.items())},
         "reentry": {symbol: plan.to_dict() for symbol, plan in sorted(reentry.items())},
@@ -779,7 +782,7 @@ def _optimize_sizing(
             explain = getattr(decision, "explain", None)
             if isinstance(explain, list):
                 explain.append(f"optimizer_fallback={exc!r}")
-        return fallback, _confidence_spine_dict(confidence)
+        return fallback, {"confidence_spine": _confidence_spine_dict(confidence)}
 
     # ── Wrap into backward-compatible SizingProxy dicts ───────────────────────
     result: Dict[str, Any] = {}
@@ -808,7 +811,12 @@ def _optimize_sizing(
             optimizer_confidence=float(opt_decision.confidence_applied),
             explain=opt_decision.notes + [f"optimizer binding={binding}"],
         )
-    return result, _confidence_spine_dict(confidence)
+    extras = {
+        "confidence_spine": _confidence_spine_dict(confidence),
+        "risk_contributions": _risk_contribution_block(risk_state, dict(opt_decision.target_weights or {})),
+        "stress_scenarios": _stress_block(risk_state, dict(opt_decision.target_weights or {}), histories),
+    }
+    return result, extras
 
 
 class _SizingProxy:
@@ -1041,3 +1049,129 @@ def _confidence_spine_dict(confidence) -> dict:
         "weakest_link": str(confidence.weakest_link),
         "notes": list(confidence.notes or []),
     }
+
+
+def _risk_contribution_block(risk_state, target_weights: Dict[str, float]) -> Dict[str, Any]:
+    """[T22] Per-leg ex-ante contribution to forecast portfolio vol.
+
+    Reporting-only export of risk_engine.risk_contribution; never raises into
+    the scoring path.
+    """
+    try:
+        import numpy as np
+        from .core.portfolio.risk_engine import risk_contribution
+
+        legs = list(getattr(risk_state, "legs_used", []) or [])
+        if not legs:
+            return {}
+        w = np.array([float(target_weights.get(sym, 0.0) or 0.0) for sym in legs])
+        rc = risk_contribution(w, risk_state.cov)
+        port_vol = float(sum(rc.values()))
+        out: Dict[str, Any] = {}
+        for i, sym in enumerate(legs):
+            standalone = (risk_state.leg_vol or {}).get(sym)
+            contrib = float(rc.get(f"leg_{i}", 0.0))
+            out[sym] = {
+                "target_weight": round(float(w[i]), 6),
+                "standalone_vol": round(float(standalone), 6) if standalone == standalone and standalone is not None else None,
+                "vol_contribution": round(contrib, 6),
+                "vol_contribution_pct": round(contrib / port_vol, 6) if port_vol > 1e-9 else 0.0,
+            }
+        out["_portfolio"] = {"forecast_vol": round(port_vol, 6)}
+        return out
+    except Exception as exc:
+        return {"_error": repr(exc)}
+
+
+def _stress_block(risk_state, target_weights: Dict[str, float], histories) -> list:
+    """[T23] Deterministic what-if estimates on the current target book.
+
+    Shock scenarios use 60d betas to the shocked symbol; regime scenarios
+    re-price forecast vol under corr->0.9 (and a 1.5x vol multiplier).
+    """
+    try:
+        import math
+        import numpy as np
+        import pandas as pd
+        from .core.portfolio.risk_engine import _finite_square_matrix
+
+        legs = list(getattr(risk_state, "legs_used", []) or [])
+        if not legs:
+            return []
+        w = np.array([float(target_weights.get(sym, 0.0) or 0.0) for sym in legs])
+        out = []
+        for name, shock_sym, shock in (("QQQ -5%", "QQQ", -0.05), ("BTC -10%", "BTC-USD", -0.10)):
+            sh = histories.get(shock_sym)
+            if sh is None or sh.empty or "Close" not in sh:
+                continue
+            r_shock = pd.to_numeric(sh["Close"], errors="coerce").pct_change().dropna().tail(60)
+            var_s = float(r_shock.var())
+            pnl = 0.0
+            for i, sym in enumerate(legs):
+                if not w[i]:
+                    continue
+                if sym == shock_sym:
+                    beta = 1.0
+                else:
+                    h = histories.get(sym)
+                    if h is None or h.empty or "Close" not in h:
+                        continue
+                    r = pd.to_numeric(h["Close"], errors="coerce").pct_change().dropna()
+                    joined = pd.concat({"a": r, "s": r_shock}, axis=1).dropna().tail(60)
+                    beta = float(joined["a"].cov(joined["s"]) / var_s) if var_s > 0 and len(joined) >= 20 else 0.0
+                pnl += float(w[i]) * beta * shock
+            out.append({"name": name, "est_pnl_pct": round(pnl * 100.0, 3)})
+
+        cov = _finite_square_matrix(risk_state.cov, size=len(w))
+        d = np.sqrt(np.clip(np.diag(cov), 1e-12, None))
+        base_vol = math.sqrt(max(float(w @ cov @ w), 1e-12))
+        corr9 = np.full_like(cov, 0.9)
+        np.fill_diagonal(corr9, 1.0)
+        vol9 = math.sqrt(max(float(w @ (corr9 * np.outer(d, d)) @ w), 1e-12))
+        out.append({"name": "correlation -> 0.9",
+                    "forecast_vol_before": round(base_vol, 6), "forecast_vol_after": round(vol9, 6)})
+        out.append({"name": "VIX spike (vol x1.5 + corr 0.9)",
+                    "forecast_vol_before": round(base_vol, 6), "forecast_vol_after": round(vol9 * 1.5, 6)})
+        return out
+    except Exception as exc:
+        return [{"_error": repr(exc)}]
+
+
+def _routing_context(bundles, snapshots, histories, config) -> Dict[str, Any]:
+    """[T24] Why-this-DEFCON inputs: rule, observed QQQ trend state, module-A
+    scores, and the BRK.B<->SPY correlation monitor behind the DEFCON2 fallback."""
+    try:
+        import pandas as pd
+        from .core.routing.capital_routing import evaluate_brkb_defense
+
+        ctx: Dict[str, Any] = {
+            "defcon1_rule": "A>=12 AND QQQ below MA200/EMA50/EMA20 -> BOXX50/DBMF30/GLD20",
+            "defcon2_rule": "A>=12 or D>=10 or hard valve or C8/C6>=3 -> BRK.B (fallback BOXX when corr>threshold)",
+        }
+        h = histories.get("QQQ")
+        if h is not None and not h.empty and "Close" in h:
+            c = pd.to_numeric(h["Close"], errors="coerce").dropna()
+            close = float(c.iloc[-1])
+            ma200 = float(c.rolling(200).mean().iloc[-1])
+            ema20 = float(c.ewm(span=20, adjust=False).mean().iloc[-1])
+            ema50 = float(c.ewm(span=50, adjust=False).mean().iloc[-1])
+            ctx["qqq"] = {
+                "close": round(close, 2), "ma200": round(ma200, 2),
+                "ema50": round(ema50, 2), "ema20": round(ema20, 2),
+                "below_ma200": close < ma200, "below_ema50": close < ema50,
+                "below_ema20": close < ema20,
+            }
+        ctx["module_a"] = {
+            sym: float((bundle.result.module_scores or {}).get("A", 0.0))
+            for sym, bundle in sorted(bundles.items())
+        }
+        brkb = evaluate_brkb_defense(snapshots, histories, config)
+        ctx["brkb_defense"] = {
+            "degraded": bool(brkb.degraded),
+            "reason": brkb.reason,
+            "corr_to_spy": round(float(brkb.corr_to_spy), 6) if brkb.corr_to_spy is not None else None,
+            "threshold": float(config.get("routing", {}).get("defcon2", {}).get("brkb_corr_threshold", 0.85)),
+        }
+        return ctx
+    except Exception as exc:
+        return {"_error": repr(exc)}
