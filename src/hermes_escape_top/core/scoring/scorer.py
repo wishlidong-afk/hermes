@@ -116,7 +116,7 @@ def score_symbol(
 
 
 def build_registry(symbol: str, config: Optional[Dict[str, Any]] = None) -> FactorRegistry:
-    return FactorRegistry(module_a_factors(config) + module_b_factors(symbol) + module_c_factors() + module_d_factors(symbol))
+    return FactorRegistry(module_a_factors(config) + module_b_factors(symbol, config) + module_c_factors() + module_d_factors(symbol, config))
 
 
 def aggregate_modules(factors: Iterable[FactorScore], config: Dict[str, Any]) -> Dict[str, float]:

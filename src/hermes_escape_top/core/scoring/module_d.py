@@ -1,16 +1,25 @@
 from __future__ import annotations
 
+from typing import Any, Optional
+
 from .registry import FactorContext, FactorDefinition, missing_only
 
 
-def module_d_factors(symbol: str) -> list[FactorDefinition]:
+ONCHAIN_MSTR_CANDIDATES = {
+    "CM_EXCHANGE_INFLOW_PRESSURE": "SOFT.cm_exchange_inflow_pressure",
+    "CM_EXCHANGE_NETFLOW_PRESSURE": "SOFT.cm_exchange_netflow_pressure",
+}
+ONCHAIN_THRESHOLD = 2.0
+
+
+def module_d_factors(symbol: str, config: Optional[dict[str, Any]] = None) -> list[FactorDefinition]:
     factors = [
         FactorDefinition("D1_ASSET_MA200_BREAK", "D", 5.0, ["close", "ma200"], _asset_ma200_break),
         FactorDefinition("D2_ASSET_MA220_BREAK", "D", 3.0, ["close", "ma220"], _asset_ma220_break),
         FactorDefinition("D3_TRAILING_PEAK_DAMAGE", "D", 4.0, ["close", "ema50", "drawdown_60d_high_pct"], _trailing_peak_damage),
         FactorDefinition("D4_RADAR_CONFIRMATION", "D", 4.0, _radar_dependencies(symbol), _radar_confirmation(symbol), _radar_missing_name(symbol)),
     ]
-    factors.extend(_symbol_extra_factors(symbol))
+    factors.extend(_symbol_extra_factors(symbol, config))
     return factors
 
 
@@ -88,8 +97,22 @@ FNGU_COMPONENTS = ["NVDA", "AAPL", "MSFT", "AMZN", "META", "GOOGL", "TSLA", "NFL
 SOXL_COMPONENTS = ["NVDA", "AVGO", "AMD", "TSM", "ASML", "AMAT", "LRCX", "KLAC", "QCOM", "MU"]
 
 
-def _symbol_extra_factors(symbol: str) -> list[FactorDefinition]:
+def _symbol_extra_factors(symbol: str, config: Optional[dict[str, Any]]) -> list[FactorDefinition]:
     if symbol == "MSTR":
+        onchain_dep = _selected_onchain_dependency(config)
+        if onchain_dep:
+            return [
+                FactorDefinition(
+                    "D_M3_BTC_RISK_COMPOSITE",
+                    "D",
+                    4.0,
+                    ["BTC-USD.realized_vol20", "BTC-USD.return_10d", "BTC-USD.drawdown_60d_high_pct"],
+                    _btc_risk_composite(onchain_dep),
+                    "D-M3",
+                ),
+                missing_only("D_M4_BALANCE_SHEET_PROXY", "D", "D-M4"),
+                missing_only("D_M5_CRYPTO_SENTIMENT", "D", "D-M5"),
+            ]
         return [
             FactorDefinition(
                 "D_M3_BTC_VOLATILITY_PROXY",
@@ -127,6 +150,13 @@ def _symbol_extra_factors(symbol: str) -> list[FactorDefinition]:
             )
         ]
     return []
+
+
+def _selected_onchain_dependency(config: Optional[dict[str, Any]]) -> str | None:
+    if not bool((config or {}).get("features", {}).get("data_onchain_mstr", False)):
+        return None
+    candidate = str(((config or {}).get("onchain_mstr") or {}).get("candidate", "")).strip()
+    return ONCHAIN_MSTR_CANDIDATES.get(candidate)
 
 
 def _component_flow_dependencies(components: list[str]) -> list[str]:
@@ -182,3 +212,19 @@ def _btc_microstructure_proxy(ctx: FactorContext) -> tuple[float, str]:
     if vol >= 0.55 or ret10 <= -0.06 or dd60 <= -0.12:
         return 1.0, f"BTC proxy stress watch: vol20={vol:.1%}, ret10={ret10:.1%}, dd60={dd60:.1%}"
     return 0.0, f"BTC proxy stress normal: vol20={vol:.1%}, ret10={ret10:.1%}, dd60={dd60:.1%}"
+
+
+def _btc_risk_composite(onchain_dependency: str):
+    def score(ctx: FactorContext) -> tuple[float, str]:
+        proxy_score, proxy_msg = _btc_microstructure_proxy(ctx)
+        value = ctx.get(onchain_dependency)
+        label = onchain_dependency.replace("SOFT.", "")
+        if value is not None and value > ONCHAIN_THRESHOLD:
+            return 4.0, f"BTC/on-chain composite severe: {label}={value:.2f} > {ONCHAIN_THRESHOLD:.1f}; {proxy_msg}"
+        return proxy_score, f"BTC/on-chain composite uses BTC proxy: {label}={_fmt_optional(value)}; {proxy_msg}"
+
+    return score
+
+
+def _fmt_optional(value) -> str:
+    return "n/a" if value is None else f"{float(value):.2f}"

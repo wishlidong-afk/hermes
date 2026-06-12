@@ -6,7 +6,8 @@ process OOM-kills). Usage:
     PYTHONPATH=src python3 scripts/backtest_flag_sweep.py <variant> [--reuse-if-fresh]
 
 Variants: baseline, scored_missing_weight, partial_factor_eval,
-decision_stabilizer, suspect_valve_guard, f8_tightened, all_on.
+decision_stabilizer, suspect_valve_guard, spine_only, mnav_b6,
+f8_tightened, all_on.
 
 Results land in building/reports/flag_sweep/<variant>.json.
 """
@@ -58,6 +59,12 @@ def build_config(variant: str) -> dict:
         feats["data_cnn_fgi"] = True
     elif variant == "cot_nq":
         feats["data_cot_nq"] = True
+    elif variant == "CM_EXCHANGE_INFLOW_PRESSURE":
+        feats["data_onchain_mstr"] = True
+        cfg["onchain_mstr"] = {"candidate": "CM_EXCHANGE_INFLOW_PRESSURE"}
+    elif variant == "CM_EXCHANGE_NETFLOW_PRESSURE":
+        feats["data_onchain_mstr"] = True
+        cfg["onchain_mstr"] = {"candidate": "CM_EXCHANGE_NETFLOW_PRESSURE"}
     elif variant == "suspect_valve_guard":
         feats["use_suspect_valve_guard"] = True
     elif variant == "slo_spine":
@@ -68,6 +75,9 @@ def build_config(variant: str) -> dict:
         feats["use_soft_data_max_age"] = True
     elif variant == "spine_only":
         feats["use_full_confidence_spine"] = True
+    elif variant == "mnav_b6":
+        feats["data_mstr_mnav"] = True
+        feats["use_b6_mnav_valuation"] = True
     elif variant == "f8_tightened":
         cfg["naaim"] = F8_NAAIM
         cfg["pcr"] = F8_PCR
@@ -141,6 +151,19 @@ def _data_manifest_id(cfg: dict) -> str:
     return freeze_manifest(store.history_dir).manifest_id
 
 
+def _soft_history_hash(cfg: dict) -> str:
+    base = LocalStore(cfg).history_dir.parent / "soft_history"
+    digest = hashlib.sha256()
+    if not base.exists():
+        return "missing"
+    for path in sorted(base.glob("*.csv")):
+        digest.update(path.name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(_file_sha256(path).encode("ascii"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
 def cache_key(variant: str, cfg: dict) -> str:
     payload = {
         "schema": CACHE_SCHEMA,
@@ -149,6 +172,7 @@ def cache_key(variant: str, cfg: dict) -> str:
         "code_sha256": _code_hash(),
         "config_sha256": _sha256_text(_stable_json(cfg)),
         "data_manifest_id": _data_manifest_id(cfg),
+        "soft_history_sha256": _soft_history_hash(cfg),
         "start": BACKTEST_START,
         "end": BACKTEST_END,
         "enable": ENABLE,

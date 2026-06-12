@@ -178,6 +178,11 @@ FACTOR_EXPLAINS: Dict[str, Dict[str, str]] = {
         "plain_explain": "MSTR 背后是 BTC，BTC 抖得厉害时 MSTR 也危险。",
         "data_hint": "BTC realized_vol20、return_10d、drawdown_60d_high_pct。",
     },
+    "D_M3_BTC_RISK_COMPOSITE": {
+        "professional_explain": "在同一 4 分 D_M3 预算内合并 BTC 价格压力与已核验链上交易所压力，不扩张 D 模块 cap。",
+        "plain_explain": "BTC 本身或链上交易所流入压力变危险时，MSTR 的底层风险也升高。",
+        "data_hint": "BTC realized_vol20/return_10d/drawdown_60d_high_pct；Coin Metrics exchange inflow/netflow pressure。",
+    },
     "D_M4_BALANCE_SHEET_PROXY": {
         "professional_explain": "MSTR 资产负债表/融资风险缺失占位。",
         "plain_explain": "MSTR 的债务和融资风险还需要接数据。",

@@ -22,10 +22,13 @@ def test_build_config_variants_are_distinct() -> None:
     mod = _load_module()
     baseline = mod.build_config("baseline")
     cot = mod.build_config("cot_nq")
+    mnav = mod.build_config("mnav_b6")
     stabilizer = mod.build_config("decision_stabilizer")
 
     assert baseline["features"]["data_cot_nq"] is False
     assert cot["features"]["data_cot_nq"] is True
+    assert mnav["features"]["data_mstr_mnav"] is True
+    assert mnav["features"]["use_b6_mnav_valuation"] is True
     assert stabilizer["features"]["use_decision_stabilizer"] is True
 
 
@@ -49,6 +52,7 @@ def test_cache_fresh_requires_schema_key_and_equity(tmp_path, monkeypatch) -> No
 def test_cache_key_changes_on_config_and_commit(monkeypatch) -> None:
     mod = _load_module()
     monkeypatch.setattr(mod, "_data_manifest_id", lambda cfg: "manifest-a")
+    monkeypatch.setattr(mod, "_soft_history_hash", lambda cfg: "soft-a")
     monkeypatch.setattr(mod, "_code_hash", lambda: "code-a")
     monkeypatch.setattr(mod, "_git_commit", lambda: "commit-a")
 
@@ -60,4 +64,8 @@ def test_cache_key_changes_on_config_and_commit(monkeypatch) -> None:
     assert mod.cache_key("baseline", cfg_changed) != baseline_key
 
     monkeypatch.setattr(mod, "_git_commit", lambda: "commit-b")
+    assert mod.cache_key("baseline", cfg) != baseline_key
+
+    monkeypatch.setattr(mod, "_git_commit", lambda: "commit-a")
+    monkeypatch.setattr(mod, "_soft_history_hash", lambda cfg: "soft-b")
     assert mod.cache_key("baseline", cfg) != baseline_key

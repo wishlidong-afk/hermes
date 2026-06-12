@@ -34,6 +34,8 @@ src/hermes_escape_top/data/archive/soft_adapter_snapshot_*.json
 #   git rm --cached src/hermes_escape_top/data/archive/*.sqlite
 src/hermes_escape_top/data/history/*.csv
 src/hermes_escape_top/data/soft_history/*.csv
+!src/hermes_escape_top/data/soft_history/mstr_btc_holdings.csv
+!src/hermes_escape_top/data/soft_history/onchain_mstr_features.csv
 src/hermes_escape_top/data/archive/*.json
 src/hermes_escape_top/data/archive/*.sqlite
 src/hermes_escape_top/data/archive/*.jsonl

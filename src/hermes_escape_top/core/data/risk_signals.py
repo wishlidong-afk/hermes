@@ -5,13 +5,17 @@ added to the soft-source list when their flag is ON (see ``risk_sources``), so a
 checkout with every flag OFF produces byte-identical output to before this module
 existed — nothing new is collected, scored, or written.
 
-Two parametric source types keep this DRY:
+Parametric source types keep this DRY:
   - FredPercentileSource     : one FRED series → asof value + trailing percentile.
   - EtfRatioPercentileSource : ratio of two (equal-weight) ETF baskets → percentile,
                                computed from local OHLCV (no extra network).
+  - OnchainMstrSource        : precomputed Coin Metrics community features for
+                               T19 MSTR on-chain gates.
+  - MstrMnavSource           : MSTR market cap / (BTC holdings × BTC price) → B6
+                               valuation percentile.
 
-Each exposes SOFT.<field> and SOFT.<field>_pctl, consumed by the A9–A16 factors
-in core/scoring/factors_risk.py.
+Most expose SOFT.<field> and SOFT.<field>_pctl for the A9–A16 factors; mNAV
+exposes SOFT.MSTR_valuation_pctl for B6.
 """
 from __future__ import annotations
 
@@ -130,6 +134,58 @@ def _finite(value: Any) -> Optional[float]:
         return out if out == out else None
     except Exception:
         return None
+
+
+def _find_numeric_column(frame: pd.DataFrame, names: List[str]) -> Optional[pd.Series]:
+    lookup = {str(col).lower(): col for col in frame.columns}
+    for name in names:
+        col = lookup.get(name.lower())
+        if col is not None:
+            return pd.to_numeric(frame[col], errors="coerce")
+    return None
+
+
+def _mstr_market_cap_series(history: pd.DataFrame) -> Optional[pd.Series]:
+    market_cap = _find_numeric_column(
+        history,
+        ["mstr_market_cap_usd", "market_cap_usd", "market_cap", "Market Cap", "marketcap"],
+    )
+    if market_cap is not None:
+        return market_cap
+    shares = _find_numeric_column(history, ["shares_outstanding", "shares", "adso"])
+    close = _find_numeric_column(history, ["Close", "close"])
+    if shares is not None and close is not None:
+        return shares * close
+    return None
+
+
+def _mstr_market_cap_from_shares_file(history: pd.DataFrame, config: Dict[str, Any]) -> Optional[pd.Series]:
+    """Fallback: quarterly EDGAR shares seed x split-adjusted Close.
+
+    soft_history/mstr_shares_outstanding.csv carries PIT filing dates and
+    split-adjusted basic weighted-avg shares (see file header). Forward-filled
+    onto trading days — real shares x real price, NOT the price-only proxy
+    this module refuses. Lives outside MSTR.csv because the daily OHLCV
+    refresh rewrites that file and would drop an added column.
+    """
+    path = resolve_path(config, "soft_history_dir") / "mstr_shares_outstanding.csv"
+    if not path.exists():
+        return None
+    frame = pd.read_csv(path, comment="#", parse_dates=["date"])
+    if frame.empty or "shares" not in frame.columns:
+        return None
+    shares = (
+        frame.assign(shares=pd.to_numeric(frame["shares"], errors="coerce"))
+        .dropna(subset=["date", "shares"])
+        .set_index("date")["shares"]
+        .sort_index()
+    )
+    close = _find_numeric_column(history, ["Close", "close"])
+    if close is None or shares.empty:
+        return None
+    aligned = shares.reindex(close.index.union(shares.index)).ffill().reindex(close.index)
+    out = (aligned * close).dropna()
+    return out if not out.empty else None
 
 
 # ── FRED single-series → percentile ──────────────────────────────────────────
@@ -430,6 +486,185 @@ class CotPercentileSource:
         )
 
 
+# ── MSTR mNAV valuation percentile ──────────────────────────────────────────
+
+class MstrMnavSource:
+    """MSTR mNAV premium percentile from manual BTC holdings + local histories.
+
+    Required PIT inputs:
+    - soft_history/mstr_btc_holdings.csv: date, btc_count (official report dates)
+    - history/MSTR.csv: market_cap_usd (or market_cap / close×shares_outstanding)
+    - history/BTC_USD.csv: BTC close
+
+    No market-cap approximation is attempted from MSTR price alone; that would
+    silently turn mNAV into a scale-broken proxy and make the gate meaningless.
+    """
+
+    name = "mstr_mnav"
+    feature_flag = "data_mstr_mnav"
+
+    def __init__(self, window: int = 252, min_periods: int = 60) -> None:
+        self.window = window
+        self.min_periods = min_periods
+
+    def holdings_path(self, config: Dict[str, Any]) -> Path:
+        return resolve_path(config, "soft_history_dir") / "mstr_btc_holdings.csv"
+
+    def _holdings(self, config: Dict[str, Any]) -> pd.Series:
+        path = self.holdings_path(config)
+        frame = pd.read_csv(path, comment="#", parse_dates=["date"])
+        if frame.empty or "date" not in frame.columns or "btc_count" not in frame.columns:
+            raise ValueError("expected columns: date, btc_count")
+        out = (
+            frame.assign(btc_count=pd.to_numeric(frame["btc_count"], errors="coerce"))
+            .dropna(subset=["date", "btc_count"])
+            .set_index("date")["btc_count"]
+            .sort_index()
+        )
+        if out.empty:
+            raise ValueError("no valid holdings rows")
+        return out
+
+    def _panel(self, as_of: str, config: Dict[str, Any]) -> tuple[pd.DataFrame, pd.Timestamp]:
+        cutoff = pd.Timestamp(str(as_of)[:10])
+        store = LocalStore(config)
+        mstr_history = store.load_history("MSTR")
+        btc_history = store.load_history("BTC-USD")
+        if mstr_history.empty:
+            raise ValueError("MSTR history missing")
+        if btc_history.empty or "Close" not in btc_history:
+            raise ValueError("BTC-USD history missing close")
+        market_cap = _mstr_market_cap_series(mstr_history)
+        if market_cap is None:
+            market_cap = _mstr_market_cap_from_shares_file(mstr_history, config)
+        if market_cap is None:
+            raise ValueError(
+                "MSTR market cap unavailable: no market_cap/shares column in history "
+                "and no soft_history/mstr_shares_outstanding.csv"
+            )
+        market_cap = market_cap.loc[mstr_history.index <= cutoff].dropna().sort_index()
+        btc_close = pd.to_numeric(btc_history["Close"], errors="coerce").loc[btc_history.index <= cutoff].dropna().sort_index()
+        holdings = self._holdings(config).loc[lambda s: s.index <= cutoff]
+        if market_cap.empty:
+            raise ValueError("no MSTR market cap on or before as_of")
+        if btc_close.empty:
+            raise ValueError("no BTC close on or before as_of")
+        if holdings.empty:
+            raise ValueError("no BTC holdings row on or before as_of")
+
+        index = market_cap.index.sort_values()
+        panel = pd.DataFrame(index=index)
+        panel["mstr_market_cap_usd"] = market_cap.reindex(index).ffill()
+        panel["btc_price_usd"] = btc_close.reindex(index, method="ffill")
+        panel["mstr_btc_holdings"] = holdings.reindex(index, method="ffill")
+        panel = panel.dropna()
+        panel = panel[(panel["btc_price_usd"] > 0) & (panel["mstr_btc_holdings"] > 0)]
+        if panel.empty:
+            raise ValueError("mNAV panel empty after alignment")
+        panel["mnav"] = panel["mstr_market_cap_usd"] / (panel["mstr_btc_holdings"] * panel["btc_price_usd"])
+        panel["mnav_premium"] = panel["mnav"] - 1.0
+        panel = panel.dropna(subset=["mnav_premium"])
+        if panel.empty:
+            raise ValueError("mNAV premium unavailable after alignment")
+        return panel, holdings.index[-1]
+
+    def collect(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:
+        day = date.fromisoformat(str(as_of)[:10])
+        if not bool(config.get("features", {}).get(self.feature_flag, False)):
+            return SoftDataRecord(self.name, day, None, "MSTR_MNAV", False,
+                                  reason=f"feature disabled: {self.feature_flag}")
+        path = self.holdings_path(config)
+        if not path.exists():
+            return SoftDataRecord(self.name, day, None, "MSTR_MNAV", False, quality_penalty=5.0,
+                                  reason=f"{self.name} CSV missing — append {path.name}")
+        try:
+            panel, holdings_date = self._panel(as_of, config)
+        except Exception as exc:  # noqa: BLE001
+            return SoftDataRecord(self.name, day, None, "MSTR_MNAV", False, quality_penalty=5.0,
+                                  reason=f"{self.name} compute failed: {exc}")
+        window = panel["mnav_premium"].iloc[-self.window:]
+        if len(window.dropna()) < self.min_periods:
+            return SoftDataRecord(self.name, day, None, "MSTR_MNAV", False, quality_penalty=5.0,
+                                  reason=f"{self.name} insufficient history (need {self.min_periods} days)")
+        row = panel.iloc[-1]
+        pctl = _finite(_last_percentile(window))
+        if pctl is None:
+            return SoftDataRecord(self.name, day, None, "MSTR_MNAV", False, quality_penalty=5.0,
+                                  reason=f"{self.name} percentile unavailable")
+        latency = max(0, (day - panel.index[-1].date()).days)
+        return SoftDataRecord(
+            self.name, day, pctl, "MSTR_MNAV", True, is_proxy=False,
+            latency_days=latency,
+            quality_penalty=0.0,
+            reason=f"holdings_asof={holdings_date.date().isoformat()}",
+            fields={
+                "MSTR_valuation_pctl": pctl,
+                "mstr_btc_holdings": float(row["mstr_btc_holdings"]),
+                "btc_price_usd": float(row["btc_price_usd"]),
+                "mstr_market_cap_usd": float(row["mstr_market_cap_usd"]),
+                "mnav": float(row["mnav"]),
+                "mnav_premium": float(row["mnav_premium"]),
+                "mnav_premium_pctl_252": pctl,
+            },
+        )
+
+
+# ── MSTR on-chain gate candidates ───────────────────────────────────────────
+
+class OnchainMstrSource:
+    """Precomputed Coin Metrics community features for MSTR D-axis gates.
+
+    The CSV is generated by the T16 offline lab with Coin Metrics daily rows
+    shifted by one calendar day before US-equity alignment. This source does not
+    fetch network data inside production/backtest replay.
+    """
+
+    name = "onchain_mstr"
+    feature_flag = "data_onchain_mstr"
+
+    def history_path(self, config: Dict[str, Any]) -> Path:
+        return resolve_path(config, "soft_history_dir") / "onchain_mstr_features.csv"
+
+    def collect(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:
+        day = date.fromisoformat(str(as_of)[:10])
+        if not bool(config.get("features", {}).get(self.feature_flag, False)):
+            return SoftDataRecord(self.name, day, None, "COINMETRICS_COMMUNITY", False,
+                                  reason=f"feature disabled: {self.feature_flag}")
+        path = self.history_path(config)
+        if not path.exists():
+            return SoftDataRecord(self.name, day, None, "COINMETRICS_COMMUNITY", False, quality_penalty=5.0,
+                                  reason=f"{self.name} CSV missing — run T16 feature export")
+        try:
+            df = _read_csv_cached(path, parse_dates=["date"])
+        except Exception as exc:  # noqa: BLE001
+            return SoftDataRecord(self.name, day, None, "COINMETRICS_COMMUNITY", False, quality_penalty=5.0,
+                                  reason=f"{self.name} read failed: {exc}")
+        required = {"date", "flow_in_ex_mcap_z90", "flow_net_ex_mcap_z90"}
+        if df.empty or not required.issubset(df.columns):
+            return SoftDataRecord(self.name, day, None, "COINMETRICS_COMMUNITY", False, quality_penalty=5.0,
+                                  reason=f"{self.name} CSV malformed (expected {sorted(required)})")
+        df = df.set_index("date").sort_index()
+        local = df.loc[df.index <= pd.Timestamp(str(as_of)[:10])]
+        if local.empty:
+            return SoftDataRecord(self.name, day, None, "COINMETRICS_COMMUNITY", False, quality_penalty=5.0,
+                                  reason=f"{self.name} no PIT row on or before {as_of}")
+        row = local.iloc[-1]
+        inflow = _finite(row.get("flow_in_ex_mcap_z90"))
+        netflow = _finite(row.get("flow_net_ex_mcap_z90"))
+        latency = max(0, (day - local.index[-1].date()).days)
+        available = inflow is not None or netflow is not None
+        return SoftDataRecord(
+            self.name, day, None, "COINMETRICS_COMMUNITY", available, is_proxy=False,
+            latency_days=latency,
+            quality_penalty=0.0 if available else 5.0,
+            reason="" if available else f"{self.name} rolling z-score unavailable",
+            fields={
+                "cm_exchange_inflow_pressure": inflow,
+                "cm_exchange_netflow_pressure": netflow,
+            },
+        )
+
+
 # ── registry: which sources are active (flag-gated) ──────────────────────────
 
 def _all_risk_sources() -> List[Any]:
@@ -455,6 +690,10 @@ def _all_risk_sources() -> List[Any]:
         EtfRatioPercentileSource("ndx_concentration", "data_ndx_concentration", ["QQQE"], ["QQQ"], "ndx_concentration", max_age_days=7),
         # CFTC COT: NQ futures asset-mgr + leveraged-fund net long / OI; weekly; orthogonal to price
         CotPercentileSource("cot_nq", "data_cot_nq", "nq", "cot_nq_net_oi_pct"),
+        # T19 MSTR on-chain D-axis gate candidates. Default OFF → not registered.
+        OnchainMstrSource(),
+        # MSTR valuation: B6 mNAV premium percentile, manual holdings + local market data.
+        MstrMnavSource(),
     ]
 
 

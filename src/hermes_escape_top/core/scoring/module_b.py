@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from .registry import FactorContext, FactorDefinition, missing_only
 
 
-def module_b_factors(symbol: Optional[str] = None) -> list[FactorDefinition]:
-    valuation_dependencies = [f"SOFT.{symbol}_valuation_pctl"] if symbol else []
+def module_b_factors(symbol: Optional[str] = None, config: Optional[dict[str, Any]] = None) -> list[FactorDefinition]:
+    valuation_dependencies = _valuation_dependencies(symbol, config)
     return [
         FactorDefinition("B1_RSI_OVERHEAT", "B", 5.0, ["rsi14"], _rsi_overheat),
         FactorDefinition("B2_MA200_EXTENSION", "B", 5.0, ["close", "ma200"], _ma200_extension),
@@ -17,14 +17,25 @@ def module_b_factors(symbol: Optional[str] = None) -> list[FactorDefinition]:
     ]
 
 
+def _valuation_dependencies(symbol: Optional[str], config: Optional[dict[str, Any]]) -> list[str]:
+    if not symbol:
+        return []
+    if symbol == "MSTR":
+        enabled = bool((config or {}).get("features", {}).get("use_b6_mnav_valuation", False))
+        if not enabled:
+            return ["B6 valuation"]
+    return [f"SOFT.{symbol}_valuation_pctl"]
+
+
 def _valuation_heat(ctx: FactorContext) -> tuple[float, str]:
     """B6 valuation percentile (PE / mNAV) — v25-aligned, per-symbol.
 
     Reads SOFT.<symbol>_valuation_pctl (populated from valuation_snapshot.json:
     FNGU→FNGS fwd PE pctl, SOXL→SOXX fwd PE pctl, MSTR→mNAV premium pctl).
     Scoring per SKILL.md §4/B6: >=95→5, >=90→3, >=80→2, >=70→1.
-    The symbol-specific dependency is registered by module_b_factors(symbol), so
-    unavailable valuation contributes missing-weight instead of silently scoring 0.
+    MSTR consumption is gated by features.use_b6_mnav_valuation: while OFF the
+    B6 placeholder keeps the existing missing-weight semantics and ignores any
+    collected mNAV field.
     """
     pctl = ctx.get(f"SOFT.{ctx.symbol}_valuation_pctl")
     if pctl is None:

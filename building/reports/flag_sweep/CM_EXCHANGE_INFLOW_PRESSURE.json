@@ -1,0 +1,50 @@
+{
+  "variant": "CM_EXCHANGE_INFLOW_PRESSURE",
+  "cache_schema": "flag-sweep-cache-v2",
+  "cache_key": "5634111e970025a172d7b1228f597aae456962136945fcf42e8f45654037d1f2",
+  "manifest_id": "0bd99464b7317bcd03e9041833bc52e14e2c88688edd81b28d0841e3d9a00425",
+  "git_commit": "e6e624b6b2528a3b03df50e5c14ff6cc5a3510f3",
+  "code_sha256": "2c4aea76487423f3138d7974b2c8264e48be8d173b27b663a8f477c0eb855dc6",
+  "start": "2018-01-01",
+  "end": "2026-05-29",
+  "enable": [
+    "costs"
+  ],
+  "effective_start": "2018-01-02",
+  "effective_end": "2026-05-29",
+  "n_days": 2113,
+  "runtime_sec": 2610.0,
+  "metrics": {
+    "cagr": 0.173756,
+    "max_drawdown": -0.137734,
+    "sharpe": 1.222517,
+    "sortino": 1.598874,
+    "final_value": 382554.8944
+  },
+  "benchmarks": {
+    "SPY": 0.131419,
+    "SPY_metrics": {
+      "final_value": 281459.988611,
+      "cagr": 0.131419,
+      "max_drawdown": -0.341047,
+      "max_drawdown_start": "2020-02-19",
+      "max_drawdown_end": "2020-03-23",
+      "sharpe": 0.736131,
+      "sortino": 0.897505,
+      "calmar": 0.38534,
+      "turnover": 0.0
+    },
+    "QQQ": 0.201525,
+    "QQQ_metrics": {
+      "final_value": 465840.09841,
+      "cagr": 0.201525,
+      "max_drawdown": -0.364777,
+      "max_drawdown_start": "2021-11-19",
+      "max_drawdown_end": "2023-01-05",
+      "sharpe": 0.890581,
+      "sortino": 1.162942,
+      "calmar": 0.552461,
+      "turnover": 0.0
+    }
+  }
+}
