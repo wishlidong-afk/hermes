@@ -92,6 +92,19 @@ def score_symbol(
         explain.insert(0, f"Hard valve PENDING (suspect bar) {','.join(hard.pending_ids)}: {hard.pending_reason}")
     elif hard.buffered:
         explain.insert(0, f"Hard valve BUFFERED {','.join(hard.buffered_ids)}: lone H-M2 → {hard.buffer_status} (not instant EXIT); continuation valve will confirm full exit")
+    # use_no_advice_state (default OFF, gate before flip): when critical
+    # fields are missing the legacy behaviour forces score=100 -> EXIT, which
+    # makes a data outage look identical to a real crash signal (the same
+    # dangerous shape as the 2026-06-12 fake-EXIT incident). NO_ADVICE says
+    # "no basis to advise — hold current book and alert" instead;
+    # sell_fraction 0 keeps sizing at the existing position.
+    _no_advice = (
+        bool((config.get("features") or {}).get("use_no_advice_state"))
+        and bool(operational_missing.critical_missing)
+    )
+    if _no_advice:
+        explain.insert(0, "NO_ADVICE: critical fields missing — refusing to fake a 100-score EXIT; hold and investigate data")
+
     result = ScoreResult(
         symbol=symbol,
         as_of=snapshots[symbol].as_of,
@@ -107,9 +120,9 @@ def score_symbol(
         data_quality=quality_from_snapshots([snapshots[symbol]]).overall_score,
         hard_valve_hits=hard.ids,
         valve_candidates=list(hard.candidates),
-        status=verdict.status,
-        raw_status=verdict.raw_status,
-        sell_fraction=verdict.sell_fraction,
+        status=("NO_ADVICE" if _no_advice else verdict.status),
+        raw_status=("NO_ADVICE" if _no_advice else verdict.raw_status),
+        sell_fraction=(0.0 if _no_advice else verdict.sell_fraction),
         explain=explain,
         factor_scores={module: [factor.to_dict() for factor in factors if factor.module == module] for module in ["A", "B", "C", "D"]},
     )

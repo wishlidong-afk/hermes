@@ -45,3 +45,9 @@ scripts/output/
 
 # COT backfill bak files
 data/soft_history/*.csv.bak
+
+# run outputs — never tracked (seed fixtures in data/archive stay tracked on purpose)
+data/shadow/
+orders/shadow/
+reports/shadow/
+src/hermes_escape_top/data/shadow/

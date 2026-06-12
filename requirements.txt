@@ -1,0 +1,9 @@
+# Runtime dependencies for hermes_escape_top (py>=3.9).
+# Mirrors src/pyproject.toml; the operational interpreter is system python3
+# (see run_daily_package interpreter probing). Test extra: pytest.
+numpy>=1.24
+pandas>=2.0
+scipy>=1.10
+certifi>=2024.0
+yfinance>=0.2
+requests>=2.28

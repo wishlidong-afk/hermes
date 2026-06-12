@@ -466,9 +466,18 @@ def _build_reentry_plan(pkg_reentry: Dict[str, Any]) -> Dict[str, Any]:
             directive = "LOCKED_SELL_RISK_ACTIVE"
         else:
             directive = action
+        # Real lock states from reentry[sym].locks (added 2026-06-12); the old
+        # hardcoded False trio made the daily report lie about lock progress.
+        locks = r.get("locks") or {}
+        def _passed(name: str) -> bool:
+            return bool((locks.get(name) or {}).get("passed"))
         plans[sym] = {
-            "phase0_unlocked": False,
-            "phase0_checks": {"time_lock": False, "emotion_lock": False, "structure_lock": False},
+            "phase0_unlocked": all(_passed(k) for k in ("valve_or_sell", "time", "score", "structure")) if locks else False,
+            "phase0_checks": {
+                "time_lock": _passed("time"),
+                "emotion_lock": _passed("score"),
+                "structure_lock": _passed("structure"),
+            },
             "directive": directive,
             "action": "WAIT",
             "cash_pool_action_pct": 0,

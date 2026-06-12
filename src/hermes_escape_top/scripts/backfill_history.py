@@ -116,7 +116,8 @@ def _backfill_one(
     reasons: list[str] = []
     for fetch_start, fetch_end in intervals:
         try:
-            chunk = _normalize_download(downloader(_yf_symbol(symbol), fetch_start, fetch_end))
+            chunk = _normalize_download(downloader(_yf_symbol(symbol), fetch_start, fetch_end),
+                                        expected_symbol=_yf_symbol(symbol))
             if chunk.empty:
                 reasons.append(f"{fetch_start}->{fetch_end or 'latest'} returned no rows")
             downloaded_frames.append(chunk)
@@ -154,10 +155,20 @@ def _sanity_check_download(symbol: str, existing: pd.DataFrame, new: pd.DataFram
             return True, ""
         overlap = new_close.index.intersection(ex_close.index)
         if len(overlap):
-            anchor = overlap.min()
-            ratio = float(new_close.loc[anchor]) / float(ex_close.loc[anchor])
-            if not (0.75 <= ratio <= 1.33):
-                return False, f"anchor {anchor.date()} mismatch x{ratio:.2f}"
+            # Majority vote over up to 3 oldest overlapping dates: a single
+            # corrupt CACHED anchor row must not permanently veto a good
+            # repair (the KLAC manual-surgery case). Garbage downloads still
+            # lose every vote.
+            anchors = sorted(overlap)[:3]
+            agree = 0
+            ratios = []
+            for anchor in anchors:
+                ratio = float(new_close.loc[anchor]) / float(ex_close.loc[anchor])
+                ratios.append(f"{anchor.date()} x{ratio:.2f}")
+                if 0.75 <= ratio <= 1.33:
+                    agree += 1
+            if agree * 2 <= len(anchors):     # strict majority required
+                return False, f"anchor majority failed ({agree}/{len(anchors)}: {', '.join(ratios)})"
             return True, ""
         limit = 3.0 if symbol.startswith("^") else 1.5
         ratio = float(new_close.iloc[0]) / float(ex_close.iloc[-1])
@@ -180,11 +191,18 @@ def _read_existing(path: Path) -> pd.DataFrame:
     return frame[[col for col in ["Open", "High", "Low", "Close", "Adj Close", "Volume"] if col in frame.columns]]
 
 
-def _normalize_download(frame: pd.DataFrame) -> pd.DataFrame:
+def _normalize_download(frame: pd.DataFrame, expected_symbol: str | None = None) -> pd.DataFrame:
     if frame is None or frame.empty:
         return pd.DataFrame()
     out = frame.copy()
     if isinstance(out.columns, pd.MultiIndex):
+        # Deterministic cross-wiring detection: yfinance carries the ticker in
+        # level 1 — flattening used to discard it, leaving only price-jump
+        # heuristics to catch Yahoo serving another request's payload
+        # (2026-06-12 incident). A name mismatch is rejected outright.
+        tickers = {str(t) for t in out.columns.get_level_values(-1) if str(t)}
+        if expected_symbol and tickers and tickers != {expected_symbol}:
+            raise ValueError(f"ticker mismatch: downloaded {sorted(tickers)} for {expected_symbol}")
         out.columns = [col[0] for col in out.columns]
     rename = {"AdjClose": "Adj Close", "adjclose": "Adj Close", "adj_close": "Adj Close"}
     out = out.rename(columns=rename)

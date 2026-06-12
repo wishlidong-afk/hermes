@@ -130,6 +130,14 @@ def score_pipeline(
     symbols = _snapshot_universe(config)
     snapshots = {symbol: market.snapshot(symbol, as_of) for symbol in symbols}
     histories = {symbol: market.load_history(symbol) for symbol in symbols}
+    # PIT guard: a backdated run (as_of < latest bar) must not see future bars
+    # — same semantics as run_full._truncate_histories. No-op for live runs
+    # where as_of is already the newest bar.
+    _cutoff = pd.Timestamp(str(as_of)[:10])
+    histories = {
+        symbol: (frame.loc[frame.index <= _cutoff] if frame is not None and not getattr(frame, "empty", True) else frame)
+        for symbol, frame in histories.items()
+    }
     soft_data = collect_soft_data(as_of, config, store)
     snapshots["SOFT"] = _soft_snapshot(soft_data, as_of)
     regime, regime_meta = _current_regime(snapshots, histories, as_of)

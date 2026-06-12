@@ -136,7 +136,12 @@ def status_from_score(
     the ``enter`` threshold, making de-escalation sticky (anti-chatter). With
     ``hysteresis=False`` / ``previous_status=None`` (defaults) the result is the
     original flat-threshold behaviour byte-for-byte."""
-    thresholds = config.get("status_thresholds", {})
+    # Annotation keys (_note etc.) in status_thresholds used to crash the
+    # float() below — keep only numeric rungs (known config landmine).
+    thresholds = {
+        k: v for k, v in config.get("status_thresholds", {}).items()
+        if isinstance(v, (int, float)) and not isinstance(v, bool)
+    }
     if not (hysteresis and previous_status):
         selected = "HOLD"
         for status, threshold in sorted(thresholds.items(), key=lambda item: float(item[1])):

@@ -340,7 +340,9 @@
     "use_full_confidence_spine": true,
     "data_onchain_mstr": false,
     "data_mstr_mnav": false,
-    "use_b6_mnav_valuation": false
+    "use_b6_mnav_valuation": false,
+    "use_no_advice_state": false,
+    "use_indicator_cache": false
   },
   "_full_confidence_spine_flip": {
     "enabled_at": "2026-06-12",
