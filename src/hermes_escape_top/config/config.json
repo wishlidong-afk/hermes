@@ -58,7 +58,7 @@
     "^VIX9D",
     "^SKEW",
     "^VVIX",
-    "GLD"
+    "IAU"
   ],
   "radars": {
     "MSTR": [
@@ -266,7 +266,7 @@
       "TREND": 0.3,
       "trend_symbol": "DBMF",
       "extra_legs": {
-        "GLD": 0.2
+        "IAU": 0.2
       }
     },
     "defcon2": {
@@ -280,7 +280,7 @@
       "FNGU": "QQQ",
       "MSTR": "BTC-USD"
     },
-    "_defcon3_note": "④ SOXL/FNGU are clean 3x→1x same-thesis de-levers. MSTR→BTC-USD: drops mNAV premium+single-name risk, keeps crypto thesis (live equiv: IBIT). Gate-approved 2026-06-10: combo variant, 13-fold WF PBO=0.31, OOS Δ+0.117, CAGR +1.90pp vs baseline. DEFCON1: BOXX50/DBMF30/GLD20 — gold adds inflation-hedge leg orthogonal to cash+trend (gate PBO=0.31, CAGR +1.59pp standalone). Rollback: MSTR→QQQ, DEFCON1 BOXX0.7/TREND0.3, remove extra_legs."
+    "_defcon3_note": "④ SOXL/FNGU are clean 3x→1x same-thesis de-levers. MSTR→BTC-USD: drops mNAV premium+single-name risk, keeps crypto thesis (live equiv: IBIT). Gate-approved 2026-06-10: combo variant, 13-fold WF PBO=0.31, OOS Δ+0.117, CAGR +1.90pp vs baseline. DEFCON1: BOXX50/DBMF30/GLD20 — gold adds inflation-hedge leg orthogonal to cash+trend (gate PBO=0.31, CAGR +1.59pp standalone). Rollback: MSTR→QQQ, DEFCON1 BOXX0.7/TREND0.3, remove extra_legs. 2026-06-12 gold leg execution swap GLD→IAU (same underlying, corr≈0.999, ER 0.25% vs 0.40%): display+reconciliation symbol only, gate evidence inherited from the GLD combo run, human-approved, no re-gate. Rollback IAU→GLD."
   },
   "reentry": {
     "time_lock_days": 11,
