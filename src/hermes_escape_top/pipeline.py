@@ -1144,9 +1144,15 @@ def _routing_context(bundles, snapshots, histories, config) -> Dict[str, Any]:
         import pandas as pd
         from .core.routing.capital_routing import evaluate_brkb_defense
 
+        # Rule strings must mirror capital_routing.py exactly — an operator
+        # acting on a wrong explanation is worse than a code bug (2026-06-13
+        # review finding: the old text claimed AND-with-QQQ-break; the code is
+        # a pure OR chain).
         ctx: Dict[str, Any] = {
-            "defcon1_rule": "A>=12 AND QQQ below MA200/EMA50/EMA20 -> BOXX50/DBMF30/GLD20",
-            "defcon2_rule": "A>=12 or D>=10 or hard valve or C8/C6>=3 -> BRK.B (fallback BOXX when corr>threshold)",
+            "defcon1_rule": ("A>=12 OR core-A(A1+A5+A7+A8)>=8 OR any core-A factor maxed(4) "
+                             "-> BOXX50/DBMF30/IAU20"),
+            "defcon2_rule": ("D>=10 OR hard valve OR C8>=3 OR C6>=3 "
+                             "-> BRK.B (fallback BOXX when BRK.B degraded/corr>threshold)"),
         }
         h = histories.get("QQQ")
         if h is not None and not h.empty and "Close" in h:

@@ -50,6 +50,44 @@ def refresh_score_with_market_data(requested_as_of: Any = "latest") -> Dict[str,
             symbols_updated=sum(1 for item in refresh.values() if item.updated),
             reason=skip_reason,
         ))
+    integrity_start = time.perf_counter()
+    integrity_offenders = _history_integrity_scan(config)
+    steps.append(_step(
+        "history_integrity",
+        "OK" if not integrity_offenders else "ERROR",
+        integrity_start,
+        offenders=integrity_offenders[:12],
+        offender_count=len(integrity_offenders),
+    ))
+    if integrity_offenders:
+        write_refresh_run(
+            state_db_path,
+            requested_as_of=requested_as_of,
+            effective_as_of=latest_history_date(config, _critical_symbols(config)) or _normalize_as_of(requested_as_of),
+            status="ERROR",
+            steps=steps,
+            refresh_status={
+                "status": "ERROR",
+                "history_refreshed": history_refreshed,
+                "skip_reason": skip_reason,
+                "requested_as_of": str(requested_as_of),
+                "history_dir": str(history_dir),
+                "symbols_requested": len(symbols),
+                "symbols_refreshed_requested": len(refresh),
+                "symbols_updated": sum(1 for item in refresh.values() if item.updated),
+                "history_integrity": {
+                    "status": "ERROR",
+                    "offenders": integrity_offenders[:12],
+                    "offender_count": len(integrity_offenders),
+                },
+            },
+            payload_hash=None,
+            retention=config.get("state_retention"),
+        )
+        raise RuntimeError(
+            "history integrity failed; refusing to score on potentially cross-wired bars: "
+            + "; ".join(integrity_offenders[:6])
+        )
     manifest_start = time.perf_counter()
     manifest_info = _refresh_manifest(config, history_refreshed)
     steps.append(_step(
@@ -151,6 +189,62 @@ def _step(name: str, status: str, step_start: float, **extra: Any) -> Dict[str, 
         "duration_ms": round((time.perf_counter() - step_start) * 1000.0, 2),
         **extra,
     }
+
+
+def _history_integrity_scan(config: Dict[str, Any]) -> list[str]:
+    """Catch residual cross-wired OHLCV bars before scoring.
+
+    Download-time guards compare the incoming frame with the local history, but
+    this post-refresh scan protects the WebUI refresh path even if a corrupted
+    file already exists on disk or a future writer bypasses backfill_history.
+    """
+    history_dir = resolve_path(config, "history_dir")
+    offenders: list[str] = []
+    for symbol in _integrity_watch_symbols(config):
+        path = history_dir / f"{safe_symbol(symbol)}.csv"
+        if not path.exists():
+            continue
+        limit = 3.0 if symbol.startswith("^") else 1.5
+        try:
+            frame = pd.read_csv(path, usecols=["date", "close"]).tail(12)
+        except Exception:
+            continue
+        close = pd.to_numeric(frame.get("close"), errors="coerce")
+        dates = frame.get("date")
+        rows = [
+            (str(day), float(value))
+            for day, value in zip(dates, close)
+            if pd.notna(value)
+        ]
+        for (d1, c1), (d2, c2) in zip(rows, rows[1:]):
+            if c1 > 0 and not (1.0 / limit <= c2 / c1 <= limit):
+                offenders.append(f"{path.name} {d1} {c1:.2f} -> {d2} {c2:.2f}")
+    return offenders
+
+
+def _integrity_watch_symbols(config: Dict[str, Any]) -> list[str]:
+    symbols = set(config.get("symbols", {}).keys())
+    symbols.update(config.get("market_symbols", []))
+    for values in config.get("radars", {}).values():
+        symbols.update(values)
+    symbols.update({
+        "QQQ",
+        "SOXX",
+        "SMH",
+        "SPY",
+        "^VIX",
+        "^VIX3M",
+        "^SOX",
+        "BTC-USD",
+        "BOXX",
+        "DBMF",
+        "GLD",
+        "IAU",
+        "BRK.B",
+        "BIL",
+        "SHV",
+    })
+    return sorted(str(symbol) for symbol in symbols if symbol)
 
 
 def _completed_trading_days_after(as_of: Optional[str], today: Optional[date] = None) -> int:

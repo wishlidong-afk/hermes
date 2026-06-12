@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from html import escape
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -8,6 +9,44 @@ from typing import Any, Dict, Iterable, List, Optional
 
 TRADE_SYMBOLS = ["MSTR", "FNGU", "SOXL"]
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+TRUST_SOURCE_LABELS = {
+    "aaii": "aaii_sentiment",
+    "cboe_pcr": "cboe_equity_pcr",
+    "naaim": "naaim_exposure",
+    "net_liquidity": "fred_net_liquidity",
+}
+TRUST_SOURCE_ALIASES = {value: key for key, value in TRUST_SOURCE_LABELS.items()}
+TRUST_SOURCE_ORDER = [
+    "cot_nq",
+    "real_rate",
+    "cboe_pcr",
+    "net_liquidity",
+    "dollar",
+    "occ_equity_pcr",
+    "aaii",
+    "naaim",
+]
+TRUST_SOURCE_CADENCE = {
+    "aaii": "weekly",
+    "cot_nq": "weekly",
+    "dollar": "weekly",
+    "naaim": "weekly",
+    "occ_equity_pcr": "weekly",
+}
+TRUST_SOURCE_MAX_AGE_DAYS = {
+    "aaii": 13,
+    "btc_funding_basis": 6,
+    "cboe_indices": 6,
+    "cboe_pcr": 6,
+    "cot_nq": 13,
+    "defensive_rotation": 6,
+    "dollar": 13,
+    "naaim": 13,
+    "net_liquidity": 6,
+    "occ_equity_pcr": 13,
+    "real_rate": 6,
+}
 
 RUNBOOK_REFS = {
     "normal": ("runbook-normal", "正常运行", "确认 run_daily/watchdog 成功，检查日报末行、preflight 和 post-run diff。"),
@@ -137,7 +176,7 @@ def render_dashboard(
     }}
     .ops-desk {{
       display: grid;
-      grid-template-columns: minmax(260px, .85fr) minmax(0, 1.6fr);
+      grid-template-columns: 1fr;
       gap: 10px;
       align-items: stretch;
     }}
@@ -150,6 +189,7 @@ def render_dashboard(
     .ops-headline {{ font-size: 24px; font-weight: 900; margin: 6px 0; }}
     .intent-grid {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }}
     .intent-card {{ border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: 10px; min-width: 0; }}
+    .intent-card {{ overflow: hidden; }}
     .intent-card b {{ font-size: 16px; }}
     .intent-card .action {{ font-weight: 900; margin-top: 8px; color: #0f172a; }}
     .intent-card .target {{ color: var(--muted); font-size: 12px; margin-top: 5px; }}
@@ -163,7 +203,7 @@ def render_dashboard(
       font-weight: 800;
       line-height: 1.35;
     }}
-    .intent-plan {{ margin-top: 8px; font-size: 12px; }}
+    .intent-plan {{ margin-top: 8px; font-size: 12px; overflow-x: auto; max-width: 100%; }}
     .intent-plan table {{ font-size: 12px; }}
     .intent-plan th, .intent-plan td {{ padding: 5px 6px; }}
     .trade-buy {{ color: #047857; font-weight: 900; }}
@@ -178,7 +218,7 @@ def render_dashboard(
     .kpi .label {{ color: var(--muted); font-size: 12px; margin-bottom: 8px; }}
     .kpi .value {{ font-size: 22px; font-weight: 800; line-height: 1.1; }}
     .kpi .note {{ color: var(--muted); font-size: 12px; margin-top: 6px; }}
-    section {{ padding: 14px; margin-bottom: 12px; }}
+    section {{ padding: 14px; margin-bottom: 12px; min-width: 0; }}
     .command-grid {{
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -233,6 +273,33 @@ def render_dashboard(
     .flow-card .flow-body {{ padding: 10px; overflow-x: auto; }}
     .flow-money.pos {{ color: #047857; font-weight: 800; }}
     .flow-money.neg {{ color: #b91c1c; font-weight: 800; }}
+    .strategy-console {{ display:grid; gap:10px; }}
+    .strategy-overview {{
+      border:1px solid #dbe3ee;
+      border-radius:8px;
+      background:#f8fafc;
+      padding:12px;
+    }}
+    .ops-work-card {{ overflow: hidden; }}
+    .strategy-overview .headline {{ font-size:22px; font-weight:900; margin:5px 0; }}
+    .strategy-metrics {{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; margin-top:10px; }}
+    .strategy-card-grid {{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; }}
+    .strategy-card {{ border:1px solid #e5e7eb; border-radius:8px; background:#fff; padding:10px; min-width:0; }}
+    .strategy-card .big {{ font-size:20px; font-weight:900; line-height:1.1; margin:7px 0; }}
+    .strategy-card .mini-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+    .position-table-wrap {{ overflow-x:auto; }}
+    .position-summary-grid {{ display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }}
+    .position-action {{ font-weight:900; }}
+    .position-action.buy {{ color:#047857; }}
+    .position-action.sell {{ color:#b91c1c; }}
+    .position-action.hold {{ color:#334155; }}
+    .flow-summary-strip {{ display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 10px; }}
+    .flow-heat-grid {{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; }}
+    .flow-heat-item {{ border:1px solid #e5e7eb; border-radius:6px; background:#fff; padding:8px; min-width:0; }}
+    .details-strip {{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }}
+    .full-detail-block {{ margin-bottom:12px; }}
+    .full-detail-block > summary {{ background:#fff; }}
+    .full-detail-block section {{ border:0; margin:0; padding:10px; }}
     .workbench-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }}
     .work-card {{ border: 1px solid #e5e7eb; border-radius: 8px; background: #fbfdff; padding: 10px; min-width: 0; }}
     .work-card h3 {{ display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap; }}
@@ -269,12 +336,14 @@ def render_dashboard(
     .spark-svg {{ width:100%; max-width:420px; height:58px; display:block; margin-top:6px; }}
     details {{ border: 1px solid #e5e7eb; border-radius: 6px; background: #fbfdff; }}
     summary {{ cursor: pointer; padding: 9px 10px; font-weight: 800; color: #334155; }}
-    details .detail-body {{ padding: 0 10px 10px; }}
-    table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
-    th, td {{ border-bottom: 1px solid #e5e7eb; padding: 7px 8px; text-align: left; vertical-align: top; }}
+    details .detail-body {{ padding: 0 10px 10px; overflow-x: auto; }}
+    .table-scroll {{ max-width: 100%; overflow-x: auto; }}
+    table {{ width: 100%; border-collapse: collapse; font-size: 12px; min-width: 0; }}
+    th, td {{ border-bottom: 1px solid #e5e7eb; padding: 7px 8px; text-align: left; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; }}
     th {{ background: #f1f5f9; color: #334155; font-weight: 800; }}
     tr:last-child td {{ border-bottom: 0; }}
-    .two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
+    .two-col {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }}
+    .two-col > * {{ min-width: 0; }}
     .route-text {{ font-weight: 800; color: #0f172a; }}
     .reason {{ color: var(--muted); font-size: 12px; line-height: 1.45; }}
     .warning-box {{ background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:10px; color:#7c2d12; font-size:12px; }}
@@ -307,6 +376,7 @@ def render_dashboard(
       .macro-summary, .macro-factors {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .flow-grid {{ grid-template-columns: 1fr; }}
       .workbench-grid {{ grid-template-columns: 1fr; }}
+      .strategy-card-grid, .strategy-metrics, .flow-heat-grid, .position-summary-grid {{ grid-template-columns: 1fr; }}
     }}
     @media (max-width: 720px) {{
       .shell {{ padding: 10px; }}
@@ -349,33 +419,19 @@ def render_dashboard(
 
     {_render_cache_hint(cache)}
 
-    {_render_briefing(payload, health)}
-    {_render_decision_workbench(payload)}
-    {_render_kpis(payload)}
-
-    {_render_today_ops(payload)}
-
-    {_render_macro_section(payload)}
+    {_render_trust_section(payload, manifest_status, health)}
+    {_render_strategy_console(payload, health)}
+    {_render_escape_decisions_details(payload)}
+    {_render_position_desk(payload, payload.get("ibkr_history") or [])}
 
     <section>
-      <h2>Escape Decisions / 今日处置指令</h2>
-      <div class="command-grid">
-        {''.join(_render_symbol_card(symbol, payload) for symbol in TRADE_SYMBOLS)}
-      </div>
       {_render_component_flow_section(payload)}
+      {_render_flow_heat_section(payload)}
     </section>
 
-    <div class="two-col">
-      {_render_ibkr_section(ibkr, payload.get("ibkr_history") or [])}
-      {_render_posterior_section(payload)}
-    </div>
+    {_render_mirror_section(payload)}
+    {_render_secondary_details(payload, shadow_status, manifest_status, health)}
 
-    <div class="two-col">
-      {_render_mirror_section(payload)}
-      {_render_quality_section(payload, manifest_status)}
-    </div>
-
-    {_render_ops_panel(shadow_status, manifest_status)}
   </div>
   {_render_scripts(as_of)}
 </body>
@@ -387,6 +443,347 @@ def write_dashboard(payload: Dict[str, Any], output_path: Path) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(render_dashboard(payload), encoding="utf-8")
     return output_path
+
+
+def _render_strategy_console(payload: Dict[str, Any], health: Dict[str, Any]) -> str:
+    ops = payload.get("today_ops") or {}
+    scores = payload.get("scores") or {}
+    statuses = " | ".join(
+        f"{symbol} {esc((scores.get(symbol) or {}).get('status', 'NA'))}"
+        for symbol in TRADE_SYMBOLS
+    )
+    worst_flow = _worst_flow_symbol(payload)
+    hard_total = sum(len((scores.get(symbol) or {}).get("hard_valve_hits") or []) for symbol in TRADE_SYMBOLS)
+    route_text = _dominant_route_text(payload)
+    flow_text = (
+        f"{worst_flow['symbol']} {worst_flow['severity']}"
+        if worst_flow else "暂无穿透流数据"
+    )
+    return f"""
+    <section>
+      <h2>今日操作台 / One Command Desk</h2>
+      <div class="strategy-console">
+        <div class="strategy-overview">
+          <div class="subtle">health {esc((health or {}).get('level', 'NA'))} · advisory only · 不自动下单</div>
+          <div class="headline">{esc(ops.get('headline') or '暂无今日策略结论')}</div>
+          <div class="subtle">结论：{statuses} · 防守路由：{route_text} · 主要证据：硬阀门 {hard_total} 个 / 穿透流 {esc(flow_text)}</div>
+          <div class="strategy-metrics">
+            {_metric('动作数', esc(ops.get('action_count', 0)))}
+            {_metric('数据质量', f"{esc(ops.get('data_quality', 'NA'))} {_fmt_num(ops.get('data_quality_score'))}")}
+            {_metric('IBKR', esc(ops.get('ibkr_source', 'NA')) + (' / STALE' if ops.get('ibkr_stale') else ''))}
+            {_metric('资金流最弱桶', esc(flow_text))}
+          </div>
+        </div>
+        {_render_today_ops(payload, embedded=True)}
+      </div>
+    </section>
+    """
+
+
+def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, Any], health: Dict[str, Any]) -> str:
+    dq = payload.get("data_quality") or {}
+    risk = payload.get("portfolio_risk") or {}
+    regime = payload.get("regime") or {}
+    ibkr = payload.get("ibkr") or {}
+    state = payload.get("state") or {}
+    checks = health.get("checks") or []
+    check_text = "；".join(str(item.get("label")) for item in checks[:2]) if checks else "无"
+    return f"""
+    <section>
+      <h2>系统状态 + 数据质量 / System Health</h2>
+      <div class="position-summary-grid">
+        {_metric('运行状态', esc((health or {}).get('level', 'OK')))}
+        {_metric('Data', f"{esc(dq.get('level', 'NA'))} {_fmt_num(dq.get('overall_score'))}")}
+        {_metric('Manifest', esc(manifest_status.get('status', 'NA')))}
+        {_metric('IBKR', esc(ibkr.get('source', 'disabled')) + (' / STALE' if ibkr.get('snapshot_stale') else ''))}
+        {_metric('Portfolio Risk', f"vol {_fmt_pct(risk.get('forecast_portfolio_vol'))} · {esc(regime.get('current', 'NA'))}")}
+      </div>
+      <div class="mini-note">run={esc(state.get('score_run_id', 'NA'))} · input_hash={esc(str(payload.get('input_hash', 'NA'))[:12])} · 主要异常：{esc(check_text)}</div>
+      <details style="margin-top:10px">
+        <summary>展开 Audit Detail / 数据源、质量扣分、manifest</summary>
+        <div class="detail-body">
+          {_render_quality_detail_body(payload, manifest_status)}
+        </div>
+      </details>
+    </section>
+    """
+
+
+def _render_escape_decisions_details(payload: Dict[str, Any]) -> str:
+    return f"""
+    <details class="full-detail-block">
+      <summary>展开完整处置指令 / Escape Decisions</summary>
+      <section>
+        <h2>Escape Decisions / 今日处置指令</h2>
+        <div class="command-grid">
+          {''.join(_render_symbol_card(symbol, payload) for symbol in TRADE_SYMBOLS)}
+        </div>
+      </section>
+    </details>
+    """
+
+
+def _render_secondary_details(
+    payload: Dict[str, Any],
+    shadow_status: Dict[str, Any],
+    manifest_status: Dict[str, Any],
+    health: Dict[str, Any],
+) -> str:
+    cards = "".join(_render_strategy_symbol_card(symbol, payload) for symbol in TRADE_SYMBOLS)
+    return f"""
+    <details class="full-detail-block">
+      <summary>其他折叠详情 / Details</summary>
+      <div class="detail-body">
+        <section>
+          <h2>隐藏策略摘要 / Strategy Cards</h2>
+          <div class="strategy-card-grid">{cards}</div>
+        </section>
+        {_render_briefing(payload, health)}
+        {_render_macro_section(payload)}
+        <section>
+          <h2>决策工作台细节 / Workbench Details</h2>
+          {_render_decision_workbench(payload)}
+        </section>
+        {_render_ops_panel(shadow_status, manifest_status)}
+      </div>
+    </details>
+    """
+
+
+def _render_strategy_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
+    score = (payload.get("scores") or {}).get(symbol) or {}
+    sizing = (payload.get("sizing") or {}).get(symbol) or {}
+    intent = (payload.get("action_intents") or {}).get(symbol) or {}
+    hard = score.get("hard_valve_hits") or []
+    ibkr = _ibkr_row(payload.get("ibkr") or {}, symbol) or {}
+    flow_state = _flow_state_for_symbol(payload, symbol)
+    status = str(score.get("status", "NA"))
+    target_weight = sizing.get("target_weight", intent.get("target_weight"))
+    reason = _strategy_card_reason(score, intent)
+    flow_value = f"{_badge(flow_state['severity'], _flow_kind(flow_state['severity']))} {esc(flow_state['summary'])}"
+    return (
+        "<div class='strategy-card'>"
+        f"<div class='row-head'><span class='row-title'>{esc(symbol)}</span>{_badge(status, _status_kind(status))}</div>"
+        f"<div class='big'>{esc(_action_cn(intent.get('action')))}</div>"
+        "<div class='mini-grid'>"
+        f"{_metric('当前', _fmt_pct(ibkr.get('actual_weight')))}"
+        f"{_metric('目标', _fmt_pct(target_weight))}"
+        f"{_metric('硬阀门', f'{len(hard)} 个' if hard else '未触发')}"
+        f"{_metric('穿透流', flow_value)}"
+        "</div>"
+        f"<div class='mini-note' style='margin-top:8px'>{esc(reason)}</div>"
+        "</div>"
+    )
+
+
+def _strategy_card_reason(score: Dict[str, Any], intent: Dict[str, Any]) -> str:
+    hard = score.get("hard_valve_hits") or []
+    if hard:
+        return "硬阀门：" + ", ".join(str(item) for item in hard[:4])
+    top = intent.get("top_reasons") or []
+    if top:
+        return str(top[0])
+    factors = _top_factor_items(score, limit=1)
+    if factors:
+        _, row = factors[0]
+        return str(row.get("plain_explain") or row.get("explain") or row.get("factor_id") or "主要因子")
+    return "暂无强触发项"
+
+
+def _render_position_gap_section(payload: Dict[str, Any]) -> str:
+    rows = _position_gap_rows(payload)
+    body = []
+    for row in rows:
+        action, cls = _position_action(row["gap_weight"], row["category"])
+        body.append(
+            "<tr>"
+            f"<td>{esc(row['category'])}</td>"
+            f"<td><b>{esc(row['symbol'])}</b></td>"
+            f"<td>{_fmt_pct(row['actual_weight'])}<div class='subtle'>{_fmt_money(row['actual_notional'])}</div></td>"
+            f"<td>{_fmt_pct(row['target_weight'])}<div class='subtle'>{_fmt_money(row['target_notional'])}</div></td>"
+            f"<td>{_fmt_pct(row['gap_weight'], signed=True)}<div class='subtle'>{_fmt_money(row['gap_notional'])}</div></td>"
+            f"<td><span class='position-action {cls}'>{esc(action)}</span><div class='subtle'>{esc(row['status'])}</div></td>"
+            "</tr>"
+        )
+    body_html = "".join(body) if body else '<tr><td colspan="6">暂无持仓对账数据</td></tr>'
+    return (
+        "<div class='work-card'>"
+        "<h3>当前持仓 vs 系统目标 <span class='subtle'>Position Gap</span></h3>"
+        "<div class='position-table-wrap'>"
+        "<table>"
+        "<thead><tr><th>类别</th><th>标的</th><th>当前</th><th>目标</th><th>目标缺口</th><th>动作 / 状态</th></tr></thead>"
+        f"<tbody>{body_html}</tbody>"
+        "</table>"
+        "</div>"
+        "</div>"
+    )
+
+
+def _render_position_desk(payload: Dict[str, Any], history: List[Dict[str, Any]]) -> str:
+    ibkr = payload.get("ibkr") or {}
+    rows = _position_gap_rows(payload)
+    buy_gap = sum(max(0.0, _float(row.get("gap_notional"), 0.0)) for row in rows if row.get("category") != "额外持仓")
+    sell_gap = sum(abs(min(0.0, _float(row.get("gap_notional"), 0.0))) for row in rows)
+    max_gap = max((abs(_float(row.get("gap_weight"), 0.0)) for row in rows), default=0.0)
+    extra_count = sum(1 for row in rows if row.get("category") == "额外持仓")
+    body = []
+    for row in rows:
+        action, cls = _position_action(row["gap_weight"], row["category"])
+        body.append(
+            "<tr>"
+            f"<td>{esc(row['category'])}</td>"
+            f"<td><b>{esc(row['symbol'])}</b><div class='subtle'>{esc(row.get('note', ''))}</div></td>"
+            f"<td>{_fmt_pct(row['actual_weight'])}<div class='subtle'>{_fmt_money(row['actual_notional'])} · {_fmt_num(row.get('actual_shares'))}股</div></td>"
+            f"<td>{_fmt_pct(row['target_weight'])}<div class='subtle'>{_fmt_money(row['target_notional'])}</div></td>"
+            f"<td>{_fmt_pct(row['gap_weight'], signed=True)}<div class='subtle'>{_fmt_money(row['gap_notional'])}</div></td>"
+            f"<td><span class='position-action {cls}'>{esc(action)}</span><div class='subtle'>{esc(row['status'])}</div></td>"
+            "</tr>"
+        )
+    body_html = "".join(body) if body else '<tr><td colspan="6">暂无持仓对账数据</td></tr>'
+    return f"""
+    <section>
+      <h2>当前持仓 + IBKR 对账 / Position Desk</h2>
+      <div class="position-summary-grid">
+        {_metric('IBKR 现有总资产', _fmt_money(ibkr.get('net_liq')))}
+        {_metric('需买入缺口', _fmt_money(buy_gap))}
+        {_metric('需卖出/额外', _fmt_money(sell_gap))}
+        {_metric('最大权重差', _fmt_pct(max_gap))}
+        {_metric('额外持仓', esc(extra_count))}
+      </div>
+      <div class="subtle" style="margin-bottom:8px">source={esc(ibkr.get('source', 'disabled'))} · clientId={esc(ibkr.get('client_id', 'NA'))} · account={esc(ibkr.get('account_id', 'NA'))} · sync={esc(str(ibkr.get('sync_time', ''))[:19])} · max delta {_fmt_pct(ibkr.get('max_abs_delta'))}</div>
+      {_warning(ibkr.get('error'))}
+      <div class="position-table-wrap">
+        <table>
+          <thead><tr><th>类别</th><th>标的</th><th>当前仓位</th><th>系统目标</th><th>目标缺口</th><th>动作 / 状态</th></tr></thead>
+          <tbody>{body_html}</tbody>
+        </table>
+      </div>
+      {_render_posterior_section(payload, collapsed=True)}
+      {_render_ibkr_history_details(history)}
+    </section>
+    """
+
+
+def _position_gap_rows(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    ibkr = payload.get("ibkr") or {}
+    net_liq = _float(ibkr.get("net_liq"), 0.0)
+    rows: List[Dict[str, Any]] = []
+    groups = [
+        ("策略腿", ibkr.get("trade_symbols", []) or []),
+        ("防守腿", ibkr.get("route_legs", []) or []),
+        ("额外持仓", ibkr.get("extra_positions", []) or []),
+    ]
+    for category, items in groups:
+        for item in items:
+            actual_weight = _float(item.get("actual_weight"), 0.0)
+            target_weight = _float(item.get("ideal_weight"), 0.0)
+            gap_weight = target_weight - actual_weight
+            rows.append({
+                "category": category,
+                "symbol": str(item.get("symbol") or ""),
+                "actual_weight": actual_weight,
+                "target_weight": target_weight,
+                "gap_weight": gap_weight,
+                "actual_notional": _float(item.get("actual_notional"), 0.0),
+                "actual_shares": _float(item.get("actual_shares"), 0.0),
+                "avg_cost": _float(item.get("avg_cost"), 0.0),
+                "target_notional": item.get("ideal_notional", target_weight * net_liq if net_liq else None),
+                "gap_notional": gap_weight * net_liq if net_liq else None,
+                "status": str(item.get("status", "NA")),
+                "note": str(item.get("note") or ""),
+            })
+    order = {symbol: i for i, symbol in enumerate(TRADE_SYMBOLS)}
+    category_order = {"策略腿": 0, "防守腿": 1, "额外持仓": 2}
+    rows.sort(key=lambda row: (
+        category_order.get(row["category"], 9),
+        order.get(row["symbol"], 99),
+        -abs(_float(row["gap_weight"], 0.0)),
+        row["symbol"],
+    ))
+    return rows
+
+
+def _position_action(gap_weight: float, category: str) -> tuple[str, str]:
+    if abs(gap_weight) < 0.002:
+        return "OK", "hold"
+    if gap_weight > 0:
+        return "买入缺口", "buy"
+    if category == "额外持仓":
+        return "额外持仓/人工判断", "sell"
+    return "减仓缺口", "sell"
+
+
+def _render_flow_heat_section(payload: Dict[str, Any]) -> str:
+    states = [_flow_state_for_symbol(payload, symbol) for symbol in TRADE_SYMBOLS]
+    worst = _worst_flow_symbol(payload)
+    weak = _top_flow_components(payload, limit=5, negative_only=False)
+    weak_text = " / ".join(f"{esc(row.get('symbol'))} {esc(row.get('severity'))}" for row in weak) or "暂无"
+    flow_order = " > ".join(
+        f"{state['symbol']} {state['severity']}"
+        for state in sorted(states, key=lambda row: _flow_rank(row["severity"]))
+    )
+    return (
+        "<div class='work-card'>"
+        "<h3>资金流热力解释 <span class='subtle'>flow heat</span></h3>"
+        "<div class='flow-heat-grid'>"
+        f"<div class='flow-heat-item'><b>哪个桶最危险</b><div class='mini-note'>{esc(worst['symbol'] + ' / ' + worst['severity']) if worst else '暂无'}</div></div>"
+        f"<div class='flow-heat-item'><b>风险排序</b><div class='mini-note'>{flow_order}</div></div>"
+        f"<div class='flow-heat-item'><b>主要底层票</b><div class='mini-note'>{weak_text}</div></div>"
+        "<div class='flow-heat-item'><b>策略含义</b><div class='mini-note'>已 EXIT/REDUCE 时用于确认风险；HOLD 时升级为观察项。</div></div>"
+        "</div>"
+        "</div>"
+    )
+
+
+def _dominant_route_text(payload: Dict[str, Any]) -> str:
+    routes = []
+    for symbol in TRADE_SYMBOLS:
+        route = (payload.get("routing") or {}).get(symbol) or {}
+        text = _route_text(route)
+        if text and "不路由" not in text:
+            routes.append(text)
+    return routes[0] if routes else "未触发防守路由"
+
+
+def _flow_state_for_symbol(payload: Dict[str, Any], symbol: str) -> Dict[str, str]:
+    flow = payload.get("flow") or {}
+    basket = (flow.get("component_baskets") or {}).get(symbol)
+    if basket:
+        severity = str(basket.get("severity", "MISSING"))
+        summary = f"abnormal {basket.get('abnormal_components', 0)}/{basket.get('component_count', 0)}"
+        return {"symbol": symbol, "severity": severity, "summary": summary}
+    row = (flow.get("symbols") or {}).get(symbol) or {}
+    severity = str(row.get("severity", "MISSING"))
+    summary = f"CMF {_fmt_num(row.get('cmf20'))} / MFI {_fmt_num(row.get('mfi14'))}"
+    return {"symbol": symbol, "severity": severity, "summary": summary}
+
+
+def _worst_flow_symbol(payload: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    states = [_flow_state_for_symbol(payload, symbol) for symbol in TRADE_SYMBOLS]
+    available = [state for state in states if state["severity"] != "MISSING"]
+    if not available:
+        return None
+    return sorted(available, key=lambda row: (_flow_rank(row["severity"]), row["symbol"]))[0]
+
+
+def _top_flow_components(payload: Dict[str, Any], limit: int = 5, negative_only: bool = True) -> List[Dict[str, Any]]:
+    components: List[Dict[str, Any]] = []
+    flow = payload.get("flow") or {}
+    for basket in (flow.get("component_baskets") or {}).values():
+        for row in basket.get("components") or []:
+            if negative_only and _float(row.get("legacy_signed_5d"), 0.0) >= 0:
+                continue
+            components.append(row)
+    components.sort(key=lambda row: (
+        _flow_rank(str(row.get("severity", "MISSING"))),
+        _float(row.get("legacy_signed_5d"), 0.0),
+        str(row.get("symbol", "")),
+    ))
+    return components[:limit]
+
+
+def _flow_rank(severity: str) -> int:
+    return {"SEVERE": 0, "ABNORMAL": 1, "WATCH": 2, "NORMAL": 3, "MISSING": 4}.get(str(severity), 5)
 
 
 def _render_decision_workbench(payload: Dict[str, Any]) -> str:
@@ -682,26 +1079,28 @@ def _render_kpis(payload: Dict[str, Any]) -> str:
     """
 
 
-def _render_today_ops(payload: Dict[str, Any]) -> str:
+def _render_today_ops(payload: Dict[str, Any], *, embedded: bool = False) -> str:
     ops = payload.get("today_ops") or {}
     intents = payload.get("action_intents") or {}
     state = payload.get("state") or {}
-    destinations = ops.get("destinations") or {}
-    dest_text = ", ".join(f"{esc(k)} {_fmt_money(v)}" for k, v in destinations.items()) or "无资金路由"
+    destinations = _execution_destination_totals(payload)
+    dest_text = _format_destination_totals(destinations) or "无资金路由"
+    route_text = _dominant_route_text(payload)
+    mismatch = _route_execution_mismatch(payload)
     reasons = ops.get("top_reasons") or []
     reason_rows = "".join(f"<li>{esc(item)}</li>" for item in reasons[:3])
     cards = []
     for symbol in TRADE_SYMBOLS:
         cards.append(_render_intent_card(symbol, payload))
-    return f"""
-    <section>
-      <h2>今日操作台 / One Command Desk</h2>
+    body = f"""
       <div class="ops-desk">
         <div class="ops-main">
           <div class="subtle">advisory only · 不下单 · state_db={esc(Path(str(state.get('db_path', ''))).name if state.get('db_path') else 'NA')} · run={esc(state.get('score_run_id', 'NA'))}</div>
           <div class="ops-headline">{esc(ops.get('headline', '暂无结论'))}</div>
           <div class="subtle">动作数 {esc(ops.get('action_count', 0))} · 数据 {esc(ops.get('data_quality', 'NA'))} {_fmt_num(ops.get('data_quality_score'))} · IBKR {esc(ops.get('ibkr_source', 'NA'))}{' · STALE' if ops.get('ibkr_stale') else ''}</div>
-          <div style="margin-top:10px"><b>资金去向：</b>{dest_text}</div>
+          <div style="margin-top:10px"><b>DEFCON 路由：</b>{route_text}</div>
+          <div style="margin-top:6px"><b>执行计划资金去向：</b>{dest_text}</div>
+          {mismatch}
           <details style="margin-top:10px">
             <summary>核心原因 / 失效前提</summary>
             <div class="detail-body">
@@ -712,8 +1111,79 @@ def _render_today_ops(payload: Dict[str, Any]) -> str:
         </div>
         <div class="intent-grid">{''.join(cards)}</div>
       </div>
+    """
+    if embedded:
+        return (
+            "<div class='work-card ops-work-card'>"
+            "<h3>今日操作台 / One Command Desk <span class='subtle'>route vs execution</span></h3>"
+            f"{body}"
+            "</div>"
+        )
+    return f"""
+    <section>
+      <h2>今日操作台 / One Command Desk</h2>
+      {body}
     </section>
     """
+
+
+def _execution_destination_totals(payload: Dict[str, Any]) -> Dict[str, float]:
+    totals: Dict[str, float] = {}
+    for intent in (payload.get("action_intents") or {}).values():
+        legs = ((intent.get("trade_plan") or {}).get("legs") or [])
+        if legs:
+            for leg in legs:
+                if str(leg.get("role") or "") != "defense_route":
+                    continue
+                symbol = str(leg.get("symbol") or "")
+                if symbol:
+                    totals[symbol] = totals.get(symbol, 0.0) + _float(leg.get("target_notional"), 0.0)
+        else:
+            symbol = str(intent.get("target_symbol") or "")
+            notional = _float(intent.get("target_notional"), 0.0)
+            if symbol and notional:
+                totals[symbol] = totals.get(symbol, 0.0) + notional
+    if totals:
+        return totals
+    return {str(k): _float(v, 0.0) for k, v in ((payload.get("today_ops") or {}).get("destinations") or {}).items()}
+
+
+def _format_destination_totals(destinations: Dict[str, float]) -> str:
+    items = [(symbol, value) for symbol, value in sorted(destinations.items()) if abs(value) > 1e-9]
+    return ", ".join(f"{esc(symbol)} {_fmt_money(value)}" for symbol, value in items)
+
+
+def _route_execution_mismatch(payload: Dict[str, Any]) -> str:
+    route_symbols = _routing_destination_symbols(payload)
+    execution_symbols = {symbol for symbol, value in _execution_destination_totals(payload).items() if abs(value) > 1e-9}
+    if not route_symbols or route_symbols == execution_symbols:
+        return "<div class='mini-note'>路由与执行计划一致：以 action_intents.trade_plan.legs 为准。</div>"
+    missing = sorted(route_symbols - execution_symbols)
+    extra = sorted(execution_symbols - route_symbols)
+    bits = []
+    if missing:
+        bits.append("DEFCON 路由包含但执行腿未展开：" + ", ".join(missing))
+    if extra:
+        bits.append("执行腿额外包含：" + ", ".join(extra))
+    return (
+        "<div class='warning-box' style='margin-top:8px'>"
+        "<b>路由/执行口径不一致：</b>"
+        f"{esc('；'.join(bits))}。当前操作台资金去向按执行腿显示；请刷新 payload 或检查 action_intents 接线。"
+        "</div>"
+    )
+
+
+def _routing_destination_symbols(payload: Dict[str, Any]) -> set[str]:
+    symbols: set[str] = set()
+    for route in (payload.get("routing") or {}).values():
+        if not route or route.get("applies") is False:
+            continue
+        weights = route.get("weights") or {}
+        if weights:
+            symbols.update(str(symbol) for symbol in weights.keys() if symbol)
+        elif route.get("destination"):
+            symbols.add(str(route.get("destination")))
+    return symbols
 
 
 def _render_intent_card(symbol: str, payload: Dict[str, Any]) -> str:
@@ -859,6 +1329,30 @@ def _plain_command(symbol: str, intent: Dict[str, Any], rows: List[Dict[str, Any
     return f"实际调仓：{'；'.join(parts)}。执行后：{target}。"
 
 
+def _intent_target_summary(intent: Dict[str, Any]) -> Dict[str, str]:
+    defense_legs = [
+        leg for leg in ((intent.get("trade_plan") or {}).get("legs") or [])
+        if str(leg.get("role") or "") == "defense_route"
+    ]
+    if defense_legs:
+        return {
+            "target": " / ".join(
+                f"{str(leg.get('symbol') or '-')} {_fmt_pct(leg.get('target_weight'))}"
+                for leg in defense_legs
+            ),
+            "notional": _fmt_money(sum(_float(leg.get("target_notional"), 0.0) for leg in defense_legs)),
+            "shares": " / ".join(
+                f"{str(leg.get('symbol') or '-')} {_fmt_num(leg.get('target_shares'))}股"
+                for leg in defense_legs
+            ),
+        }
+    return {
+        "target": str(intent.get("target_symbol", "-")),
+        "notional": _fmt_money(intent.get("target_notional")),
+        "shares": _fmt_num(intent.get("target_shares")),
+    }
+
+
 def _render_macro_section(payload: Dict[str, Any]) -> str:
     score = _first_score(payload)
     factors = ((score.get("factor_scores") or {}).get("A") or []) if score else []
@@ -960,8 +1454,8 @@ def _render_component_flow_section(payload: Dict[str, Any]) -> str:
     return f"""
       <div class="flow-header">
         <div>
-          <h2 style="margin-bottom:4px">底层持仓资金流入/流出监控</h2>
-          <div class="subtle">CMF20 / MFI14 / A-D slope / 5日估算净流。红色代表资金异常流出或弱流出。db={esc(flow.get('db_path', '未固化'))}</div>
+          <h2 style="margin-bottom:4px">穿透股票现金流 / Underlying Stock Flow</h2>
+          <div class="subtle">底层持仓资金流入/流出监控 · CMF20 / MFI14 / A-D slope / 5日估算净流。红色代表资金异常流出或弱流出。db={esc(flow.get('db_path', '未固化'))}</div>
         </div>
         {_badge('flow as_of ' + esc(flow.get('as_of', 'NA')), 'watch')}
       </div>
@@ -1031,6 +1525,7 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
     radar_close = _snap(payload, radar_symbol, "close")
     radar_ma200 = _snap(payload, radar_symbol, "ma200")
     top_reasons = _top_factor_rows(score, limit=5)
+    target_summary = _intent_target_summary(intent)
 
     return f"""
       <article class="symbol-card">
@@ -1052,9 +1547,9 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
 
           <div class="warning-box" style="background:#f8fafc;border-color:#cbd5e1;color:#0f172a">
             <b>唯一处置指令：</b>{esc(_action_cn(intent.get('action')))}
-            · 目标 {esc(intent.get('target_symbol', '-'))}
-            · 金额 {_fmt_money(intent.get('target_notional'))}
-            · 股数 {_fmt_num(intent.get('target_shares'))}
+            · 目标 {esc(target_summary['target'])}
+            · 金额 {esc(target_summary['notional'])}
+            · 股数 {esc(target_summary['shares'])}
             · 置信度 {esc(intent.get('confidence_level', 'NA'))} {_fmt_num(intent.get('confidence_score'))}
           </div>
 
@@ -1153,29 +1648,7 @@ def _render_ibkr_section(ibkr: Dict[str, Any], history: List[Dict[str, Any]]) ->
     if not rows:
         note = ibkr.get("note") or ibkr.get("error") or "暂无 IBKR 对账数据"
         rows.append(f'<tr><td colspan="9">{esc(note)}</td></tr>')
-    history_rows = []
-    for row in history[:5]:
-        history_rows.append(
-            "<tr>"
-            f"<td>{esc(row.get('id'))}</td>"
-            f"<td>{esc(row.get('source', 'NA'))}</td>"
-            f"<td>{esc(str(row.get('sync_time', ''))[:19])}</td>"
-            f"<td>{_fmt_money(row.get('net_liq'))}</td>"
-            f"<td>{'是' if row.get('snapshot_stale') else '否'}</td>"
-            f"<td>{esc(row.get('client_id', 'NA'))}</td>"
-            "</tr>"
-        )
-    history_table = f"""
-      <details style="margin-top:10px">
-        <summary>最近 IBKR 快照 / snapshot history</summary>
-        <div class="detail-body">
-          <table>
-            <thead><tr><th>ID</th><th>来源</th><th>同步时间</th><th>NetLiq</th><th>Stale</th><th>clientId</th></tr></thead>
-            <tbody>{''.join(history_rows) if history_rows else '<tr><td colspan="6">暂无历史快照</td></tr>'}</tbody>
-          </table>
-        </div>
-      </details>
-    """
+    history_table = _render_ibkr_history_details(history)
     return f"""
     <section>
       <div class="ibkr-head">
@@ -1199,9 +1672,36 @@ def _render_ibkr_section(ibkr: Dict[str, Any], history: List[Dict[str, Any]]) ->
     """
 
 
-def _render_posterior_section(payload: Dict[str, Any]) -> str:
+def _render_ibkr_history_details(history: List[Dict[str, Any]]) -> str:
+    history_rows = []
+    for row in history[:5]:
+        history_rows.append(
+            "<tr>"
+            f"<td>{esc(row.get('id'))}</td>"
+            f"<td>{esc(row.get('source', 'NA'))}</td>"
+            f"<td>{esc(str(row.get('sync_time', ''))[:19])}</td>"
+            f"<td>{_fmt_money(row.get('net_liq'))}</td>"
+            f"<td>{'是' if row.get('snapshot_stale') else '否'}</td>"
+            f"<td>{esc(row.get('client_id', 'NA'))}</td>"
+            "</tr>"
+        )
+    return f"""
+      <details style="margin-top:10px">
+        <summary>最近 IBKR 快照 / snapshot history</summary>
+        <div class="detail-body">
+          <table>
+            <thead><tr><th>ID</th><th>来源</th><th>同步时间</th><th>NetLiq</th><th>Stale</th><th>clientId</th></tr></thead>
+            <tbody>{''.join(history_rows) if history_rows else '<tr><td colspan="6">暂无历史快照</td></tr>'}</tbody>
+          </table>
+        </div>
+      </details>
+    """
+
+
+def _render_posterior_section(payload: Dict[str, Any], *, collapsed: bool = False) -> str:
     posterior = payload.get("posterior_pnl") or {}
     history = payload.get("calibration_history") or []
+    state = payload.get("state") or {}
     rows = []
     for group, by_key in [("Escape", posterior.get("escape", {})), ("Mirror", posterior.get("mirror", {}))]:
         for key, row in sorted((by_key or {}).items()):
@@ -1222,10 +1722,8 @@ def _render_posterior_section(payload: Dict[str, Any]) -> str:
             f"<td>{_fmt_pct(row.get('return_pct'))}</td>"
             "</tr>"
         )
-    return f"""
-    <section>
-      <h2>Posterior Ideal P/L / 理想仓位上一交易日盈亏</h2>
-      <div class="subtle">portfolio value={_fmt_money(posterior.get('portfolio_value'))}</div>
+    body = f"""
+      <div class="subtle">payload as_of={esc(payload.get('as_of', 'NA'))} · run={esc(state.get('score_run_id', 'NA'))} · input_hash={esc(str(payload.get('input_hash', 'NA'))[:12])} · portfolio value={_fmt_money(posterior.get('portfolio_value'))}</div>
       <table>
         <thead><tr><th>系统</th><th>仓位桶</th><th>标的</th><th>权重</th><th>金额</th><th>股数</th><th>浮盈亏</th><th>收益</th></tr></thead>
         <tbody>{''.join(rows) if rows else '<tr><td colspan="8">暂无后验盈亏数据</td></tr>'}</tbody>
@@ -1239,6 +1737,18 @@ def _render_posterior_section(payload: Dict[str, Any]) -> str:
           </table>
         </div>
       </details>
+    """
+    if collapsed:
+        return f"""
+        <details style="margin-top:10px">
+          <summary>理想仓位上一交易日盈亏 / Posterior Ideal P/L</summary>
+          <div class="detail-body">{body}</div>
+        </details>
+        """
+    return f"""
+    <section>
+      <h2>Posterior Ideal P/L / 理想仓位上一交易日盈亏</h2>
+      {body}
     </section>
     """
 
@@ -1361,7 +1871,197 @@ def _manifest_badge(manifest_status: Dict[str, Any]) -> str:
     return _badge("数据清单 " + label, kind)
 
 
-def _render_quality_section(payload: Dict[str, Any], manifest_status: Dict[str, Any] | None = None) -> str:
+def _render_data_trust_zone(payload: Dict[str, Any]) -> str:
+    rows = _data_trust_rows(payload)
+    body = []
+    for row in rows:
+        body.append(
+            "<tr>"
+            f"<td><b>{esc(row['display_name'])}</b></td>"
+            f"<td>{esc(row['as_of'])}</td>"
+            f"<td>{_trust_badge(row['truth_kind'])}</td>"
+            f"<td>{esc(row['source'])}</td>"
+            f"<td>{esc(row['cadence'])}</td>"
+            f"<td>{_trust_slo_badge(row['slo_text'], row['slo_kind'])}</td>"
+            "</tr>"
+        )
+    body_html = "".join(body) if body else '<tr><td colspan="6">暂无软数据源信任信息</td></tr>'
+    return (
+        "<div class='work-card' style='margin-bottom:10px'>"
+        "<h3>区域 5 · 数据信任区 <span class='subtle'>每源：最新 / 真实性 / SLO 倒计时</span></h3>"
+        "<div class='table-scroll'>"
+        "<table>"
+        "<thead><tr><th>源</th><th>最新数据日</th><th>性质</th><th>来源</th><th>节奏</th><th>SLO</th></tr></thead>"
+        f"<tbody>{body_html}</tbody>"
+        "</table>"
+        "</div>"
+        "</div>"
+    )
+
+
+def _data_trust_rows(payload: Dict[str, Any]) -> List[Dict[str, str]]:
+    explicit = payload.get("data_trust") or payload.get("data_trust_sources")
+    if isinstance(explicit, list) and explicit:
+        candidates = [dict(row) for row in explicit if isinstance(row, dict)]
+    else:
+        candidates = _data_trust_candidates_from_payload(payload)
+
+    by_name: Dict[str, Dict[str, Any]] = {}
+    for row in candidates:
+        canonical = _trust_canonical_name(row.get("name") or row.get("source_name") or row.get("id"))
+        if not canonical:
+            continue
+        merged = dict(by_name.get(canonical) or {})
+        merged.update({k: v for k, v in row.items() if v is not None})
+        merged["name"] = canonical
+        by_name[canonical] = merged
+
+    order = {name: idx for idx, name in enumerate(TRUST_SOURCE_ORDER)}
+    rows = []
+    for canonical, row in sorted(by_name.items(), key=lambda item: (order.get(item[0], 99), _trust_display_name(item[0]))):
+        rows.append(_normalize_trust_row(canonical, row, payload))
+    return rows
+
+
+def _data_trust_candidates_from_payload(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    candidates: List[Dict[str, Any]] = []
+    records = (payload.get("soft_data") or {}).get("records") or {}
+    for name, record in records.items():
+        if isinstance(record, dict):
+            row = dict(record)
+            row.setdefault("name", name)
+            candidates.append(row)
+
+    for row in (payload.get("data_quality_breakdown") or {}).get("sources") or []:
+        if not isinstance(row, dict) or row.get("category") not in {"soft", "flow"}:
+            continue
+        copied = dict(row)
+        copied.setdefault("name", row.get("name"))
+        candidates.append(copied)
+    return candidates
+
+
+def _normalize_trust_row(canonical: str, row: Dict[str, Any], payload: Dict[str, Any]) -> Dict[str, str]:
+    as_of = _trust_date_text(row.get("latest_data_date") or row.get("latest") or row.get("as_of") or row.get("date"))
+    truth = row.get("truth_kind") or row.get("nature")
+    if not truth:
+        available = row.get("data_available", row.get("status") not in {"MISSING", "UNAVAILABLE"})
+        truth = "缺失" if available is False else ("代理" if row.get("is_proxy") else "真实")
+    source = str(row.get("source") or row.get("provider") or "").strip()
+    cadence = str(row.get("cadence") or TRUST_SOURCE_CADENCE.get(canonical) or "daily")
+    slo_text, slo_kind = _trust_slo_status(canonical, row, payload)
+    return {
+        "display_name": _trust_display_name(canonical),
+        "as_of": as_of,
+        "truth_kind": str(truth),
+        "source": source or "—",
+        "cadence": cadence,
+        "slo_text": slo_text,
+        "slo_kind": slo_kind,
+    }
+
+
+def _trust_canonical_name(name: Any) -> str:
+    raw = str(name or "").strip()
+    if not raw:
+        return ""
+    return TRUST_SOURCE_ALIASES.get(raw, raw)
+
+
+def _trust_display_name(name: str) -> str:
+    return TRUST_SOURCE_LABELS.get(name, name)
+
+
+def _trust_date_text(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return "—"
+    return text[:10]
+
+
+def _trust_slo_status(canonical: str, row: Dict[str, Any], payload: Dict[str, Any]) -> tuple[str, str]:
+    raw = row.get("slo") or row.get("slo_text")
+    if raw:
+        return str(raw), "watch"
+    remaining = row.get("slo_remaining_days", row.get("remaining_days"))
+    if remaining is None:
+        max_age = _trust_max_age(canonical, row, payload)
+        latency = _trust_latency_days(row, payload)
+        if max_age is not None and latency is not None:
+            remaining = max_age - latency
+    if remaining is None:
+        return "—", "watch"
+    try:
+        days = int(round(float(remaining)))
+    except (TypeError, ValueError):
+        return str(remaining), "watch"
+    if days < 0:
+        return f"超 {-days}d", "danger"
+    if days <= 1:
+        return f"剩 {days}d", "warn"
+    return f"剩 {days}d", "ok"
+
+
+def _trust_max_age(canonical: str, row: Dict[str, Any], payload: Dict[str, Any]) -> Optional[float]:
+    explicit = row.get("max_age_days")
+    if explicit is not None:
+        return _float_or_none(explicit)
+    slo = payload.get("soft_data_slo") or {}
+    max_age_map = slo.get("max_age_days") or {}
+    for key in {canonical, _trust_display_name(canonical)}:
+        if key in max_age_map:
+            return _float_or_none(max_age_map.get(key))
+    if canonical in TRUST_SOURCE_MAX_AGE_DAYS:
+        return float(TRUST_SOURCE_MAX_AGE_DAYS[canonical])
+    default = slo.get("default_max_age_days")
+    if default is not None:
+        return _float_or_none(default)
+    return None
+
+
+def _trust_latency_days(row: Dict[str, Any], payload: Dict[str, Any]) -> Optional[float]:
+    latency = _float_or_none(row.get("latency_days"))
+    if latency is not None:
+        return latency
+    picked = _parse_iso_date(row.get("as_of") or row.get("date"))
+    reference = _parse_iso_date(payload.get("as_of")) or date.today()
+    if picked is None:
+        return None
+    return float(max(0, (reference - picked).days))
+
+
+def _parse_iso_date(value: Any) -> Optional[date]:
+    text = str(value or "").strip()[:10]
+    if not text:
+        return None
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        return None
+
+
+def _float_or_none(value: Any) -> Optional[float]:
+    try:
+        out = float(value)
+        return out if out == out else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _trust_badge(label: str) -> str:
+    kind = "ok"
+    if label in {"代理", "proxy", "Proxy"}:
+        kind = "warn"
+    elif label in {"缺失", "missing", "Missing", "UNAVAILABLE"}:
+        kind = "danger"
+    return _badge(label, kind)
+
+
+def _trust_slo_badge(label: str, kind: str) -> str:
+    return _badge(label, kind)
+
+
+def _render_quality_detail_body(payload: Dict[str, Any], manifest_status: Dict[str, Any] | None = None) -> str:
     manifest_status = manifest_status or {}
     dq = payload.get("data_quality") or {}
     breakdown = payload.get("data_quality_breakdown") or {}
@@ -1392,8 +2092,7 @@ def _render_quality_section(payload: Dict[str, Any], manifest_status: Dict[str, 
         f'<span class="subtle" id="manifest-refresh-status" style="margin-left:8px"></span></div>'
     )
     return f"""
-    <section>
-      <h2>Audit Detail / 数据质量</h2>
+      <h3>Audit Detail / 数据质量</h3>
       <div class="facts" style="margin-bottom:10px">
         {_metric('Completeness', _fmt_num(dq.get('completeness_score')))}
         {_metric('Quality', _fmt_num(dq.get('quality_score')))}
@@ -1403,6 +2102,7 @@ def _render_quality_section(payload: Dict[str, Any], manifest_status: Dict[str, 
         {_metric('IBKR 状态', f"{esc(components.get('ibkr_source', 'NA'))}{' / STALE' if components.get('ibkr_stale') else ''}")}
       </div>
       {manifest_line}
+      {_render_data_trust_zone(payload)}
       <details style="margin-bottom:10px">
         <summary>为什么是 {esc(dq.get('level', 'NA'))}，如何升到 HIGH</summary>
         <div class="detail-body">
@@ -1418,10 +2118,19 @@ def _render_quality_section(payload: Dict[str, Any], manifest_status: Dict[str, 
           </table>
         </div>
       </details>
-      <table>
-        <thead><tr><th>类型</th><th>字段</th><th>惩罚</th></tr></thead>
-        <tbody>{''.join(rows) if rows else '<tr><td colspan="3">暂无数据质量惩罚</td></tr>'}</tbody>
-      </table>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>类型</th><th>字段</th><th>惩罚</th></tr></thead>
+          <tbody>{''.join(rows) if rows else '<tr><td colspan="3">暂无数据质量惩罚</td></tr>'}</tbody>
+        </table>
+      </div>
+    """
+
+
+def _render_quality_section(payload: Dict[str, Any], manifest_status: Dict[str, Any] | None = None) -> str:
+    return f"""
+    <section>
+      {_render_quality_detail_body(payload, manifest_status)}
     </section>
     """
 

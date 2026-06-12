@@ -109,10 +109,11 @@ def _action_intent(
     target_weight = _float(sizing.get("target_weight"), 0.0)
     route_applies = bool(routing.get("applies"))
     route_destination = str(routing.get("destination") or "-")
+    route_weight_items = _route_weight_items(routing, route_destination) if route_applies else []
     hard = list(score.get("hard_valve_hits") or [])
     if route_applies:
         action = "SELL_AND_ROUTE" if sell_fraction >= 1.0 or hard else "REDUCE_AND_ROUTE"
-        target_symbol = route_destination
+        target_symbol = _route_target_label(route_weight_items, route_destination)
         target_weight_for_symbol = max(0.0, sleeve_cap - target_weight)
         target_notional = target_weight_for_symbol * portfolio_value
     elif target_weight > 0:
@@ -138,6 +139,7 @@ def _action_intent(
         snapshots=snapshots,
         portfolio_value=portfolio_value,
         route_applies=route_applies,
+        route_weight_items=route_weight_items,
     )
     return {
         "symbol": symbol,
@@ -165,7 +167,19 @@ def _today_ops(action_intents: Dict[str, Dict[str, Any]], payload: Dict[str, Any
     ibkr = payload.get("ibkr") or {}
     destinations: Dict[str, float] = {}
     for row in actionable:
-        destinations[str(row.get("target_symbol"))] = destinations.get(str(row.get("target_symbol")), 0.0) + _float(row.get("target_notional"), 0.0)
+        legs = [
+            leg for leg in ((row.get("trade_plan") or {}).get("legs") or [])
+            if str(leg.get("role") or "") == "defense_route"
+        ]
+        if legs:
+            for leg in legs:
+                symbol = str(leg.get("symbol") or "")
+                if symbol:
+                    destinations[symbol] = destinations.get(symbol, 0.0) + _float(leg.get("target_notional"), 0.0)
+            continue
+        symbol = str(row.get("target_symbol") or "")
+        if symbol:
+            destinations[symbol] = destinations.get(symbol, 0.0) + _float(row.get("target_notional"), 0.0)
     reasons = []
     for row in actionable:
         for reason in row.get("top_reasons") or []:
@@ -200,16 +214,42 @@ def _trade_plan(
     snapshots: Dict[str, SymbolSnapshot],
     portfolio_value: float,
     route_applies: bool,
+    route_weight_items: Iterable[tuple[str, float]] = (),
 ) -> Dict[str, Any]:
     legs = [_target_leg(symbol, risk_target_weight, snapshots, portfolio_value, "risk")]
-    if route_applies and target_symbol and target_symbol != "-":
-        legs.append(_target_leg(target_symbol, route_target_weight, snapshots, portfolio_value, "defense_route"))
+    route_items = list(route_weight_items)
+    if route_applies and not route_items and target_symbol and target_symbol != "-":
+        route_items = [(target_symbol, 1.0)]
+    if route_applies:
+        for leg_symbol, share in route_items:
+            legs.append(_target_leg(leg_symbol, route_target_weight * share, snapshots, portfolio_value, "defense_route"))
     return {
         "portfolio_value": round(portfolio_value, 2),
         "legs": legs,
         "total_target_weight": round(sum(_float(row.get("target_weight"), 0.0) for row in legs), 6),
         "total_target_notional": round(sum(_float(row.get("target_notional"), 0.0) for row in legs), 2),
     }
+
+
+def _route_weight_items(routing: Dict[str, Any], fallback_symbol: str) -> list[tuple[str, float]]:
+    raw = routing.get("weights") or {}
+    items: list[tuple[str, float]] = []
+    if isinstance(raw, dict):
+        for symbol, value in raw.items():
+            weight = _float(value, 0.0)
+            if symbol and weight > 0:
+                items.append((str(symbol), weight))
+    total = sum(weight for _, weight in items)
+    if total <= 0:
+        return [(fallback_symbol, 1.0)] if fallback_symbol and fallback_symbol != "-" else []
+    return [(symbol, weight / total) for symbol, weight in items]
+
+
+def _route_target_label(route_weight_items: Iterable[tuple[str, float]], fallback_symbol: str) -> str:
+    symbols = [symbol for symbol, _ in route_weight_items if symbol]
+    if symbols:
+        return "/".join(symbols)
+    return fallback_symbol
 
 
 def _target_leg(

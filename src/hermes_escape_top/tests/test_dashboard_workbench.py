@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from hermes_escape_top.web import render as render_mod
-from hermes_escape_top.web.render import _render_decision_workbench, _render_health_banner
+from hermes_escape_top.web.render import _render_decision_workbench, _render_health_banner, _render_strategy_console
 
 
 def _field(value):
@@ -82,6 +82,93 @@ def _payload():
                 "factor_scores": {"B": [{"factor_id": "B2_MA200_EXTENSION", "score": 1, "max_score": 5, "explain": "Extension mild"}]},
             },
         },
+        "sizing": {
+            "MSTR": {"target_weight": 0.0},
+            "FNGU": {"target_weight": 0.0},
+            "SOXL": {"target_weight": 0.095},
+        },
+        "routing": {
+            "MSTR": {"applies": True, "defcon": "DEFCON1", "weights": {"BOXX": 0.5, "DBMF": 0.3, "GLD": 0.2}},
+        },
+        "action_intents": {
+            "MSTR": {
+                "action": "SELL_AND_ROUTE",
+                "target_symbol": "BOXX",
+                "target_notional": 1000,
+                "target_weight": 0.0,
+                "top_reasons": ["Hard valves: H-M1"],
+                "trade_plan": {"legs": [
+                    {"role": "risk", "symbol": "MSTR", "target_weight": 0.0, "target_notional": 0.0, "target_shares": 0, "reference_price": 120},
+                    {"role": "defense_route", "symbol": "BOXX", "target_weight": 0.1, "target_notional": 1000, "target_shares": 8.5, "reference_price": 117},
+                ]},
+            },
+            "FNGU": {
+                "action": "SELL_AND_ROUTE",
+                "target_symbol": "BOXX",
+                "target_notional": 1000,
+                "target_weight": 0.0,
+                "top_reasons": ["FNGU component flow severe"],
+                "trade_plan": {"legs": [
+                    {"role": "risk", "symbol": "FNGU", "target_weight": 0.0, "target_notional": 0.0, "target_shares": 0, "reference_price": 32},
+                    {"role": "defense_route", "symbol": "BOXX", "target_weight": 0.1, "target_notional": 1000, "target_shares": 8.5, "reference_price": 117},
+                ]},
+            },
+            "SOXL": {
+                "action": "HOLD_OR_MAINTAIN",
+                "target_weight": 0.095,
+                "top_reasons": ["SOXL component flow abnormal"],
+            },
+        },
+        "today_ops": {
+            "headline": "需要处置",
+            "action_count": 3,
+            "data_quality": "HIGH",
+            "data_quality_score": 93.5,
+            "ibkr_source": "tws",
+        },
+        "data_quality": {
+            "level": "HIGH",
+            "overall_score": 93.5,
+            "completeness_score": 96,
+            "quality_score": 94,
+            "latency_score": 91,
+            "penalties": [],
+        },
+        "data_quality_breakdown": {
+            "components": {
+                "price_fresh": True,
+                "soft_proxy_count": 0,
+                "ibkr_source": "tws",
+                "ibkr_stale": False,
+            },
+            "sources": [
+                {"category": "soft", "name": "cboe_pcr", "status": "AVAILABLE", "as_of": "2026-06-03", "is_proxy": False, "latency_days": 1, "source": "CBOE_DAILY_HTML"},
+                {"category": "soft", "name": "aaii", "status": "AVAILABLE", "as_of": "2026-05-30", "is_proxy": False, "latency_days": 5, "source": "AAII"},
+            ],
+        },
+        "soft_data": {
+            "records": {
+                "cboe_pcr": {"as_of": "2026-06-03", "data_available": True, "is_proxy": False, "latency_days": 1, "source": "CBOE_DAILY_HTML"},
+                "aaii": {"as_of": "2026-05-30", "data_available": True, "is_proxy": False, "latency_days": 5, "source": "AAII"},
+            }
+        },
+        "ibkr": {
+            "source": "tws",
+            "net_liq": 100000,
+            "trade_symbols": [
+                {"symbol": "MSTR", "ideal_weight": 0.0, "actual_weight": 0.0, "actual_notional": 0.0, "actual_shares": 0, "status": "MATCH"},
+                {"symbol": "FNGU", "ideal_weight": 0.0, "actual_weight": 0.0, "actual_notional": 0.0, "actual_shares": 0, "status": "MATCH"},
+                {"symbol": "SOXL", "ideal_weight": 0.095, "actual_weight": 0.0, "actual_notional": 0.0, "actual_shares": 0, "status": "MISSING"},
+            ],
+            "route_legs": [
+                {"symbol": "BOXX", "ideal_weight": 0.277, "actual_weight": 0.0, "actual_notional": 0.0, "actual_shares": 0, "status": "MISSING"},
+                {"symbol": "DBMF", "ideal_weight": 0.166, "actual_weight": 0.0, "actual_notional": 0.0, "actual_shares": 0, "status": "MISSING"},
+                {"symbol": "GLD", "ideal_weight": 0.111, "actual_weight": 0.0, "actual_notional": 0.0, "actual_shares": 0, "status": "MISSING"},
+            ],
+            "extra_positions": [
+                {"symbol": "BRK.B", "ideal_weight": 0.0, "actual_weight": 0.127, "actual_notional": 12700, "actual_shares": 23, "status": "EXTRA"},
+            ],
+        },
         "decision_layers": {
             "MSTR": {"hard_valve_state": {"triggered": True, "ids": ["H-M1"], "count": 1}},
             "FNGU": {"hard_valve_state": {"triggered": False, "pending_ids": ["H-F4"], "count": 0}},
@@ -114,6 +201,38 @@ def _payload():
             "qqq": {"close": 500, "ema20": 510, "ema50": 520, "ma200": 530, "below_ema20": True, "below_ema50": True, "below_ma200": True},
             "module_a": {"MSTR": 14, "FNGU": 13, "SOXL": 12},
             "brkb_defense": {"degraded": False, "reason": "BRK.B usable", "corr_to_spy": 0.42, "threshold": 0.85},
+        },
+        "flow": {
+            "as_of": "2026-06-04",
+            "db_path": "/tmp/flow_reference.sqlite",
+            "symbols": {
+                "MSTR": {"symbol": "MSTR", "severity": "WATCH", "cmf20": -0.08, "mfi14": 25.07, "legacy_signed_5d": -4_790_000_000, "outflow_days_5d": 5},
+            },
+            "component_baskets": {
+                "FNGU": {
+                    "severity": "SEVERE",
+                    "avg_cmf20": -0.12,
+                    "avg_mfi14": 37,
+                    "abnormal_components": 3,
+                    "component_count": 4,
+                    "components": [
+                        {"symbol": "NFLX", "severity": "SEVERE", "cmf20": -0.24, "mfi14": 29.03, "legacy_signed_5d": 3_740_000_000, "outflow_days_5d": 5},
+                        {"symbol": "NVDA", "severity": "ABNORMAL", "cmf20": -0.17, "mfi14": 33.53, "legacy_signed_5d": -53_930_000_000, "outflow_days_5d": 5},
+                        {"symbol": "AMZN", "severity": "ABNORMAL", "cmf20": -0.11, "mfi14": 24.97, "legacy_signed_5d": -32_060_000_000, "outflow_days_5d": 5},
+                    ],
+                },
+                "SOXL": {
+                    "severity": "ABNORMAL",
+                    "avg_cmf20": -0.04,
+                    "avg_mfi14": 55,
+                    "abnormal_components": 1,
+                    "component_count": 3,
+                    "components": [
+                        {"symbol": "NVDA", "severity": "ABNORMAL", "cmf20": -0.17, "mfi14": 33.53, "legacy_signed_5d": -53_930_000_000, "outflow_days_5d": 5},
+                        {"symbol": "AMD", "severity": "NORMAL", "cmf20": 0.20, "mfi14": 61.59, "legacy_signed_5d": -25_240_000_000, "outflow_days_5d": 0},
+                    ],
+                },
+            },
         },
     }
 
@@ -148,6 +267,49 @@ def test_workbench_renders_p3_visual_blocks():
     assert "A&gt;=12 AND QQQ below" in html
     assert "BRK.B usable" in html
     assert "correlation gauge" in html
+
+
+def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
+    html = render_mod.render_dashboard(_payload(), health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    assert "系统状态 + 数据质量" in html
+    assert "区域 5 · 数据信任区" in html
+    assert "cboe_equity_pcr" in html and "CBOE_DAILY_HTML" in html and "剩 5d" in html
+    assert "aaii_sentiment" in html and "AAII" in html and "真实" in html
+    assert "今日操作台" in html
+    assert "DEFCON 路由" in html and "执行计划资金去向" in html
+    assert "路由/执行口径不一致" in html and "DBMF" in html and "GLD" in html
+    assert html.index("今日操作台") < html.index("展开完整处置指令")
+    assert html.index("展开完整处置指令") < html.index("当前持仓 + IBKR 对账")
+    assert "MSTR EXIT" in html and "FNGU REDUCE" in html and "SOXL HOLD" in html
+    assert "当前持仓 + IBKR 对账" in html
+    assert "IBKR 现有总资产" in html
+    assert "理想仓位上一交易日盈亏" in html
+    assert "穿透股票现金流" in html
+    assert html.index("当前持仓 + IBKR 对账") < html.index("穿透股票现金流")
+    assert html.index("穿透股票现金流") < html.index("Mirror Reference")
+    assert "SOXL" in html and "买入缺口" in html
+    assert "BOXX" in html and "+27.7%" in html
+    assert "FNGU 资金流" in html and "SEVERE" in html
+    assert "NVDA" in html and "-$53.93B" in html
+    assert "资金流热力解释" in html
+    assert "其他折叠详情" in html and "硬阀门全景" in html
+
+
+def test_strategy_console_uses_combo_trade_plan_when_execution_legs_are_present():
+    payload = _payload()
+    payload["action_intents"]["MSTR"]["trade_plan"]["legs"] = [
+        {"role": "risk", "symbol": "MSTR", "target_weight": 0.0, "target_notional": 0.0, "target_shares": 0, "reference_price": 120},
+        {"role": "defense_route", "symbol": "BOXX", "target_weight": 0.05, "target_notional": 500, "target_shares": 4.3, "reference_price": 117},
+        {"role": "defense_route", "symbol": "DBMF", "target_weight": 0.03, "target_notional": 300, "target_shares": 10.0, "reference_price": 30},
+        {"role": "defense_route", "symbol": "GLD", "target_weight": 0.02, "target_notional": 200, "target_shares": 1.0, "reference_price": 200},
+    ]
+
+    html = _render_strategy_console(payload, {"level": "OK"})
+
+    assert "路由与执行计划一致" in html
+    assert "路由/执行口径不一致" not in html
+    assert "执行计划资金去向" in html and "BOXX" in html and "DBMF" in html and "GLD" in html
 
 
 def test_daily_diff_panel_reads_latest_shadow_report(tmp_path, monkeypatch):

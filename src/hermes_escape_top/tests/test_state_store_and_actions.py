@@ -4,10 +4,12 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 from unittest import mock
 
 from hermes_escape_top.pipeline import score_pipeline
+from hermes_escape_top.core.data.base import Field, SymbolSnapshot
 from hermes_escape_top.core.data.state_store import (
     latest_execution_confirmations,
     recent_calibration_logs,
@@ -17,6 +19,7 @@ from hermes_escape_top.core.data.state_store import (
     write_refresh_run,
     write_state_snapshot,
 )
+from hermes_escape_top.core.decision.action_intents import build_action_context
 from hermes_escape_top.core.reentry.plan import ReentryPlan
 
 
@@ -69,7 +72,75 @@ def _minimal_payload(as_of: str) -> dict:
     }
 
 
+def _snapshot(symbol: str, close: float) -> SymbolSnapshot:
+    as_of = date(2026, 6, 11)
+    return SymbolSnapshot(
+        symbol=symbol,
+        as_of=as_of,
+        fields={"close": Field("close", close, "unit", as_of)},
+    )
+
+
 class StateStoreAndActionTest(unittest.TestCase):
+    def test_action_context_expands_defcon_combo_into_execution_legs(self) -> None:
+        payload = {
+            "scores": {
+                "MSTR": {
+                    "status": "EXIT",
+                    "final_score": 80,
+                    "sell_fraction": 1.0,
+                    "hard_valve_hits": ["H-M1"],
+                    "module_scores": {},
+                    "factor_scores": {},
+                },
+            },
+            "sizing": {"MSTR": {"sleeve_cap": 0.15, "target_weight": 0.0}},
+            "routing": {
+                "MSTR": {
+                    "applies": True,
+                    "defcon": "DEFCON1",
+                    "destination": "BOXX",
+                    "weights": {"BOXX": 0.5, "DBMF": 0.3, "GLD": 0.2},
+                    "reason": "unit combo route",
+                },
+            },
+            "reentry": {"MSTR": {"eligible": False}},
+            "posterior_pnl": {"portfolio_value": 100000},
+            "data_quality": {"overall_score": 100},
+            "ibkr": {"source": "disabled"},
+        }
+        snapshots = {
+            "MSTR": _snapshot("MSTR", 400),
+            "BOXX": _snapshot("BOXX", 100),
+            "DBMF": _snapshot("DBMF", 25),
+            "GLD": _snapshot("GLD", 200),
+        }
+
+        result = build_action_context(payload, snapshots)
+
+        intent = result["action_intents"]["MSTR"]
+        self.assertEqual(intent["target_symbol"], "BOXX/DBMF/GLD")
+        self.assertIsNone(intent["target_shares"])
+        defense = {
+            leg["symbol"]: leg
+            for leg in intent["trade_plan"]["legs"]
+            if leg["role"] == "defense_route"
+        }
+        self.assertEqual(set(defense), {"BOXX", "DBMF", "GLD"})
+        self.assertAlmostEqual(defense["BOXX"]["target_weight"], 0.075)
+        self.assertAlmostEqual(defense["DBMF"]["target_weight"], 0.045)
+        self.assertAlmostEqual(defense["GLD"]["target_weight"], 0.03)
+        self.assertEqual(defense["BOXX"]["target_notional"], 7500.0)
+        self.assertEqual(defense["DBMF"]["target_notional"], 4500.0)
+        self.assertEqual(defense["GLD"]["target_notional"], 3000.0)
+        self.assertEqual(defense["BOXX"]["target_shares"], 75.0)
+        self.assertEqual(defense["DBMF"]["target_shares"], 180.0)
+        self.assertEqual(defense["GLD"]["target_shares"], 15.0)
+        self.assertEqual(
+            result["today_ops"]["destinations"],
+            {"BOXX": 7500.0, "DBMF": 4500.0, "GLD": 3000.0},
+        )
+
     def test_pipeline_writes_unified_state_and_action_context(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             config_path = _temp_config(tmp)

@@ -77,7 +77,7 @@ def route_capital(
             "DEFCON1",
             "BOXX",
             weights,
-            "Macro/liquidity nuclear condition: route sell proceeds to BOXX defensive sleeve.",
+            f"Macro/liquidity nuclear condition: route sell proceeds to DEFCON1 defensive combo ({_weight_label(weights)}).",
         )
 
     internal_break = (
@@ -126,6 +126,10 @@ def _factor_max(score: ScoreResult, prefix: str) -> float:
             if factor_id.startswith(prefix):
                 best = max(best, float(row.get("score", 0.0) or 0.0))
     return best
+
+
+def _weight_label(weights: Dict[str, float]) -> str:
+    return ", ".join(f"{symbol} {float(weight):.0%}" for symbol, weight in weights.items() if float(weight) > 0)
 
 
 def evaluate_brkb_defense(
