@@ -76,7 +76,7 @@ def append(rec: dict, dry_run: bool = False) -> None:
     row = {"date": pd.Timestamp(rec["date"]), "publish_date": date.today().isoformat(),
            "equity_pcr": rec["ratio"], "source": "CBOE_DAILY_HTML", "is_proxy": False}
     frame = pd.concat([frame, pd.DataFrame([row])], ignore_index=True)
-    frame = frame.sort_values("date").drop_duplicates(subset=["date"], keep="last")
+    frame = _dedup_real_wins(frame)
     frame["equity_pcr_pctl"] = (
         frame["equity_pcr"].rolling(PCTL_WINDOW, min_periods=60)
         .apply(lambda w: float((w <= w.iloc[-1]).mean() * 100.0), raw=False)
@@ -87,6 +87,20 @@ def append(rec: dict, dry_run: bool = False) -> None:
     frame.to_csv(OUT, index=False)
     print(f"appended {rec['date']} pcr={rec['ratio']} "
           f"(cross-check {rec['put_volume']}/{rec['call_volume']}) -> {OUT.name}")
+
+
+
+def _dedup_real_wins(frame: pd.DataFrame) -> pd.DataFrame:
+    """One row per date, real (CBOE_DAILY_HTML) beating proxy.
+
+    sort_values' default quicksort is NOT stable — sorting by date alone and
+    keeping "last" picked proxy-vs-real arbitrarily (lost 248 of 498 fetched
+    rows on the first 2024-2026 backfill). Rank realness explicitly instead.
+    """
+    src = frame["source"] if "source" in frame.columns else pd.Series("", index=frame.index)
+    frame = frame.assign(_real=(src == "CBOE_DAILY_HTML").astype(int))
+    frame = frame.sort_values(["date", "_real"], kind="stable")
+    return frame.drop_duplicates(subset=["date"], keep="last").drop(columns=["_real"])
 
 
 def backfill_range(start: str, end: str, sleep_s: float = 1.5) -> int:
@@ -123,7 +137,7 @@ def backfill_range(start: str, end: str, sleep_s: float = 1.5) -> int:
         time.sleep(sleep_s)
     if rows:
         frame = pd.concat([frame, pd.DataFrame(rows)], ignore_index=True)
-        frame = frame.sort_values("date").drop_duplicates(subset=["date"], keep="last")
+        frame = _dedup_real_wins(frame)
         frame["equity_pcr_pctl"] = (
             frame["equity_pcr"].rolling(PCTL_WINDOW, min_periods=60)
             .apply(lambda w: float((w <= w.iloc[-1]).mean() * 100.0), raw=False)
