@@ -7,6 +7,18 @@ from typing import Any, Dict, Iterable, List, Optional
 
 
 TRADE_SYMBOLS = ["MSTR", "FNGU", "SOXL"]
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
+RUNBOOK_REFS = {
+    "normal": ("runbook-normal", "正常运行", "确认 run_daily/watchdog 成功，检查日报末行、preflight 和 post-run diff。"),
+    "data": ("runbook-data", "数据缺失 / 过期", "先补跑 run_daily；若单源过期，按 FRED/AAII/NAAIM/COT 对应命令刷新。"),
+    "pending": ("runbook-pending", "Suspect valve PENDING", "坏 tick 嫌疑日不动作，等待次日干净收盘确认；连续 2 天再查源数据。"),
+    "ibkr": ("runbook-ibkr", "IBKR 只读连接失败", "确认 TWS/Gateway、端口和 readonly；评分仍有效，但持仓对账不可用。"),
+    "gate": ("runbook-gate", "回测 / gate 失败", "FAIL 即归档 Rejected，flag 保持 OFF，不二次调参。"),
+    "flag": ("runbook-flag", "Flag 翻闸", "OFF 证明、gate 证据、台账和部署 diff 人工确认齐备后再翻。"),
+    "deploy": ("runbook-deploy", "部署 repo -> live", "走 deploy_to_live 备份、rsync、config diff 和 import 对比流程。"),
+    "launchd": ("runbook-launchd", "launchd 维护", "用 launchctl print/kickstart 检查 daily/watchdog，停用走 unload。"),
+}
 
 
 def render_dashboard(
@@ -221,6 +233,40 @@ def render_dashboard(
     .flow-card .flow-body {{ padding: 10px; overflow-x: auto; }}
     .flow-money.pos {{ color: #047857; font-weight: 800; }}
     .flow-money.neg {{ color: #b91c1c; font-weight: 800; }}
+    .workbench-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }}
+    .work-card {{ border: 1px solid #e5e7eb; border-radius: 8px; background: #fbfdff; padding: 10px; min-width: 0; }}
+    .work-card h3 {{ display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap; }}
+    .symbol-strip {{ display: grid; gap: 8px; }}
+    .symbol-strip-row {{ border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; padding: 8px; min-width: 0; }}
+    .row-head {{ display:flex; justify-content:space-between; gap:8px; align-items:flex-start; flex-wrap:wrap; margin-bottom:6px; }}
+    .row-title {{ font-weight:900; }}
+    .mini-note {{ color: var(--muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }}
+    .valve-grid {{ display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:6px; margin-top:6px; }}
+    .valve-item {{ border:1px solid #e5e7eb; border-radius:6px; padding:7px; background:#f8fafc; min-width:0; }}
+    .valve-item.triggered {{ border-color:#fecaca; background:#fef2f2; }}
+    .valve-item.pending, .valve-item.buffered {{ border-color:#fed7aa; background:#fff7ed; }}
+    .valve-item.clear {{ background:#f9fafb; }}
+    .valve-title {{ display:flex; justify-content:space-between; gap:6px; align-items:flex-start; flex-wrap:wrap; margin-bottom:4px; }}
+    .valve-title b {{ overflow-wrap:anywhere; }}
+    .valve-metrics {{ color:var(--muted); font-size:11px; line-height:1.4; overflow-wrap:anywhere; }}
+    .diff-box {{ max-height: 260px; overflow: auto; border:1px solid #e5e7eb; border-radius:6px; background:#fff; padding:10px; font-size:12px; line-height:1.5; }}
+    .diff-box h3 {{ margin-top: 8px; }}
+    .diff-box ul {{ margin: 5px 0 8px; padding-left: 18px; }}
+    .runbook-mini {{ margin-top: 10px; border-top: 1px solid rgba(0,0,0,.08); padding-top: 8px; display:grid; gap:6px; }}
+    .runbook-mini div {{ font-size: 12px; color: var(--muted); }}
+    .runbook-mini b {{ color: var(--text); }}
+    .risk-bar-row {{ display:grid; grid-template-columns: 72px minmax(0,1fr) 86px; gap:8px; align-items:center; margin:8px 0; font-size:12px; }}
+    .risk-bar-label {{ font-weight:900; overflow-wrap:anywhere; }}
+    .risk-bar-track {{ height:14px; background:#e5e7eb; border-radius:999px; overflow:hidden; }}
+    .risk-bar-fill {{ height:100%; background:#64748b; border-radius:999px; }}
+    .stress-grid {{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:8px; }}
+    .stress-card {{ border:1px solid #e5e7eb; border-radius:6px; background:#fff; padding:8px; min-width:0; }}
+    .condition-chain {{ display:grid; gap:8px; }}
+    .condition-step {{ border:1px solid #e5e7eb; border-radius:6px; background:#fff; padding:8px; }}
+    .condition-step.pass {{ border-color:#86efac; background:#f0fdf4; }}
+    .condition-step.fail {{ border-color:#fed7aa; background:#fff7ed; }}
+    .condition-step.danger {{ border-color:#fecaca; background:#fef2f2; }}
+    .spark-svg {{ width:100%; max-width:420px; height:58px; display:block; margin-top:6px; }}
     details {{ border: 1px solid #e5e7eb; border-radius: 6px; background: #fbfdff; }}
     summary {{ cursor: pointer; padding: 9px 10px; font-weight: 800; color: #334155; }}
     details .detail-body {{ padding: 0 10px 10px; }}
@@ -260,10 +306,12 @@ def render_dashboard(
       .ibkr-head {{ grid-template-columns: 1fr; }}
       .macro-summary, .macro-factors {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .flow-grid {{ grid-template-columns: 1fr; }}
+      .workbench-grid {{ grid-template-columns: 1fr; }}
     }}
     @media (max-width: 720px) {{
       .shell {{ padding: 10px; }}
       .kpis, .facts, .mini-grid, .module-row {{ grid-template-columns: 1fr; }}
+      .valve-grid, .stress-grid {{ grid-template-columns: 1fr; }}
       .macro-summary, .macro-factors {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       h1 {{ font-size: 22px; }}
     }}
@@ -302,6 +350,7 @@ def render_dashboard(
     {_render_cache_hint(cache)}
 
     {_render_briefing(payload, health)}
+    {_render_decision_workbench(payload)}
     {_render_kpis(payload)}
 
     {_render_today_ops(payload)}
@@ -338,6 +387,263 @@ def write_dashboard(payload: Dict[str, Any], output_path: Path) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(render_dashboard(payload), encoding="utf-8")
     return output_path
+
+
+def _render_decision_workbench(payload: Dict[str, Any]) -> str:
+    return f"""
+    <section>
+      <h2>决策工作台 / Decision Workbench</h2>
+      <div class="workbench-grid">
+        {_render_hard_valve_panel(payload)}
+        {_render_reentry_lock_panel(payload)}
+        {_render_daily_diff_panel(payload)}
+        {_render_top_factor_panel(payload)}
+      </div>
+      {_render_p3_visuals(payload)}
+    </section>
+    """
+
+
+def _render_hard_valve_panel(payload: Dict[str, Any]) -> str:
+    rows: List[str] = []
+    scores = payload.get("scores") or {}
+    layers = payload.get("decision_layers") or {}
+    for symbol in TRADE_SYMBOLS:
+        score = scores.get(symbol) or {}
+        hv_state = ((layers.get(symbol) or {}).get("hard_valve_state") or {})
+        candidates = _valve_candidates_for(score, hv_state)
+        hits = list(score.get("hard_valve_hits") or hv_state.get("ids") or [])
+        pending = list(hv_state.get("pending_ids") or hv_state.get("pending") or [])
+        if candidates:
+            badge = _valve_summary_badge(candidates)
+            detail = _render_valve_candidate_grid(candidates)
+        elif hits:
+            badge = _badge("已触发", "danger")
+            detail = f"<div class='mini-note'>{esc(_valve_reason_text(score, hits))}</div>"
+        elif pending:
+            badge = _badge("PENDING", "warn")
+            detail = f"<div class='mini-note'>{esc('等待确认：' + ', '.join(str(item) for item in pending))}</div>"
+        else:
+            badge = _badge("未触发", "ok")
+            detail = f"<div class='mini-note'>{esc(_valve_distance_text(symbol, payload))}</div>"
+        rows.append(
+            "<div class='symbol-strip-row'>"
+            f"<div class='row-head'><span class='row-title'>{esc(symbol)}</span>{badge}</div>"
+            f"{detail}"
+            "</div>"
+        )
+    return (
+        "<div class='work-card'>"
+        "<h3>硬阀门全景 <span class='subtle'>triggered / pending / distance</span></h3>"
+        f"<div class='symbol-strip'>{''.join(rows)}</div>"
+        "</div>"
+    )
+
+
+def _render_reentry_lock_panel(payload: Dict[str, Any]) -> str:
+    rows: List[str] = []
+    scores = payload.get("scores") or {}
+    reentry = payload.get("reentry") or {}
+    state_payload = payload.get("reentry_state") or {}
+    states = state_payload.get("states") or {}
+    for symbol in TRADE_SYMBOLS:
+        plan = reentry.get(symbol) or {}
+        score = scores.get(symbol) or {}
+        state = states.get(symbol) or {}
+        final_score = _float(score.get("final_score"), 0.0)
+        c_score = _float((score.get("module_scores") or {}).get("C"), 0.0)
+        eligible = bool(plan.get("eligible"))
+        lock_reason = str(plan.get("locked_reason") or ("unlocked" if eligible else "NA"))
+        tranche = str(plan.get("tranche") or state.get("last_tranche") or "NA")
+        t1 = bool(state.get("t1_active")) or tranche == "T1"
+        t2 = bool(state.get("t2_active")) or tranche == "T2"
+        t3 = tranche == "T3"
+        rows.append(
+            "<div class='symbol-strip-row'>"
+            f"<div class='row-head'><span class='row-title'>{esc(symbol)}</span>{_badge('UNLOCKED' if eligible else 'LOCKED', 'ok' if eligible else 'warn')}</div>"
+            "<table>"
+            "<tbody>"
+            f"{_tr('时间锁', esc(lock_reason), '解锁条件：距上次卖出 ≥ 11 个交易日')}"
+            f"{_tr('分数锁', _fmt_num(final_score), '解锁条件：总分 < 19')}"
+            f"{_tr('结构锁', _fmt_num(c_score), '解锁条件：C < 5 且背离解除')}"
+            f"{_tr('批次状态', f'T1={esc(t1)} / T2={esc(t2)} / T3={esc(t3)}', esc('; '.join(plan.get('explain') or []) or state.get('updated_at', '')))}"
+            "</tbody>"
+            "</table>"
+            "</div>"
+        )
+    return (
+        "<div class='work-card'>"
+        "<h3>再入场三锁 <span class='subtle'>time / score / structure</span></h3>"
+        f"<div class='symbol-strip'>{''.join(rows)}</div>"
+        "</div>"
+    )
+
+
+def _render_daily_diff_panel(payload: Dict[str, Any]) -> str:
+    path = _latest_daily_diff_path(str(payload.get("as_of") or ""))
+    if not path:
+        body = "<div class='diff-box'>首日无对比：未找到 post-run diff。</div>"
+        source = "no diff"
+    else:
+        body = f"<div class='diff-box'>{_markdown_to_html(path.read_text(encoding='utf-8'))}</div>"
+        source = path.relative_to(REPO_ROOT).as_posix() if _is_relative_to(path, REPO_ROOT) else str(path)
+    return (
+        "<div class='work-card'>"
+        f"<h3>今日变化 <span class='subtle'>{esc(source)}</span></h3>"
+        f"{body}"
+        "</div>"
+    )
+
+
+def _render_top_factor_panel(payload: Dict[str, Any]) -> str:
+    blocks: List[str] = []
+    for symbol in TRADE_SYMBOLS:
+        score = (payload.get("scores") or {}).get(symbol) or {}
+        factors = _top_factor_items(score, limit=5)
+        rows = []
+        for module, row in factors:
+            rows.append(
+                "<tr>"
+                f"<td>{esc(symbol)}<div class='subtle'>{esc(module)}</div></td>"
+                f"<td><b>{esc(row.get('factor_id', row.get('name', '')))}</b></td>"
+                f"<td>{_fmt_num(row.get('score'))} / {_fmt_num(row.get('max_score'))}</td>"
+                f"<td>{_factor_explain_cell(row)}</td>"
+                "</tr>"
+            )
+        blocks.append("".join(rows) or f"<tr><td colspan='4'>{esc(symbol)} 暂无正贡献因子</td></tr>")
+    return (
+        "<div class='work-card'>"
+        "<h3>Top 5 因子贡献 <span class='subtle'>per symbol</span></h3>"
+        "<table>"
+        "<thead><tr><th>标的/模块</th><th>因子</th><th>得分</th><th>解释</th></tr></thead>"
+        f"<tbody>{''.join(blocks)}</tbody>"
+        "</table>"
+        "</div>"
+    )
+
+
+def _render_p3_visuals(payload: Dict[str, Any]) -> str:
+    return f"""
+      <div class="workbench-grid" style="margin-top:10px">
+        {_render_risk_contribution_panel(payload)}
+        {_render_stress_scenario_panel(payload)}
+        {_render_defcon_chain_panel(payload)}
+      </div>
+    """
+
+
+def _render_risk_contribution_panel(payload: Dict[str, Any]) -> str:
+    block = payload.get("risk_contributions") or {}
+    if not block:
+        body = "<div class='mini-note'>等待下一次日跑写入 risk_contributions。</div>"
+    elif block.get("_error"):
+        body = f"<div class='warning-box'>{esc(block.get('_error'))}</div>"
+    else:
+        rows = []
+        for symbol, row in sorted((item for item in block.items() if item[0] != "_portfolio"),
+                                  key=lambda item: _float((item[1] or {}).get("vol_contribution_pct"), 0.0),
+                                  reverse=True):
+            pct = max(0.0, min(1.0, _float((row or {}).get("vol_contribution_pct"), 0.0)))
+            rows.append(
+                "<div class='risk-bar-row'>"
+                f"<div class='risk-bar-label'>{esc(symbol)}</div>"
+                f"<div class='risk-bar-track'><div class='risk-bar-fill' style='width:{pct*100:.1f}%'></div></div>"
+                f"<div>{_fmt_pct(pct)}<div class='subtle'>vol {_fmt_pct((row or {}).get('vol_contribution'))}</div></div>"
+                "</div>"
+        )
+        portfolio = block.get("_portfolio") or {}
+        row_html = "".join(rows) if rows else "<div class='mini-note'>暂无非零风险贡献。</div>"
+        body = (
+            f"<div class='subtle'>portfolio forecast vol {_fmt_pct(portfolio.get('forecast_vol'))}</div>"
+            f"{row_html}"
+        )
+    return (
+        "<div class='work-card'>"
+        "<h3>风险贡献条形图 <span class='subtle'>ex-ante vol</span></h3>"
+        f"{body}"
+        "</div>"
+    )
+
+
+def _render_stress_scenario_panel(payload: Dict[str, Any]) -> str:
+    scenarios = payload.get("stress_scenarios") or []
+    if not scenarios:
+        body = "<div class='mini-note'>等待下一次日跑写入 stress_scenarios。</div>"
+    else:
+        cards = []
+        for row in scenarios:
+            if row.get("_error"):
+                cards.append(f"<div class='stress-card warning-box'>{esc(row.get('_error'))}</div>")
+                continue
+            name = str(row.get("name") or "scenario")
+            if row.get("est_pnl_pct") is not None:
+                val = _float(row.get("est_pnl_pct"), 0.0)
+                kind = "danger" if val < 0 else "ok"
+                cards.append(
+                    "<div class='stress-card'>"
+                    f"<div class='row-head'><b>{esc(name)}</b>{_badge(_fmt_pct(val/100.0, signed=True), kind)}</div>"
+                    "<div class='mini-note'>估算当前目标账本冲击损益</div>"
+                    "</div>"
+                )
+            else:
+                before = _float(row.get("forecast_vol_before"), 0.0)
+                after = _float(row.get("forecast_vol_after"), 0.0)
+                ratio = after / before if before > 0 else 0.0
+                cards.append(
+                    "<div class='stress-card'>"
+                    f"<div class='row-head'><b>{esc(name)}</b>{_badge('vol x ' + _fmt_num(ratio), 'warn' if ratio > 1 else 'ok')}</div>"
+                    f"{_mini_vol_svg(before, after)}"
+                    f"<div class='mini-note'>before {_fmt_pct(before)} -> after {_fmt_pct(after)}</div>"
+                    "</div>"
+                )
+        body = f"<div class='stress-grid'>{''.join(cards)}</div>"
+    return (
+        "<div class='work-card'>"
+        "<h3>四情景压力测试 <span class='subtle'>QQQ / BTC / corr / VIX</span></h3>"
+        f"{body}"
+        "</div>"
+    )
+
+
+def _render_defcon_chain_panel(payload: Dict[str, Any]) -> str:
+    ctx = payload.get("routing_context") or {}
+    if not ctx:
+        body = "<div class='mini-note'>等待下一次日跑写入 routing_context。</div>"
+    elif ctx.get("_error"):
+        body = f"<div class='warning-box'>{esc(ctx.get('_error'))}</div>"
+    else:
+        qqq = ctx.get("qqq") or {}
+        module_a = ctx.get("module_a") or {}
+        brkb = ctx.get("brkb_defense") or {}
+        qqq_broken = any(bool(qqq.get(key)) for key in ("below_ma200", "below_ema50", "below_ema20"))
+        max_a = max([_float(v, 0.0) for v in module_a.values()] or [0.0])
+        defcon1_ready = max_a >= 12 and qqq_broken
+        brkb_degraded = bool(brkb.get("degraded"))
+        body = (
+            "<div class='condition-chain'>"
+            f"<div class='condition-step {'pass' if defcon1_ready else 'fail'}'>"
+            f"<div class='row-head'><b>DEFCON1</b>{_badge('MATCH' if defcon1_ready else 'not now', 'danger' if defcon1_ready else 'watch')}</div>"
+            f"<div class='mini-note'>{esc(ctx.get('defcon1_rule'))}</div>"
+            f"<div class='mini-note'>max A={_fmt_num(max_a)} · QQQ close {_fmt_money(qqq.get('close'))} / EMA20 {_fmt_money(qqq.get('ema20'))} / EMA50 {_fmt_money(qqq.get('ema50'))} / MA200 {_fmt_money(qqq.get('ma200'))}</div>"
+            "</div>"
+            "<div class='condition-step pass'>"
+            f"<div class='row-head'><b>DEFCON2</b>{_badge('BRK.B degraded' if brkb_degraded else 'BRK.B usable', 'warn' if brkb_degraded else 'ok')}</div>"
+            f"<div class='mini-note'>{esc(ctx.get('defcon2_rule'))}</div>"
+            f"<div class='mini-note'>BRK.B reason={esc(brkb.get('reason', 'NA'))} · corr={_fmt_num(brkb.get('corr_to_spy'))} / threshold {_fmt_num(brkb.get('threshold'))}</div>"
+            f"{_correlation_gauge(brkb.get('corr_to_spy'), brkb.get('threshold'))}"
+            "</div>"
+            "<div class='condition-step'>"
+            f"<div class='row-head'><b>DEFCON3</b>{_badge('1x same-thesis route', 'watch')}</div>"
+            "<div class='mini-note'>SOXL -> SOXX · FNGU -> QQQ · MSTR -> BTC-USD；未命中 DEFCON1/2 时走常规去杠杆。</div>"
+            "</div>"
+            "</div>"
+        )
+    return (
+        "<div class='work-card' style='grid-column:1 / -1'>"
+        "<h3>DEFCON 条件链 <span class='subtle'>routing_context</span></h3>"
+        f"{body}"
+        "</div>"
+    )
 
 
 def _render_kpis(payload: Dict[str, Any]) -> str:
@@ -978,9 +1284,11 @@ def _render_health_banner(health: Dict[str, Any]) -> str:
     color = "var(--red)" if crit else "var(--amber)"
     bg = "#fef2f2" if crit else "#fffbeb"
     title = "🚨 运行严重降级 / CRITICAL" if crit else "⚠️ 运行降级 / DEGRADED"
+    refs = [_runbook_key_for_check(c) for c in checks]
     items = "".join(
         f'<li><b style="color:{"var(--red)" if c.get("level")=="CRITICAL" else "var(--amber)"}">'
-        f'{esc(c.get("label"))}</b>{(" — " + esc(c.get("detail"))) if c.get("detail") else ""}</li>'
+        f'{esc(c.get("label"))}</b>{(" — " + esc(c.get("detail"))) if c.get("detail") else ""} '
+        f'<a href="#{RUNBOOK_REFS[_runbook_key_for_check(c)][0]}">处理清单</a></li>'
         for c in checks
     )
     return (
@@ -989,8 +1297,43 @@ def _render_health_banner(health: Dict[str, Any]) -> str:
         f'<div style="font-weight:700;color:{color};font-size:15px">{title}</div>'
         f'<div class="subtle" style="margin:4px 0 6px">今日日报基于降级的数据/连接，请先处理以下问题再据此决策：</div>'
         f'<ul style="margin:0;padding-left:20px">{items}</ul>'
+        f'{_render_runbook_refs(refs)}'
         f'</section>'
     )
+
+
+def _runbook_key_for_check(check: Dict[str, Any]) -> str:
+    text = f"{check.get('label', '')} {check.get('detail', '')}"
+    if "IBKR" in text:
+        return "ibkr"
+    if "PENDING" in text or "阀门" in text or "suspect" in text.lower():
+        return "pending"
+    if "gate" in text.lower() or "回测" in text:
+        return "gate"
+    if "flag" in text.lower() or "翻闸" in text:
+        return "flag"
+    if "launchd" in text.lower() or "watchdog" in text.lower():
+        return "launchd"
+    if "部署" in text or "deploy" in text.lower():
+        return "deploy"
+    if any(token in text for token in ["缓存", "行情", "数据", "清单", "STALE", "源"]):
+        return "data"
+    return "normal"
+
+
+def _render_runbook_refs(keys: Iterable[str]) -> str:
+    unique = []
+    for key in keys:
+        if key not in RUNBOOK_REFS or key in unique:
+            continue
+        unique.append(key)
+    if not unique:
+        return ""
+    rows = []
+    for key in unique:
+        anchor, title, summary = RUNBOOK_REFS[key]
+        rows.append(f"<div id='{anchor}'><b>Runbook: {esc(title)}</b> — {esc(summary)}</div>")
+    return f"<div class='runbook-mini'>{''.join(rows)}</div>"
 
 
 def _render_cache_hint(cache: Dict[str, Any]) -> str:
@@ -1306,18 +1649,23 @@ def _render_scripts(as_of: str) -> str:
     """
 
 
-def _top_factor_rows(score: Dict[str, Any], limit: int = 5) -> List[str]:
-    factors = []
+def _top_factor_items(score: Dict[str, Any], limit: int = 5) -> List[tuple[str, Dict[str, Any]]]:
+    factors: List[tuple[float, str, Dict[str, Any]]] = []
     for module, rows in (score.get("factor_scores") or {}).items():
         if not isinstance(rows, list):
             continue
         for row in rows:
             pts = _float(row.get("score"), 0.0)
             if pts > 0:
-                factors.append((pts, module, row))
-    factors.sort(key=lambda x: x[0], reverse=True)
+                factors.append((pts, str(module), row))
+    factors.sort(key=lambda item: item[0], reverse=True)
+    return [(module, row) for _, module, row in factors[:limit]]
+
+
+def _top_factor_rows(score: Dict[str, Any], limit: int = 5) -> List[str]:
     out = []
-    for pts, module, row in factors[:limit]:
+    for module, row in _top_factor_items(score, limit=limit):
+        pts = _float(row.get("score"), 0.0)
         max_score = row.get("max_score")
         score_text = f"{_fmt_num(pts)}/{_fmt_num(max_score)}" if max_score is not None else _fmt_num(pts)
         out.append(
@@ -1329,6 +1677,209 @@ def _top_factor_rows(score: Dict[str, Any], limit: int = 5) -> List[str]:
             "</tr>"
         )
     return out
+
+
+def _valve_reason_text(score: Dict[str, Any], hits: List[Any]) -> str:
+    explains = [str(item) for item in (score.get("explain") or [])]
+    hit_text = [str(hit) for hit in hits]
+    matched = [
+        item for item in explains
+        if "Hard valve" in item or any(hit and hit in item for hit in hit_text)
+    ]
+    if not matched:
+        matched = ["触发：" + ", ".join(hit_text)]
+    return "；".join(matched[:2])
+
+
+def _valve_candidates_for(score: Dict[str, Any], hv_state: Dict[str, Any]) -> List[Dict[str, Any]]:
+    candidates = score.get("valve_candidates") or hv_state.get("candidates") or []
+    return [row for row in candidates if isinstance(row, dict)]
+
+
+def _valve_summary_badge(candidates: List[Dict[str, Any]]) -> str:
+    statuses = [str(row.get("status") or "clear").lower() for row in candidates]
+    triggered = sum(1 for status in statuses if status == "triggered")
+    pending = sum(1 for status in statuses if status == "pending")
+    buffered = sum(1 for status in statuses if status == "buffered")
+    if triggered:
+        return _badge(f"已触发 {triggered}", "danger")
+    if pending:
+        return _badge(f"PENDING {pending}", "warn")
+    if buffered:
+        return _badge(f"BUFFERED {buffered}", "warn")
+    return _badge("未触发", "")
+
+
+def _render_valve_candidate_grid(candidates: List[Dict[str, Any]]) -> str:
+    items = []
+    for candidate in candidates:
+        status = str(candidate.get("status") or "clear").lower()
+        cls = status if status in {"triggered", "pending", "buffered", "clear"} else "clear"
+        label, kind = _valve_status_label(status)
+        items.append(
+            f"<div class='valve-item {cls}'>"
+            "<div class='valve-title'>"
+            f"<b>{esc(candidate.get('id', 'VALVE'))}</b>{_badge(label, kind)}"
+            "</div>"
+            f"<div class='mini-note'>{esc(candidate.get('desc', ''))}</div>"
+            f"<div class='valve-metrics'><b>当前：</b>{esc(_valve_value_text(candidate.get('current')))}</div>"
+            f"<div class='valve-metrics'><b>阈值：</b>{esc(_valve_value_text(candidate.get('threshold')))}</div>"
+            f"<div class='valve-metrics'><b>距离：</b>{esc(_valve_distance_from_candidate(candidate))}</div>"
+            f"<div class='valve-metrics'><b>确认：</b>{esc(candidate.get('confirm_condition') or 'NA')}</div>"
+            "</div>"
+        )
+    return f"<div class='valve-grid'>{''.join(items)}</div>"
+
+
+def _valve_status_label(status: str) -> tuple[str, str]:
+    if status == "triggered":
+        return "已触发", "danger"
+    if status == "pending":
+        return "PENDING", "warn"
+    if status == "buffered":
+        return "BUFFERED", "warn"
+    return "未触发", ""
+
+
+def _valve_value_text(value: Any) -> str:
+    if not isinstance(value, dict) or not value:
+        return "复合/持续型，无单一当前值"
+    parts = []
+    for key, raw in value.items():
+        parts.append(f"{key}={_fmt_valve_scalar(key, raw)}")
+    return " / ".join(parts)
+
+
+def _fmt_valve_scalar(key: Any, value: Any) -> str:
+    key_s = str(key)
+    if key_s.startswith("return_") or "drawdown" in key_s:
+        return _fmt_pct(value, signed=True)
+    if key_s in {"close", "ma200", "ema10", "ema20", "ema50", "chandelier"}:
+        return _fmt_money(value)
+    return _fmt_num(value)
+
+
+def _valve_distance_from_candidate(candidate: Dict[str, Any]) -> str:
+    current = candidate.get("current")
+    threshold = candidate.get("threshold")
+    if not isinstance(current, dict) or not isinstance(threshold, dict):
+        return "复合/持续型：看确认条件"
+
+    parts: List[str] = []
+    if threshold.get("close_vs") == "ma200":
+        parts.extend(_relative_gap_parts(current, "close", "ma200", "MA200"))
+    parts.extend(_lte_gap_parts(current, threshold, "return_1d", "日跌幅", pct=True))
+    parts.extend(_lte_gap_parts(current, threshold, "return_2d", "两日跌幅", pct=True))
+    parts.extend(_gte_gap_parts(current, threshold, "total_score", "总分"))
+    parts.extend(_gte_gap_parts(current, threshold, "c_score", "C 分"))
+    if "drawdown_60d" in threshold:
+        parts.extend(_lte_gap_parts(current, threshold, "drawdown_60d", "60d 回撤", pct=True))
+        parts.extend(_relative_gap_parts(current, "close", "chandelier", "Chandelier"))
+    if "ema50" in current:
+        parts.extend(_relative_gap_parts(current, "close", "ema50", "EMA50"))
+    return "；".join(parts) if parts else "暂无可计算距离"
+
+
+def _relative_gap_parts(current: Dict[str, Any], left_key: str, right_key: str, label: str) -> List[str]:
+    left = _num_or_none(current.get(left_key))
+    right = _num_or_none(current.get(right_key))
+    if left is None or right in {None, 0}:
+        return []
+    gap = left / right - 1.0
+    relation = "高于" if gap >= 0 else "低于"
+    return [f"{left_key} {relation} {label} {_fmt_pct(abs(gap))}（{_fmt_money(left)} vs {_fmt_money(right)}）"]
+
+
+def _lte_gap_parts(current: Dict[str, Any], threshold: Dict[str, Any], key: str, label: str, *, pct: bool = False) -> List[str]:
+    value = _num_or_none(current.get(key))
+    limit = _num_or_none(threshold.get(key))
+    if value is None or limit is None:
+        return []
+    gap = value - limit
+    if pct:
+        text = f"{abs(gap) * 100.0:.1f}pct"
+    else:
+        text = _fmt_num(abs(gap))
+    state = "已越过阈值" if value <= limit else "距触发还差"
+    return [f"{label} {state} {text}"]
+
+
+def _gte_gap_parts(current: Dict[str, Any], threshold: Dict[str, Any], key: str, label: str) -> List[str]:
+    value = _num_or_none(current.get(key))
+    limit = _num_or_none(threshold.get(key))
+    if value is None or limit is None:
+        return []
+    gap = limit - value
+    state = "已达到阈值" if value >= limit else "距触发还差"
+    return [f"{label} {state} {_fmt_num(abs(gap))}"]
+
+
+def _valve_distance_text(symbol: str, payload: Dict[str, Any]) -> str:
+    close = _num_or_none(_snap(payload, symbol, "close"))
+    if close is None:
+        return "未触发；缺少当前价，无法计算距触发距离。"
+    parts = []
+    for label, field in [("Chandelier", "chandelier_exit"), ("MA200", "ma200"), ("EMA20", "ema20")]:
+        level = _num_or_none(_snap(payload, symbol, field))
+        if level is None or level == 0:
+            continue
+        gap = close / level - 1.0
+        relation = "高于" if gap >= 0 else "低于"
+        parts.append(f"{label}: 当前价{relation}触发线 {_fmt_pct(abs(gap))}（{_fmt_money(close)} vs {_fmt_money(level)}）")
+    return "未触发；" + ("；".join(parts) if parts else "暂无可计算硬阀门距离。")
+
+
+def _latest_daily_diff_path(as_of: str) -> Optional[Path]:
+    roots = [REPO_ROOT / "reports", REPO_ROOT / "reports" / "shadow"]
+    names = []
+    if as_of:
+        names.append(f"daily_diff_{as_of[:10]}.md")
+    for name in names:
+        for root in roots:
+            path = root / name
+            if path.exists():
+                return path
+    candidates: List[Path] = []
+    for root in roots:
+        if root.exists():
+            candidates.extend(sorted(root.glob("daily_diff_*.md")))
+    return sorted(candidates)[-1] if candidates else None
+
+
+def _markdown_to_html(text: str) -> str:
+    lines: List[str] = []
+    in_list = False
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        if not line:
+            if in_list:
+                lines.append("</ul>")
+                in_list = False
+            continue
+        if line.startswith("# "):
+            if in_list:
+                lines.append("</ul>")
+                in_list = False
+            lines.append(f"<h3>{esc(line[2:].strip())}</h3>")
+        elif line.startswith("## "):
+            if in_list:
+                lines.append("</ul>")
+                in_list = False
+            lines.append(f"<h3>{esc(line[3:].strip())}</h3>")
+        elif line.lstrip().startswith("- "):
+            if not in_list:
+                lines.append("<ul>")
+                in_list = True
+            item = line.lstrip()[2:].strip()
+            lines.append(f"<li>{esc(item)}</li>")
+        else:
+            if in_list:
+                lines.append("</ul>")
+                in_list = False
+            lines.append(f"<p>{esc(line)}</p>")
+    if in_list:
+        lines.append("</ul>")
+    return "".join(lines)
 
 
 def _factor_explain_cell(row: Dict[str, Any]) -> str:
@@ -1394,6 +1945,46 @@ def _route_text(route: Dict[str, Any]) -> str:
     else:
         dest = str(route.get("destination", "-"))
     return f"{esc(route.get('defcon', 'ROUTE'))} -> {esc(dest)}"
+
+
+def _mini_vol_svg(before: float, after: float) -> str:
+    max_v = max(before, after, 1e-9)
+    before_w = max(2.0, min(96.0, before / max_v * 96.0))
+    after_w = max(2.0, min(96.0, after / max_v * 96.0))
+    after_color = "#dc2626" if after > before else "#047857"
+    return (
+        "<svg class='spark-svg' viewBox='0 0 100 44' role='img' aria-label='vol before after'>"
+        "<rect x='2' y='8' width='96' height='8' rx='4' fill='#e5e7eb'/>"
+        f"<rect x='2' y='8' width='{before_w:.1f}' height='8' rx='4' fill='#64748b'/>"
+        "<rect x='2' y='28' width='96' height='8' rx='4' fill='#e5e7eb'/>"
+        f"<rect x='2' y='28' width='{after_w:.1f}' height='8' rx='4' fill='{after_color}'/>"
+        "<text x='2' y='7' font-size='6' fill='#64748b'>before</text>"
+        "<text x='2' y='27' font-size='6' fill='#64748b'>after</text>"
+        "</svg>"
+    )
+
+
+def _correlation_gauge(corr: Any, threshold: Any) -> str:
+    corr_v = _num_or_none(corr)
+    threshold_v = _num_or_none(threshold)
+    if corr_v is None:
+        threshold_text = _fmt_num(threshold_v) if threshold_v is not None else "NA"
+        return f"<div class='mini-note'>BRK.B 当前相关性不可用；阈值 {threshold_text}。</div>"
+    threshold_v = 0.85 if threshold_v is None else max(0.0, min(1.0, threshold_v))
+    corr_v = max(0.0, min(1.0, corr_v))
+    x = 4 + corr_v * 92
+    tx = 4 + threshold_v * 92
+    color = "#dc2626" if corr_v >= threshold_v else "#047857"
+    return (
+        "<svg class='spark-svg' viewBox='0 0 100 42' role='img' aria-label='BRK.B correlation gauge'>"
+        "<rect x='4' y='17' width='92' height='8' rx='4' fill='#e5e7eb'/>"
+        f"<rect x='4' y='17' width='{corr_v*92:.1f}' height='8' rx='4' fill='{color}'/>"
+        f"<line x1='{tx:.1f}' y1='10' x2='{tx:.1f}' y2='32' stroke='#b45309' stroke-width='1.5'/>"
+        f"<circle cx='{x:.1f}' cy='21' r='4' fill='{color}'/>"
+        "<text x='4' y='9' font-size='6' fill='#64748b'>corr</text>"
+        "<text x='62' y='39' font-size='6' fill='#64748b'>threshold</text>"
+        "</svg>"
+    )
 
 
 def _action_cn(action: Any) -> str:
@@ -1601,6 +2192,24 @@ def _float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _num_or_none(value: Any) -> Optional[float]:
+    try:
+        if value is None:
+            return None
+        out = float(value)
+        return out if out == out else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
 
 
 def esc(value: Any) -> str:

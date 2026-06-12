@@ -1117,7 +1117,7 @@ def _stress_block(risk_state, target_weights: Dict[str, float], histories) -> li
                     if h is None or h.empty or "Close" not in h:
                         continue
                     r = pd.to_numeric(h["Close"], errors="coerce").pct_change().dropna()
-                    joined = pd.concat({"a": r, "s": r_shock}, axis=1).dropna().tail(60)
+                    joined = pd.concat({"a": r, "s": r_shock}, axis=1, sort=True).dropna().tail(60)
                     beta = float(joined["a"].cov(joined["s"]) / var_s) if var_s > 0 and len(joined) >= 20 else 0.0
                 pnl += float(w[i]) * beta * shock
             out.append({"name": name, "est_pnl_pct": round(pnl * 100.0, 3)})
@@ -1178,6 +1178,7 @@ def _routing_context(bundles, snapshots, histories, config) -> Dict[str, Any]:
                 {"b": pd.to_numeric(bh["Close"], errors="coerce").pct_change(),
                  "s": pd.to_numeric(sph["Close"], errors="coerce").pct_change()},
                 axis=1,
+                sort=True,
             ).dropna()
             roll = joined["b"].rolling(60).corr(joined["s"]).dropna().tail(252)
             ctx["brkb_correlation_series"] = [
