@@ -1172,6 +1172,18 @@ def _routing_context(bundles, snapshots, histories, config) -> Dict[str, Any]:
             "corr_to_spy": round(float(brkb.corr_to_spy), 6) if brkb.corr_to_spy is not None else None,
             "threshold": float(config.get("routing", {}).get("defcon2", {}).get("brkb_corr_threshold", 0.85)),
         }
+        bh, sph = histories.get("BRK.B"), histories.get("SPY")
+        if bh is not None and sph is not None and not bh.empty and not sph.empty:
+            joined = pd.concat(
+                {"b": pd.to_numeric(bh["Close"], errors="coerce").pct_change(),
+                 "s": pd.to_numeric(sph["Close"], errors="coerce").pct_change()},
+                axis=1,
+            ).dropna()
+            roll = joined["b"].rolling(60).corr(joined["s"]).dropna().tail(252)
+            ctx["brkb_correlation_series"] = [
+                {"date": idx.strftime("%Y-%m-%d"), "corr": round(float(val), 4)}
+                for idx, val in roll.items()
+            ]
         return ctx
     except Exception as exc:
         return {"_error": repr(exc)}

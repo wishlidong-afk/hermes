@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field, replace
 from typing import Dict, Optional
 
 import pandas as pd
@@ -21,6 +21,7 @@ class ReentryPlan:
     allocation_fraction: float
     locked_reason: str
     explain: list[str]
+    locks: Dict[str, object] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, object]:
         payload = asdict(self)
@@ -29,6 +30,55 @@ class ReentryPlan:
 
 
 def build_reentry_plan(
+    symbol: str,
+    score: ScoreResult,
+    snapshots: Dict[str, SymbolSnapshot],
+    histories: Dict[str, pd.DataFrame],
+    config: Dict[str, object],
+    days_since_last_sell: int = 0,
+    t1_active: bool = False,
+    t2_active: bool = False,
+) -> ReentryPlan:
+    """Core lock ladder + a structured `locks` export for the dashboard.
+
+    The lock evaluation below is unchanged (same short-circuit order); this
+    wrapper only restates each lock's current-vs-threshold so the WebUI can
+    show how far every lock is from opening — reporting only.
+    """
+    plan = _build_reentry_plan_core(symbol, score, snapshots, histories, config,
+                                    days_since_last_sell, t1_active, t2_active)
+    cfg = config.get("reentry", {}) if isinstance(config.get("reentry", {}), dict) else {}
+    time_lock = int(cfg.get("time_lock_days", 11))
+    score_unlock = float(cfg.get("score_unlock", 19))
+    c_unlock = float(cfg.get("c_module_unlock", 5))
+    c_score = float(score.module_scores.get("C", 0.0))
+    d_score = float(score.module_scores.get("D", 0.0))
+    locks = {
+        "valve_or_sell": {
+            "passed": not (score.hard_valve_hits or score.status in SELL_OR_LOCK_STATUSES),
+            "current": {"status": score.status, "hard_valve_hits": list(score.hard_valve_hits)},
+            "condition": "no active sell-status or hard valve",
+        },
+        "time": {
+            "passed": days_since_last_sell >= time_lock,
+            "current": int(days_since_last_sell), "threshold": time_lock,
+            "condition": f"trading days since last sell >= {time_lock}",
+        },
+        "score": {
+            "passed": float(score.final_score) < score_unlock,
+            "current": round(float(score.final_score), 2), "threshold": score_unlock,
+            "condition": f"final score < {score_unlock}",
+        },
+        "structure": {
+            "passed": c_score < c_unlock and d_score < c_unlock,
+            "current": {"C": c_score, "D": d_score}, "threshold": c_unlock,
+            "condition": f"C and D module scores < {c_unlock}",
+        },
+    }
+    return replace(plan, locks=locks)
+
+
+def _build_reentry_plan_core(
     symbol: str,
     score: ScoreResult,
     snapshots: Dict[str, SymbolSnapshot],
