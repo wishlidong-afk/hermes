@@ -73,7 +73,7 @@ sys.path.insert(0, str(PACKAGE_PARENT))
 
 from hermes_escape_top import pipeline
 from hermes_escape_top.config import load_config
-from hermes_escape_top.core.data.store import LocalStore
+from hermes_escape_top.core.data.store import LocalStore, safe_symbol
 
 TRADE_SYMBOLS = ["MSTR", "FNGU", "SOXL"]
 
@@ -206,6 +206,20 @@ def refresh_soft_data() -> None:
         print("[M4-1b] WARNING: OCC PCR refresh failed (weekly Friday report); continuing.")
     else:
         print("[M4-1b] OCC equity PCR OK.")
+
+    result6 = subprocess.run(
+        [PYTHON, "-m", "hermes_escape_top.scripts.refresh_cboe_daily_pcr"],
+        cwd=str(BASE_DIR),
+        env=_subprocess_env(),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if result6.returncode != 0:
+        print("[M4-1b] WARNING: CBOE daily PCR refresh failed/rejected (cache kept); continuing.")
+        print((result6.stdout or result6.stderr or "")[-200:])
+    else:
+        print("[M4-1b] CBOE daily PCR OK.")
 
 
 # ── Step 2: run the package score pipeline ────────────────────────────────────
@@ -732,8 +746,11 @@ def _history_integrity_scan(config) -> list:
 
     offenders = []
     history_dir = resolve_path(config, "history_dir")
-    for path in sorted(history_dir.glob("*.csv")):
-        limit = 3.0 if path.name.startswith("_") else 1.5
+    for symbol in _integrity_watch_symbols(config):
+        path = history_dir / f"{safe_symbol(symbol)}.csv"
+        if not path.exists():
+            continue
+        limit = 3.0 if symbol.startswith("^") else 1.5
         try:
             rows = list(_csv.reader(path.open()))[-12:]
         except OSError:
@@ -749,6 +766,30 @@ def _history_integrity_scan(config) -> list:
                 offenders.append(f"{path.name} {d1} {c1:.2f} -> {d2} {c2:.2f}")
     return offenders
 
+
+def _integrity_watch_symbols(config) -> list:
+    symbols = set((config.get("symbols") or {}).keys())
+    symbols.update(config.get("market_symbols") or [])
+    for values in (config.get("radars") or {}).values():
+        symbols.update(values)
+    symbols.update({
+        "QQQ",
+        "SOXX",
+        "SMH",
+        "SPY",
+        "^VIX",
+        "^VIX3M",
+        "^SOX",
+        "BTC-USD",
+        "BOXX",
+        "DBMF",
+        "GLD",
+        "IAU",
+        "BRK.B",
+        "BIL",
+        "SHV",
+    })
+    return sorted(str(symbol) for symbol in symbols if symbol)
 
 def _preflight_report(shadow: bool, as_of: str) -> None:
     """[T5] One-screen "can today's output be trusted" check before scoring.
