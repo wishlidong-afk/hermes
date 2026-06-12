@@ -42,6 +42,13 @@
 - 回滚：解 `predeploy_backup_<stamp>.tar.gz`。
 - 注意：live `scripts/run_daily_package.py`（standalone）有本地补丁，不在 rsync 范围内，改它需人工对比合入。
 
+## 7.5 仪表板服务（com.hermes.dashboard）
+
+- 8766 由 launchd 常驻托管（开机自启 + 崩溃自拉起），入口 `~/.hermes/bin/serve_dashboard.sh`。
+- **从 LIVE 包服务，不是 repo**：launchd agent 无 `~/Documents` 的 TCC 授权（repo-served 模式下会 `Operation not permitted` 且 NO_CACHE）；且操作台应跟随部署版本而非 repo 半成品。**代码改动经 `deploy_to_live.sh` 才会出现在 8766**。
+- 数据根=live（`HERMES_DATA_DIR` 指向 live 包），显示的是当日真实决策。
+- 排障：`tail ~/.hermes/logs/dashboard.err.log`；重启 `launchctl kickstart -k gui/$(id -u)/com.hermes.dashboard`。
+
 ## 8. launchd 维护
 
 - 状态：`launchctl print gui/$(id -u)/com.hermes.daily`；手动触发：`launchctl kickstart gui/$(id -u)/com.hermes.daily`。
