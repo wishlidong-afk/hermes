@@ -106,7 +106,9 @@ def main() -> int:
             for k in sorted(existing):
                 w.writerow(existing[k])
     print(f"done: +{fetched} rows, {errors} errors, total {len(existing)} -> {OUT}")
-    return 0 if errors < args.weeks // 4 else 1
+    # The current week's report doesn't exist until Friday's close is
+    # published; one failing week is normal, not an error condition.
+    return 0 if errors <= max(1, args.weeks // 4) else 1
 
 
 if __name__ == "__main__":
