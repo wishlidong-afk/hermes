@@ -42,7 +42,7 @@ of four states:
 | `data_ndx_concentration` | OFF | rejected-additive | QQQE/QQQ NDX equal-vs-cap concentration (A19) — failed as part of batch-2 additive experiment |
 | `data_cot_nq` | OFF | gate-failed | CFTC COT NQ futures combined net-long/OI percentile (A20) — pipeline retained, flag stays OFF |
 | `data_onchain_mstr` | OFF | gate-failed | CoinMetrics on-chain MSTR lab feed; T19 inflow/netflow pressure candidates failed gate and stay OFF |
-| `data_mstr_mnav` | OFF | candidate | MSTR mNAV data source from manual BTC holdings CSV + local market data; source registers only when ON |
+| `data_mstr_mnav` | OFF | shadow-data | MSTR mNAV data source from manual BTC holdings CSV + local market data; B6 alpha consumption gate failed, source stays OFF/parked |
 
 ---
 
@@ -62,8 +62,8 @@ of four states:
 | `use_partial_factor_eval` | **ON** ✅ | live | Score modules even when only partial factor data available (F4) — gate-passed 2026-06-09 |
 | `use_hm2_buffer` | OFF | gate-failed | Downgrade lone H-M2 (single -15% day) from EXIT to DEFENSIVE_EXIT — real path rejected |
 | `use_soft_data_max_age` | OFF | candidate | Treat over-age soft records as missing; `slo_only` no-op confirmed vs baseline: 17.3785% CAGR / -13.7734% MaxDD / Sharpe 1.222571 (`building/reports/flag_sweep/slo_only.json`, `slo_only_equity.json`) |
-| `use_full_confidence_spine` | OFF | candidate | Wire fragility/disagreement into confidence spine; footprint: `spine_only` = `slo_spine` at 16.9649% CAGR / -13.5822% MaxDD / Sharpe 1.213529, vs baseline ΔCAGR -0.4136pp, MaxDD +0.1912pp, Sharpe -0.0090 |
-| `use_b6_mnav_valuation` | OFF | candidate | Consume `SOFT.MSTR_valuation_pctl` as B6 mNAV valuation heat; requires full in-system gate because MSTR B normalization changes |
+| `use_full_confidence_spine` | OFF | candidate-gate-passed | Wire fragility/disagreement into confidence spine; 13-fold gate passed (`spine_only`), pending human flip |
+| `use_b6_mnav_valuation` | OFF | gate-failed | Consume `SOFT.MSTR_valuation_pctl` as B6 mNAV valuation heat; failed full in-system gate, stays OFF |
 
 ---
 
@@ -110,6 +110,7 @@ These flags had zero code references and were removed from config.json:
 | Continuous sell fraction | Rejected for performance, accepted operationally | Gate was essentially neutral-to-slightly-worse; operational cliff-removal was human-approved separately | `building/reports/flag_sweep/GATE_REPORT_continuous_sell_fraction.md`; config `_sell_fraction_mode_note` | Do not sell as alpha; evaluate only as operator-experience logic |
 | On-chain MSTR exchange inflow pressure (`data_onchain_mstr`, `CM_EXCHANGE_INFLOW_PRESSURE`) | Rejected | T19 gate failed: full CAGR 17.38%, MaxDD -13.77%, Sharpe 1.223; median OOS objective tied baseline but did not strictly improve (Δ +0.000), PBO 0.00, DSR 1.197 | `building/reports/flag_sweep/GATE_REPORT_CM_EXCHANGE_INFLOW_PRESSURE.md`; `building/reports/flag_sweep/CM_EXCHANGE_INFLOW_PRESSURE.json` | Do not retune this signal; new on-chain work needs a new prior and a fresh one-shot gate |
 | On-chain MSTR exchange netflow pressure (`data_onchain_mstr`, `CM_EXCHANGE_NETFLOW_PRESSURE`) | Rejected | T19 gate failed: full CAGR 17.36%, MaxDD -13.77%, Sharpe 1.222; median OOS objective tied baseline but did not strictly improve (Δ +0.000), PBO 0.08, DSR 1.196 | `building/reports/flag_sweep/GATE_REPORT_CM_EXCHANGE_NETFLOW_PRESSURE.md`; `building/reports/flag_sweep/CM_EXCHANGE_NETFLOW_PRESSURE.json` | Do not retune this signal; new on-chain work needs a new prior and a fresh one-shot gate |
+| MSTR B6 mNAV valuation (`data_mstr_mnav` + `use_b6_mnav_valuation`, `mnav_b6`) | Rejected | Full CAGR improved to 17.86%, but T17/T19 full-system gate failed: median OOS objective below baseline (Δ -0.030) and MaxDD deepened to -14.40%; PBO 0.31, DSR 1.194 | `building/reports/flag_sweep/GATE_REPORT_mnav_b6.md`; `building/reports/flag_sweep/mnav_b6.json` | Keep the PIT mNAV source parked for diagnostics; do not turn on B6 valuation or retune this mapping without a new prior |
 | Arm-then-fire current design | Parked | Current arming inputs overlap additive scored factors, creating double-counting | `docs/FACTOR_EXPLORATION_RESULTS_2026_06_08.md` | Redesign as leading-data-only before one final gate |
 
 ### Candidate / next research
@@ -117,9 +118,7 @@ These flags had zero code references and were removed from config.json:
 | Experiment | State | Hypothesis | Required validation |
 |---|---|---|---|
 | `use_soft_data_max_age` | Candidate | Stale soft data should behave like missing data rather than fresh evidence | `building/reports/flag_sweep/slo_only.json` + `slo_only_equity.json`: no-op confirmed against `baseline.json` (same 17.3785% CAGR / -13.7734% MaxDD / Sharpe 1.222571; same manifest `0bd99464...`; commit `9953cea...`); next: live staleness simulation + health/UI evidence |
-| `use_full_confidence_spine` | Candidate | Real fragility/disagreement inputs should replace hard-coded zeros | `building/reports/flag_sweep/spine_only.json` and `slo_spine.json`: 16.9649% CAGR / -13.5822% MaxDD / Sharpe 1.213529; footprint vs baseline is ΔCAGR -0.4136pp, MaxDD improves +0.1912pp, Sharpe -0.0090; requires human review before any live flip |
-| `data_mstr_mnav` | Candidate | A PIT mNAV source can provide the B6 valuation input without changing production while OFF | `src/hermes_escape_top/core/data/risk_signals.py`; `src/hermes_escape_top/data/soft_history/mstr_btc_holdings.csv`; source parsing tests; OFF source-registration proof; gate precondition: MSTR history must include `market_cap_usd` or `shares_outstanding` |
-| `use_b6_mnav_valuation` | Candidate | Direct MSTR valuation/premium data may fill the B6 gap without duplicate D-module scoring | `docs/MNAV_MODULE_OWNERSHIP_DECISION_2026_06_11.md`; byte-identical OFF proof; one full in-system gate of the complete B normalization path |
+| `use_full_confidence_spine` | Candidate-gate-passed | Real fragility/disagreement inputs should replace hard-coded zeros | `building/reports/flag_sweep/GATE_REPORT_spine_only.md`: 13-fold gate passed with median OOS objective 1.076 vs baseline 1.044 (Δ +0.032), PBO 0.38, DSR 1.188; full-window footprint remains 16.9649% CAGR / -13.5822% MaxDD / Sharpe 1.213529; next step is human approval before flipping ON |
 
 ---
 
@@ -144,11 +143,11 @@ Set `use_regime_multipliers: false` to disable (flat module weights in all regim
 Nominal B cap = **25 pts**. Currently achievable = **21 pts**:
 
 - B5 social (4 pts): stub — `_score_b5_social()` always returns 0
-- B6 valuation (5 pts): unwired — no live mNAV/valuation pipeline
+- B6 valuation (5 pts): mNAV source is wired/parked, but B6 consumption gate failed and remains OFF
 
-Effective B cap = **16 pts** until B5/B6 are wired. The `_module_caps_note` in
+Effective live B cap = **16 pts** until B5/B6 are approved live. The `_module_caps_note` in
 config.json also records this.
 
 ---
 
-*Last updated: 2026-06-11 (Agent B T19 on-chain gates + T17 mNAV + T9/T10 evidence cards)*
+*Last updated: 2026-06-12 (Agent B final alpha gates: spine passed; mNAV rejected; alpha experiment ledger closed)*

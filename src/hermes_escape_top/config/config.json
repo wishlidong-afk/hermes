@@ -337,10 +337,16 @@
     "use_partial_factor_eval": true,
     "use_hm2_buffer": false,
     "use_soft_data_max_age": true,
-    "use_full_confidence_spine": false,
+    "use_full_confidence_spine": true,
     "data_onchain_mstr": false,
     "data_mstr_mnav": false,
     "use_b6_mnav_valuation": false
+  },
+  "_full_confidence_spine_flip": {
+    "enabled_at": "2026-06-12",
+    "approved_by": "human-gate-2026-06-12",
+    "evidence": "building/reports/flag_sweep/GATE_REPORT_spine_only.md — 13-fold WF PASS: median OOS obj 1.076 vs baseline 1.044 (dELTA +0.032, second-largest OOS gain after combo routing), PBO 0.38, DSR 1.188. Full-window: 16.96% CAGR / -13.58% MaxDD vs 17.38%/-13.77% — accepts -0.41pp CAGR for knife-edge-day position shrinkage (fragility->confidence->sizing). First conservative mechanism ever to pass (stabilizer/hysteresis/H-M2 all failed OOS).",
+    "rollback": "set features.use_full_confidence_spine=false"
   },
   "_soft_data_max_age_flip": {
     "enabled_at": "2026-06-11",

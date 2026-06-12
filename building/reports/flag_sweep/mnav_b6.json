@@ -1,7 +1,7 @@
 {
-  "variant": "spine_only",
+  "variant": "mnav_b6",
   "cache_schema": "flag-sweep-cache-v2",
-  "cache_key": "e2f99d1759959a83bbe4acfa5db503154409a99af9a6a49eb4e3752373a7ce40",
+  "cache_key": "b712dc53317f75c84e2d4dbf6bd234ee0323fffc118e5640db639ba55176ac20",
   "manifest_id": "0bd99464b7317bcd03e9041833bc52e14e2c88688edd81b28d0841e3d9a00425",
   "git_commit": "5f30966d7b9f3a38845c7df150a879837350c5eb",
   "code_sha256": "6f40ddeebdd07f3fb0f7aa65cefc645a2f34f565e0b92ce14b6d9541ed3615ca",
@@ -13,13 +13,13 @@
   "effective_start": "2018-01-02",
   "effective_end": "2026-05-29",
   "n_days": 2113,
-  "runtime_sec": 2531.2,
+  "runtime_sec": 2499.3,
   "metrics": {
-    "cagr": 0.169649,
-    "max_drawdown": -0.135822,
-    "sharpe": 1.213529,
-    "sortino": 1.581937,
-    "final_value": 371480.252998
+    "cagr": 0.178648,
+    "max_drawdown": -0.143993,
+    "sharpe": 1.220011,
+    "sortino": 1.596867,
+    "final_value": 396126.430825
   },
   "benchmarks": {
     "SPY": 0.131419,
