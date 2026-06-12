@@ -175,6 +175,61 @@ def _zone_why(payload: Dict[str, Any]) -> str:
     </section>"""
 
 
+# ── Zone 2.5: ideal book ─────────────────────────────────────────────────────
+
+def _zone_target_book(payload: Dict[str, Any]) -> str:
+    sizing = payload.get("sizing") or {}
+    ib = payload.get("ibkr") or {}
+    legs = ib.get("route_legs") or []
+    rc = payload.get("risk_contributions") or {}
+
+    trade_rows = []
+    for sym in TRADE_SYMBOLS:
+        sz = sizing.get(sym) or {}
+        tw = sz.get("target_weight", sz.get("reference_target_weight"))
+        contrib = (rc.get(sym) or {}).get("vol_contribution_pct")
+        contrib_txt = f"{float(contrib) * 100:.0f}%" if contrib is not None else "—"
+        trade_rows.append(
+            f"<tr><td style='font-weight:600'>{esc(sym)}</td>"
+            f"<td style='text-align:right'>{_f((tw or 0) * 100, 1)}%</td>"
+            f"<td style='text-align:right;color:#888'>—</td><td style='text-align:right;color:#888'>—</td>"
+            f"<td style='text-align:right'>{contrib_txt}</td>"
+            f"<td style='color:#888'>{esc(sz.get('binding_constraint', ''))}</td></tr>"
+        )
+
+    leg_rows = []
+    for leg in legs:
+        status = str(leg.get("status", ""))
+        color = "#A32D2D" if status == "MISSING" else ("#0F6E56" if status in ("OK", "MATCH") else "#854F0B")
+        delta = leg.get("delta_weight")
+        leg_rows.append(
+            f"<tr><td style='font-weight:600'>{esc(leg.get('symbol'))}</td>"
+            f"<td style='text-align:right'>{_f(float(leg.get('ideal_weight') or 0) * 100, 1)}%</td>"
+            f"<td style='text-align:right'>{_f(float(leg.get('actual_weight') or 0) * 100, 1)}%</td>"
+            f"<td style='text-align:right;color:{'#A32D2D' if (delta or 0) < -0.02 else '#555'}'>{_f(float(delta or 0) * 100, 1)}%</td>"
+            f"<td style='text-align:right;color:#888'>{_f(float(leg.get('ideal_notional') or 0) / 1000, 1)}k</td>"
+            f"<td style='color:{color}'>{esc(status)}</td></tr>"
+        )
+
+    port = (rc.get("_portfolio") or {}).get("forecast_vol")
+    tol = ib.get("all_within_tolerance")
+    tol_txt = ("✓ 全部在容差内" if tol else "✗ 有偏差腿") if tol is not None else "—"
+    return f"""
+    <section class="card">
+      <div class="zone-label">区域 2.5 · 理想持仓（系统目标账本 vs IBKR 实际）</div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed">
+        <tr style="color:#888"><td style="width:64px"></td><td style="text-align:right">理想权重</td>
+          <td style="text-align:right">实际权重</td><td style="text-align:right">偏差</td>
+          <td style="text-align:right">理想金额/风险贡献</td><td style="width:90px">状态</td></tr>
+        {''.join(trade_rows)}
+        {''.join(leg_rows)}
+      </table>
+      <div style="font-size:12px;color:#555;border-top:1px solid #eee;margin-top:8px;padding-top:6px">
+        净清算值 {_f(float(ib.get('net_liq') or 0) / 1000, 1)}k · 最大偏差 {_f(float(ib.get('max_abs_delta') or 0) * 100, 1)}% · {tol_txt}
+        · 组合预测波动 {_f(port, 3)} ｜ 其余为现金/未路由</div>
+    </section>"""
+
+
 # ── Zone 3: macro ────────────────────────────────────────────────────────────
 
 def _zone_macro(payload: Dict[str, Any]) -> str:
@@ -310,9 +365,27 @@ def render_workbench(payload: Dict[str, Any]) -> str:
   h1 {{ font-size: 18px; font-weight: 600; margin: 0 0 2px; }}
 </style></head><body>
 <h1>Hermes 操作者工作台</h1>
-<div style="font-size:12px;color:#888;margin-bottom:14px">as_of={esc(as_of)} · 只读 · 操作端点在 8766 · 每次刷新读最新审计记录</div>
+<div style="font-size:12px;color:#888;margin-bottom:14px;display:flex;align-items:center;gap:12px">
+  <span>as_of={esc(as_of)} · 每次刷新读最新审计记录</span>
+  <button onclick="refreshData(this)" style="margin-left:auto;font-size:12px;padding:4px 12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">手动更新数据</button>
+  <span id="refresh-status" style="font-size:12px;color:#854F0B"></span>
+</div>
+<script>
+function refreshData(btn) {{
+  btn.disabled = true;
+  document.getElementById('refresh-status').textContent = '触发中…';
+  fetch('/refresh', {{method: 'POST'}}).then(r => r.text()).then(t => {{
+    document.getElementById('refresh-status').textContent = t;
+    btn.disabled = false;
+  }}).catch(e => {{
+    document.getElementById('refresh-status').textContent = '触发失败: ' + e;
+    btn.disabled = false;
+  }});
+}}
+</script>
 {_zone_actions(payload)}
 {_zone_why(payload)}
+{_zone_target_book(payload)}
 {_zone_macro(payload)}
 {_zone_lookthrough(payload)}
 </body></html>"""

@@ -39,7 +39,37 @@ def latest_payload() -> dict:
     return {}
 
 
+REFRESH_SCRIPT = Path.home() / ".hermes" / "bin" / "run_daily.sh"
+
+
+def _refresh_running() -> bool:
+    import subprocess
+    probe = subprocess.run(["pgrep", "-f", "run_daily_package.py"], capture_output=True)
+    return probe.returncode == 0
+
+
 class Handler(BaseHTTPRequestHandler):
+    def do_POST(self) -> None:  # noqa: N802
+        if self.path != "/refresh":
+            self.send_error(404)
+            return
+        import subprocess
+        if _refresh_running():
+            msg = "已有更新在运行中，请稍候刷新页面"
+        elif not REFRESH_SCRIPT.exists():
+            msg = "run_daily.sh 不存在"
+        else:
+            subprocess.Popen(["/bin/bash", str(REFRESH_SCRIPT)],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             start_new_session=True)
+            msg = "已触发完整日任务（拉行情+软数据+评分，约 3 分钟），完成后刷新页面"
+        body = msg.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self) -> None:  # noqa: N802
         try:
             body = render_workbench(latest_payload()).encode("utf-8")
