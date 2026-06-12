@@ -26,6 +26,10 @@ class HardValveResult:
     # continuation is self-confirmed by a real valve (H-M1/H-M4/H-M6) firing next.
     buffered_ids: list[str] = field(default_factory=list)
     buffer_status: Optional[str] = None
+    # Descriptive per-valve readout for the dashboard (current vs threshold).
+    # The if-chain above remains the only trigger authority; candidates never
+    # influence ids/pending/buffered.
+    candidates: list = field(default_factory=list)
 
     @property
     def reason(self) -> str:
@@ -52,6 +56,7 @@ class HardValveResult:
             "pending_reason": self.pending_reason,
             "buffered_ids": self.buffered_ids,
             "buffer_status": self.buffer_status,
+            "candidates": self.candidates,
         }
 
 
@@ -150,6 +155,12 @@ def evaluate_hard_valves(
             ids.append("H-S8")
             reasons.append("QQQ below EMA50 with 5+ distribution days and VIX curve stress")
 
+    candidates = _valve_candidates(
+        symbol, ids, close=close, ma200=ma200, ema10=ema10, ema50=ema50,
+        chandelier=chandelier, drawdown=drawdown, r1=r1, r2=r2,
+        total_score=total_score, c_score=c_score, snapshots=snapshots,
+    )
+
     if suspect and ids:
         # Bad/suspect bar: hold the valve pending a clean confirmation rather than
         # forcing a 100% liquidation off potentially corrupted data (E1 safety rail).
@@ -159,6 +170,7 @@ def evaluate_hard_valves(
             reasons=[],
             pending_ids=ids,
             pending_reasons=[f"suspect bar — held pending clean confirmation: {r}" for r in reasons],
+            candidates=[dict(c, status="pending" if c["id"] in ids else c["status"]) for c in candidates],
         )
     if hm2_buffer and ids == ["H-M2"]:
         # Lone H-M2 (single −15% day below EMA10): diagnostic shows it is near-pure
@@ -171,8 +183,9 @@ def evaluate_hard_valves(
             reasons=[],
             buffered_ids=ids,
             buffer_status=hm2_buffer_status,
+            candidates=[dict(c, status="buffered" if c["id"] in ids else c["status"]) for c in candidates],
         )
-    return HardValveResult(triggered=bool(ids), ids=ids, reasons=reasons)
+    return HardValveResult(triggered=bool(ids), ids=ids, reasons=reasons, candidates=candidates)
 
 
 def _v(snapshots: Dict[str, SymbolSnapshot], symbol: str, field: str) -> Optional[float]:
@@ -261,3 +274,82 @@ def _macro_curve_stress(snapshots: Dict[str, SymbolSnapshot]) -> bool:
         and qdist25 >= 5
         and ratio >= 0.96
     )
+
+
+def _valve_candidates(
+    symbol: str,
+    triggered_ids: list,
+    *,
+    close, ma200, ema10, ema50, chandelier, drawdown, r1, r2,
+    total_score, c_score, snapshots,
+) -> list:
+    """Descriptive readout of every valve for this symbol (dashboard only).
+
+    Simple numeric valves expose current/threshold so the UI can show distance
+    to trigger; compound/duration valves expose status + confirm text only.
+    `triggered` is derived from the authoritative ids list — the comparisons
+    here are restatements and never feed back into trigger decisions.
+    """
+    def c(vid, desc, confirm, current=None, threshold=None):
+        return {
+            "id": vid, "desc": desc, "confirm_condition": confirm,
+            "status": "triggered" if vid in triggered_ids else "clear",
+            "current": current, "threshold": threshold,
+        }
+
+    qqq_close = _v(snapshots, "QQQ", "close")
+    qqq_ma200 = _v(snapshots, "QQQ", "ma200")
+    if symbol == "MSTR":
+        return [
+            c("H-M1", "close <= MA200", "close back above MA200",
+              {"close": close, "ma200": ma200}, {"close_vs": "ma200"}),
+            c("H-M2", "-15% day below EMA10", "no single-day <= -15% close under EMA10",
+              {"return_1d": r1, "close": close, "ema10": ema10}, {"return_1d": -0.15}),
+            c("H-M3", "2-day <= -22%", "2-day return back above -22%",
+              {"return_2d": r2}, {"return_2d": -0.22}),
+            c("H-M4", "BTC < MA50 + MSTR 2d below EMA20 (compound)", "BTC reclaims MA50 or MSTR closes above EMA20"),
+            c("H-M5", "score >= 80 with C >= 5", "total score < 80 or C < 5",
+              {"total_score": total_score, "c_score": c_score}, {"total_score": 80, "c_score": 5}),
+            c("H-M6", "Chandelier stop + 18% peak drawdown", "close back above the 22d 4.5xATR stop",
+              {"close": close, "chandelier": chandelier, "drawdown_60d": drawdown},
+              {"drawdown_60d": -0.18}),
+        ]
+    if symbol == "FNGU":
+        radar_close = _radar_value(snapshots, ["FNGS", "^NYFANG"], "close")
+        radar_ma200 = _radar_value(snapshots, ["FNGS", "^NYFANG"], "ma200")
+        return [
+            c("H-F1", "QQQ <= MA200", "QQQ back above MA200",
+              {"close": qqq_close, "ma200": qqq_ma200}, {"close_vs": "ma200"}),
+            c("H-F2", "FNGS/NYFANG <= MA200", "radar back above MA200",
+              {"close": radar_close, "ma200": radar_ma200}, {"close_vs": "ma200"}),
+            c("H-F3", "daily <= -15%", "no -15% day",
+              {"return_1d": r1}, {"return_1d": -0.15}),
+            c("H-F4", "2-day <= -22%", "2-day return back above -22%",
+              {"return_2d": r2}, {"return_2d": -0.22}),
+            c("H-F5", "QQQ or radar 3 days below EMA50 (duration)", "a close back above EMA50 resets the count"),
+            c("H-F6", "Chandelier stop + 12% peak drawdown", "close back above the 22d 4.5xATR stop",
+              {"close": close, "chandelier": chandelier, "drawdown_60d": drawdown},
+              {"drawdown_60d": -0.12}),
+            c("H-F7", "QQQ < EMA50 + distribution + VIX curve stress (compound)", "any leg of the compound clearing"),
+        ]
+    if symbol == "SOXL":
+        radar_close = _radar_value(snapshots, ["SOXX", "SMH", "^SOX"], "close")
+        radar_ma200 = _radar_value(snapshots, ["SOXX", "SMH", "^SOX"], "ma200")
+        return [
+            c("H-S1", "QQQ <= MA200", "QQQ back above MA200",
+              {"close": qqq_close, "ma200": qqq_ma200}, {"close_vs": "ma200"}),
+            c("H-S2", "SOXX/SMH/SOX <= MA200", "radar back above MA200",
+              {"close": radar_close, "ma200": radar_ma200}, {"close_vs": "ma200"}),
+            c("H-S3", "daily <= -15%", "no -15% day",
+              {"return_1d": r1}, {"return_1d": -0.15}),
+            c("H-S4", "2-day <= -22%", "2-day return back above -22%",
+              {"return_2d": r2}, {"return_2d": -0.22}),
+            c("H-S5", "SOXX/SMH 3 days below EMA50 (duration)", "a close back above EMA50 resets the count"),
+            c("H-S6", "60d drawdown <= -25% below EMA50", "drawdown recovers above -25% or close above EMA50",
+              {"drawdown_60d": drawdown, "close": close, "ema50": ema50}, {"drawdown_60d": -0.25}),
+            c("H-S7", "Chandelier stop + 12% peak drawdown", "close back above the 22d 4.5xATR stop",
+              {"close": close, "chandelier": chandelier, "drawdown_60d": drawdown},
+              {"drawdown_60d": -0.12}),
+            c("H-S8", "QQQ < EMA50 + distribution + VIX curve stress (compound)", "any leg of the compound clearing"),
+        ]
+    return []

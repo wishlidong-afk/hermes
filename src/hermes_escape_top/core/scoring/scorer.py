@@ -106,6 +106,7 @@ def score_symbol(
         blind_spot=operational_missing.blind_spot,
         data_quality=quality_from_snapshots([snapshots[symbol]]).overall_score,
         hard_valve_hits=hard.ids,
+        valve_candidates=list(hard.candidates),
         status=verdict.status,
         raw_status=verdict.raw_status,
         sell_fraction=verdict.sell_fraction,

@@ -77,6 +77,7 @@ def _decision_layer(symbol: str, score: Dict[str, Any], quality_score: float, ib
             "triggered": bool(hard),
             "count": len(hard),
             "ids": hard,
+            "candidates": score.get("valve_candidates") or [],
         },
         "action_confidence": {
             "score": round(confidence_score, 2),

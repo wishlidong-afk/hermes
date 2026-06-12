@@ -20,6 +20,7 @@ class ScoreResult:
     blind_spot: bool = False
     data_quality: float = 100.0
     hard_valve_hits: List[str] = field(default_factory=list)
+    valve_candidates: List[Dict[str, Any]] = field(default_factory=list)
     status: str = "HOLD"
     raw_status: str = "HOLD"
     sell_fraction: float = 0.0
