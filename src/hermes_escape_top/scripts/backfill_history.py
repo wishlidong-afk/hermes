@@ -123,11 +123,49 @@ def _backfill_one(
         except Exception as exc:
             reasons.append(f"{fetch_start}->{fetch_end or 'latest'} failed: {exc}")
     normalized = pd.concat(downloaded_frames).sort_index() if downloaded_frames else pd.DataFrame()
+    if not normalized.empty and not existing.empty:
+        sane, why = _sanity_check_download(symbol, existing, normalized)
+        if not sane:
+            print(f"[backfill] WARNING {symbol}: download REJECTED ({why}); keeping cached history")
+            return _result(symbol, path, existing, updated=False,
+                           source_symbol=_yf_symbol(symbol),
+                           reason=f"REJECTED corrupt download: {why}")
     combined = pd.concat([existing, normalized]).sort_index()
     if not combined.empty:
         combined = combined[~combined.index.duplicated(keep="last")]
         _write_history(path, combined)
     return _result(symbol, path, combined, updated=not normalized.empty, source_symbol=_yf_symbol(symbol), reason="; ".join(reasons))
+
+
+def _sanity_check_download(symbol: str, existing: pd.DataFrame, new: pd.DataFrame) -> tuple[bool, str]:
+    """Reject cross-wired downloads (2026-06-12 incident: under Yahoo rate
+    limiting, yfinance returned other tickers' prices — QQQ got ~218 bars,
+    ^VIX got ^SOX values — firing QQQ-family hard valves on garbage).
+
+    Overlap case: anchor on the OLDEST overlapping date (pre-corruption in a
+    repair window) and require ±25% agreement. Pure append: bound the
+    boundary jump — ±50% for equities/ETFs, ±200% for ^vol indices (VIX can
+    legitimately double in a day; the cross-wiring deltas were 10-600x).
+    """
+    try:
+        ex_close = pd.to_numeric(existing["Close"], errors="coerce").dropna()
+        new_close = pd.to_numeric(new["Close"], errors="coerce").dropna()
+        if ex_close.empty or new_close.empty:
+            return True, ""
+        overlap = new_close.index.intersection(ex_close.index)
+        if len(overlap):
+            anchor = overlap.min()
+            ratio = float(new_close.loc[anchor]) / float(ex_close.loc[anchor])
+            if not (0.75 <= ratio <= 1.33):
+                return False, f"anchor {anchor.date()} mismatch x{ratio:.2f}"
+            return True, ""
+        limit = 3.0 if symbol.startswith("^") else 1.5
+        ratio = float(new_close.iloc[0]) / float(ex_close.iloc[-1])
+        if not (1.0 / limit <= ratio <= limit):
+            return False, f"boundary jump x{ratio:.2f} ({ex_close.index[-1].date()} -> {new_close.index[0].date()})"
+        return True, ""
+    except Exception as exc:
+        return False, f"sanity check error: {exc!r}"
 
 
 def _read_existing(path: Path) -> pd.DataFrame:
