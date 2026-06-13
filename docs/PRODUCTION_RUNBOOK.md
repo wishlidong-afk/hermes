@@ -56,3 +56,8 @@
 - watchdog 节假日表覆盖到 2028，到期告警文本会自带提醒（`~/.hermes/bin/hermes_watchdog.py`）。
 
 > 待办（T12 余项）：health 页面各非绿状态直接链接到本文对应小节（web/render 改动，与 T20 仪表板一起做）。
+
+## 9. 系统验证回归 + 诊断纪律
+
+- **回归脚本**：`HERMES_DATA_DIR=<干净数据根> PYTHONPATH=src python3 scripts/system_validation.py` —— 28 个用例覆盖数据可信/决定性/新鲜度/稳定性/逻辑/配置 byte-identical；结果写 `building/reports/system_validation_report.json`，任一 SYSTEM 用例失败即退出码 1。大改 pipeline/数据层后跑一次。
+- **诊断纪律（铁律）**：这台机器的 shell stdout 会严重交错（cwd-reset 伪影），`cat -A`、多行 `echo`、交错的 `print` 都可能显示**假内容**。2026-06-13 我曾据此误判出一个不存在的"完整性闸门只扫首文件"bug。**任何"系统出问题"的判断，必须用 写临时文件 + Read 工具 + 单布尔/单 token 断言 复核，绝不凭 stdout 下结论。** 验证方法本身也要可信。
