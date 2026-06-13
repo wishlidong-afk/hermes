@@ -76,3 +76,11 @@ def test_trust_zone_renders_and_orders_by_urgency():
     assert html.index("cboe_equity_pcr") < html.index("aaii_sentiment")  # urgent first
     assert "超期 8d" in html and "代理" in html and "真实" in html
     assert _zone_trust(None) == ""  # offline render omits the zone
+
+
+def test_refresh_local_only_guard():
+    from hermes_escape_top.scripts.serve_workbench import _local_only
+    assert _local_only({"Host": "127.0.0.1:8765"})
+    assert _local_only({"Host": "localhost:8765", "Origin": "http://127.0.0.1:8765"})
+    assert not _local_only({"Host": "evil.example.com"})
+    assert not _local_only({"Host": "127.0.0.1:8765", "Origin": "http://evil.example.com"})

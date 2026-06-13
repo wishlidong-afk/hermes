@@ -83,10 +83,28 @@ def trust_rows() -> list:
     return out
 
 
+def _local_only(headers) -> bool:
+    """True only when Host and any Origin resolve to loopback."""
+    def _loopback(value: str) -> bool:
+        host = value.split("//")[-1].split("/")[0].rsplit(":", 1)[0].strip("[]")
+        return host in ("127.0.0.1", "localhost", "::1", "")
+    if not _loopback(headers.get("Host") or ""):
+        return False
+    origin = headers.get("Origin")
+    return _loopback(origin) if origin else True
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         if self.path != "/refresh":
             self.send_error(404)
+            return
+        # localhost-only guard: /refresh only triggers a data pull+rescore (no
+        # money/order path), so it doesn't require the 8766 token — but reject
+        # cross-origin/DNS-rebinding callers so a malicious page can't make the
+        # machine churn. Host/Origin must be loopback.
+        if not _local_only(self.headers):
+            self.send_error(403, "localhost only")
             return
         import subprocess
         if _refresh_running():
