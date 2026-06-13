@@ -2179,6 +2179,34 @@ def _render_scripts(as_of: str) -> str:
     btn.disabled = busy;
     btn.style.opacity = busy ? '0.6' : '1';
   }}
+  function hermesToken() {{
+    try {{
+      var params = new URLSearchParams(window.location.search || '');
+      var fromUrl = params.get('token') || params.get('confirm_token');
+      if (fromUrl) {{
+        sessionStorage.setItem('HERMES_CONFIRM_TOKEN', fromUrl);
+        return fromUrl;
+      }}
+    }} catch (e) {{}}
+    try {{
+      return window.HERMES_CONFIRM_TOKEN ||
+        sessionStorage.getItem('HERMES_CONFIRM_TOKEN') ||
+        localStorage.getItem('HERMES_CONFIRM_TOKEN') ||
+        localStorage.getItem('hermes_confirm_token') || '';
+    }} catch (e) {{
+      return window.HERMES_CONFIRM_TOKEN || '';
+    }}
+  }}
+  function postJson(endpoint, payload) {{
+    var headers = {{'Content-Type': 'application/json'}};
+    var token = hermesToken();
+    if (token) headers['X-Hermes-Token'] = token;
+    return fetch(endpoint, {{
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(payload || {{}})
+    }});
+  }}
   function showResult(text) {{
     var out = document.getElementById('refresh-result');
     if (!out) return;
@@ -2206,11 +2234,7 @@ def _render_scripts(as_of: str) -> str:
     var st = document.getElementById('refresh-score-status');
     setBusy(btn, true);
     st.textContent = '正在刷新新系统数据...';
-    fetch('/api/refresh_score', {{
-      method: 'POST',
-      headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{as_of: 'latest', refresh_history: true}})
-    }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+    postJson('/api/refresh_score', {{as_of: 'latest', refresh_history: true}}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       if (d && d.scores) {{
         var msg = '策略数据刷新完成，载入 ' + (d.as_of || 'latest');
         st.textContent = msg;
@@ -2230,11 +2254,7 @@ def _render_scripts(as_of: str) -> str:
     var st = document.getElementById('refresh-positions-status');
     setBusy(btn, true);
     st.textContent = '正在拉取 IBKR 持仓...';
-    fetch('/api/refresh_positions', {{
-      method: 'POST',
-      headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{as_of: 'latest', refresh_history: true}})
-    }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+    postJson('/api/refresh_positions', {{as_of: 'latest', refresh_history: true}}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       var ibkr = d.ibkr || {{}};
       if (ibkr.source) {{
         var msg = '持仓刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
@@ -2257,11 +2277,7 @@ def _render_scripts(as_of: str) -> str:
     setBusy(btn, true);
     st.textContent = '正在验收 IBKR live 连接...';
     out.style.display = 'none';
-    fetch('/api/ibkr_live_check', {{
-      method: 'POST',
-      headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{as_of: {as_of_js}}})
-    }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+    postJson('/api/ibkr_live_check', {{as_of: {as_of_js}}}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       setBusy(btn, false);
       st.textContent = d.ok ? 'LIVE_OK' : (d.status || 'LIVE_FAILED');
       var lines = [];
@@ -2295,7 +2311,7 @@ def _render_scripts(as_of: str) -> str:
     var st = document.getElementById('manifest-refresh-status');
     setBusy(btn, true);
     if (st) st.textContent = '正在重冻结数据清单...';
-    fetch('/api/refresh_manifest', {{method: 'POST', headers: {{'Content-Type': 'application/json'}}, body: '{{}}'}})
+    postJson('/api/refresh_manifest', {{}})
       .then(function(r) {{ return r.json(); }}).then(function(d) {{
         setBusy(btn, false);
         if (st) st.textContent = d.ok ? ('已重冻结 ✓ frozen_at=' + (d.frozen_at || '')) : ('失败: ' + (d.error || d.status || 'unknown'));
@@ -2309,7 +2325,7 @@ def _render_scripts(as_of: str) -> str:
     setBusy(btn, true);
     st.textContent = '正在联网更新 FRED/AAII（可能较慢，AAII 可能被封）...';
     out.style.display = 'none';
-    fetch('/api/refresh_soft_data', {{method: 'POST', headers: {{'Content-Type': 'application/json'}}, body: '{{}}'}})
+    postJson('/api/refresh_soft_data', {{}})
       .then(function(r) {{ return r.json(); }}).then(function(d) {{
         setBusy(btn, false);
         st.textContent = d.ok ? '软数据更新完成（至少一个源成功）' : '软数据更新：无源写入（见详情）';
@@ -2324,7 +2340,7 @@ def _render_scripts(as_of: str) -> str:
     setBusy(btn, true);
     st.textContent = '正在写入 IBKR 演示快照并重新评分...';
     out.style.display = 'none';
-    fetch('/api/ibkr_demo_snapshot', {{method: 'POST', headers: {{'Content-Type': 'application/json'}}, body: '{{}}'}})
+    postJson('/api/ibkr_demo_snapshot', {{}})
       .then(function(r) {{ return r.json(); }}).then(function(d) {{
         setBusy(btn, false);
         st.textContent = d.ok ? (d.message || '演示快照已加载') : (d.message || ('未写入: ' + (d.reason || 'unknown')));
@@ -2339,11 +2355,7 @@ def _render_scripts(as_of: str) -> str:
     var out = document.getElementById('shadow-result');
     st.textContent = '正在运行 ' + label + '...';
     out.style.display = 'none';
-    fetch(endpoint, {{
-      method: 'POST',
-      headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{as_of: date}})
-    }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+    postJson(endpoint, {{as_of: date}}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       st.textContent = d.ok ? '完成' : '失败';
       out.textContent = JSON.stringify(d, null, 2);
       out.style.display = 'block';

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import threading
 import unittest
+import urllib.error
 import urllib.request
 from unittest import mock
 
@@ -11,6 +12,13 @@ import pandas as pd
 from hermes_escape_top.core.backtest.posterior import ideal_previous_day_pnl
 from hermes_escape_top.pipeline import score_pipeline
 from hermes_escape_top.web.server import create_server
+
+
+def _auth_headers(content_type: bool = True) -> dict[str, str]:
+    headers = {"X-Hermes-Token": "secret", "Origin": "http://127.0.0.1"}
+    if content_type:
+        headers["Content-Type"] = "application/json"
+    return headers
 
 
 class Phase15IntegrationTest(unittest.TestCase):
@@ -55,9 +63,10 @@ class Phase15IntegrationTest(unittest.TestCase):
             request = urllib.request.Request(
                 f"{base}/api/refresh_score",
                 data=b"",
+                headers=_auth_headers(content_type=False),
                 method="POST",
             )
-            with mock.patch("hermes_escape_top.web.server.refresh_score_with_market_data", return_value=refreshed_payload):
+            with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}), mock.patch("hermes_escape_top.web.server.refresh_score_with_market_data", return_value=refreshed_payload):
                 with urllib.request.urlopen(request, timeout=30) as response:
                     payload = json.loads(response.read().decode("utf-8"))
                 self.assertIn("posterior_pnl", payload)
@@ -65,9 +74,10 @@ class Phase15IntegrationTest(unittest.TestCase):
             request = urllib.request.Request(
                 f"{base}/api/refresh_positions",
                 data=b"",
+                headers=_auth_headers(content_type=False),
                 method="POST",
             )
-            with mock.patch("hermes_escape_top.web.server.refresh_score_with_market_data", return_value=refreshed_payload):
+            with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}), mock.patch("hermes_escape_top.web.server.refresh_score_with_market_data", return_value=refreshed_payload):
                 with urllib.request.urlopen(request, timeout=30) as response:
                     payload = json.loads(response.read().decode("utf-8"))
                 self.assertIn("ibkr", payload)
@@ -93,10 +103,10 @@ class Phase15IntegrationTest(unittest.TestCase):
             request = urllib.request.Request(
                 f"{base}/api/ibkr_live_check",
                 data=b'{"as_of":"2026-05-29"}',
-                headers={"Content-Type": "application/json"},
+                headers=_auth_headers(),
                 method="POST",
             )
-            with mock.patch(
+            with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}), mock.patch(
                 "hermes_escape_top.web.server.run_live_check",
                 return_value={"ok": False, "status": "IBKR_NOT_LIVE", "as_of": "2026-05-29"},
             ):
@@ -117,10 +127,10 @@ class Phase15IntegrationTest(unittest.TestCase):
             request = urllib.request.Request(
                 f"{base}/api/confirm_execution",
                 data=b'{"symbol":"SOXL","tranche":"T1","status":"CONFIRMED"}',
-                headers={"Content-Type": "application/json"},
+                headers=_auth_headers(),
                 method="POST",
             )
-            with mock.patch(
+            with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}), mock.patch(
                 "hermes_escape_top.web.server.record_execution_confirmation",
                 return_value={"confirmation_id": 7, "symbol": "SOXL", "tranche": "T1"},
             ):
@@ -149,8 +159,10 @@ class Phase15IntegrationTest(unittest.TestCase):
                 "hermes_escape_top.web.server.record_execution_confirmation",
                 return_value={"confirmation_id": 7},
             ) as recorder:
-                with urllib.request.urlopen(request, timeout=10) as response:
-                    payload = json.loads(response.read().decode("utf-8"))
+                with self.assertRaises(urllib.error.HTTPError) as ctx:
+                    urllib.request.urlopen(request, timeout=10)
+                self.assertEqual(ctx.exception.code, 403)
+                payload = json.loads(ctx.exception.read().decode("utf-8"))
             self.assertFalse(payload["ok"])
             self.assertEqual(payload["status"], "UNAUTHORIZED")
             recorder.assert_not_called()
@@ -168,7 +180,7 @@ class Phase15IntegrationTest(unittest.TestCase):
             request = urllib.request.Request(
                 f"{base}/api/confirm_execution",
                 data=b'{"symbol":"SOXL","tranche":"T1"}',
-                headers={"Content-Type": "application/json", "X-Hermes-Token": "secret"},
+                headers=_auth_headers(),
                 method="POST",
             )
             with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}), mock.patch(
@@ -194,14 +206,41 @@ class Phase15IntegrationTest(unittest.TestCase):
             request = urllib.request.Request(
                 f"{base}/api/refresh_score",
                 data=b'{"as_of":"latest"}',
-                headers={"Content-Type": "application/json"},
+                headers=_auth_headers(),
                 method="POST",
             )
-            with mock.patch("hermes_escape_top.web.server.refresh_score_with_market_data", side_effect=RuntimeError("boom")):
+            with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}), mock.patch("hermes_escape_top.web.server.refresh_score_with_market_data", side_effect=RuntimeError("boom")):
                 with urllib.request.urlopen(request, timeout=10) as response:
                     payload = json.loads(response.read().decode("utf-8"))
             self.assertFalse(payload["ok"])
             self.assertIn("boom", payload["error"])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_write_endpoint_rejects_missing_token_without_calling_handler(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = urllib.request.Request(
+                f"{base}/api/refresh_score",
+                data=b'{"as_of":"latest"}',
+                headers={"Content-Type": "application/json", "Origin": "http://127.0.0.1"},
+                method="POST",
+            )
+            with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}), mock.patch(
+                "hermes_escape_top.web.server.refresh_score_with_market_data",
+                return_value={},
+            ) as refresher:
+                with self.assertRaises(urllib.error.HTTPError) as ctx:
+                    urllib.request.urlopen(request, timeout=10)
+                self.assertEqual(ctx.exception.code, 403)
+                payload = json.loads(ctx.exception.read().decode("utf-8"))
+            self.assertEqual(payload["status"], "UNAUTHORIZED")
+            refresher.assert_not_called()
         finally:
             server.shutdown()
             server.server_close()

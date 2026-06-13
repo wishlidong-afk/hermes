@@ -61,6 +61,20 @@ from .render import render_dashboard
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+WRITE_ENDPOINTS = {
+    "/api/m4_shadow",
+    "/api/m4_backfill",
+    "/api/m4_golive",
+    "/api/refresh_manifest",
+    "/api/refresh_soft_data",
+    "/api/ibkr_demo_snapshot",
+    "/api/refresh_score",
+    "/api/score",
+    "/api/refresh_positions",
+    "/api/ibkr_live_check",
+    "/api/confirm_execution",
+}
+
 def _latest_precheck(as_of: str) -> dict | None:
     """Load latest daily_score_precheck without running score_pipeline."""
     try:
@@ -145,16 +159,53 @@ def _empty_dashboard_payload(as_of: str) -> dict:
     }
 
 
-def _confirm_execution_allowed(config: dict, req: dict, headers) -> tuple[bool, str]:
+def _local_hostname(value: str | None) -> str:
+    if not value:
+        return ""
+    raw = str(value).strip()
+    if "://" in raw:
+        return (urlparse(raw).hostname or "").lower()
+    if raw.startswith("[") and "]" in raw:
+        return raw[1 : raw.index("]")].lower()
+    return raw.rsplit(":", 1)[0].lower()
+
+
+def _is_local_request_host(value: str | None) -> bool:
+    return _local_hostname(value) in {"localhost", "127.0.0.1", "::1"}
+
+
+def _write_request_allowed(config: dict, req: dict, headers) -> tuple[bool, str]:
+    if not _is_local_request_host(headers.get("Host")):
+        return False, "HOST_NOT_LOCAL"
+    origin = headers.get("Origin")
+    if origin and not _is_local_request_host(origin):
+        return False, "ORIGIN_NOT_LOCAL"
     web_cfg = config.get("web", {}) if isinstance(config.get("web"), dict) else {}
     env_name = str(web_cfg.get("confirm_execution_token_env") or "HERMES_CONFIRM_TOKEN")
     expected = os.environ.get(env_name) or web_cfg.get("confirm_execution_token")
     if not expected:
-        return True, "NO_TOKEN_CONFIGURED_LOCAL_ONLY"
+        return False, "TOKEN_NOT_CONFIGURED"
     supplied = headers.get("X-Hermes-Token") or req.get("token")
     if supplied and hmac.compare_digest(str(supplied), str(expected)):
         return True, "TOKEN_OK"
     return False, "UNAUTHORIZED"
+
+
+def _confirm_execution_allowed(config: dict, req: dict, headers) -> tuple[bool, str]:
+    return _write_request_allowed(config, req, headers)
+
+
+def _auth_failure_payload(status: str) -> bytes:
+    return json.dumps(
+        {
+            "ok": False,
+            "status": status,
+            "message": "write endpoint requires localhost Host/Origin and HERMES_CONFIRM_TOKEN",
+        },
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+    ).encode()
 
 
 def _read_run_daily_mode() -> str:
@@ -403,6 +454,15 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             except Exception:
                 req = {}
 
+            if parsed.path in WRITE_ENDPOINTS:
+                try:
+                    allowed, auth_status = _write_request_allowed(load_config(), req, self.headers)
+                except Exception:
+                    allowed, auth_status = False, "AUTH_CHECK_ERROR"
+                if not allowed:
+                    self._send(403, "application/json; charset=utf-8", _auth_failure_payload(auth_status))
+                    return
+
             if parsed.path == "/api/m4_shadow":
                 as_of = req.get("as_of", default_as_of)
                 result = _run_shadow(as_of)
@@ -515,17 +575,6 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/confirm_execution":
                 try:
                     config = load_config()
-                    allowed, auth_status = _confirm_execution_allowed(config, req, self.headers)
-                    if not allowed:
-                        payload = {
-                            "ok": False,
-                            "status": auth_status,
-                            "message": "missing or invalid confirm token",
-                        }
-                        self._send(200, "application/json; charset=utf-8",
-                                   json.dumps(payload, ensure_ascii=False, indent=2,
-                                              sort_keys=True, default=str).encode())
-                        return
                     state_db_path = resolve_path(config, "archive_dir") / "hermes_state.sqlite"
                     payload = record_execution_confirmation(
                         state_db_path,

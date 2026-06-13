@@ -83,7 +83,7 @@ def prob_backtest_overfitting(
     """
     n_configs, n_folds = is_perf.shape
     if n_configs < 2 or n_folds < 2:
-        return 1.0
+        return float("nan")
 
     underperform_count = 0
     for fold in range(n_folds):
@@ -292,12 +292,14 @@ def run_validation(
         is_metrics.append(is_result)
         oos_metrics.append(oos_result)
 
+    pbo: Optional[float] = None
     if is_metrics and oos_metrics:
-        is_arr = np.array(is_metrics).reshape(1, -1)
-        oos_arr = np.array(oos_metrics).reshape(1, -1)
-        pbo = prob_backtest_overfitting(is_arr, oos_arr)
-    else:
-        pbo = 1.0
+        is_arr = np.asarray(is_metrics, dtype=float)
+        oos_arr = np.asarray(oos_metrics, dtype=float)
+        if is_arr.ndim == 2 and oos_arr.ndim == 2 and is_arr.shape == oos_arr.shape:
+            pbo_value = prob_backtest_overfitting(is_arr.T, oos_arr.T)
+            if not math.isnan(pbo_value):
+                pbo = pbo_value
 
     returns = data.iloc[:, 0].pct_change().dropna().values if len(data.columns) > 0 else np.array([])
     bootstrap = stationary_block_bootstrap(returns, n_bootstrap=bootstrap_n) if len(returns) >= 30 else {}
@@ -305,7 +307,7 @@ def run_validation(
     return {
         "n_splits": len(splits),
         "pbo": pbo,
-        "pbo_pass": pbo < pbo_max,
+        "pbo_pass": None if pbo is None else pbo < pbo_max,
         "bootstrap": bootstrap,
         "report_ready": True,
     }

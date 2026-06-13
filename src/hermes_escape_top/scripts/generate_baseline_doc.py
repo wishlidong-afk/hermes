@@ -15,7 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_OUT = REPO_ROOT / "docs" / "BASELINE_2026_06_11.md"
 DEFAULT_CONTEXT = REPO_ROOT / "context.md"
 CURRENT_ROUTING_BENCHMARK = {
-    "defcon1": "BOXX50/DBMF30/GLD20",
+    "defcon1": "BOXX50/DBMF30/IAU20",
     "defcon3_mstr": "MSTR->BTC-USD",
 }
 
@@ -108,7 +108,7 @@ def _routing_freshness(routing: dict[str, str]) -> str:
     expected_mstr = CURRENT_ROUTING_BENCHMARK["defcon3_mstr"]
     note = routing.get("gate_note", "")
     note_mstr_ok = "MSTR→BTC-USD" in note or expected_mstr in note
-    note_defcon1_ok = expected_defcon1 in note
+    note_defcon1_ok = expected_defcon1 in note or "GLD→IAU" in note or "GLD->IAU" in note
     config_defcon1_ok = routing.get("defcon1") == expected_defcon1
     config_mstr_ok = expected_mstr in routing.get("defcon3", "")
     if config_defcon1_ok and config_mstr_ok and note_defcon1_ok and note_mstr_ok:
@@ -202,7 +202,7 @@ def build_doc() -> str:
         "## Scope",
         "",
         "This file freezes the performance and validation baseline used by `docs/OPTIMIZATION_ROADMAP.md` T4. "
-        "The current deployed routing overlay is DEFCON1 BOXX/DBMF/GLD plus DEFCON3 MSTR routed to BTC-USD, "
+        "The current deployed routing overlay is DEFCON1 BOXX/DBMF/IAU plus DEFCON3 MSTR routed to BTC-USD, "
         "with F3/F4/F5/F6 live, and H-M2 buffer still OFF. The forward optimization benchmark is the "
         "`cot_nq` gate baseline row because it reflects the current combo routing baseline; "
         "`baseline_deployed.json` is retained as a historical capeff reference.",

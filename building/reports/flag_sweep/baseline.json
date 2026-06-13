@@ -1,10 +1,10 @@
 {
   "variant": "baseline",
   "cache_schema": "flag-sweep-cache-v2",
-  "cache_key": "eba41e18f47f30c6abce7770f5e2a79b2b640a12b070058fc54be4199e373807",
-  "manifest_id": "0bd99464b7317bcd03e9041833bc52e14e2c88688edd81b28d0841e3d9a00425",
-  "git_commit": "9953cea02b96937cc2a1cff77fff3d7854e73a13",
-  "code_sha256": "8d68b3c1483659baf6197c5e8f2ebd66d13ba054cb1861da7ff43f6ddc095d5b",
+  "cache_key": "84bac893333a7b3622e886c0ed034220d29b206575f25efa22bb63254a6ee77e",
+  "manifest_id": "52235bb4ae7988338d739304cfa4f26f59910b6fcce26756d7053e114dbc7dac",
+  "git_commit": "1567b566e1ea813739e95c4ca49f514ca177f91d",
+  "code_sha256": "f747a25deee7373fd0681316fc3bf6b6dd23e46a8e556b98914391554511a6f6",
   "start": "2018-01-01",
   "end": "2026-05-29",
   "enable": [
@@ -13,13 +13,13 @@
   "effective_start": "2018-01-02",
   "effective_end": "2026-05-29",
   "n_days": 2113,
-  "runtime_sec": 3192.1,
+  "runtime_sec": 936.9,
   "metrics": {
-    "cagr": 0.173785,
-    "max_drawdown": -0.137734,
-    "sharpe": 1.222571,
-    "sortino": 1.598831,
-    "final_value": 382633.810344
+    "cagr": 0.169732,
+    "max_drawdown": -0.135806,
+    "sharpe": 1.214767,
+    "sortino": 1.588871,
+    "final_value": 371700.376579
   },
   "benchmarks": {
     "SPY": 0.131419,

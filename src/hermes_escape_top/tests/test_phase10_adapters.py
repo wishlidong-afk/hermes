@@ -4,10 +4,14 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
+
+import pandas as pd
 
 from hermes_escape_top.config import load_config
 from hermes_escape_top.core.data.adapters import collect_soft_data, default_sources
 from hermes_escape_top.core.data.network_guard import assert_no_network
+from hermes_escape_top.core.data.risk_signals import FredPercentileSource, fetch_fred_series_frame
 from hermes_escape_top.core.data.store import LocalStore
 from hermes_escape_top.pipeline import soft_data_snapshot
 
@@ -42,6 +46,45 @@ class Phase10AdapterTest(unittest.TestCase):
         payload = soft_data_snapshot("2026-05-29")
         self.assertIn("records", payload)
         self.assertIn("net_liquidity", payload["records"])
+
+    def test_fred_api_frame_uses_realtime_start_as_publish_date(self) -> None:
+        class FakeResponse:
+            def __enter__(self) -> "FakeResponse":
+                return self
+
+            def __exit__(self, *_args: object) -> None:
+                return None
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def read(self) -> bytes:
+                return json.dumps({
+                    "observations": [
+                        {"date": "2026-06-05", "realtime_start": "2026-06-17", "value": "1.25"},
+                        {"date": "2026-06-12", "realtime_start": "2026-06-24", "value": "1.35"},
+                    ]
+                }).encode("utf-8")
+
+        with mock.patch("hermes_escape_top.core.data.risk_signals.fred_api_key", return_value="key"), mock.patch("hermes_escape_top.core.data.risk_signals.urlopen", return_value=FakeResponse()):
+            frame = fetch_fred_series_frame("DFII10", start="2026-06-01", end="2026-06-30")
+
+        self.assertEqual(frame["publish_date"].dt.date.astype(str).tolist(), ["2026-06-17", "2026-06-24"])
+
+    def test_fred_percentile_source_preserves_realtime_publish_date(self) -> None:
+        raw = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2026-06-05", "2026-06-12"]),
+                "publish_date": pd.to_datetime(["2026-06-17", "2026-06-24"]),
+                "value": [1.25, 1.35],
+            }
+        )
+        source = FredPercentileSource("real_rate", "data_real_rate", "DFII10", "real_rate_10y", window=2, min_periods=1)
+        with mock.patch("hermes_escape_top.core.data.risk_signals.fetch_fred_series_frame", return_value=raw):
+            frame = source.build_frame()
+
+        self.assertEqual(frame["publish_date"].dt.date.astype(str).tolist(), ["2026-06-17", "2026-06-24"])
+        self.assertEqual(frame["real_rate_10y_pctl"].tolist(), [100.0, 100.0])
 
 
 if __name__ == "__main__":

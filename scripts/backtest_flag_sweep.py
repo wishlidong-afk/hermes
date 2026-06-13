@@ -41,6 +41,9 @@ F8_PCR = {"score2_pcr": 0.52, "score2_pctl": 8, "score1_pcr": 0.58, "score1_pctl
 def build_config(variant: str) -> dict:
     cfg = copy.deepcopy(load_config())
     feats = cfg.setdefault("features", {})
+    # Backtest/gate runs opt into the indicator-frame cache after byte-identical
+    # proof; production config remains default-OFF until a human flip.
+    feats["use_indicator_cache"] = True
     if variant == "baseline":
         pass
     elif variant == "continuous_sell_fraction":

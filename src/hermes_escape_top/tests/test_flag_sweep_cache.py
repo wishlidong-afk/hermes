@@ -25,6 +25,7 @@ def test_build_config_variants_are_distinct() -> None:
     mnav = mod.build_config("mnav_b6")
     stabilizer = mod.build_config("decision_stabilizer")
 
+    assert baseline["features"]["use_indicator_cache"] is True
     assert baseline["features"]["data_cot_nq"] is False
     assert cot["features"]["data_cot_nq"] is True
     assert mnav["features"]["data_mstr_mnav"] is True

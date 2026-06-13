@@ -2,9 +2,9 @@
 
 Folds: 13 · baseline = `baseline`
 
-| variant | full CAGR | full MaxDD | median OOS obj | Δ vs base | PBO (OOS) | DSR | gate |
-|---|---:|---:|---:|---:|---:|---:|---|
-| baseline | 15.39% | -14.04% | 0.872 |  | 0.38 | 1.080 | — |
-| scored_missing_weight | 15.53% | -14.04% | 0.933 | +0.062 | 0.31 | 1.088 | ✅ PASS |
-| hysteresis_only | 15.11% | -13.93% | 0.775 | -0.097 | 0.54 | 1.068 | ❌ FAIL (OOS≤base) (PBO≥.5) |
-| decision_stabilizer | 16.96% | -15.22% | 0.814 | -0.058 | 0.23 | 1.138 | ❌ FAIL (OOS≤base) (MaxDD +1.2pp) |
+| variant | full CAGR | full MaxDD | Sharpe | Calmar | median OOS obj | Δ vs base | PBO (OOS) | DSR | gate |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| baseline | 16.97% | -13.58% | 1.215 | 1.250 | 1.191 |  | 0.31 | 1.179 | — |
+| scored_missing_weight | 15.53% | -14.04% | 1.124 | 1.106 | 0.933 | -0.258 | 0.38 | 1.088 | ❌ FAIL (OOS≤base) |
+| hysteresis_only | 15.11% | -13.93% | 1.104 | 1.084 | 0.775 | -0.416 | 0.62 | 1.068 | ❌ FAIL (OOS≤base) (PBO≥.5) |
+| decision_stabilizer | 16.96% | -15.22% | 1.175 | 1.114 | 0.814 | -0.377 | 0.38 | 1.138 | ❌ FAIL (OOS≤base) (MaxDD +1.6pp) |

@@ -20,9 +20,12 @@ exposes SOFT.MSTR_valuation_pctl for B6.
 from __future__ import annotations
 
 import os
+import json
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 import pandas as pd
 
@@ -61,27 +64,51 @@ def fetch_fred_series(series_id: str, start: str = "1990-01-01", end: Optional[s
     no-key fredgraph CSV. The API avoids the fredgraph export window cap and is
     more reliable / rate-limit-friendly.
     """
+    frame = fetch_fred_series_frame(series_id, start=start, end=end, config=config)
+    if frame.empty:
+        return pd.Series(dtype=float)
+    return pd.Series(frame["value"].values, index=pd.to_datetime(frame["date"])).dropna().sort_index()
+
+
+def fetch_fred_series_frame(series_id: str, start: str = "1990-01-01", end: Optional[str] = None,
+                            config: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+    """Fetch one FRED series with an explicit point-in-time publish date.
+
+    The API's ``realtime_start`` is the observable/revision date.  The no-key
+    fredgraph fallback lacks that field, so it keeps the legacy date+1 behavior
+    and is visibly less PIT-rich.
+    """
     key = fred_api_key(config)
     if key:
         try:
-            import requests
             params = {"series_id": series_id, "api_key": key, "file_type": "json",
                       "observation_start": start, "sort_order": "asc", "limit": 100000}
             if end:
                 params["observation_end"] = end
-            resp = requests.get("https://api.stlouisfed.org/fred/series/observations",
-                                params=params, timeout=30)
-            resp.raise_for_status()
-            obs = resp.json().get("observations", [])
+            url = "https://api.stlouisfed.org/fred/series/observations?" + urlencode(params)
+            with urlopen(url, timeout=30) as resp:
+                obs = json.loads(resp.read().decode("utf-8")).get("observations", [])
             if obs:
-                idx = pd.to_datetime([o["date"] for o in obs], errors="coerce")
-                vals = pd.to_numeric(pd.Series([o.get("value") for o in obs]).replace(".", pd.NA), errors="coerce")
-                series = pd.Series(vals.values, index=idx).dropna().sort_index()
-                if not series.empty:
-                    return series
+                frame = pd.DataFrame(
+                    {
+                        "date": pd.to_datetime([o.get("date") for o in obs], errors="coerce"),
+                        "publish_date": pd.to_datetime([o.get("realtime_start") for o in obs], errors="coerce"),
+                        "value": pd.to_numeric(pd.Series([o.get("value") for o in obs]).replace(".", pd.NA), errors="coerce"),
+                    }
+                ).dropna(subset=["date", "value"]).sort_values("date")
+                if not frame.empty:
+                    frame["publish_date"] = frame["publish_date"].fillna(frame["date"] + pd.Timedelta(days=1))
+                    return frame[["date", "publish_date", "value"]]
         except Exception:
             pass  # fall through to the no-key endpoint
-    return fetch_fred_graph_csv(series_id, start=start, end=end)
+    series = fetch_fred_graph_csv(series_id, start=start, end=end)
+    if series.empty:
+        return pd.DataFrame(columns=["date", "publish_date", "value"])
+    frame = series.rename("value").to_frame().reset_index()
+    frame = frame.rename(columns={frame.columns[0]: "date"})
+    frame["date"] = pd.to_datetime(frame["date"])
+    frame["publish_date"] = frame["date"] + pd.Timedelta(days=1)
+    return frame[["date", "publish_date", "value"]]
 
 
 # Process-level caches keyed by (path, mtime) — safe (auto-invalidate on file
@@ -220,8 +247,8 @@ class FredPercentileSource:
         return base / f"{self.name}.csv"
 
     def build_frame(self, end: Optional[str] = None, config: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
-        series = fetch_fred_series(self.series_id, start=self.start, end=end, config=config)
-        frame = series.rename("value").to_frame().sort_index()
+        raw = fetch_fred_series_frame(self.series_id, start=self.start, end=end, config=config)
+        frame = raw.set_index("date")[["value", "publish_date"]].sort_index()
         frame[f"{self.field}_pctl"] = (
             frame["value"].rolling(self.window, min_periods=self.min_periods).apply(_last_percentile, raw=False)
         )
@@ -229,7 +256,7 @@ class FredPercentileSource:
         if "date" not in out.columns:
             out = out.rename(columns={out.columns[0]: "date"})
         out["date"] = pd.to_datetime(out["date"])
-        out["publish_date"] = out["date"] + pd.Timedelta(days=1)
+        out["publish_date"] = pd.to_datetime(out["publish_date"]).fillna(out["date"] + pd.Timedelta(days=1))
         out = out.rename(columns={"value": self.field})
         return out[["date", "publish_date", self.field, f"{self.field}_pctl"]]
 

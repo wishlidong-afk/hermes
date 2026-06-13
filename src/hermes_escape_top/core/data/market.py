@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
 
 from .base import Field, SymbolSnapshot
-from .store import LocalStore
+from .store import LocalStore, safe_symbol
 from ..features.indicators import indicator_frame, row_at_or_before
 
 
@@ -44,6 +45,8 @@ INDICATOR_FIELDS = [
     "distribution_days_25d",
 ]
 
+_INDICATOR_FRAME_CACHE: Dict[Tuple[str, str, int, int, float, int], pd.DataFrame] = {}
+
 
 @dataclass
 class MarketData:
@@ -66,11 +69,9 @@ class MarketData:
                     "ma200": Field("ma200", None, "local_csv", None),
                 },
             )
-        ind = indicator_frame(
-            raw,
-            atr_multiplier=float(self.config.get("atr", {}).get("multiplier", 4.5)),
-            chandelier_period=int(self.config.get("atr", {}).get("chandelier_period", 22)),
-        )
+        atr_multiplier = float(self.config.get("atr", {}).get("multiplier", 4.5))
+        chandelier_period = int(self.config.get("atr", {}).get("chandelier_period", 22))
+        ind = self._indicator_frame(symbol, raw, atr_multiplier, chandelier_period)
         row = row_at_or_before(ind, as_of)
         if row is None:
             return SymbolSnapshot(symbol=symbol, as_of=day, fields={"history": Field("history", None, "local_csv", None)})
@@ -94,6 +95,59 @@ class MarketData:
         if self.config.get("runtime", {}).get("offline_replay_mode"):
             return self.store.load_dated_snapshot(name, as_of)
         return self.store.load_dated_snapshot(name, as_of)
+
+    def _indicator_frame(
+        self,
+        symbol: str,
+        raw: pd.DataFrame,
+        atr_multiplier: float,
+        chandelier_period: int,
+    ) -> pd.DataFrame:
+        if not bool(self.config.get("features", {}).get("use_indicator_cache", False)):
+            return indicator_frame(
+                raw,
+                atr_multiplier=atr_multiplier,
+                chandelier_period=chandelier_period,
+            )
+        key = _indicator_cache_key(self.store, symbol, raw, atr_multiplier, chandelier_period)
+        cached = _INDICATOR_FRAME_CACHE.get(key)
+        if cached is None:
+            cached = indicator_frame(
+                raw,
+                atr_multiplier=atr_multiplier,
+                chandelier_period=chandelier_period,
+            )
+            _INDICATOR_FRAME_CACHE[key] = cached
+        return cached
+
+
+def _indicator_cache_key(
+    store: LocalStore,
+    symbol: str,
+    raw: pd.DataFrame,
+    atr_multiplier: float,
+    chandelier_period: int,
+) -> Tuple[str, str, int, int, float, int]:
+    path = _history_source_path(store, symbol)
+    try:
+        mtime_ns = path.stat().st_mtime_ns
+    except Exception:
+        mtime_ns = 0
+    return (
+        symbol,
+        str(path),
+        int(mtime_ns),
+        int(len(raw)),
+        float(atr_multiplier),
+        int(chandelier_period),
+    )
+
+
+def _history_source_path(store: LocalStore, symbol: str) -> Path:
+    primary = store.history_dir / f"{safe_symbol(symbol)}.csv"
+    if primary.exists():
+        return primary
+    return store.legacy_history_dir / f"{safe_symbol(symbol)}.csv"
 
 
 def _finite(value: Any) -> Optional[float]:

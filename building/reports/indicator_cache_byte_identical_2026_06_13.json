@@ -1,0 +1,86 @@
+{
+  "all_input_hash_match": true,
+  "comparisons": [
+    {
+      "as_of": "2022-01-03",
+      "input_hash_match": true,
+      "off_input_hash": "5a6700710a603c0a469352c3d24a042f1d437e31b3b1ac8706d171de576e99dc",
+      "off_statuses": {
+        "FNGU": "REDUCE",
+        "MSTR": "EXIT",
+        "SOXL": "REDUCE"
+      },
+      "on_input_hash": "5a6700710a603c0a469352c3d24a042f1d437e31b3b1ac8706d171de576e99dc",
+      "on_statuses": {
+        "FNGU": "REDUCE",
+        "MSTR": "EXIT",
+        "SOXL": "REDUCE"
+      },
+      "statuses_match": true
+    },
+    {
+      "as_of": "2024-04-19",
+      "input_hash_match": true,
+      "off_input_hash": "399176b97668fd0c6531fe7068230bcd93cf388774ba15fe4e357667418c40e5",
+      "off_statuses": {
+        "FNGU": "EXIT",
+        "MSTR": "EXIT",
+        "SOXL": "EXIT"
+      },
+      "on_input_hash": "399176b97668fd0c6531fe7068230bcd93cf388774ba15fe4e357667418c40e5",
+      "on_statuses": {
+        "FNGU": "EXIT",
+        "MSTR": "EXIT",
+        "SOXL": "EXIT"
+      },
+      "statuses_match": true
+    },
+    {
+      "as_of": "2026-05-29",
+      "input_hash_match": true,
+      "off_input_hash": "9864a7904c0cb410bbe94ab65a609befe8f06d209a5416dba880d3fcdf5cb528",
+      "off_statuses": {
+        "FNGU": "REDUCE",
+        "MSTR": "EXIT",
+        "SOXL": "REDUCE"
+      },
+      "on_input_hash": "9864a7904c0cb410bbe94ab65a609befe8f06d209a5416dba880d3fcdf5cb528",
+      "on_statuses": {
+        "FNGU": "REDUCE",
+        "MSTR": "EXIT",
+        "SOXL": "REDUCE"
+      },
+      "statuses_match": true
+    },
+    {
+      "as_of": "2026-06-11",
+      "input_hash_match": true,
+      "off_input_hash": "ba98d107f79ad1377b49b17bd963ed0f07672c8a96fb6fb6855b6affa1c195da",
+      "off_statuses": {
+        "FNGU": "REDUCE",
+        "MSTR": "EXIT",
+        "SOXL": "REDUCE"
+      },
+      "on_input_hash": "ba98d107f79ad1377b49b17bd963ed0f07672c8a96fb6fb6855b6affa1c195da",
+      "on_statuses": {
+        "FNGU": "REDUCE",
+        "MSTR": "EXIT",
+        "SOXL": "REDUCE"
+      },
+      "statuses_match": true
+    }
+  ],
+  "dates": [
+    "2022-01-03",
+    "2024-04-19",
+    "2026-05-29",
+    "2026-06-11"
+  ],
+  "generated_at": "2026-06-12T22:02:24Z",
+  "hermes_data_dir": "/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/hermes-ind-cache-eol7c3fh",
+  "runtimes_sec": {
+    "off": 8.763,
+    "on": 5.764
+  },
+  "speedup_ratio_off_div_on": 1.52
+}

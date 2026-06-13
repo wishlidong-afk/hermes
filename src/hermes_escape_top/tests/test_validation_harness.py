@@ -125,7 +125,22 @@ class TestRunValidation(unittest.TestCase):
         result = run_validation(dummy_strategy, data, {"validation": {"n_groups": 4, "n_test": 1, "bootstrap_n": 100}})
         self.assertIn("pbo", result)
         self.assertIn("pbo_pass", result)
+        self.assertIsNone(result["pbo"])
+        self.assertIsNone(result["pbo_pass"])
         self.assertTrue(result["report_ready"])
+
+    def test_multi_config_strategy_can_compute_pbo(self) -> None:
+        rng = np.random.RandomState(7)
+        data = pd.DataFrame({"close": 100 * np.exp(np.cumsum(rng.randn(300) * 0.01))},
+                            index=pd.bdate_range("2020-01-01", periods=300))
+
+        def multi_config_strategy(df):
+            returns = df.iloc[:, 0].pct_change().dropna()
+            return np.array([float(returns.mean()), float(-returns.mean())])
+
+        result = run_validation(multi_config_strategy, data, {"validation": {"n_groups": 4, "n_test": 1, "bootstrap_n": 100}})
+        self.assertIsNotNone(result["pbo"])
+        self.assertIsInstance(result["pbo_pass"], bool)
 
 
 if __name__ == "__main__":
