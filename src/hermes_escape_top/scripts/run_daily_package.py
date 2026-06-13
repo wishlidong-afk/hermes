@@ -237,9 +237,9 @@ def refresh_soft_data() -> None:
 
 # ── Step 2: run the package score pipeline ────────────────────────────────────
 
-def run_score_pipeline(as_of: str, shadow: bool = True) -> Dict[str, Any]:
-    print(f"[M4-1] Running score_pipeline({as_of}, shadow={shadow})…")
-    payload = pipeline.score_pipeline(as_of, shadow=shadow)
+def run_score_pipeline(as_of: str, shadow: bool = True, run_type: str = "manual_rerun") -> Dict[str, Any]:
+    print(f"[M4-1] Running score_pipeline({as_of}, shadow={shadow}, run_type={run_type})…")
+    payload = pipeline.score_pipeline(as_of, shadow=shadow, run_type=run_type)
     print(f"[M4-1] score_pipeline OK. Schema: {payload.get('schema_version')}")
     return payload
 
@@ -1006,6 +1006,11 @@ def main() -> None:
                    help="Write to live data/reports/orders dirs (shadow by default)")
     p.add_argument("--commit-state", action="store_true",
                    help="Update state.json (only with --live)")
+    p.add_argument("--run-type", default="manual_rerun",
+                   choices=["scheduled", "manual_rerun", "shadow"],
+                   help="Who triggered this run; the launchd daily job passes 'scheduled'. "
+                        "The WebUI pins the latest scheduled run as the official daily advice "
+                        "and shows manual_rerun separately as non-official preview.")
     args = p.parse_args()
 
     shadow = not args.live
@@ -1044,7 +1049,7 @@ def main() -> None:
             sys.exit(3)
         print("[integrity] WARNING: shadow run continues despite corruption.")
 
-    payload = run_score_pipeline(as_of, shadow=shadow)
+    payload = run_score_pipeline(as_of, shadow=shadow, run_type=args.run_type)
     translated = translate(payload)
     orders = translated.get("orders_preview", {})
     write_artifacts(translated, orders, as_of, shadow=shadow)

@@ -21,21 +21,62 @@ from hermes_escape_top.web.workbench import render_workbench
 TAIL_CHUNK = 32 * 1024 * 1024
 
 
-def latest_payload() -> dict:
+def _recent_records(limit: int = 60) -> list:
+    """Newest-first audit records (tail of the log; the file is hundreds of MB)."""
     config = load_config()
     path = resolve_path(config, "archive_dir") / "audit_log.jsonl"
     if not path.exists():
-        return {}
+        return []
     with path.open("rb") as fh:
         fh.seek(0, 2)
         size = fh.tell()
         fh.seek(max(0, size - TAIL_CHUNK))
         lines = [l for l in fh.read().split(b"\n") if l.strip()]
+    out = []
     for raw in reversed(lines):
         try:
-            return json.loads(raw).get("payload") or {}
+            out.append(json.loads(raw))
         except json.JSONDecodeError:
             continue
+        if len(out) >= limit:
+            break
+    return out
+
+
+def official_and_preview() -> tuple:
+    """(official_payload, preview_payload_or_None).
+
+    Official = the latest SCHEDULED run (the launchd daily job). Preview =
+    a more-recent manual_rerun for the SAME as_of, if one exists — shown as
+    non-official so an intraday verification re-run can never masquerade as
+    today's advice (the 2026-06-11 fake-EXIT lesson). Records predating the
+    run_type tag are treated as scheduled so old logs still resolve.
+    """
+    recs = _recent_records()
+    if not recs:
+        return {}, None
+    latest = recs[0].get("payload") or {}
+    latest_rt = (recs[0].get("payload") or {}).get("run_type", "scheduled")
+    official = None
+    for r in recs:
+        pl = r.get("payload") or {}
+        if pl.get("run_type", "scheduled") == "scheduled":
+            official = pl
+            break
+    if official is None:
+        official = latest  # no scheduled record in window; show what we have
+        return official, None
+    # Preview only when the newest record is a manual rerun AND it differs from
+    # the official run (same as_of, newer) — otherwise nothing to disclaim.
+    preview = None
+    if latest_rt != "scheduled" and latest.get("input_hash") != official.get("input_hash"):
+        preview = latest
+    return official, preview
+
+
+def latest_payload() -> dict:
+    official, _ = official_and_preview()
+    return official
     return {}
 
 
@@ -125,7 +166,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         try:
-            body = render_workbench(latest_payload(), trust=trust_rows()).encode("utf-8")
+            official, preview = official_and_preview()
+            body = render_workbench(official, trust=trust_rows(), preview=preview).encode("utf-8")
             self.send_response(200)
         except Exception as exc:  # pragma: no cover — never blank-page the operator
             body = f"<pre>workbench render failed: {exc!r}</pre>".encode("utf-8")

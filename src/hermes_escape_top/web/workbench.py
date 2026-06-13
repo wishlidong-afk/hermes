@@ -350,8 +350,36 @@ def _zone_lookthrough(payload: Dict[str, Any]) -> str:
 
 # ── Page ─────────────────────────────────────────────────────────────────────
 
-def render_workbench(payload: Dict[str, Any], trust: Optional[List[Dict[str, Any]]] = None) -> str:
+def _preview_banner(official: Dict[str, Any], preview: Optional[Dict[str, Any]]) -> str:
+    """Disclose when a newer manual re-run exists that is NOT shown below.
+
+    The page always shows the OFFICIAL (scheduled) run. If someone triggered an
+    intraday manual re-run afterwards, we say so explicitly with the diff —
+    instead of silently swapping the advice (the 2026-06-11 trust failure)."""
+    if not preview:
+        return ""
+    diffs = []
+    for sym in TRADE_SYMBOLS:
+        o = (official.get("scores") or {}).get(sym, {}).get("status")
+        p = (preview.get("scores") or {}).get(sym, {}).get("status")
+        if o != p:
+            diffs.append(f"{esc(sym)} {esc(o)}→{esc(p)}")
+    diff_txt = ("预览与官方差异：" + "、".join(diffs)) if diffs else "预览与官方建议一致（仅时间戳不同）"
+    return f"""
+    <section class="card" style="border:1px solid #d98a2b;background:#fdf6ec">
+      <div style="font-size:13px;font-weight:600;color:#8a5a1a">⚠ 存在更新的盘中重跑（非官方）</div>
+      <div style="font-size:12px;color:#7a6a4a;margin-top:4px">
+        下方显示的是<b>官方定时运行</b>（{esc(official.get('run_ts','')[:16])}）。另有一次盘中手动重跑
+        ({esc(preview.get('run_ts','')[:16])}) 未作为今日建议采用——{diff_txt}。
+        盘中重跑仅供排查，永不覆盖官方建议。</div>
+    </section>"""
+
+
+def render_workbench(payload: Dict[str, Any], trust: Optional[List[Dict[str, Any]]] = None,
+                     preview: Optional[Dict[str, Any]] = None) -> str:
     as_of = payload.get("as_of", "NA")
+    run_type = payload.get("run_type", "scheduled")
+    official_tag = "官方定时运行" if run_type == "scheduled" else f"{esc(run_type)}（注意：无官方运行可用）"
     return f"""<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hermes 工作台 · {esc(as_of)}</title>
@@ -361,13 +389,16 @@ def render_workbench(payload: Dict[str, Any], trust: Optional[List[Dict[str, Any
   .card {{ background: #fff; border: 1px solid #e8e6df; border-radius: 12px;
            padding: 14px 18px; margin-bottom: 16px; }}
   .zone-label {{ font-size: 12px; color: #888; margin-bottom: 6px; }}
+  .top-link {{ font-size:12px;padding:4px 12px;border:1px solid #ccc;border-radius:8px;background:#fff;
+               color:#2c2c2a;text-decoration:none;white-space:nowrap }}
   td {{ padding: 3px 4px; }}
   h1 {{ font-size: 18px; font-weight: 600; margin: 0 0 2px; }}
 </style></head><body>
 <h1>Hermes 操作者工作台</h1>
 <div style="font-size:12px;color:#888;margin-bottom:14px;display:flex;align-items:center;gap:12px">
-  <span>as_of={esc(as_of)} · 每次刷新读最新审计记录</span>
-  <button onclick="refreshData(this)" style="margin-left:auto;font-size:12px;padding:4px 12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">手动更新数据</button>
+  <span>as_of={esc(as_of)} · {official_tag} · 每次刷新读最新审计记录</span>
+  <a class="top-link" style="margin-left:auto" href="http://127.0.0.1:8766/?as_of={esc(as_of)}">逃顶驾驶舱 8766</a>
+  <button onclick="refreshData(this)" style="font-size:12px;padding:4px 12px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer">手动更新数据</button>
   <span id="refresh-status" style="font-size:12px;color:#854F0B"></span>
 </div>
 <script>
@@ -383,6 +414,7 @@ function refreshData(btn) {{
   }});
 }}
 </script>
+{_preview_banner(payload, preview)}
 {_zone_actions(payload)}
 {_zone_why(payload)}
 {_zone_target_book(payload)}

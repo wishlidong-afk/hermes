@@ -48,6 +48,8 @@ def _payload():
 
 def test_four_zones_render():
     html = render_workbench(_payload())
+    assert "逃顶驾驶舱 8766" in html
+    assert "http://127.0.0.1:8766/?as_of=2026-06-11" in html
     for marker in ("区域 1", "区域 2", "区域 3", "区域 4"):
         assert marker in html
 
@@ -84,3 +86,39 @@ def test_refresh_local_only_guard():
     assert _local_only({"Host": "localhost:8765", "Origin": "http://127.0.0.1:8765"})
     assert not _local_only({"Host": "evil.example.com"})
     assert not _local_only({"Host": "127.0.0.1:8765", "Origin": "http://evil.example.com"})
+
+
+def test_preview_banner_discloses_newer_manual_rerun():
+    from hermes_escape_top.web.workbench import render_workbench
+    official = {"as_of": "2026-06-11", "run_type": "scheduled", "run_ts": "2026-06-11T07:10",
+                "scores": {"SOXL": {"status": "REDUCE", "final_score": 33, "sell_fraction": 0.6,
+                                    "hard_valve_hits": [], "factor_scores": {}}}}
+    preview = {"as_of": "2026-06-11", "run_type": "manual_rerun", "run_ts": "2026-06-11T14:30",
+               "input_hash": "x", "scores": {"SOXL": {"status": "EXIT"}}}
+    html = render_workbench(official, preview=preview)
+    assert "非官方" in html and "盘中" in html
+    assert "SOXL REDUCE→EXIT" in html          # diff disclosed
+    assert "官方定时运行" in html               # body shows the official run
+    # no preview -> no banner
+    assert "非官方" not in render_workbench(official, preview=None)
+
+
+def test_official_and_preview_selection(tmp_path, monkeypatch):
+    import json as _json
+    from hermes_escape_top.scripts import serve_workbench as sw
+    arch = tmp_path / "data" / "archive"; arch.mkdir(parents=True)
+    log = arch / "audit_log.jsonl"
+    recs = [
+        {"as_of": "2026-06-11", "input_hash": "sched1",
+         "payload": {"run_type": "scheduled", "input_hash": "sched1", "run_ts": "07:10",
+                     "scores": {"SOXL": {"status": "REDUCE"}}}},
+        {"as_of": "2026-06-11", "input_hash": "man1",
+         "payload": {"run_type": "manual_rerun", "input_hash": "man1", "run_ts": "14:30",
+                     "scores": {"SOXL": {"status": "EXIT"}}}},
+    ]
+    log.write_text("\n".join(_json.dumps(r) for r in recs) + "\n")
+    monkeypatch.setenv("HERMES_DATA_DIR", str(tmp_path))
+    official, preview = sw.official_and_preview()
+    assert official.get("input_hash") == "sched1"      # official = latest scheduled
+    assert official["scores"]["SOXL"]["status"] == "REDUCE"
+    assert preview is not None and preview["input_hash"] == "man1"   # newer manual disclosed

@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import warnings
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -123,7 +123,14 @@ def score_pipeline(
     config_path: Path = CONFIG_PATH,
     shadow: bool = False,
     include_ibkr: bool = True,
+    run_type: str = "manual_rerun",
 ) -> Dict[str, Any]:
+    # run_type tags WHO triggered this run so the WebUI can tell the official
+    # daily run ("scheduled") from an ad-hoc intraday re-run ("manual_rerun").
+    # The 2026-06-11 incident: a verification re-run wrote a (contaminated)
+    # EXIT into the audit log and the UI showed it as "today's advice" because
+    # the UI just took the latest record. With this tag the UI pins the latest
+    # SCHEDULED run as official and shows manual re-runs as non-official preview.
     config = load_config(config_path)
     store = LocalStore(config)
     market = MarketData(config=config, store=store)
@@ -218,6 +225,8 @@ def score_pipeline(
     payload = {
         "schema_version": "escape-top-greenfield-phase3-score-v1",
         "as_of": as_of,
+        "run_type": str(run_type),
+        "run_ts": datetime.now(timezone.utc).isoformat(),
         "config_version": config["version"],
         "snapshots": {symbol: snap.to_dict() for symbol, snap in sorted(snapshots.items())},
         "scores": {symbol: bundle.result.to_dict() for symbol, bundle in sorted(bundles.items())},
