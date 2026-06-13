@@ -14,6 +14,14 @@ from ..core.data.store import safe_symbol
 ROUTE_LEGS = ["BRK.B", "BOXX", "DBMF", "BIL", "SHV"]
 EXTRA_MARKET = ["^VIX9D", "^SKEW", "^VVIX"]
 YFINANCE_SYMBOL_MAP = {"BRK.B": "BRK-B"}
+ONLINE_SOFT_HISTORY_SYMBOLS_BY_FLAG = {
+    "data_credit_etf": ["HYG", "IEF"],
+    "data_concentration": ["RSP", "SPY"],
+    "data_defensive_rotation": ["XLP", "XLU", "XLV", "XLY", "XLI", "XLF"],
+    "data_financial_stress": ["XLF", "SPY"],
+    "data_move": ["^MOVE"],
+    "data_ndx_concentration": ["QQQE", "QQQ"],
+}
 
 
 @dataclass(frozen=True)
@@ -41,10 +49,23 @@ def all_backfill_symbols(config: Optional[Dict[str, object]] = None) -> list[str
     symbols.update(cfg.get("market_symbols", []))
     symbols.update(EXTRA_MARKET)
     symbols.update(ROUTE_LEGS)
+    symbols.update(online_soft_history_symbols(cfg))
     for values in cfg.get("radars", {}).values():
         symbols.update(values)
     for values in cfg.get("component_proxies", {}).values():
         symbols.update(values)
+    return sorted(symbols)
+
+
+def online_soft_history_symbols(config: Optional[Dict[str, object]] = None) -> list[str]:
+    cfg = config or load_config()
+    features = cfg.get("features", {})
+    if not isinstance(features, dict):
+        return []
+    symbols: set[str] = set()
+    for flag, deps in ONLINE_SOFT_HISTORY_SYMBOLS_BY_FLAG.items():
+        if features.get(flag):
+            symbols.update(deps)
     return sorted(symbols)
 
 

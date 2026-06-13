@@ -11,6 +11,42 @@ def _frame(closes, start="2026-06-01"):
     return pd.DataFrame({"Close": closes}, index=idx)
 
 
+def test_backfill_symbols_include_enabled_online_soft_dependencies():
+    from hermes_escape_top.scripts.backfill_history import all_backfill_symbols, online_soft_history_symbols
+    cfg = {
+        "features": {
+            "data_credit_etf": False,
+            "data_defensive_rotation": True,
+            "data_move": False,
+        },
+        "symbols": {"MSTR": {}, "FNGU": {}, "SOXL": {}},
+        "market_symbols": [],
+        "radars": {},
+        "component_proxies": {},
+    }
+
+    defensive_deps = {"XLP", "XLU", "XLV", "XLY", "XLI", "XLF"}
+
+    assert defensive_deps.issubset(set(online_soft_history_symbols(cfg)))
+    assert defensive_deps.issubset(set(all_backfill_symbols(cfg)))
+    assert "HYG" not in online_soft_history_symbols(cfg)
+    assert "^MOVE" not in online_soft_history_symbols(cfg)
+
+
+def test_web_refresh_flow_symbols_watch_enabled_online_soft_dependencies():
+    from hermes_escape_top.web.refresh import _flow_symbols
+    cfg = {
+        "features": {"data_defensive_rotation": True},
+        "symbols": {"MSTR": {}, "FNGU": {}, "SOXL": {}},
+        "component_proxies": {"FNGU": ["NVDA", "AAPL"]},
+    }
+
+    symbols = _flow_symbols(cfg)
+
+    assert {"MSTR", "FNGU", "SOXL", "NVDA", "AAPL"}.issubset(symbols)
+    assert {"XLP", "XLU", "XLV", "XLY", "XLI", "XLF"}.issubset(symbols)
+
+
 def test_cross_wired_append_rejected():
     existing = _frame([700, 705, 710])
     wrong_ticker = _frame([218, 217, 220], start="2026-06-04")

@@ -12,7 +12,7 @@ from ..core.data.manifest import verify_manifest, write_manifest
 from ..core.data.store import safe_symbol
 from ..core.data.state_store import write_refresh_run
 from ..pipeline import score_pipeline
-from ..scripts.backfill_history import all_backfill_symbols, backfill
+from ..scripts.backfill_history import all_backfill_symbols, backfill, online_soft_history_symbols
 
 
 def refresh_score_with_market_data(requested_as_of: Any = "latest") -> Dict[str, Any]:
@@ -41,7 +41,7 @@ def refresh_score_with_market_data(requested_as_of: Any = "latest") -> Dict[str,
             repair_overlap_days=5,
         )
         history_refreshed = True
-        skip_reason = "" if refresh_symbols == symbols else f"core fresh; refreshed stale flow symbols: {','.join(stale_flow_symbols)}"
+        skip_reason = "" if refresh_symbols == symbols else f"core fresh; refreshed stale flow/soft symbols: {','.join(stale_flow_symbols)}"
         steps.append(_step(
             "history_refresh",
             "OK",
@@ -408,6 +408,7 @@ def _critical_symbols(config: Dict[str, Any]) -> set[str]:
 
 def _flow_symbols(config: Dict[str, Any]) -> set[str]:
     symbols = set(trade_symbols(config))
+    symbols.update(online_soft_history_symbols(config))
     for components in config.get("component_proxies", {}).values():
         symbols.update(components)
     return symbols
