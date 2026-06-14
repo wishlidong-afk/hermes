@@ -114,20 +114,16 @@ def _tail_lines_newest_first(path, max_bytes: int = 48 * 1024 * 1024) -> list:
     return lines
 
 
-def _latest_score_payload(as_of: str) -> dict | None:
-    """Load the newest package score payload from audit_log.jsonl without rerunning."""
+def _read_audit_payloads(max_bytes: int = 48 * 1024 * 1024) -> list:
+    """Read the audit tail ONCE and return the scored payloads it holds, newest-
+    first. The dashboard derives BOTH the latest-payload lookup and the decision-
+    history strip from this single read — one file read per page load, not two."""
     try:
-        raw_target = str(as_of or "latest")
-        latest_mode = raw_target.lower() in {"latest", "newest", ""}
-        target = raw_target[:10]
         path = resolve_path(load_config(), "archive_dir") / "audit_log.jsonl"
         if not path.exists():
-            return None
-        fallback = None
-        fallback_day = ""
-        latest = None
-        latest_day = ""
-        for raw in _tail_lines_newest_first(path):
+            return []
+        out: list = []
+        for raw in _tail_lines_newest_first(path, max_bytes):
             raw = raw.strip()
             if not raw:
                 continue
@@ -135,65 +131,66 @@ def _latest_score_payload(as_of: str) -> dict | None:
                 record = json.loads(raw)
             except Exception:
                 continue
-            payload = record.get("payload") if isinstance(record, dict) else None
-            if not isinstance(payload, dict) or "scores" not in payload:
-                continue
+            pl = record.get("payload") if isinstance(record, dict) else None
+            pl = pl if isinstance(pl, dict) else record
+            if isinstance(pl, dict) and "scores" in pl:
+                out.append(pl)
+        return out
+    except Exception:
+        return []
+
+
+def _latest_score_payload(as_of: str, records: list | None = None) -> dict | None:
+    """Newest package score payload (or the one matching as_of). Operates on a
+    pre-read record list when given (so the dashboard reads the audit once);
+    otherwise reads it itself (back-compatible for the other endpoints)."""
+    try:
+        raw_target = str(as_of or "latest")
+        latest_mode = raw_target.lower() in {"latest", "newest", ""}
+        target = raw_target[:10]
+        if records is None:
+            records = _read_audit_payloads()
+        fallback = None
+        fallback_day = ""
+        latest = None
+        latest_day = ""
+        for payload in records:
             pday = str(payload.get("as_of", ""))[:10]
             if latest_mode:
                 if pday and pday > latest_day:
                     latest_day = pday
                     latest = dict(payload)
-                    latest["cache_status"] = {"hit": True, "source": str(path), "exact": True, "requested_as_of": raw_target}
+                    latest["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True, "requested_as_of": raw_target}
                 continue
             if pday == target:
                 payload = dict(payload)
-                payload["cache_status"] = {"hit": True, "source": str(path), "exact": True}
+                payload["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True}
                 return payload
             if pday and pday <= target and pday > fallback_day:
                 fallback_day = pday
                 fallback = dict(payload)
-                fallback["cache_status"] = {"hit": True, "source": str(path), "exact": False, "requested_as_of": target}
+                fallback["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": False, "requested_as_of": target}
         return latest if latest_mode else fallback
     except Exception:
         return None
 
 
-def _recent_status_history(as_of: str, max_days: int = 10) -> dict:
+def _recent_status_history(as_of: str, max_days: int = 10, records: list | None = None) -> dict:
     """Per-symbol status over the last `max_days` distinct OFFICIAL trading days
-    (oldest->newest) for the dashboard consistency strip. Tail-reads the audit so
-    a large log is not parsed front-to-back; manual re-runs (run_type != scheduled)
-    are skipped so the strip shows the decision of record, not intraday previews."""
+    for the dashboard consistency strip. Uses the pre-read record list when given
+    (shared with the latest-payload read — one audit read per page load); manual
+    re-runs (run_type != scheduled) are skipped so the strip shows the decision of
+    record, not intraday previews."""
     try:
-        path = resolve_path(load_config(), "archive_dir") / "audit_log.jsonl"
-        if not path.exists():
-            return {}
-        chunk = 8 * 1024 * 1024
-        with path.open("rb") as fh:
-            fh.seek(0, 2)
-            size = fh.tell()
-            fh.seek(max(0, size - chunk))
-            data = fh.read()
-        lines = data.split(b"\n")
-        if size > chunk:
-            lines = lines[1:]  # drop the likely-partial first line
+        if records is None:
+            records = _read_audit_payloads()
         by_day: dict = {}
-        for raw in lines:
-            raw = raw.strip()
-            if not raw:
-                continue
-            try:
-                rec = json.loads(raw)
-            except Exception:
-                continue
-            pl = rec.get("payload") if isinstance(rec, dict) else None
-            pl = pl if isinstance(pl, dict) else rec
-            if not isinstance(pl, dict) or "scores" not in pl:
-                continue
+        for pl in records:  # newest-first
             if str(pl.get("run_type", "scheduled")) != "scheduled":
                 continue
             day = str(pl.get("as_of", ""))[:10]
             if day:
-                by_day[day] = pl  # keep the newest record per day
+                by_day.setdefault(day, pl)  # first seen is newest -> keep newest per day
         out: dict = {}
         for day in sorted(by_day)[-max_days:]:
             scores = by_day[day].get("scores") or {}
@@ -478,8 +475,9 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             as_of = params.get("as_of", ["latest"])[0]
 
             if parsed.path in {"/", "/index.html"}:
-                payload = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
-                payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of)
+                audit_records = _read_audit_payloads()  # single audit read for both lookups
+                payload = _latest_score_payload(as_of, audit_records) or _empty_dashboard_payload(as_of)
+                payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of, records=audit_records)
                 shadow = _shadow_status()
                 try:
                     manifest = manifest_status()
