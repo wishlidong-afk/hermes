@@ -38,9 +38,18 @@ def write_audit_record(payload: Dict[str, Any], archive_dir: Path) -> Path:
 
 
 def load_last_audit(path: Path) -> AuditRecord | None:
+    """Last record without reading the whole append-only log. audit_log.jsonl is
+    150MB+ and grows; read only the tail and take the last complete line. One
+    record is ~650KB, so a 4MB tail comfortably holds the final line intact."""
     if not path.exists():
         return None
-    lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    chunk = 4 * 1024 * 1024
+    with path.open("rb") as fh:
+        fh.seek(0, 2)
+        size = fh.tell()
+        fh.seek(max(0, size - chunk))
+        data = fh.read()
+    lines = [line for line in data.split(b"\n") if line.strip()]
     if not lines:
         return None
     payload = json.loads(lines[-1])
