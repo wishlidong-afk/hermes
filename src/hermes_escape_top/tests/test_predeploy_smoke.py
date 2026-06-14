@@ -76,3 +76,36 @@ def test_unexplained_flip_flags_soft_flip_but_allows_valve():
     valve = {"scores": {"SOXL": {"status": "EXIT", "hard_valve_hits": ["H-S1"]}}}
     _, ok2, _ = smoke.check_no_unexplained_flip(prev, valve)
     assert ok2
+
+
+def test_source_regression_catches_always_on_source_going_dark():
+    # The gap the risk-only check missed: an always-on source (naaim) that WAS
+    # available going MISSING must now be caught.
+    prev = {"soft_data": {"records": {"naaim": {"data_available": True}}}}
+    curr = {"soft_data": {"records": {"naaim": {"data_available": False, "reason": "no record as of date"}}}}
+    _, ok, detail = smoke.check_no_source_regression(prev, curr)
+    assert not ok and "naaim" in detail
+
+
+def test_source_regression_ignores_steady_state_absent():
+    # Absent in BOTH runs (off / legit weekly gap) is not a regression -> no false alarm.
+    prev = {"soft_data": {"records": {"aaii": {"data_available": False}}}}
+    curr = {"soft_data": {"records": {"aaii": {"data_available": False}}}}
+    _, ok, _ = smoke.check_no_source_regression(prev, curr)
+    assert ok
+
+
+def test_source_regression_passes_when_still_available():
+    prev = {"soft_data": {"records": {"real_rate": {"data_available": True}}}}
+    curr = {"soft_data": {"records": {"real_rate": {"data_available": True}}}}
+    _, ok, _ = smoke.check_no_source_regression(prev, curr)
+    assert ok
+
+
+def test_source_regression_ignores_off_by_design_sources():
+    # gex/valuation flip available<->missing by design and don't feed advice;
+    # a flip there must NOT fail the gate (caught in live self-review).
+    prev = {"soft_data": {"records": {"valuation": {"data_available": True}}}}
+    curr = {"soft_data": {"records": {"valuation": {"data_available": False, "reason": "absent"}}}}
+    _, ok, _ = smoke.check_no_source_regression(prev, curr)
+    assert ok

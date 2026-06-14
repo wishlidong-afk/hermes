@@ -11,8 +11,10 @@ state.
 Checks (FATAL unless noted):
   1. FRED publish_date is per-row and not future-stamped -> the 2026-06-13
      realtime_start outage that zeroed A10 and broke backtest PIT.
-  2. Every flag-ON soft source is available in the latest official payload ->
-     the same outage's symptom (real_rate/A10 silently MISSING).
+  2. Every flag-ON risk source is available, AND no soft source regressed
+     available->MISSING vs the previous official run — covering the always-on
+     sources too (naaim/aaii/cboe_pcr/net_liquidity/component_breadth), not just
+     the flag-gated risk ones -> the real_rate/A10 outage symptom.
   3. The rendered decision evidence carries no NA/undefined leak -> the
      2026-06-14 "A模块 NA" / "BRK.B NA" render bugs.
   4. Data manifest is not in DRIFT -> stale/corrupt-history guard.
@@ -130,6 +132,33 @@ def check_on_sources_available(config: Dict[str, Any], payload: Dict[str, Any]) 
     return ("ON soft sources available", not missing, "OK" if not missing else "; ".join(missing))
 
 
+def check_no_source_regression(prev: Optional[Dict[str, Any]], curr: Optional[Dict[str, Any]]) -> CheckResult:
+    """Flag any soft source that was available in the previous OFFICIAL run but is
+    now MISSING — the real_rate-went-dark regression, across ALL sources. This
+    closes check_on_sources_available's gap: it only iterated the flag-gated risk
+    sources, so a regression in an always-on source (naaim / aaii / cboe_pcr /
+    net_liquidity / component_breadth) would have slipped through. Only a true
+    regression fails: steady-state-absent / feature-disabled sources and legitimate
+    weekly gaps were not available in prev either, so they are never flagged."""
+    if not prev or not curr:
+        return ("no soft-source regression", True, "insufficient official history (skipped)")
+    prev_recs = (prev.get("soft_data") or {}).get("records") or {}
+    curr_recs = (curr.get("soft_data") or {}).get("records") or {}
+    regressed: List[str] = []
+    for name, prec in prev_recs.items():
+        # gex/valuation are off-by-design and flip available<->missing harmlessly
+        # (they don't feed advice) — excluding them, like check_on_sources_available.
+        if name in _EXPECTED_OFF:
+            continue
+        if not isinstance(prec, dict) or not prec.get("data_available"):
+            continue
+        crec = curr_recs.get(name) or {}
+        if not crec.get("data_available", False):
+            regressed.append(f"{name}: was available, now MISSING ({crec.get('reason', 'absent')})")
+    return ("no soft-source regression", not regressed,
+            "OK" if not regressed else "; ".join(regressed))
+
+
 def check_no_na_in_evidence(payload: Dict[str, Any]) -> CheckResult:
     try:
         from ..web.render import _render_evidence_strip
@@ -173,6 +202,7 @@ def run_smoke(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     fatal: List[CheckResult] = [
         check_fred_publish_dates(config),
         check_on_sources_available(config, curr),
+        check_no_source_regression(prev, curr),
         check_no_na_in_evidence(curr),
         check_manifest_not_drift(config),
     ]
