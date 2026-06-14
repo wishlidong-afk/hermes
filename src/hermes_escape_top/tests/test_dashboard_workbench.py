@@ -273,27 +273,53 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     html = render_mod.render_dashboard(_payload(), health={"level": "OK"}, manifest_status={"status": "OK"})
 
     assert "系统状态 + 数据质量" in html
+    # 8765 workbench retired — its launch button must NOT be on the dashboard.
+    assert "工作台 8765" not in html
+    assert "127.0.0.1:8765" not in html
     assert "区域 5 · 数据信任区" in html
+    assert "<details class='work-card data-trust-zone'" in html
     assert "cboe_equity_pcr" in html and "CBOE_DAILY_HTML" in html and "剩 5d" in html
     assert "aaii_sentiment" in html and "AAII" in html and "真实" in html
+    assert html.count("需要处置") == 1
     assert "今日操作台" in html
     assert "DEFCON 路由" in html and "执行计划资金去向" in html
     assert "路由/执行口径不一致" in html and "DBMF" in html and "GLD" in html
-    assert html.index("今日操作台") < html.index("展开完整处置指令")
-    assert html.index("展开完整处置指令") < html.index("当前持仓 + IBKR 对账")
+    assert html.index("系统状态 + 数据质量") < html.index("今日操作台")
+    assert html.index("区域 5 · 数据信任区") < html.index("今日操作台")
+    assert html.index("今日操作台") < html.index("为什么这么做")
+    assert html.index("为什么这么做") < html.index("硬阀门雷达")
+    assert html.index("硬阀门雷达") < html.index("当前持仓 + IBKR 对账")
     assert "MSTR EXIT" in html and "FNGU REDUCE" in html and "SOXL HOLD" in html
     assert "当前持仓 + IBKR 对账" in html
     assert "IBKR 现有总资产" in html
     assert "理想仓位上一交易日盈亏" in html
     assert "穿透股票现金流" in html
     assert html.index("当前持仓 + IBKR 对账") < html.index("穿透股票现金流")
-    assert html.index("穿透股票现金流") < html.index("Mirror Reference")
+    assert "Mirror Reference" not in html
     assert "SOXL" in html and "买入缺口" in html
     assert "BOXX" in html and "+27.7%" in html
     assert "FNGU 资金流" in html and "SEVERE" in html
     assert "NVDA" in html and "-$53.93B" in html
     assert "资金流热力解释" in html
+    assert "CMF20热格" in html and "MFI-50热格" in html
     assert "其他折叠详情" in html and "硬阀门全景" in html
+
+
+def test_strategy_console_explains_forced_status_floor():
+    payload = _payload()
+    payload["scores"]["SOXL"]["final_score"] = 32.53
+    payload["scores"]["SOXL"]["status"] = "REDUCE"
+    payload["scores"]["SOXL"]["explain"] = [
+        "Base score status: WATCH (32.53)",
+        "Red-light factor count >=4: minimum REDUCE",
+    ]
+    payload["action_intents"]["SOXL"]["action"] = "REDUCE_AND_ROUTE"
+    payload["action_intents"]["SOXL"]["status"] = "REDUCE"
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    assert "分数 32.53 → 分数档 WATCH" in html
+    assert "裁决档 REDUCE（Red-light factor count &gt;=4: minimum REDUCE）" in html
 
 
 def test_strategy_console_uses_combo_trade_plan_when_execution_legs_are_present():

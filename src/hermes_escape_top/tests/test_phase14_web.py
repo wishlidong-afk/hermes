@@ -16,16 +16,18 @@ class Phase14WebTest(unittest.TestCase):
         with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
             payload = score_pipeline("2026-05-29")
         html = render_dashboard(payload)
-        self.assertIn("Escape Decisions", html)
+        self.assertIn("今日操作台", html)
+        self.assertIn("Evidence Strip", html)
+        self.assertIn("Hard Valve Radar", html)
         self.assertIn("System Health", html)
         self.assertIn("Audit Detail", html)
         self.assertIn("Portfolio Risk", html)
-        self.assertIn("Mirror Reference", html)
+        self.assertNotIn("Mirror Reference", html)
         self.assertIn("IBKR Live 验收", html)
         self.assertIn("更新持仓", html)
         self.assertIn("IBKR 现有总资产", html)
         self.assertIn("宏观 A 模块评分", html)
-        self.assertIn("底层持仓资金流入/流出监控", html)
+        self.assertIn("穿透股票现金流", html)
 
     def test_write_dashboard_file(self) -> None:
         with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
