@@ -656,6 +656,9 @@ def _render_hard_valve_radar(payload: Dict[str, Any]) -> str:
     for symbol in TRADE_SYMBOLS:
         score = scores.get(symbol) or {}
         hv_state = ((layers.get(symbol) or {}).get("hard_valve_state") or {})
+        _prev_hits = set((payload.get("prev_valves") or {}).get(symbol) or [])
+        _newly = ([h for h in (score.get("hard_valve_hits") or []) if h not in _prev_hits]
+                  if payload.get("prev_valves") else [])
         candidates = _valve_candidates_for(score, hv_state)
         summary = _summarize_valve_candidates(candidates)
         danger_points = summary["triggered"] * 3 + summary["pending"] * 2 + summary["near"]
@@ -670,7 +673,9 @@ def _render_hard_valve_radar(payload: Dict[str, Any]) -> str:
             f"<div><div>{_badge('已触发 ' + str(summary['triggered']), 'danger' if summary['triggered'] else 'ok')} "
             f"{_badge('待确认 ' + str(summary['pending']), 'warn' if summary['pending'] else 'ok')} "
             f"{_badge('接近 ' + str(summary['near']), 'watch' if summary['near'] else 'ok')}</div>"
-            f"<div class='mini-note' style='margin-top:6px'>{esc(summary['note'])}</div></div>"
+            f"<div class='mini-note' style='margin-top:6px'>{esc(summary['note'])}</div>"
+            + (f"<div style='margin-top:6px'>{_badge('🆕 今日新触发 ' + ', '.join(_newly) + ' · 待明日收盘确认', 'warn')}</div>" if _newly else "")
+            + "</div>"
             "</div>"
         )
         by_bucket = _valve_bucket_statuses(candidates)
@@ -805,6 +810,10 @@ def _render_position_gap_section(payload: Dict[str, Any]) -> str:
 
 def _render_position_desk(payload: Dict[str, Any], history: List[Dict[str, Any]]) -> str:
     ibkr = payload.get("ibkr") or {}
+    stale = bool(ibkr.get("snapshot_stale"))
+    _age_s = _float(ibkr.get("snapshot_age_seconds"), 0.0)
+    _age_txt = f"约 {_age_s / 3600:.0f} 小时前" if _age_s else "陈旧"
+    _dim_attr = ' style="opacity:.45"' if stale else ''
     rows = _position_gap_rows(payload)
     buy_gap = sum(max(0.0, _float(row.get("gap_notional"), 0.0)) for row in rows if row.get("category") != "额外持仓")
     sell_gap = sum(abs(min(0.0, _float(row.get("gap_notional"), 0.0))) for row in rows)
@@ -820,13 +829,14 @@ def _render_position_desk(payload: Dict[str, Any], history: List[Dict[str, Any]]
             f"<td>{_fmt_pct(row['actual_weight'])}<div class='subtle'>{_fmt_money(row['actual_notional'])} · {_fmt_num(row.get('actual_shares'))}股</div></td>"
             f"<td>{_fmt_pct(row['target_weight'])}<div class='subtle'>{_fmt_money(row['target_notional'])}</div></td>"
             f"<td>{_fmt_pct(row['gap_weight'], signed=True)}<div class='subtle'>{_fmt_money(row['gap_notional'])}</div></td>"
-            f"<td><span class='position-action {cls}'>{esc(action)}</span><div class='subtle'>{esc(row['status'])}</div></td>"
+            f"<td><span class='position-action {cls}'{_dim_attr}>{esc(action)}</span><div class='subtle'>{esc(row['status'])}</div></td>"
             "</tr>"
         )
     body_html = "".join(body) if body else '<tr><td colspan="6">暂无持仓对账数据</td></tr>'
     return f"""
     <section>
       <h2>当前持仓 + IBKR 对账 / Position Desk</h2>
+      {(f'<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 12px;margin-bottom:10px;color:#92400e;font-weight:700">⚠️ IBKR 快照{esc(_age_txt)}（非实时）。下面的买入/卖出股数与金额都据此陈旧快照计算，仅供参考——请勿据此下单，等实时快照恢复再核对。</div>') if stale else ''}
       <div class="position-summary-grid">
         {_metric('IBKR 现有总资产', _fmt_money(ibkr.get('net_liq')))}
         {_metric('需买入缺口', _fmt_money(buy_gap))}

@@ -114,10 +114,12 @@ def _tail_lines_newest_first(path, max_bytes: int = 48 * 1024 * 1024) -> list:
     return lines
 
 
-def _read_audit_payloads(max_bytes: int = 48 * 1024 * 1024) -> list:
+def _read_audit_payloads(max_bytes: int = 64 * 1024 * 1024) -> list:
     """Read the audit tail ONCE and return the scored payloads it holds, newest-
     first. The dashboard derives BOTH the latest-payload lookup and the decision-
-    history strip from this single read — one file read per page load, not two."""
+    history strip from this single read — one file read per page load, not two.
+    64MB spans ~10 official trading days in steady state (1 record/day); more under
+    re-run bloat is fine — the history strip caps at max_days."""
     try:
         path = resolve_path(load_config(), "archive_dir") / "audit_log.jsonl"
         if not path.exists():
@@ -206,6 +208,23 @@ def _recent_status_history(as_of: str, max_days: int = 10, records: list | None 
         return out
     except Exception:
         return {}
+
+
+def _prev_official_valves(records: list, before_as_of: str) -> dict:
+    """Hard-valve ids per symbol from the most recent OFFICIAL run BEFORE
+    `before_as_of`. The dashboard marks a valve that fired today but not in that
+    run as 'newly fired, pending tomorrow's confirmation' — so a fresh EXIT reads
+    as unconfirmed, not as a settled state (前后一致性)."""
+    day0 = str(before_as_of or "")[:10]
+    for pl in records:  # newest-first
+        if str(pl.get("run_type", "scheduled")) != "scheduled":
+            continue
+        day = str(pl.get("as_of", ""))[:10]
+        if day and day < day0:
+            scores = pl.get("scores") or {}
+            return {s: list((scores.get(s) or {}).get("hard_valve_hits") or [])
+                    for s in ("MSTR", "FNGU", "SOXL")}
+    return {}
 
 
 def _subprocess_env() -> dict:
@@ -475,9 +494,10 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             as_of = params.get("as_of", ["latest"])[0]
 
             if parsed.path in {"/", "/index.html"}:
-                audit_records = _read_audit_payloads()  # single audit read for both lookups
+                audit_records = _read_audit_payloads()  # single audit read for all three lookups
                 payload = _latest_score_payload(as_of, audit_records) or _empty_dashboard_payload(as_of)
                 payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of, records=audit_records)
+                payload["prev_valves"] = _prev_official_valves(audit_records, payload.get("as_of") or as_of)
                 shadow = _shadow_status()
                 try:
                     manifest = manifest_status()

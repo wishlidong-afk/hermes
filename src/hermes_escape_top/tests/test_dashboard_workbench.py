@@ -438,3 +438,27 @@ def test_decision_history_strip_renders_per_symbol_sequence():
 def test_decision_history_strip_empty_when_absent():
     # Back-compatible: no status_history injected -> nothing rendered.
     assert render_mod._render_status_history(_payload()) == ""
+
+
+def test_valve_radar_marks_newly_fired_valve_pending_confirmation():
+    payload = _payload()
+    payload["scores"]["MSTR"]["hard_valve_hits"] = ["H-M1", "H-M4"]
+    payload["prev_valves"] = {"MSTR": ["H-M1"], "FNGU": [], "SOXL": []}  # H-M4 is new today
+    html = render_mod._render_hard_valve_radar(payload)
+    assert "今日新触发" in html and "H-M4" in html and "待明日收盘确认" in html
+
+
+def test_valve_radar_no_new_badge_without_prev_valves():
+    # No previous official run -> don't label everything as "newly fired".
+    payload = _payload()
+    payload.pop("prev_valves", None)
+    assert "今日新触发" not in render_mod._render_hard_valve_radar(payload)
+
+
+def test_position_desk_warns_and_dims_when_snapshot_stale():
+    payload = _payload()
+    payload.setdefault("ibkr", {})["snapshot_stale"] = True
+    payload["ibkr"]["snapshot_age_seconds"] = 152152  # ~42h
+    html = render_mod._render_position_desk(payload, history=[])
+    assert "请勿据此下单" in html and "约 42 小时前" in html
+    assert "opacity:.45" in html  # actionable cells de-emphasized
