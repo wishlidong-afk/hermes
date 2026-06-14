@@ -109,3 +109,24 @@ def test_source_regression_ignores_off_by_design_sources():
     curr = {"soft_data": {"records": {"valuation": {"data_available": False, "reason": "absent"}}}}
     _, ok, _ = smoke.check_no_source_regression(prev, curr)
     assert ok
+
+
+def test_always_on_daily_catches_steady_state_missing():
+    # A daily source missing fails even if it was already missing in the prev run
+    # (the steady-state gap the regression delta leaves).
+    payload = {"soft_data": {"records": {"net_liquidity": {"data_available": False, "reason": "absent"}}}}
+    _, ok, detail = smoke.check_always_on_daily_available(payload)
+    assert not ok and "net_liquidity" in detail
+
+
+def test_always_on_daily_passes_when_available():
+    payload = {"soft_data": {"records": {n: {"data_available": True} for n in smoke.ALWAYS_ON_DAILY}}}
+    _, ok, _ = smoke.check_always_on_daily_available(payload)
+    assert ok
+
+
+def test_always_on_daily_skips_unwired_source():
+    # A source not present in the payload at all is not asserted (no false alarm on
+    # a build that doesn't wire it).
+    _, ok, _ = smoke.check_always_on_daily_available({"soft_data": {"records": {}}})
+    assert ok

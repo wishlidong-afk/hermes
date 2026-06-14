@@ -159,6 +159,28 @@ def check_no_source_regression(prev: Optional[Dict[str, Any]], curr: Optional[Di
             "OK" if not regressed else "; ".join(regressed))
 
 
+# Always-on DAILY soft sources that should never be MISSING (no weekly publication
+# gap — they refresh/cache every trading day). A missing one is a real failure even
+# if it has been missing across both official runs (which the regression delta would
+# not catch). Weekly sources (aaii / naaim / cot) are deliberately NOT here: they can
+# be legitimately absent, so they're covered by the regression check + SLO/health.
+ALWAYS_ON_DAILY = {"net_liquidity", "cboe_pcr", "cboe_indices", "component_breadth"}
+
+
+def check_always_on_daily_available(payload: Dict[str, Any]) -> CheckResult:
+    """Absolute availability for the always-on daily sources — closes the steady-
+    state gap the regression delta leaves (a daily source broken across both runs)."""
+    records = (payload.get("soft_data") or {}).get("records") or {}
+    missing: List[str] = []
+    for name in sorted(ALWAYS_ON_DAILY):
+        rec = records.get(name)
+        if rec is None:
+            continue  # not in this build's payload — don't assert a source that isn't wired
+        if not rec.get("data_available", False):
+            missing.append(f"{name}: {rec.get('reason', 'MISSING')}")
+    return ("always-on daily sources available", not missing, "OK" if not missing else "; ".join(missing))
+
+
 def check_no_na_in_evidence(payload: Dict[str, Any]) -> CheckResult:
     try:
         from ..web.render import _render_evidence_strip
@@ -202,6 +224,7 @@ def run_smoke(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     fatal: List[CheckResult] = [
         check_fred_publish_dates(config),
         check_on_sources_available(config, curr),
+        check_always_on_daily_available(curr),
         check_no_source_regression(prev, curr),
         check_no_na_in_evidence(curr),
         check_manifest_not_drift(config),
