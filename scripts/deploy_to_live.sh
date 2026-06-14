@@ -29,10 +29,18 @@ else
     && echo "config applied (backup .bak_$STAMP)" || echo "config NOT applied"
 fi
 
-echo "== 4/5 post-deploy decision check =="
+echo "== 4/5 post-deploy validation smoke + decision check =="
 BEFORE=$(tail -1 "$PKG/data/archive/audit_log.jsonl" | /usr/bin/python3 -c "import json,sys;p=json.loads(sys.stdin.read())['payload']['scores'];print({k:v['status'] for k,v in p.items()})")
 ( cd "$LIVE" && PYTHONPATH=. /usr/bin/python3 -c "import hermes_escape_top.pipeline" ) && echo "import OK"
 echo "pre-deploy statuses: $BEFORE"
+echo "-- validation smoke gate (catches fake-data/NA/manifest-drift before it ships) --"
+if ( cd "$LIVE" && PYTHONPATH=. /usr/bin/python3 -m hermes_escape_top.scripts.predeploy_smoke ); then
+  echo "smoke gate PASS"
+else
+  echo "!! smoke gate FAIL — the just-deployed live state is degraded. NOT committing."
+  echo "!! rollback: tar -xzf $LIVE/hermes_escape_top.predeploy_backup_$STAMP.tar.gz -C $LIVE"
+  exit 2
+fi
 echo "run 'bash ~/.hermes/bin/run_daily.sh' (or wait for 07:10) and compare statuses."
 
 echo "== 5/5 commit in .hermes git repo =="
