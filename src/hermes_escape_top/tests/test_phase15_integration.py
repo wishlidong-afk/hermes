@@ -298,5 +298,19 @@ class Phase15IntegrationTest(unittest.TestCase):
             thread.join(timeout=5)
 
 
+def test_tail_lines_newest_first_is_bounded(tmp_path):
+    # The dashboard's audit read must be bounded (not a 150MB+ full read per page
+    # load). _tail_lines_newest_first returns newest-first and only the tail window.
+    from pathlib import Path
+    from hermes_escape_top.web.server import _tail_lines_newest_first
+
+    p = tmp_path / "audit.jsonl"
+    p.write_text("".join(f"line{i}\n" for i in range(100)), encoding="utf-8")
+    lines = _tail_lines_newest_first(Path(p), max_bytes=30)  # tiny window
+    nonempty = [l for l in lines if l.strip()]   # the loop skips empties (trailing \n)
+    assert nonempty[0].strip() == b"line99"      # newest first
+    assert len(nonempty) < 100                   # bounded to the tail, not the whole file
+
+
 if __name__ == "__main__":
     unittest.main()

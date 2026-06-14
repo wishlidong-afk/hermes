@@ -96,6 +96,24 @@ def _latest_precheck(as_of: str) -> dict | None:
     return None
 
 
+def _tail_lines_newest_first(path, max_bytes: int = 48 * 1024 * 1024) -> list:
+    """Lines from the tail of a (possibly huge, append-only) file, newest-first.
+    Reads at most max_bytes so the 150MB+ audit log is never read whole on a
+    dashboard request — the read stays bounded as the log grows to GB. The window
+    covers many recent official days; an as_of older than it falls back to NO_CACHE
+    (rare manual query) rather than re-scanning the entire file."""
+    with path.open("rb") as fh:
+        fh.seek(0, 2)
+        size = fh.tell()
+        fh.seek(max(0, size - max_bytes))
+        data = fh.read()
+    lines = data.split(b"\n")
+    if size > max_bytes:
+        lines = lines[1:]  # drop the likely-partial first line
+    lines.reverse()
+    return lines
+
+
 def _latest_score_payload(as_of: str) -> dict | None:
     """Load the newest package score payload from audit_log.jsonl without rerunning."""
     try:
@@ -109,12 +127,12 @@ def _latest_score_payload(as_of: str) -> dict | None:
         fallback_day = ""
         latest = None
         latest_day = ""
-        for line in reversed(path.read_text(encoding="utf-8").splitlines()):
-            line = line.strip()
-            if not line:
+        for raw in _tail_lines_newest_first(path):
+            raw = raw.strip()
+            if not raw:
                 continue
             try:
-                record = json.loads(line)
+                record = json.loads(raw)
             except Exception:
                 continue
             payload = record.get("payload") if isinstance(record, dict) else None
