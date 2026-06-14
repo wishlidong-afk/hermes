@@ -61,18 +61,25 @@ from .render import render_dashboard
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-WRITE_ENDPOINTS = {
+# Dangerous writes that change production behavior or decision state: require a
+# loopback Host/Origin AND HERMES_CONFIRM_TOKEN.
+TOKEN_WRITE_ENDPOINTS = {
+    "/api/m4_golive",          # flips run_daily.py to the package engine
+    "/api/confirm_execution",  # writes execution confirmations that feed reentry
+}
+# Low-risk data refresh / recompute (no order or money path — the system never
+# orders) are loopback-only, matching the 8765 workbench /refresh. A token here is
+# friction without security value: loopback already blocks remote/CSRF callers,
+# and the worst a local caller can do is refresh data.
+LOOPBACK_WRITE_ENDPOINTS = {
     "/api/m4_shadow",
     "/api/m4_backfill",
-    "/api/m4_golive",
     "/api/refresh_manifest",
     "/api/refresh_soft_data",
     "/api/ibkr_demo_snapshot",
     "/api/refresh_score",
-    "/api/score",
     "/api/refresh_positions",
     "/api/ibkr_live_check",
-    "/api/confirm_execution",
 }
 
 def _latest_precheck(as_of: str) -> dict | None:
@@ -195,13 +202,27 @@ def _confirm_execution_allowed(config: dict, req: dict, headers) -> tuple[bool, 
     return _write_request_allowed(config, req, headers)
 
 
-def _auth_failure_payload(status: str) -> bytes:
+def _loopback_only_allowed(headers) -> tuple[bool, str]:
+    """Loopback guard for low-risk data-refresh endpoints: require a local
+    Host/Origin but no token. Blocks remote and cross-site callers without the
+    token friction — the same posture as the 8765 workbench /refresh. Dangerous
+    endpoints keep the token gate via _write_request_allowed."""
+    if not _is_local_request_host(headers.get("Host")):
+        return False, "HOST_NOT_LOCAL"
+    origin = headers.get("Origin")
+    if origin and not _is_local_request_host(origin):
+        return False, "ORIGIN_NOT_LOCAL"
+    return True, "LOOPBACK_OK"
+
+
+def _auth_failure_payload(status: str, token_required: bool = True) -> bytes:
+    message = (
+        "write endpoint requires localhost Host/Origin and HERMES_CONFIRM_TOKEN"
+        if token_required
+        else "endpoint requires a localhost Host/Origin (loopback only)"
+    )
     return json.dumps(
-        {
-            "ok": False,
-            "status": status,
-            "message": "write endpoint requires localhost Host/Origin and HERMES_CONFIRM_TOKEN",
-        },
+        {"ok": False, "status": status, "message": message},
         ensure_ascii=False,
         indent=2,
         sort_keys=True,
@@ -454,13 +475,20 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             except Exception:
                 req = {}
 
-            if parsed.path in WRITE_ENDPOINTS:
+            if parsed.path in TOKEN_WRITE_ENDPOINTS:
                 try:
                     allowed, auth_status = _write_request_allowed(load_config(), req, self.headers)
                 except Exception:
                     allowed, auth_status = False, "AUTH_CHECK_ERROR"
                 if not allowed:
-                    self._send(403, "application/json; charset=utf-8", _auth_failure_payload(auth_status))
+                    self._send(403, "application/json; charset=utf-8",
+                               _auth_failure_payload(auth_status, token_required=True))
+                    return
+            elif parsed.path in LOOPBACK_WRITE_ENDPOINTS:
+                allowed, auth_status = _loopback_only_allowed(self.headers)
+                if not allowed:
+                    self._send(403, "application/json; charset=utf-8",
+                               _auth_failure_payload(auth_status, token_required=False))
                     return
 
             if parsed.path == "/api/m4_shadow":

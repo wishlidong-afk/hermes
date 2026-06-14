@@ -143,6 +143,55 @@ class Phase15IntegrationTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
+    def test_refresh_score_is_loopback_only_no_token_required(self) -> None:
+        # The data-refresh endpoint (the '刷新策略数据' button) must work from a
+        # loopback browser WITHOUT a token — token friction belongs only on the
+        # dangerous endpoints. Loopback Origin, no X-Hermes-Token.
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            refreshed_payload = score_pipeline("2026-05-29")
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = urllib.request.Request(
+                f"{base}/api/refresh_score",
+                data=b"",
+                headers={"Origin": "http://127.0.0.1"},  # loopback, NO token
+                method="POST",
+            )
+            with mock.patch("hermes_escape_top.web.server.refresh_score_with_market_data", return_value=refreshed_payload):
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            self.assertIn("posterior_pnl", payload)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_golive_still_requires_token_even_from_loopback(self) -> None:
+        # The dangerous endpoint stays token-gated: a loopback caller WITHOUT a
+        # token is rejected 403.
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = urllib.request.Request(
+                f"{base}/api/m4_golive",
+                data=b'{"confirmed":true}',
+                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},  # loopback, NO token
+                method="POST",
+            )
+            with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}):
+                with self.assertRaises(urllib.error.HTTPError) as ctx:
+                    urllib.request.urlopen(request, timeout=10)
+            self.assertEqual(ctx.exception.code, 403)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_server_execution_confirmation_rejects_bad_token_without_write(self) -> None:
         server = create_server("127.0.0.1", 0, "2026-05-29")
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -219,28 +268,30 @@ class Phase15IntegrationTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
-    def test_write_endpoint_rejects_missing_token_without_calling_handler(self) -> None:
+    def test_token_write_endpoint_rejects_missing_token_without_calling_handler(self) -> None:
+        # A token-gated endpoint (confirm_execution) rejects a missing token with
+        # 403 BEFORE invoking its handler — no side effects on auth failure.
         server = create_server("127.0.0.1", 0, "2026-05-29")
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
             base = f"http://127.0.0.1:{server.server_port}"
             request = urllib.request.Request(
-                f"{base}/api/refresh_score",
-                data=b'{"as_of":"latest"}',
-                headers={"Content-Type": "application/json", "Origin": "http://127.0.0.1"},
+                f"{base}/api/confirm_execution",
+                data=b'{"symbol":"SOXL","tranche":"T1","status":"CONFIRMED"}',
+                headers={"Content-Type": "application/json", "Origin": "http://127.0.0.1"},  # loopback, NO token
                 method="POST",
             )
             with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}), mock.patch(
-                "hermes_escape_top.web.server.refresh_score_with_market_data",
+                "hermes_escape_top.web.server.record_execution_confirmation",
                 return_value={},
-            ) as refresher:
+            ) as recorder:
                 with self.assertRaises(urllib.error.HTTPError) as ctx:
                     urllib.request.urlopen(request, timeout=10)
                 self.assertEqual(ctx.exception.code, 403)
                 payload = json.loads(ctx.exception.read().decode("utf-8"))
             self.assertEqual(payload["status"], "UNAUTHORIZED")
-            refresher.assert_not_called()
+            recorder.assert_not_called()
         finally:
             server.shutdown()
             server.server_close()
