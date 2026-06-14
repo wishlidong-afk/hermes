@@ -246,7 +246,8 @@ def test_no_advice_state_flag(tmp_path, monkeypatch):
     # NO_ADVICE must clear hard-valve hits so routing/sizing/reentry treat it as
     # no-action (not a hard EXIT). Pin the clearing so the seam can't reopen.
     assert 'hard_valve_hits=([] if _no_advice else hard.ids)' in src
-    # full-path behavior is covered by the gate before any flip; here we pin
-    # that the flag exists in config and defaults OFF
+    # Deployed ON 2026-06-14 (proven no-op: close zero-missing 2018-2026 + the
+    # behavioral test in test_phase3_scoring). Pin it ON so an accidental revert
+    # to the fake-100-EXIT behavior fails here.
     from hermes_escape_top.config import load_config
-    assert load_config()["features"]["use_no_advice_state"] is False
+    assert load_config()["features"]["use_no_advice_state"] is True

@@ -118,14 +118,22 @@
   "_risk_calibration": {
     "swept_at": "2026-06-08",
     "approved_by": "human-gate-2026-06-08",
-    "enabled_factors": ["A10_real_rate", "A11_dollar", "A15_defensive_rotation"],
+    "enabled_factors": [
+      "A10_real_rate",
+      "A11_dollar",
+      "A15_defensive_rotation"
+    ],
     "combo": "E75_D70_R50",
     "note": "Enabled A10 real_rate + A11 dollar + A15 defensive_rotation; recalibrated DEFENSIVE_EXIT 65->70. NEXT-3 v2 PASS: deployment PBO 0.1538, train-greedy PBO 0.4615, real-only rank 0.65, next3_pass=true. Full-window 2018-2026 MaxDD -27.6%->-14.2%, Sharpe 0.88->1.11 (CAGR 18.1%->15.3%). Other 5 risk factors (A9/A12/A13/A14/A16) stay OFF -- standalone screen showed them weak/counterproductive."
   },
   "_flag_review_calibration": {
     "enabled_at": "2026-06-09",
     "approved_by": "human-gate-2026-06-09",
-    "enabled_flags": ["use_scored_missing_weight", "use_suspect_valve_guard", "use_partial_factor_eval"],
+    "enabled_flags": [
+      "use_scored_missing_weight",
+      "use_suspect_valve_guard",
+      "use_partial_factor_eval"
+    ],
     "note": "Line-review fixes (F5/F6, F3, F4) enabled after the walk-forward/PBO gate. F5/F6 (scored_missing_weight) PASSED: 13-fold median OOS objective +0.062 vs baseline, PBO 0.31, MaxDD unchanged (-14.04%), DSR up. F3 (suspect_valve_guard) + F4 (partial_factor_eval) are verified backtest no-ops on clean history (F3: 0 suspect bars after the zero-volume bad-tick fix; F4: constituents always present) — enabled for live robustness with zero backtest footprint. REJECTED (kept OFF): use_decision_stabilizer + use_status_hysteresis + use_close_confirmation (F1/F2 FAILED gate: median OOS objective below baseline, full stabilizer also +1.18pp MaxDD — the sweep CAGR gain was in-sample/regime-specific); NAAIM/PCR tightening (worse on every metric). Evidence: building/reports/flag_sweep/GATE_REPORT.md + SWEEP_SUMMARY.md. Rollback = set the 3 flags false.",
     "gate_report": "building/reports/flag_sweep/GATE_REPORT.md"
   },
@@ -292,7 +300,7 @@
       0.4
     ],
     "t3_gate_mode": "market_252d_high",
-    "t3_off_low_pct": 0.10,
+    "t3_off_low_pct": 0.1,
     "t3_high_lookback": 63,
     "_t3_note": "① capital efficiency: market_252d_high = current (parks 40% until QQQ/SPY new 252D high). Candidates after backtest: ma200_reclaim (above MA200 + >=t3_off_low_pct off 60D low) or shorter_high (fresh high over t3_high_lookback days). Default unchanged."
   },
@@ -341,7 +349,7 @@
     "data_onchain_mstr": false,
     "data_mstr_mnav": false,
     "use_b6_mnav_valuation": false,
-    "use_no_advice_state": false,
+    "use_no_advice_state": true,
     "use_indicator_cache": false
   },
   "_full_confidence_spine_flip": {
@@ -447,5 +455,6 @@
     "vol_weighted_caps": false,
     "cap_vol_floor": 0.4,
     "_capeff_note": "③ vol_gross_floor>0 caps how far confidence×risk-gross can cut below the status rule target (anti over-derisk/cash-drag). vol_weighted_caps shrinks high-vol sleeves' upper bound toward the calmest sleeve (factor in [cap_vol_floor,1], never raises). Both default-inert."
-  }
+  },
+  "_no_advice_flip": "2026-06-14: use_no_advice_state ON. Proven no-op on all historical data (close zero-missing 2018-2026) + behavioral test (complete data ON==OFF; critical-missing -> NO_ADVICE/sell0/no valves instead of fake-100 EXIT). Rollback: use_no_advice_state=false."
 }

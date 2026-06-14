@@ -131,13 +131,41 @@ class Phase3ScoringTest(unittest.TestCase):
         self.assertEqual(c10.score, 10.0)
 
     def test_missing_critical_data_is_not_safe(self) -> None:
+        # Legacy path (flag OFF, pinned explicitly so the deployed default doesn't
+        # change the assertion): missing critical data must NOT read as safe — the
+        # old behavior escalates to a (fake) 100/EXIT. The deployed default now uses
+        # NO_ADVICE instead (test_no_advice_is_noop_on_complete_data_and_safe_on_missing).
         config = load_config()
+        off = {**config, "features": {**config.get("features", {}), "use_no_advice_state": False}}
         snapshots = base_snapshots()
         snapshots["MSTR"].fields["close"] = Field("close", None, "unit", DAY)
-        result = score_symbol("MSTR", snapshots, config).result
+        result = score_symbol("MSTR", snapshots, off).result
         self.assertEqual(result.final_score, 100.0)
         self.assertEqual(result.status, "EXIT")
         self.assertTrue(any("missing close" in item for item in result.explain))
+
+    def test_no_advice_is_noop_on_complete_data_and_safe_on_missing(self) -> None:
+        config = load_config()
+        on = {**config, "features": {**config.get("features", {}), "use_no_advice_state": True}}
+        off = {**config, "features": {**config.get("features", {}), "use_no_advice_state": False}}
+
+        # 1. Complete data: flag ON == flag OFF. NO_ADVICE only fires on critical
+        #    missing, which never happens on complete data — this is WHY enabling
+        #    the flag cannot change live advice (proven no-op).
+        snaps = base_snapshots()
+        r_on = score_symbol("MSTR", snaps, on).result
+        r_off = score_symbol("MSTR", snaps, off).result
+        self.assertEqual((r_on.status, r_on.final_score, r_on.sell_fraction),
+                         (r_off.status, r_off.final_score, r_off.sell_fraction))
+
+        # 2. Critical field missing + flag ON -> NO_ADVICE / sell 0 / no hard valves,
+        #    instead of the dangerous fake-100 EXIT that flag OFF produces above.
+        bad = base_snapshots()
+        bad["MSTR"].fields["close"] = Field("close", None, "unit", DAY)
+        r_bad = score_symbol("MSTR", bad, on).result
+        self.assertEqual(r_bad.status, "NO_ADVICE")
+        self.assertEqual(r_bad.sell_fraction, 0.0)
+        self.assertEqual(list(r_bad.hard_valve_hits), [])
 
     def test_status_and_sell_fraction_mapping(self) -> None:
         config = load_config()
