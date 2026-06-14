@@ -72,11 +72,15 @@ def fetch_fred_series(series_id: str, start: str = "1990-01-01", end: Optional[s
 
 def fetch_fred_series_frame(series_id: str, start: str = "1990-01-01", end: Optional[str] = None,
                             config: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
-    """Fetch one FRED series with an explicit point-in-time publish date.
+    """Fetch one FRED series with a point-in-time publish date.
 
-    The API's ``realtime_start`` is the observable/revision date.  The no-key
-    fredgraph fallback lacks that field, so it keeps the legacy date+1 behavior
-    and is visibly less PIT-rich.
+    ``publish_date = observation date + 1 day`` (next-day release). The API's
+    ``realtime_start`` is deliberately NOT used: on the standard observations
+    endpoint it returns the *query* date for every row (the current vintage),
+    which stamps the whole series with "today" and makes ``asof_pick`` treat
+    every value as published in the future (this caused the 2026-06-13
+    real_rate/dollar outage). True per-row vintage would need an ALFRED query;
+    date+1 is the PIT-safe behavior shared by every FRED series here.
     """
     key = fred_api_key(config)
     if key:
@@ -92,12 +96,13 @@ def fetch_fred_series_frame(series_id: str, start: str = "1990-01-01", end: Opti
                 frame = pd.DataFrame(
                     {
                         "date": pd.to_datetime([o.get("date") for o in obs], errors="coerce"),
-                        "publish_date": pd.to_datetime([o.get("realtime_start") for o in obs], errors="coerce"),
                         "value": pd.to_numeric(pd.Series([o.get("value") for o in obs]).replace(".", pd.NA), errors="coerce"),
                     }
                 ).dropna(subset=["date", "value"]).sort_values("date")
                 if not frame.empty:
-                    frame["publish_date"] = frame["publish_date"].fillna(frame["date"] + pd.Timedelta(days=1))
+                    # date+1, NOT realtime_start (see docstring): realtime_start is the
+                    # query date for every row here, which breaks asof_pick.
+                    frame["publish_date"] = frame["date"] + pd.Timedelta(days=1)
                     return frame[["date", "publish_date", "value"]]
         except Exception:
             pass  # fall through to the no-key endpoint

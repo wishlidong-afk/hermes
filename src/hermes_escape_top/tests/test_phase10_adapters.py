@@ -47,7 +47,11 @@ class Phase10AdapterTest(unittest.TestCase):
         self.assertIn("records", payload)
         self.assertIn("net_liquidity", payload["records"])
 
-    def test_fred_api_frame_uses_realtime_start_as_publish_date(self) -> None:
+    def test_fred_api_frame_publish_date_is_observation_date_plus_one(self) -> None:
+        # realtime_start on FRED's observations endpoint is the query date for
+        # every row; using it stamps the series with one future date and breaks
+        # asof_pick (the 2026-06-13 real_rate/dollar outage). publish_date must be
+        # the observation date + 1 (next-day release), per row.
         class FakeResponse:
             def __enter__(self) -> "FakeResponse":
                 return self
@@ -69,13 +73,16 @@ class Phase10AdapterTest(unittest.TestCase):
         with mock.patch("hermes_escape_top.core.data.risk_signals.fred_api_key", return_value="key"), mock.patch("hermes_escape_top.core.data.risk_signals.urlopen", return_value=FakeResponse()):
             frame = fetch_fred_series_frame("DFII10", start="2026-06-01", end="2026-06-30")
 
-        self.assertEqual(frame["publish_date"].dt.date.astype(str).tolist(), ["2026-06-17", "2026-06-24"])
+        # date+1, deliberately NOT the realtime_start values (06-17 / 06-24)
+        self.assertEqual(frame["publish_date"].dt.date.astype(str).tolist(), ["2026-06-06", "2026-06-13"])
 
-    def test_fred_percentile_source_preserves_realtime_publish_date(self) -> None:
+    def test_fred_percentile_source_preserves_fetched_publish_date(self) -> None:
+        # build_frame must carry through the publish_date from fetch_fred_series_frame
+        # (date+1), not recompute or drop it.
         raw = pd.DataFrame(
             {
                 "date": pd.to_datetime(["2026-06-05", "2026-06-12"]),
-                "publish_date": pd.to_datetime(["2026-06-17", "2026-06-24"]),
+                "publish_date": pd.to_datetime(["2026-06-06", "2026-06-13"]),
                 "value": [1.25, 1.35],
             }
         )
@@ -83,7 +90,7 @@ class Phase10AdapterTest(unittest.TestCase):
         with mock.patch("hermes_escape_top.core.data.risk_signals.fetch_fred_series_frame", return_value=raw):
             frame = source.build_frame()
 
-        self.assertEqual(frame["publish_date"].dt.date.astype(str).tolist(), ["2026-06-17", "2026-06-24"])
+        self.assertEqual(frame["publish_date"].dt.date.astype(str).tolist(), ["2026-06-06", "2026-06-13"])
         self.assertEqual(frame["real_rate_10y_pctl"].tolist(), [100.0, 100.0])
 
 

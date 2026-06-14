@@ -998,6 +998,22 @@ def _post_run_diff(payload: Dict[str, Any], as_of: str, shadow: bool) -> None:
     print(f"[M4-diff] written: {out_path}")
 
 
+def _refreeze_manifest() -> None:
+    """Re-freeze the data manifest to the just-refreshed history (non-fatal).
+
+    The daily refresh advances history CSV hashes; the frozen manifest then reads
+    as DRIFT (health CRITICAL) until something re-freezes it. The 8766 button used
+    to be the only path, so the alert recurred every day after a refresh. Called
+    only after the integrity scan passes, so it never blesses corrupt bars.
+    """
+    try:
+        from hermes_escape_top.web.refresh import force_refresh_manifest
+        res = force_refresh_manifest(load_config())
+        print(f"[manifest] re-frozen to refreshed history: {res.get('status', res)}")
+    except Exception as exc:
+        print(f"[manifest] WARNING: re-freeze failed ({exc!r}); manifest may show DRIFT until manual refresh.")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="M4-1 package run-daily wrapper")
     p.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: today)")
@@ -1048,6 +1064,13 @@ def main() -> None:
             print("[integrity] ABORTING live run — refusing to score on corrupted history (stale beats garbage).")
             sys.exit(3)
         print("[integrity] WARNING: shadow run continues despite corruption.")
+
+    # Re-freeze the data manifest after a clean refresh: the daily OHLCV update
+    # changes history CSV hashes, so without this the manifest sits in permanent
+    # DRIFT (health CRITICAL) every day. The integrity scan above already verified
+    # the bars are clean — verify-then-freeze. Live, and only when a refresh ran.
+    if not shadow and not args.skip_refresh:
+        _refreeze_manifest()
 
     payload = run_score_pipeline(as_of, shadow=shadow, run_type=args.run_type)
     translated = translate(payload)
