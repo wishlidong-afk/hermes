@@ -118,8 +118,13 @@ def score_symbol(
         non_scoring_missing_fields=non_scoring_missing.missing_fields,
         blind_spot=operational_missing.blind_spot,
         data_quality=quality_from_snapshots([snapshots[symbol]]).overall_score,
-        hard_valve_hits=hard.ids,
-        valve_candidates=list(hard.candidates),
+        # NO_ADVICE = "no basis to advise, hold". Clear hard-valve hits so routing /
+        # sizing / reentry uniformly treat it as no-action (route_capital and the
+        # sizing hard_excluded set both key off hard_valve_hits). With critical
+        # fields missing a valve cannot legitimately fire anyway, so this only
+        # removes a latent inconsistency before the flag is ever gated on.
+        hard_valve_hits=([] if _no_advice else hard.ids),
+        valve_candidates=([] if _no_advice else list(hard.candidates)),
         status=("NO_ADVICE" if _no_advice else verdict.status),
         raw_status=("NO_ADVICE" if _no_advice else verdict.raw_status),
         sell_fraction=(0.0 if _no_advice else verdict.sell_fraction),

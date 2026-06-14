@@ -369,3 +369,72 @@ def test_health_banner_links_each_degraded_check_to_runbook_summary():
     assert "#runbook-data" in html
     assert "Runbook: IBKR 只读连接失败" in html
     assert "Runbook: 数据缺失 / 过期" in html
+
+
+# --- value-correctness regression guards (the 2026-06-14 dashboard bugs) ---
+# These assert the rendered VALUES, not just that a section/string is present —
+# the fixture already fed module_a={MSTR:14,...} but nothing checked the output,
+# so "A模块 NA" shipped. Each test below would have failed on that bug.
+
+def test_evidence_strip_shows_module_a_max_not_na():
+    # module_a is a per-symbol dict; the DEFCON line must show the max (14),
+    # never "A模块 NA" (the .get("score")->None render bug).
+    html = render_mod._render_evidence_strip(_payload())
+    assert "A模块 14" in html
+    assert "A模块 NA" not in html
+
+
+def test_evidence_strip_shows_brkb_reason_when_corr_missing():
+    # corr is None when BRK.B already failed MA200 (short-circuit) — show the real
+    # reason from the payload, not a bare "BRK.B NA".
+    payload = _payload()
+    payload["routing_context"]["brkb_defense"] = {
+        "degraded": True, "reason": "BRK.B close <= MA200",
+        "corr_to_spy": None, "threshold": 0.85,
+    }
+    html = render_mod._render_evidence_strip(payload)
+    # the real reason is shown ("<=" is HTML-escaped in source, displays correctly)
+    assert "BRK.B close" in html and "MA200" in html
+    assert "BRK.B NA" not in html
+
+
+def test_trust_latest_data_date_backs_out_latency():
+    # The trust zone must show the actual data date (as_of - latency), not the run
+    # as_of, so a stale source reads stale (the dollar-looked-fresh bug).
+    f = render_mod._trust_latest_data_date
+    assert f({"as_of": "2026-06-12", "latency_days": 6}) == "2026-06-06"
+    assert f({"as_of": "2026-06-12", "latency_days": 0}) == "2026-06-12"
+    assert f({"latest_data_date": "2026-06-01", "as_of": "2026-06-12", "latency_days": 6}) == "2026-06-01"
+
+
+def test_dashboard_no_false_na_or_undefined_leaks_with_full_payload():
+    # Render-invariant: a fully-populated payload must not leak NA/undefined/NaN
+    # into the decision evidence (the whole class that shipped on 2026-06-14).
+    html = render_mod.render_dashboard(_payload(), health={"level": "OK"}, manifest_status={"status": "OK"})
+    for token in ("undefined", "NaN", "[object Object]"):
+        assert token not in html
+    assert "A模块 NA" not in html
+
+
+def test_decision_history_strip_renders_per_symbol_sequence():
+    # The consistency strip: a REDUCE->EXIT->REDUCE flip must surface as current
+    # status + a flip count, with the valve day marked — so an operator sees at a
+    # glance whether a decision is stable or whipsawing.
+    payload = _payload()
+    payload["status_history"] = {
+        "SOXL": [
+            {"as_of": "2026-06-10", "status": "REDUCE", "valve": False},
+            {"as_of": "2026-06-11", "status": "EXIT", "valve": True},
+            {"as_of": "2026-06-12", "status": "REDUCE", "valve": False},
+        ],
+    }
+    html = render_mod._render_status_history(payload)
+    assert "决策历史" in html and "SOXL" in html
+    assert "当前 REDUCE" in html
+    assert "翻转 2 次" in html
+    assert "⚠硬阀门" in html
+
+
+def test_decision_history_strip_empty_when_absent():
+    # Back-compatible: no status_history injected -> nothing rendered.
+    assert render_mod._render_status_history(_payload()) == ""

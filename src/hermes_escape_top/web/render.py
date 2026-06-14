@@ -444,6 +444,7 @@ def render_dashboard(
     {_render_trust_section(payload, manifest_status, health)}
     {_render_cache_hint(cache)}
     {_render_strategy_console(payload, health)}
+    {_render_status_history(payload)}
     {_render_evidence_strip(payload)}
     {_render_hard_valve_radar(payload)}
     {_render_position_desk(payload, payload.get("ibkr_history") or [])}
@@ -528,6 +529,56 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
       </details>
     </section>
     """
+
+
+_STATUS_HISTORY_COLOR = {
+    "HOLD": "#16a34a", "WATCH": "#84cc16", "TRIM": "#eab308",
+    "REDUCE": "#f97316", "DEFENSIVE_EXIT": "#ef4444", "EXIT": "#b91c1c",
+    "NO_ADVICE": "#6b7280",
+}
+
+
+def _render_status_history(payload: Dict[str, Any]) -> str:
+    """Compact per-symbol status over recent OFFICIAL trading days, so a one-off
+    flip reads as anomalous and a sustained EXIT reads as a real response — the
+    '前后一致性' legibility the operator asked for. Renders only when the server
+    injects payload['status_history']; absent => empty (back-compatible)."""
+    hist = payload.get("status_history") or {}
+    rows = []
+    for symbol in TRADE_SYMBOLS:
+        seq = hist.get(symbol) or []
+        if not seq:
+            continue
+        chips = ""
+        for p in seq:
+            status = str(p.get("status", "?"))
+            color = _STATUS_HISTORY_COLOR.get(status, "#9ca3af")
+            valve = bool(p.get("valve"))
+            border = "border:2px solid #111827;" if valve else "border:1px solid rgba(0,0,0,.12);"
+            chips += (
+                f"<span title='{esc(str(p.get('as_of','')))}: {esc(status)}{' ⚠硬阀门' if valve else ''}' "
+                f"style='display:inline-flex;align-items:center;justify-content:center;"
+                f"width:18px;height:18px;margin-right:3px;border-radius:4px;{border}"
+                f"background:{color};color:#fff;font-size:11px;font-weight:800'>{'!' if valve else ''}</span>"
+            )
+        last = str(seq[-1].get("status", "?"))
+        flips = sum(1 for a, b in zip(seq, seq[1:]) if a.get("status") != b.get("status"))
+        rows.append(
+            "<div style='display:flex;align-items:center;gap:8px;margin:4px 0'>"
+            f"<b style='width:52px'>{esc(symbol)}</b>"
+            f"<span style='white-space:nowrap'>{chips}</span>"
+            f"<span class='mini-note'>近 {len(seq)} 个交易日 · 当前 {esc(last)} · 翻转 {flips} 次</span>"
+            "</div>"
+        )
+    if not rows:
+        return ""
+    return (
+        "<section><h2>决策历史 / Decision History "
+        "<span style='font-weight:400;font-size:13px;color:var(--muted)'>"
+        "每标的最近官方交易日状态 — 一眼看出稳定还是翻转（! = 当日硬阀门）</span></h2>"
+        + "".join(rows) +
+        "</section>"
+    )
 
 
 def _render_evidence_strip(payload: Dict[str, Any]) -> str:

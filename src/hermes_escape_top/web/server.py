@@ -140,6 +140,59 @@ def _latest_score_payload(as_of: str) -> dict | None:
         return None
 
 
+def _recent_status_history(as_of: str, max_days: int = 10) -> dict:
+    """Per-symbol status over the last `max_days` distinct OFFICIAL trading days
+    (oldest->newest) for the dashboard consistency strip. Tail-reads the audit so
+    a large log is not parsed front-to-back; manual re-runs (run_type != scheduled)
+    are skipped so the strip shows the decision of record, not intraday previews."""
+    try:
+        path = resolve_path(load_config(), "archive_dir") / "audit_log.jsonl"
+        if not path.exists():
+            return {}
+        chunk = 8 * 1024 * 1024
+        with path.open("rb") as fh:
+            fh.seek(0, 2)
+            size = fh.tell()
+            fh.seek(max(0, size - chunk))
+            data = fh.read()
+        lines = data.split(b"\n")
+        if size > chunk:
+            lines = lines[1:]  # drop the likely-partial first line
+        by_day: dict = {}
+        for raw in lines:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                rec = json.loads(raw)
+            except Exception:
+                continue
+            pl = rec.get("payload") if isinstance(rec, dict) else None
+            pl = pl if isinstance(pl, dict) else rec
+            if not isinstance(pl, dict) or "scores" not in pl:
+                continue
+            if str(pl.get("run_type", "scheduled")) != "scheduled":
+                continue
+            day = str(pl.get("as_of", ""))[:10]
+            if day:
+                by_day[day] = pl  # keep the newest record per day
+        out: dict = {}
+        for day in sorted(by_day)[-max_days:]:
+            scores = by_day[day].get("scores") or {}
+            for sym in ("MSTR", "FNGU", "SOXL"):
+                sc = scores.get(sym) or {}
+                if not sc:
+                    continue
+                out.setdefault(sym, []).append({
+                    "as_of": day,
+                    "status": sc.get("status", "?"),
+                    "valve": bool(sc.get("hard_valve_hits")),
+                })
+        return out
+    except Exception:
+        return {}
+
+
 def _subprocess_env() -> dict:
     env = os.environ.copy()
     package_parent = str(PACKAGE_DIR.parent)
@@ -408,6 +461,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
 
             if parsed.path in {"/", "/index.html"}:
                 payload = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
+                payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of)
                 shadow = _shadow_status()
                 try:
                     manifest = manifest_status()
