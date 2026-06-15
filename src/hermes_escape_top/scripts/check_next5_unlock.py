@@ -22,10 +22,13 @@ from typing import Any, Dict, List
 HERMES_ROOT   = Path(__file__).resolve().parents[1]
 JOURNAL_PATH  = HERMES_ROOT / "data" / "archive" / "signal_journal.jsonl"
 
-# 写到 repo 里，remote agent 才能读到
-REPO_ROOT     = Path(__file__).resolve().parents[4]   # ~/.hermes/.../escape-top → repo root 不对
-# 尝试找到 hermes repo
+# Write the status where it can be read. The script runs from the LIVE install,
+# so the hermes repo (the remote agent reads the file from GitHub) is elsewhere —
+# try the real checkout first. The previous candidate list OMITTED the actual repo
+# path, so the status went un-written and stale; always also write a live-local
+# fallback so the progress is never silently dropped.
 _CANDIDATES = [
+    Path.home() / "Documents" / "github" / "hermes",   # the actual repo
     Path.home() / "hermes",
     Path("/tmp/hermes-work"),
     Path.home() / "Documents" / "hermes",
@@ -35,6 +38,7 @@ for c in _CANDIDATES:
     if (c / "building").exists():
         REPO_STATUS_PATH = c / "building" / "logs" / "NEXT5_unlock_status.md"
         break
+LOCAL_STATUS_PATH = HERMES_ROOT / "data" / "archive" / "NEXT5_unlock_status.md"
 
 UNLOCK_LABELS    = 300
 UNLOCK_POSITIVE  = 40
@@ -212,11 +216,12 @@ def main() -> None:
           f"体制: {result['n_regimes']}/{result['thresholds']['regimes']}")
     print(f"状态: {'🟢 UNLOCKED' if result['unlocked'] else '🔴 LOCKED'}")
 
-    if REPO_STATUS_PATH:
-        write_status(result, REPO_STATUS_PATH)
-        print(f"→ 状态写入: {REPO_STATUS_PATH}")
-    else:
-        print("⚠ 未找到 hermes repo，状态未写入文件")
+    for tp in (REPO_STATUS_PATH, LOCAL_STATUS_PATH):
+        if tp:
+            write_status(result, tp)
+            print(f"→ 状态写入: {tp}")
+    if not REPO_STATUS_PATH:
+        print("⚠ 未找到 hermes repo（候选路径都不存在）；仅写了本地 fallback")
 
     # 返回 exit code 0 = 未解锁，1 = 已解锁（方便脚本判断）
     import sys

@@ -275,6 +275,7 @@ def score_pipeline(
                 status=bundle.result.status,
                 final_score=bundle.result.final_score,
                 hard_valves=bundle.result.hard_valve_hits,
+                regime=regime.value,
             )
             for symbol, bundle in sorted(bundles.items())
         ],

@@ -998,6 +998,18 @@ def _post_run_diff(payload: Dict[str, Any], as_of: str, shadow: bool) -> None:
     print(f"[M4-diff] written: {out_path}")
 
 
+def _refresh_next5_unlock() -> None:
+    """Refresh the NEXT-5 meta-model unlock progress (non-fatal). Keeps the unlock
+    status file current as 20-day labels accumulate, so the gate isn't tracked off
+    a stale snapshot."""
+    result = subprocess.run(
+        [PYTHON, "-m", "hermes_escape_top.scripts.check_next5_unlock"],
+        cwd=str(BASE_DIR), env=_subprocess_env(), capture_output=True, text=True, timeout=60,
+    )
+    for line in (result.stdout or result.stderr or "").strip().splitlines()[-3:]:
+        print(f"[NEXT5] {line}")
+
+
 def _refreeze_manifest() -> None:
     """Re-freeze the data manifest to the just-refreshed history (non-fatal).
 
@@ -1077,6 +1089,10 @@ def main() -> None:
     orders = translated.get("orders_preview", {})
     write_artifacts(translated, orders, as_of, shadow=shadow)
     _post_run_diff(payload, as_of, shadow)
+    try:
+        _refresh_next5_unlock()
+    except Exception as exc:
+        print(f"[NEXT5] WARNING: unlock scan failed ({exc!r}); continuing.")
     if args.commit_state:
         if shadow:
             print("[M4-1] WARNING: --commit-state ignored in shadow mode.")

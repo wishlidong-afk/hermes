@@ -14,6 +14,9 @@ class SignalJournalEntry:
     status: str
     final_score: float
     hard_valves: list[str]
+    regime: str = ""  # regime at signal time — lets the NEXT-5 unlock scan count
+    # regime coverage forward (the old static backtest map ends 2026-05-29, so
+    # forward signals had no regime source and the gate could never satisfy it).
 
     def to_dict(self) -> Dict[str, object]:
         payload = asdict(self)
