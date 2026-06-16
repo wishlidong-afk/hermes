@@ -52,3 +52,6 @@ orders/shadow/
 reports/shadow/
 src/hermes_escape_top/data/shadow/
 building/reports/system_validation_report.json
+
+# Redundant point-in-time source snapshots — code is in src/, these are not referenced
+building/source_snapshots/

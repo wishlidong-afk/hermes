@@ -1,7 +1,7 @@
 # STATUS（进度账本）
 
 > 每完成一步更新本表，并与 `00_MASTER_OVERVIEW.md` 元信息、`SYSTEM_OVERVIEW.md` 成熟度表对账。
-> 更新时间：2026-06-07（最新复盘见 [`PROJECT_REVIEW_2026_06_07.md`](PROJECT_REVIEW_2026_06_07.md)）
+> 更新时间：2026-06-07（最新复盘见 [`history/PROJECT_REVIEW_2026_06_07.md`](history/PROJECT_REVIEW_2026_06_07.md)）
 >
 > **06-07 增量**：① corr 闸 `110/0.90` 已 **P10 APPROVED**（`config.json` 已落参）；EXIT 已 80→75 闭环。
 > ② **PBO 对账**：评分阈值固定 PBO=**0.1538**、相关闸全网格 exact train-greedy PBO=**0.077**（均 <0.5，过拟合门通过）；
