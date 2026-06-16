@@ -1093,6 +1093,15 @@ def main() -> None:
         _refresh_next5_unlock()
     except Exception as exc:
         print(f"[NEXT5] WARNING: unlock scan failed ({exc!r}); continuing.")
+    if not shadow:
+        try:
+            from hermes_escape_top.core.data.audit import rotate_audit_log
+            from hermes_escape_top.config import resolve_path
+            arch = rotate_audit_log(resolve_path(load_config(), "archive_dir") / "audit_log.jsonl")
+            if arch:
+                print(f"[audit] rotated; full history archived -> {arch.name}")
+        except Exception as exc:
+            print(f"[audit] WARNING: rotation skipped ({exc!r}); continuing.")
     if args.commit_state:
         if shadow:
             print("[M4-1] WARNING: --commit-state ignored in shadow mode.")
