@@ -1,6 +1,6 @@
 # Hermes 逃顶 + 镜像系统 - Agent 上下文
 
-> 由代码生成于 2026-06-13。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准。
+> 维护于 2026-06-16（手工，依据代码；非脚本自动生成）。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准。
 
 本文给新 agent 一个快速、可执行的项目地图：系统做什么、数据怎样进来、评分怎样变成策略、哪些 flag 已经部署、WebUI 两个端口各负责什么，以及当前性能基线在哪里。
 
@@ -16,7 +16,7 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 | 仓位 | target weight、sell fraction、confidence spine、risk contribution | `pipeline.py` + `core/portfolio/` |
 | 路由 | DEFCON1/2/3 防守资金去向 | `core/routing/capital_routing.py` |
 | 再入场 | 时间锁、分数锁、结构锁、T1/T2/T3 状态 | `core/reentry/` |
-| 展示 | 8766 escape dashboard、8765 operator/mirror workbench | `web/` |
+| 展示 | 8766 escape dashboard（唯一 UI，已吸收工作台/决策历史/数据信任区）；8765 已退役 | `web/` |
 
 红线：Hermes 只生成建议和确认记录，不提交真实订单。所有 IBKR 使用只读语义；`confirm_execution` 只记录人工确认。
 
@@ -202,6 +202,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 | `use_partial_factor_eval` | true | live，partial_ok 因子可在部分字段存在时评分 |
 | `use_soft_data_max_age` | true | live，软数据超龄降 missing |
 | `use_full_confidence_spine` | true | live，fragility/disagreement 接入 sizing |
+| `use_no_advice_state` | true | live（2026-06-14）；critical 字段缺失→NO_ADVICE/sell0，不再伪装 100 分 EXIT。历史 close 零缺失=no-op 安全网 |
 | `use_regime_multipliers` | true | live，保持历史无条件 regime multiplier 行为 |
 | `use_indicator_cache` | false | 生产默认 OFF；本批 backtest harness 打开，byte-identical 已证明 |
 | `data_onchain_mstr` | false | rejected/parked |
@@ -209,16 +210,20 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 | `use_b6_mnav_valuation` | false | rejected/parked |
 | `data_cot_nq` | false | candidate 失败后保持 OFF |
 
-五个主部署 flag 是 `use_scored_missing_weight`、`use_suspect_valve_guard`、`use_partial_factor_eval`、`use_soft_data_max_age`、`use_full_confidence_spine`。`use_regime_multipliers` 是兼容性 live flag。
+六个主部署 flag 是 `use_scored_missing_weight`、`use_suspect_valve_guard`、`use_partial_factor_eval`、`use_soft_data_max_age`、`use_full_confidence_spine`、`use_no_advice_state`。`use_regime_multipliers` 是兼容性 live flag。
 
 ---
 
-## 10. WebUI 双端口
+## 10. WebUI（8766 单端口）
+
+8765 工作台已于 2026-06-15 退役（launchd `com.hermes.workbench` unload），其决策视图已并入 8766。
 
 | 端口 | 入口 | 用途 |
 |---|---|---|
-| 8766 | `web/server.py` + `web/render.py` | escape dashboard，含策略操作台、阀门、持仓对账、数据质量、refresh/golive/confirm 等写端点 |
-| 8765 | `web/workbench.py` / mirror UI | operator workbench / mirror reference，偏只读决策视图 |
+| 8766 | `web/server.py` + `web/render.py` | 唯一 UI：策略操作台、决策历史条、Evidence Strip、硬阀门雷达（新触发标"待明日确认"）、持仓对账（陈旧快照弱化）、数据信任区、refresh/golive/confirm 写端点 |
+| ~~8765~~ | ~~`web/workbench.py`~~ | 已退役；功能并入 8766 |
+
+运维：发布前 `scripts/predeploy_smoke.py`（FRED publish_date/源可用/决策行无 NA/manifest/软源回归）拦假数据；审计日志日运行轮转（`rotate_audit_log`，>100MB 归档 gz 后压缩主文件）。
 
 8766 POST 鉴权当前规则：
 
@@ -253,7 +258,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 12. 测试与验证
 
-当前静态测试计数：442 个 `def test_*`，满足 433+ 要求。
+当前静态测试计数：475 个 `def test_*`。
 
 标准命令：
 
