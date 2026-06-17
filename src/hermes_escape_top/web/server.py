@@ -493,19 +493,19 @@ def _flip_to_package() -> dict:
             )
         new_content = (
             '#!/usr/bin/env python3\n'
-            '"""run_daily.py — M4 live: package engine.\n'
-            'Monolith backup: run_daily.py.monolith_backup\n"""\n'
-            'import subprocess, sys\n'
+            '"""run_daily.py — M4 live: runs the package engine via -m (single source of truth).\n'
+            'There is no loose run_daily_package.py copy; the package self-locates via\n'
+            '_discover_runtime_paths walk-up. Monolith backup: run_daily.py.monolith_backup\n"""\n'
+            'import os, subprocess, sys\n'
             'from pathlib import Path\n'
-            'BASE_DIR = Path(__file__).resolve().parent\n'
+            'ESCAPE_TOP = Path(__file__).resolve().parent.parent\n'
             'PYTHON = sys.executable\n'
             'if __name__ == "__main__":\n'
-            '    pkg = BASE_DIR / "run_daily_package.py"\n'
-            '    if not pkg.exists():\n'
-            '        pkg = BASE_DIR.parent / "src" / "hermes_escape_top" / "scripts" / "run_daily_package.py"\n'
-            '    cmd = [PYTHON, str(pkg),\n'
+            '    env = dict(os.environ)\n'
+            '    env["PYTHONPATH"] = str(ESCAPE_TOP) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")\n'
+            '    cmd = [PYTHON, "-m", "hermes_escape_top.scripts.run_daily_package",\n'
             '           "--live", "--commit-state"] + sys.argv[1:]\n'
-            '    r = subprocess.run(cmd, cwd=str(BASE_DIR.parent))\n'
+            '    r = subprocess.run(cmd, cwd=str(ESCAPE_TOP), env=env)\n'
             '    sys.exit(r.returncode)\n'
         )
         RUN_DAILY.write_text(new_content, encoding="utf-8")

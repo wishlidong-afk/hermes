@@ -31,7 +31,24 @@ SCRIPT_PATH = Path(__file__).resolve()
 
 
 def _discover_runtime_paths() -> tuple[Path, Path]:
-    """Return (runtime_root, package_parent) for both repo and installed skill layouts."""
+    """Return (runtime_root, package_parent) for both repo and installed layouts.
+
+    package_parent is the directory that CONTAINS the hermes_escape_top package, so
+    `python -m hermes_escape_top...` and every subprocess PYTHONPATH resolve no
+    matter how deep this file sits. Found by walking UP to the first ancestor that
+    holds the package — the old code only checked parents[1], so it resolved
+    correctly only from a shallower 'loose' copy (escape-top/scripts/...), which is
+    exactly what forced the loose copy to exist and silently drift. Walking up lets
+    the package module self-locate from escape-top/hermes_escape_top/scripts/ too,
+    so there can be ONE engine. Installed layout returns the same (escape-top,
+    escape-top) the loose copy did — behavior-identical, just position-robust."""
+    for parent in SCRIPT_PATH.parents:
+        if (parent / "hermes_escape_top" / "__init__.py").exists():
+            # Repo nests the package under src/; keep runtime_root at the repo root.
+            if parent.name == "src":
+                return parent.parent, parent
+            return parent, parent
+    # Fallback: original heuristic if the package can't be located by walk-up.
     local_root = SCRIPT_PATH.parents[1]
     if (local_root / "hermes_escape_top").exists():
         return local_root, local_root
