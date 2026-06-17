@@ -1108,6 +1108,52 @@ def _refreeze_manifest() -> None:
         print(f"[manifest] WARNING: re-freeze failed ({exc!r}); manifest may show DRIFT until manual refresh.")
 
 
+def _write_run_receipt(as_of: str, run_type: str) -> None:
+    """End-of-run self-attestation written by the scheduled daily run.
+
+    Stamps WHEN the official run completed plus a few end-state invariants, so the
+    dashboard can show a positive 'ran today, self-checked green' — the one signal
+    health.py cannot infer from data state (a job that silently never fires leaves
+    data that may still look fresh; a stale-orchestration copy that skips a step
+    leaves the receipt's own check failing). Recomputed independently of the step
+    calls, so it audits the real end state, not a step's self-report. Non-fatal.
+    """
+    try:
+        from datetime import datetime
+        from hermes_escape_top.config import resolve_path
+        config = load_config()
+        checks = []
+        dates = _last_bar_dates()
+        if dates:
+            latest_bar = max(dates.values()).isoformat()
+            laggards = sorted(s for s, d in dates.items() if d.isoformat() < latest_bar)
+            checks.append({
+                "name": "as_of_latest",
+                "ok": not laggards,
+                "detail": f"as_of={as_of} · 最新K线={latest_bar}"
+                          + (f" · 掉队 {laggards}" if laggards else " · 全标的齐平"),
+            })
+        try:
+            from hermes_escape_top.web.refresh import manifest_status
+            ms = str((manifest_status(config) or {}).get("status", "?"))
+            checks.append({"name": "manifest", "ok": ms == "OK", "detail": ms})
+        except Exception as exc:
+            checks.append({"name": "manifest", "ok": False, "detail": f"check err: {exc!r}"[:60]})
+        ok = all(c["ok"] for c in checks)
+        receipt = {
+            "run_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "as_of": str(as_of),
+            "run_type": run_type,
+            "ok": ok,
+            "checks": checks,
+        }
+        path = resolve_path(config, "archive_dir") / "run_receipt.json"
+        path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"[receipt] self-check {'OK' if ok else 'FAIL'} -> {path.name}")
+    except Exception as exc:
+        print(f"[receipt] WARNING: receipt write failed ({exc!r}); continuing.")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="M4-1 package run-daily wrapper")
     p.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: today)")
@@ -1185,6 +1231,10 @@ def main() -> None:
                 print(f"[audit] rotated; full history archived -> {arch.name}")
         except Exception as exc:
             print(f"[audit] WARNING: rotation skipped ({exc!r}); continuing.")
+        # Only the scheduled official run stamps the receipt — a manual_rerun
+        # preview must not move the "last official run" marker.
+        if args.run_type == "scheduled":
+            _write_run_receipt(as_of, args.run_type)
     if args.commit_state:
         if shadow:
             print("[M4-1] WARNING: --commit-state ignored in shadow mode.")

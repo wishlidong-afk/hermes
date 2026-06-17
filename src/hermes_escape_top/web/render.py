@@ -440,6 +440,7 @@ def render_dashboard(
     <div id="refresh-result" class="toolbar-output"></div>
     <div id="ibkr-live-result" class="toolbar-output"></div>
 
+    {_render_run_receipt_banner(payload)}
     {_render_preview_banner(payload)}
     {_render_health_banner(health)}
     {_render_trust_section(payload, manifest_status, health)}
@@ -2129,6 +2130,68 @@ def _render_preview_banner(payload: Dict[str, Any]) -> str:
         f'<div class="subtle" style="margin:4px 0 0">当前展示的是 {as_of} 的{label}，<b>不是今日官方建议</b>。'
         '官方建议来自每日 07:10 的 scheduled 运行 — '
         '<a href="/?as_of=latest">点此回到官方</a>。</div>'
+        '</section>'
+    )
+
+
+def _run_receipt_when(run_at: str) -> str:
+    """Human '今天 HH:MM' / '昨天 HH:MM' / 'N 天前' for a run-receipt timestamp."""
+    from datetime import datetime
+    try:
+        dt = datetime.fromisoformat(run_at)
+        days = (date.today() - dt.date()).days
+        hm = dt.strftime("%H:%M")
+        if days <= 0:
+            return f"今天 {hm}"
+        if days == 1:
+            return f"昨天 {hm}"
+        return f"{days} 天前 ({dt.date().isoformat()} {hm})"
+    except Exception:
+        return (run_at or "?")[:16]
+
+
+def _render_run_receipt_banner(payload: Dict[str, Any]) -> str:
+    """Top banner from the daily run's end-of-run receipt: WHEN the official run
+    last completed + its self-check. Green when it ran today and self-checked OK;
+    loud red when the run is stale (didn't complete today) or a check failed — the
+    one signal that catches 'the job silently didn't run / ran stale code' even
+    when the data still looks fresh. Amber when no receipt exists yet."""
+    from datetime import datetime
+    receipt = payload.get("run_receipt") or {}
+    if not receipt:
+        return (
+            '<section class="panel" style="border-left:4px solid var(--amber);background:#fffbeb;'
+            'padding:8px 14px;margin-bottom:10px">'
+            '<span style="font-weight:600;color:var(--amber)">⚠️ 无运行回执</span>'
+            '<span class="subtle" style="margin-left:8px">无法确认每日官方 run 今天是否跑过（旧引擎或尚未生成）</span>'
+            '</section>'
+        )
+    run_at = str(receipt.get("run_at", ""))
+    when = _run_receipt_when(run_at)
+    try:
+        ran_today = datetime.fromisoformat(run_at).date() == date.today()
+    except Exception:
+        ran_today = False
+    fails = [c for c in (receipt.get("checks") or []) if not c.get("ok")]
+    if bool(receipt.get("ok")) and ran_today and not fails:
+        return (
+            '<section class="panel" style="border-left:4px solid var(--green);background:#ecfdf5;'
+            'padding:8px 14px;margin-bottom:10px">'
+            f'<span style="font-weight:600;color:var(--green)">✓ 官方 run {esc(when)}</span>'
+            f'<span class="subtle" style="margin-left:8px">as_of={esc(str(receipt.get("as_of", "")))} · 自检全绿</span>'
+            '</section>'
+        )
+    reasons = []
+    if not ran_today:
+        reasons.append(f"<b>今天还没跑官方 run</b>（上次 {esc(when)}）")
+    for c in fails:
+        reasons.append(f"{esc(str(c.get('name')))}: {esc(str(c.get('detail')))}")
+    body = " · ".join(reasons) or "自检未通过"
+    return (
+        '<section class="panel" style="border:2px solid var(--red);background:#fef2f2;'
+        'padding:12px 16px;margin-bottom:12px">'
+        '<div style="font-weight:700;color:var(--red);font-size:15px">🚨 每日 run 回执异常</div>'
+        f'<div class="subtle" style="margin:4px 0 0">{body}</div>'
         '</section>'
     )
 

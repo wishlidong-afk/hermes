@@ -142,6 +142,19 @@ def _read_audit_payloads(max_bytes: int = 64 * 1024 * 1024) -> list:
         return []
 
 
+def _read_run_receipt() -> dict:
+    """The scheduled daily run's end-of-run self-attestation (run_receipt.json):
+    when the official run last completed + its self-check. Lets the dashboard show
+    a positive 'ran today, green' instead of only inferring freshness from data."""
+    try:
+        path = resolve_path(load_config(), "archive_dir") / "run_receipt.json"
+        if not path.exists():
+            return {}
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 def _latest_score_payload(as_of: str, records: list | None = None) -> dict | None:
     """Newest package score payload (or the one matching as_of). Operates on a
     pre-read record list when given (so the dashboard reads the audit once);
@@ -518,6 +531,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 payload = _latest_score_payload(as_of, audit_records) or _empty_dashboard_payload(as_of)
                 payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of, records=audit_records)
                 payload["prev_valves"] = _prev_official_valves(audit_records, payload.get("as_of") or as_of)
+                payload["run_receipt"] = _read_run_receipt()
                 shadow = _shadow_status()
                 try:
                     manifest = manifest_status()
