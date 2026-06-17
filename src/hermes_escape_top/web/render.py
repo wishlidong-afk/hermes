@@ -2248,7 +2248,7 @@ def _render_cache_hint(cache: Dict[str, Any]) -> str:
     <section class="panel" style="border-left:4px solid var(--amber);background:#fffbeb">
       <div style="font-weight:600;color:var(--amber)">尚无评分缓存 / no cached score yet</div>
       <div class="subtle" style="margin-top:4px">{msg} 点击右上角「更新策略数据」拉取行情并评分，或在终端运行
-        <code>python3 scripts/run_daily_package.py --as-of latest</code> 生成首个缓存。</div>
+        <code>python3 -m hermes_escape_top.scripts.run_daily_package --as-of latest</code> 生成首个缓存。</div>
     </section>
     """
 
@@ -2367,6 +2367,10 @@ def _normalize_trust_row(canonical: str, row: Dict[str, Any], payload: Dict[str,
         source = reason
     cadence = str(row.get("cadence") or TRUST_SOURCE_CADENCE.get(canonical) or "daily")
     slo_text, slo_kind = _trust_slo_status(canonical, row, payload)
+    if "feature disabled" in reason.lower():
+        # A disabled candidate factor isn't scored, so its staleness is moot — show
+        # OFF (neutral), never a red SLO breach (the C "假陈旧" false alarm).
+        slo_text, slo_kind = "未启用 / OFF", "watch"
     return {
         "display_name": _trust_display_name(canonical),
         "as_of": as_of,

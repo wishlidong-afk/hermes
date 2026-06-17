@@ -945,10 +945,15 @@ def _preflight_report(shadow: bool, as_of: str) -> None:
     soft_dir = resolve_path(config, "soft_history_dir")
     if soft_dir.exists():
         today = date.fromisoformat(as_of)
+        features = config.get("features", {})
         for csv_path in sorted(soft_dir.glob("*.csv")):
             d = _csv_last_date(csv_path)
             age = (today - date.fromisoformat(d)).days if d else None
-            if age is None:
+            if features.get(f"data_{csv_path.stem}") is False:
+                # Disabled candidate factor — not scored, so its staleness is moot.
+                # Don't flag STALE (the C "假陈旧" false alarm that read as a problem).
+                desc = "OFF (已禁用，陈旧无妨)"
+            elif age is None:
                 desc = "EMPTY"
             elif age < 0:
                 desc = "newer than as_of"
