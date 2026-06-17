@@ -440,6 +440,7 @@ def render_dashboard(
     <div id="refresh-result" class="toolbar-output"></div>
     <div id="ibkr-live-result" class="toolbar-output"></div>
 
+    {_render_preview_banner(payload)}
     {_render_health_banner(health)}
     {_render_trust_section(payload, manifest_status, health)}
     {_render_cache_hint(cache)}
@@ -2108,6 +2109,27 @@ def _render_health_banner(health: Dict[str, Any]) -> str:
         f'<ul style="margin:0;padding-left:20px">{items}</ul>'
         f'{_render_runbook_refs(refs)}'
         f'</section>'
+    )
+
+
+def _render_preview_banner(payload: Dict[str, Any]) -> str:
+    """Loud banner when the shown record is NOT the official scheduled run. An
+    intraday manual_rerun / shadow preview must never be mistaken for today's
+    official advice (the SOXL REDUCE->EXIT->REDUCE scare was a preview flip).
+    Layout-additive: returns '' for the normal scheduled case."""
+    rt = str(payload.get("run_type", "scheduled"))
+    if rt == "scheduled":
+        return ""
+    label = {"manual_rerun": "盘中重算预览", "shadow": "影子运行"}.get(rt, rt)
+    as_of = esc(str(payload.get("as_of", "")))
+    return (
+        '<section class="panel" style="border:2px solid var(--red);background:#fef2f2;'
+        'padding:12px 16px;margin-bottom:12px">'
+        f'<div style="font-weight:700;color:var(--red);font-size:15px">⚠️ 非官方 · 你在看「{label}」</div>'
+        f'<div class="subtle" style="margin:4px 0 0">当前展示的是 {as_of} 的{label}，<b>不是今日官方建议</b>。'
+        '官方建议来自每日 07:10 的 scheduled 运行 — '
+        '<a href="/?as_of=latest">点此回到官方</a>。</div>'
+        '</section>'
     )
 
 

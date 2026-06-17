@@ -154,12 +154,22 @@ def _latest_score_payload(as_of: str, records: list | None = None) -> dict | Non
             records = _read_audit_payloads()
         fallback = None
         fallback_day = ""
-        latest = None
+        latest = None            # newest OFFICIAL (scheduled) run — the default headline
         latest_day = ""
+        latest_any = None        # newest of any run_type — fallback only if no scheduled
+        latest_any_day = ""
         for payload in records:
             pday = str(payload.get("as_of", ""))[:10]
             if latest_mode:
-                if pday and pday > latest_day:
+                if not pday:
+                    continue
+                if pday > latest_any_day:
+                    latest_any_day = pday
+                    latest_any = payload
+                # An intraday manual_rerun preview must never silently become the
+                # default headline (the SOXL REDUCE->EXIT->REDUCE scare was a
+                # preview flip): `latest` only ever tracks the newest scheduled run.
+                if str(payload.get("run_type", "scheduled")) == "scheduled" and pday > latest_day:
                     latest_day = pday
                     latest = dict(payload)
                     latest["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True, "requested_as_of": raw_target}
@@ -172,7 +182,17 @@ def _latest_score_payload(as_of: str, records: list | None = None) -> dict | Non
                 fallback_day = pday
                 fallback = dict(payload)
                 fallback["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": False, "requested_as_of": target}
-        return latest if latest_mode else fallback
+        if latest_mode:
+            if latest is not None:
+                return latest
+            # No official run in the window: surface the newest preview but flag it
+            # so render labels it non-official — never pass a preview off as official.
+            if latest_any is not None:
+                latest_any = dict(latest_any)
+                latest_any["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True, "requested_as_of": raw_target, "non_official": True}
+                return latest_any
+            return None
+        return fallback
     except Exception:
         return None
 
