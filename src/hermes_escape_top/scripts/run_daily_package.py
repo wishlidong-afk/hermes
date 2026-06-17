@@ -85,23 +85,35 @@ def _subprocess_env() -> Dict[str, str]:
     return env
 
 
-def _latest_available_as_of() -> str:
-    """Use the latest common cached bar date instead of today's calendar date."""
+def _last_bar_dates() -> Dict[str, date]:
+    """Last cached OHLCV bar date per gating symbol (QQQ, SPY, trade symbols).
+    Shared by as_of selection and the laggard self-heal."""
+    out: Dict[str, date] = {}
     try:
         config = load_config()
         store = LocalStore(config)
-        candidates = []
         for symbol in ["QQQ", "SPY", *TRADE_SYMBOLS]:
             hist = store.load_history(symbol)
             if hist is None or getattr(hist, "empty", True):
                 continue
             last = hist.index[-1]
-            last_date = last.date() if hasattr(last, "date") else date.fromisoformat(str(last)[:10])
-            candidates.append(last_date)
-        if candidates:
-            return min(candidates).isoformat()
+            out[symbol] = last.date() if hasattr(last, "date") else date.fromisoformat(str(last)[:10])
     except Exception as exc:
-        print(f"[M4-1] WARNING: latest available date detection failed: {exc!r}")
+        print(f"[M4-1] WARNING: last-bar detection failed: {exc!r}")
+    return out
+
+
+def _latest_available_as_of() -> str:
+    """Use the latest common cached bar date instead of today's calendar date.
+
+    as_of = the *min* last bar across gating symbols, so the run never scores a
+    day for which any symbol is missing its bar. The self-heal step (run right
+    after the batch refresh) repairs symbols that lag their peers only because
+    of transient batch rate-limiting, so this min reflects genuine availability
+    rather than a fetch hiccup."""
+    dates = _last_bar_dates()
+    if dates:
+        return min(dates.values()).isoformat()
     return date.today().isoformat()
 
 
@@ -123,6 +135,60 @@ def refresh_history(as_of: str) -> None:
         print(result.stderr[-500:] if result.stderr else "")
     else:
         print("[M4-1] History refresh OK.")
+
+
+def _heal_lagging_symbols(end: str, max_passes: int = 2, delay_s: float = 3.0) -> None:
+    """Re-fetch, individually, any symbol whose last cached bar lags its peers.
+
+    A batch backfill can hit Yahoo rate-limiting and return stale data for a
+    subset of symbols (2026-06-17: MSTR stuck at 06-15 while QQQ/SPY/SOXL had
+    06-16). Because as_of = min(last bar across symbols), one rate-limited
+    laggard silently pins the whole run a day behind. A single-symbol re-fetch
+    sidesteps the batch contention (verified: MSTR fetched alone returned 06-16).
+    Retries are spaced by ``delay_s`` because the throttle is bursty — back-to-
+    back calls observed failing while a call seconds later succeeded.
+
+    Conservative by construction: the target is the *max* last bar already
+    reached by some peer — never a calendar date — so when all symbols share the
+    same date (weekend/holiday, or a genuine vendor gap) there are no laggards
+    and this is a no-op. It never fabricates a bar; a laggard that still cannot
+    advance after the retries correctly leaves as_of held back. The re-fetch goes
+    through the same _sanity_check_download guard, so it cannot bypass the
+    cross-wiring protection. Non-fatal: any error leaves the batch result intact.
+    """
+    try:
+        import time
+
+        for attempt in range(max_passes):
+            dates = _last_bar_dates()
+            if not dates:
+                return
+            target = max(dates.values())
+            laggards = sorted(s for s, d in dates.items() if d < target)
+            if not laggards:
+                return
+            if attempt:
+                time.sleep(delay_s)  # let a bursty Yahoo throttle clear before retrying
+            print(f"[M4-1] self-heal: {laggards} lag peers' latest bar "
+                  f"{target.isoformat()}; re-fetching individually")
+            for sym in laggards:
+                res = subprocess.run(
+                    [PYTHON, "-m", "hermes_escape_top.cli", "backfill-history",
+                     "--symbols", sym, "--end", end, "--repair-overlap-days", "3"],
+                    cwd=str(BASE_DIR), env=_subprocess_env(),
+                    capture_output=True, text=True,
+                )
+                if res.returncode != 0:
+                    print(f"[M4-1] self-heal: {sym} re-fetch non-zero; leaving cached.")
+        residual = _last_bar_dates()
+        if residual:
+            tgt = max(residual.values())
+            still = sorted(s for s, d in residual.items() if d < tgt)
+            if still:
+                print(f"[M4-1] self-heal: {still} still lag {tgt.isoformat()} after "
+                      f"{max_passes} passes; as_of holds conservatively.")
+    except Exception as exc:
+        print(f"[M4-1] WARNING: self-heal step failed ({exc!r}); using batch result.")
 
 
 # ── Step 1b: refresh slow soft data (FRED signals, NAAIM) ────────────────────
@@ -1057,6 +1123,7 @@ def main() -> None:
             refresh_history(refresh_end)
         except Exception as exc:
             print(f"[M4-1] WARNING: history refresh crashed ({exc!r}); proceeding with cached bars.")
+        _heal_lagging_symbols(refresh_end)
         try:
             refresh_soft_data()
         except Exception as exc:
