@@ -2169,11 +2169,16 @@ def _render_run_receipt_banner(payload: Dict[str, Any]) -> str:
     run_at = str(receipt.get("run_at", ""))
     when = _run_receipt_when(run_at)
     try:
-        ran_today = datetime.fromisoformat(run_at).date() == date.today()
+        age_h = (datetime.now().astimezone() - datetime.fromisoformat(run_at)).total_seconds() / 3600
     except Exception:
-        ran_today = False
+        age_h = 1e9
+    # The daily fires every calendar day ~07:10, so a healthy receipt peaks at
+    # ~24h between runs; >30h means a cycle was missed (job didn't fire). Using
+    # an age threshold — not "ran today" — avoids a false red every morning
+    # before the 07:10 run completes.
+    stale = age_h > 30
     fails = [c for c in (receipt.get("checks") or []) if not c.get("ok")]
-    if bool(receipt.get("ok")) and ran_today and not fails:
+    if not stale and not fails:
         return (
             '<section class="panel" style="border-left:4px solid var(--green);background:#ecfdf5;'
             'padding:8px 14px;margin-bottom:10px">'
@@ -2182,8 +2187,8 @@ def _render_run_receipt_banner(payload: Dict[str, Any]) -> str:
             '</section>'
         )
     reasons = []
-    if not ran_today:
-        reasons.append(f"<b>今天还没跑官方 run</b>（上次 {esc(when)}）")
+    if stale:
+        reasons.append(f"<b>官方 run 已停摆</b>（上次 {esc(when)}）")
     for c in fails:
         reasons.append(f"{esc(str(c.get('name')))}: {esc(str(c.get('detail')))}")
     body = " · ".join(reasons) or "自检未通过"

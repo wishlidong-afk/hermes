@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 from hermes_escape_top.web.render import _render_run_receipt_banner, _run_receipt_when
 
 
-def _iso(days_ago: int = 0) -> str:
-    return (datetime.now().astimezone() - timedelta(days=days_ago)).isoformat(timespec="seconds")
+def _iso(days_ago: int = 0, hours_ago: int = 0) -> str:
+    return (datetime.now().astimezone() - timedelta(days=days_ago, hours=hours_ago)).isoformat(timespec="seconds")
 
 
 def test_green_when_ran_today_and_ok():
@@ -28,11 +28,20 @@ def test_red_when_a_check_failed():
 
 
 def test_red_when_run_stale_even_if_checks_passed():
-    # ran 2 days ago: the job hasn't fired today, even though its checks passed —
-    # exactly the 'job silently stopped but data still looks fresh' case.
+    # ran 2 days ago (>30h): a daily cycle was missed even though its checks
+    # passed — the 'job silently stopped but data still looks fresh' case.
     b = _render_run_receipt_banner({"run_receipt": {
         "run_at": _iso(2), "as_of": "2026-06-14", "ok": True, "checks": []}})
-    assert "var(--red)" in b and "今天还没跑" in b
+    assert "var(--red)" in b and "已停摆" in b
+
+
+def test_green_when_recent_but_before_todays_run():
+    # ~24h old (yesterday's run; today's 07:10 hasn't fired yet) — must stay GREEN,
+    # not flip red just because run_at isn't literally today (the morning false-red).
+    b = _render_run_receipt_banner({"run_receipt": {
+        "run_at": _iso(hours_ago=24), "as_of": "2026-06-16", "ok": True,
+        "checks": [{"name": "manifest", "ok": True, "detail": "OK"}]}})
+    assert "var(--green)" in b and "官方 run" in b
 
 
 def test_amber_when_no_receipt():
