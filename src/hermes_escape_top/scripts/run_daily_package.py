@@ -300,6 +300,22 @@ def refresh_soft_data() -> None:
     else:
         print("[M4-1b] AAII public probe OK.")
 
+    # BTC funding/DVOL (data_btc_funding defaults ON): its own script was never
+    # wired here, so the source drifted 13d stale (2026-06-02) while still being
+    # scored. Deribit/OKX, stdlib-only, non-fatal like the rest.
+    result8 = subprocess.run(
+        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_crypto_micro"],
+        cwd=str(BASE_DIR),
+        env=_subprocess_env(),
+        capture_output=True,
+        text=True,
+        timeout=90,
+    )
+    if result8.returncode != 0:
+        print("[M4-1b] WARNING: BTC funding/DVOL refresh failed (Deribit/OKX); continuing.")
+    else:
+        print("[M4-1b] BTC funding/DVOL OK.")
+
 
 # ── Step 2: run the package score pipeline ────────────────────────────────────
 
