@@ -16,6 +16,16 @@ rsync -av --include='*/' --include='*.py' --exclude='*' \
   --exclude='tests/' --exclude='config/' --exclude='data/' \
   "$REPO/src/hermes_escape_top/" "$PKG/"
 
+# The launchd daily job runs $LIVE/scripts/run_daily_package.py — a loose copy
+# that must live one level shallower than the package so _discover_runtime_paths
+# resolves the package parent (and thus subprocess PYTHONPATH) correctly. The
+# rsync above only touches the package tree, so without this the daily silently
+# runs STALE orchestration (2026-06-17: loose copy was 4 days stale → manifest
+# never re-froze, NEXT-5 never refreshed, self-heal absent; scoring looked fine
+# only because core logic is imported live). Keep the daily entry in lockstep.
+cp "$PKG/scripts/run_daily_package.py" "$LIVE/scripts/run_daily_package.py"
+echo "synced loose daily entry -> scripts/run_daily_package.py"
+
 echo "== 2/5 soft data live->repo (live is the soft-data authority) =="
 rsync -av "$PKG/data/soft_history/" "$REPO/src/hermes_escape_top/data/soft_history/"
 
