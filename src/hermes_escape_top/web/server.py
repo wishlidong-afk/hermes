@@ -210,9 +210,11 @@ def _latest_score_payload(as_of: str, records: list | None = None) -> dict | Non
         return None
 
 
-def _recent_status_history(as_of: str, max_days: int = 10, records: list | None = None) -> dict:
+def _recent_status_history(as_of: str, max_days: int = 30, records: list | None = None) -> dict:
     """Per-symbol status over the last `max_days` distinct OFFICIAL trading days
-    for the dashboard consistency strip. Uses the pre-read record list when given
+    for the dashboard consistency strip. Shows however many official days exist
+    (only ~10 until the system accumulates more, one per trading day; rotation
+    retains up to 90). Uses the pre-read record list when given
     (shared with the latest-payload read — one audit read per page load); manual
     re-runs (run_type != scheduled) are skipped so the strip shows the decision of
     record, not intraday previews."""

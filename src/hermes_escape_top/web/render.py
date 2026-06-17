@@ -567,9 +567,9 @@ def _render_status_history(payload: Dict[str, Any]) -> str:
         flips = sum(1 for a, b in zip(seq, seq[1:]) if a.get("status") != b.get("status"))
         rows.append(
             "<div style='display:flex;align-items:center;gap:8px;margin:4px 0'>"
-            f"<b style='width:52px'>{esc(symbol)}</b>"
-            f"<span style='white-space:nowrap'>{chips}</span>"
-            f"<span class='mini-note'>近 {len(seq)} 个交易日 · 当前 {esc(last)} · 翻转 {flips} 次</span>"
+            f"<b style='width:52px;flex:none'>{esc(symbol)}</b>"
+            f"<span style='white-space:nowrap;overflow-x:auto;flex:1;min-width:0'>{chips}</span>"
+            f"<span class='mini-note' style='flex:none'>近 {len(seq)} 个交易日 · 当前 {esc(last)} · 翻转 {flips} 次</span>"
             "</div>"
         )
     if not rows:
