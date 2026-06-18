@@ -64,14 +64,61 @@ Every finding below cites `file:line` (or `file` + function) at the **repo** so 
 |---|---|---|---|---|---|
 | 1 | Deploy verification wrote a **second official run** (polluted the daily record; a root cause of false SOXL "REDUCE→EXIT→REDUCE" flips) | High | ✅ Fixed | `3ea7dff` (+ `f043e0c`) | ✅ |
 | 2 | Proxy metric mislabeled as **real net cash flow** ("5日净流/净额") | Medium | ✅ Fixed | `a8df353`, `e0d6148`, `218f0f4`, `2fdbdbf` | ✅ |
-| 3 | **No cross-process mutex; non-atomic CSV writes** — web refresh, 07:10 cron, and two server threads could interleave / tear files | **High (P1)** | ✅ Fixed | `2beea7d` | ✅ |
+| 3 | **No cross-process mutex; non-atomic CSV writes** — web refresh, 07:10 cron, and two server threads could interleave / tear files | **High (P1)** | ⚠️ **Partial** (§2A) | `2beea7d` | ⚠️ |
 | 4 | Manifest "re-freeze" button **bypassed the integrity scan** → could re-certify corrupt/hand-edited bars as OK | Medium-High | ✅ Fixed | `ce8ee92` | ✅ |
 | 5 | The refresh button's **preview was unreachable** (the explicit-date path always preferred the official record) | Low-Med | ✅ Fixed | `e0d6148` | ✅ |
-| 6 | Deploy was **non-atomic, additive, no restart, no rollback** | Medium | ✅ Phase 1 (Phase 2 deferred — see §6) | `f9aed82` | ✅ |
-| 7 | Green "self-check OK" receipt **stamped before** state commit → could attest success on a failed run | Medium | ✅ Fixed | `ce8ee92` | ✅ |
+| 6 | Deploy was **non-atomic, additive, no restart, no rollback** | Medium | ⚠️ **Phase 1 partial** (§2A) | `f9aed82` | ✅ |
+| 7 | Green "self-check OK" receipt **stamped before** state commit → could attest success on a failed run | Medium | ⚠️ **Partial** (§2A) | `ce8ee92` | ✅ |
 | 8 | Production runbook described a **stale/loose engine** and an **outdated deploy flow** | Low | ✅ Fixed | `e24ebed`, `974ee3e` | n/a (doc) |
 
-All 8 are resolved and (where they affect runtime) **live**. #6 is intentionally a two-phase item; Phase 2 is deferred under explicit triggers (§6).
+> **⚠️ Corrected after external audit (2026-06-18).** The original "All 8 resolved" claim was **overstated**. Accurate status: **5 fully resolved** (#1/#2/#4/#5/#8); **#3/#6/#7 partial**; and the audit surfaced **further open issues**. The ✅ marks above for #3/#6/#7 are **superseded by §2A below.**
+
+5 of 8 are fully resolved and live. **#3, #6, #7 are partial** (§2A). #6 was always a two-phase item; Phase 2 (staging atomic switch) is deferred under explicit triggers (§6).
+
+---
+
+## 2A. External audit addendum (2026-06-18)
+
+An external audit reviewed this remediation and correctly found the "All 8 resolved"
+claim **overstated**. Corrected status: **5 fully resolved (#1/#2/#4/#5/#8), 3 partial
+(#3/#6/#7)**, plus new findings. All accepted as valid (key claims re-verified against
+source). Tracked for follow-up; none have been fixed yet at the time of this addendum.
+
+**Partial (were claimed done):**
+- **#3 (P1) — the lock does not cover all writers.** `pipeline_lock` sits at the 4
+  WebUI refresh endpoints + the cron `main()`, but `score_pipeline()` — which writes
+  5 SQLites + the audit log + the signal journal (`pipeline.py`) — is also reachable
+  **unlocked** via `/api/ibkr_demo_snapshot`, `/api/ibkr_live_check`, and the CLI
+  (`cli.py`). Two unsynchronized `score_pipeline` runs can still interleave. **Correct
+  fix:** gate at the **persistence layer** (one locked entry), not per caller — minding
+  re-entrancy (the cron's `main()` already holds the lock when it calls `score_pipeline`).
+- **#6 (P1) — deploy concurrency + rollback.** `pgrep run_daily` is a one-shot
+  time-of-check check; the deploy takes **no** `.pipeline.lock`, so a task starting after
+  the check (or the live dashboard during the in-place rsync) is not serialized. Rollback
+  untars the backup but does **not** delete files the failed rsync added; a `.hermes`
+  commit failure prints `NOTE` yet the script still prints `deploy OK`. So "any failure
+  auto-rollback / commit only when all-green" is overstated.
+- **#7 (P2) — receipt.** Only the *state-commit* failure path writes a red receipt; an
+  exception in scoring / artifact write / post-run diff **before** the receipt logic
+  leaves the prior green receipt. Alpaca SIP refresh runs **after** the receipt and only
+  warns on failure (daily still exits 0).
+
+**New findings (outside the original 8):**
+- **(P1) Health masks staleness.** `health.py` reads the frozen `snapshot_stale` instead
+  of recomputing IBKR age from `sync_time` (a 2026-01-01 snapshot still reports OK); it
+  also ignores the scheduled-run receipt and the SIP `as_of`.
+- **(P2) Busy = HTTP 200** (should be `409`); and refresh/IBKR endpoints are loopback-only
+  with **no token**, conflicting with `context.md`'s "all write endpoints require token" —
+  a code/doc/requirement inconsistency to resolve with one explicit policy.
+- **(P2) `.hermes` deploy commit** `git add`s the whole live tree (~37 files incl. SQLite,
+  position history, order previews, a 1.4 MB backup tar) — runtime/sensitive data + repo
+  bloat. Should track only code + entry scripts + VERSION.
+- **(P3) Live writes back to repo** (NEXT5 → `building/logs`), breaking repo/live isolation.
+- **(P3) Atomic write changed permissions.** `mkstemp` (0600) + `os.replace` left live CSVs
+  at 0600 instead of 0644 (verified on disk). Preserve the original mode.
+
+Day-level verification still holds: full suite **517**, `compileall` clean, launchd daily
+exit 0, live `2beea7d`, no tracked API keys.
 
 ---
 
