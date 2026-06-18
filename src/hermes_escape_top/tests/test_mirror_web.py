@@ -88,7 +88,9 @@ class MirrorWebTest(unittest.TestCase):
         self.assertIn("IBKR 持仓", html)
         self.assertIn("理想化持仓配比", html)
         self.assertIn("模型校准 / 上一交易日理想 P/L", html)
-        self.assertIn("主要持仓资金流入/流出", html)
+        self.assertIn("主要持仓量价流向代理", html)
+        self.assertIn("不代表真实资金净流", html)
+        self.assertNotIn("5日净流", html)
 
     def test_mirror_server_health_and_refresh(self) -> None:
         server = create_mirror_server("127.0.0.1", 0, "2026-06-02")

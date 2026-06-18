@@ -594,8 +594,8 @@ def _render_flow(payload: Dict[str, Any]) -> str:
         cards.append(_flow_card(symbol, components, summary))
     return f"""
     <section>
-      <h2>主要持仓资金流入/流出</h2>
-      <div class="subtle" style="margin-bottom:10px">资金流用于辅助判断镜像腿是否有内部派发压力；红色代表异常流出或弱流出。db={esc(flow.get('db_path', '未固化'))}</div>
+      <h2>主要持仓量价流向代理</h2>
+      <div class="subtle" style="margin-bottom:10px">CMF/MFI 与方向成交额仅用于辅助判断镜像腿的量价趋势，不代表真实资金净流。红色=偏弱，青色=偏强。db={esc(flow.get('db_path', '未固化'))}</div>
       <div class="flow-grid">{''.join(cards)}</div>
     </section>
     """
@@ -626,7 +626,7 @@ def _flow_card(symbol: str, components: List[Dict[str, Any]], summary: str) -> s
       </div>
       <div class="flow-body">
         <table>
-          <thead><tr><th>持仓</th><th>状态</th><th>CMF20</th><th>MFI14</th><th>5日净流</th></tr></thead>
+          <thead><tr><th>持仓</th><th>状态</th><th>CMF20</th><th>MFI14</th><th>5日方向成交额代理</th></tr></thead>
           <tbody>{''.join(rows)}</tbody>
         </table>
       </div>

@@ -324,7 +324,7 @@ def _basket_table(fund: str, basket: Dict[str, Any], fund_flow: Dict[str, Any]) 
           基金层 CMF {_f(fund_cmf)} · 异常 {esc(abnormal if abnormal is not None else '—')} 只</div>
         <table style="width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed">
           <tr style="color:#888;text-align:center"><td style="width:60px;text-align:left"></td>
-            <td>CMF20</td><td>MFI−50</td><td>流出天数</td><td style="width:70px;text-align:right">5日净额</td><td style="width:90px">判定</td></tr>
+            <td>CMF20</td><td>MFI−50</td><td>下跌天数</td><td style="width:90px;text-align:right">5日方向成交额代理</td><td style="width:90px">判定</td></tr>
           {''.join(body)}
         </table>{diverge}
       </div>"""
@@ -342,7 +342,7 @@ def _zone_lookthrough(payload: Dict[str, Any]) -> str:
                  f"流出天数 {esc(m.get('outflow_days_5d', '—'))}/5 · {esc(m.get('severity', ''))}</div>") if m else ""
     return f"""
     <section class="card">
-      <div class="zone-label">区域 4 · 基金穿透 — 成分股资金流（teal=流入 coral=流出，按恶劣度排序）</div>
+      <div class="zone-label">区域 4 · 基金穿透 — 成分股量价流向代理（teal=偏强 coral=偏弱，按恶劣度排序；非真实资金净流）</div>
       {''.join(parts) or "<div style='color:#888'>flow 数据缺失</div>"}
       {mstr_line}
     </section>"""

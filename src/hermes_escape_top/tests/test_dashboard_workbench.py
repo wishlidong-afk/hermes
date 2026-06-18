@@ -327,20 +327,22 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     assert "当前持仓 + IBKR 对账" in html
     assert "IBKR 现有总资产" in html
     assert "理想仓位上一交易日盈亏" in html
-    assert "穿透资金流向" in html
-    assert html.index("当前持仓 + IBKR 对账") < html.index("穿透资金流向")
+    assert "穿透股票成交与流向参考" in html
+    assert html.index("当前持仓 + IBKR 对账") < html.index("穿透股票成交与流向参考")
     assert "Mirror Reference" not in html
     assert "SOXL" in html and "买入缺口" in html
     assert "BOXX" in html and "+27.7%" in html
-    assert "FNGU 资金流" in html and "SEVERE" in html
+    assert "FNGU 量价流向代理" in html and "SEVERE" in html
     assert "NVDA" in html and "-$53.93B" in html
-    assert "资金流热力解释" in html
+    assert "量价流向热力" in html
     assert "CMF20热格" in html and "MFI-50热格" in html
-    assert "上一交易日成交额方向" in html and "ALPACA_SIP_1MIN · 2026-06-17" in html
-    assert "总成交额来自真实 SIP 1 分钟" in html and "并非交易所直接提供" in html
-    assert "主动买入占优" in html and "主动卖出占优" in html
+    assert "上一交易日成交额拆分估算" in html and "ALPACA_SIP_1MIN · 2026-06-17" in html
+    assert "只能确认真实总成交额" in html and "不是交易所 aggressor side" in html
+    assert "估算买入侧占优" in html and "估算卖出侧占优" in html
     assert "+$400.00M" in html and "-$500.00M" in html
-    assert "总成交额 $2.00B" in html and "买入估算</th>" in html
+    assert "总成交额 $2.00B" in html and "买入侧估算</th>" in html
+    assert "不是真实资金净流" in html
+    assert "主动买入占优" not in html
     assert "+$1.20B" not in html
     assert "其他折叠详情" in html and "硬阀门全景" in html
 

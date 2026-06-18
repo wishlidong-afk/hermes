@@ -1029,7 +1029,7 @@ def _flow_divergence(symbol: str, rows: List[Dict[str, Any]], fund_flow: Dict[st
         return (
             "<div class='warning-box' style='margin-top:8px'>"
             f"背离：{esc(symbol)} 基金层 CMF {_fmt_num(fund_cmf)} 仍为正，但 {esc(worst.get('symbol'))} "
-            f"底层资金流恶化（CMF {_fmt_num(worst_cmf)}，5日方向成交额代理 {_fmt_flow_money(worst.get('legacy_signed_5d'))}）。"
+            f"底层量价流向信号恶化（CMF {_fmt_num(worst_cmf)}，5日方向成交额代理 {_fmt_flow_money(worst.get('legacy_signed_5d'))}）。"
             "</div>"
         )
     return ""
@@ -1753,9 +1753,9 @@ def _render_component_flow_section(payload: Dict[str, Any]) -> str:
     <section>
       <div class="flow-header">
         <div>
-          <h2 style="margin-bottom:4px">穿透资金流向 / Underlying Flow</h2>
-          <div class="subtle">资金流热力解释：最危险桶 {esc(worst['symbol'] + ' / ' + worst['severity']) if worst else '暂无'} · 风险排序 {esc(order_text)} · 主要底层票 {weak_text}</div>
-          <div class="subtle">CMF20 / MFI-50 / 流出天数 / 5日方向成交额(代理，真实净流见上方 SIP)。coral=流出，teal=流入。db={esc(flow.get('db_path', '未固化'))}</div>
+          <h2 style="margin-bottom:4px">穿透股票成交与流向参考 / Underlying Turnover</h2>
+          <div class="subtle">量价流向热力：最危险桶 {esc(worst['symbol'] + ' / ' + worst['severity']) if worst else '暂无'} · 风险排序 {esc(order_text)} · 主要底层票 {weak_text}</div>
+          <div class="subtle">CMF20 / MFI-50 / 下跌天数 / 5日方向成交额代理只表示量价趋势，不是真实资金净流。coral=偏弱，teal=偏强。db={esc(flow.get('db_path', '未固化'))}</div>
         </div>
         {_badge('flow as_of ' + esc(flow.get('as_of', 'NA')), 'watch')}
       </div>
@@ -1771,7 +1771,7 @@ def _render_alpaca_daily_flow(payload: Dict[str, Any]) -> str:
     if not baskets:
         return """
         <div class="tape-flow-block">
-          <h3>上一交易日成交额方向 / SIP Turnover</h3>
+          <h3>上一交易日成交额拆分估算 / SIP Turnover Estimate</h3>
           <div class="warning-box">尚无 Alpaca SIP 日成交缓存；旧的 CMF/MFI 趋势参考仍可用。</div>
         </div>
         """
@@ -1807,8 +1807,8 @@ def _render_alpaca_daily_flow(payload: Dict[str, Any]) -> str:
         basket_net = _float(basket.get("net_notional"), 0.0)
         basket_class = "tape-net-buy" if basket_net > 0 else "tape-net-sell" if basket_net < 0 else "tape-net-flat"
         direction = {
-            "NET_BUY": "主动买入占优",
-            "NET_SELL": "主动卖出占优",
+            "NET_BUY": "估算买入侧占优",
+            "NET_SELL": "估算卖出侧占优",
             "BALANCED": "买卖接近平衡",
             "MISSING": "数据缺失",
         }.get(str(basket.get("direction")), str(basket.get("direction") or "NA"))
@@ -1817,12 +1817,12 @@ def _render_alpaca_daily_flow(payload: Dict[str, Any]) -> str:
             "<div class='tape-flow-card'>"
             "<div class='head'>"
             f"<h3>{esc(symbol)} · {esc(direction)}</h3>"
-            f"<div class='{basket_class}'>净额 {_fmt_flow_money(basket.get('net_notional'))}</div>"
+            f"<div class='{basket_class}'>估算差额 {_fmt_flow_money(basket.get('net_notional'))}</div>"
             f"<div class='subtle'>总成交额 {_fmt_flow_gross(basket.get('total_notional'))} · "
             f"覆盖 {esc(basket.get('component_count', 0))}/{esc(basket.get('requested_component_count', 0))} 只</div>"
             "</div>"
             "<div class='body'><table>"
-            "<thead><tr><th>股票</th><th>买入估算</th><th>卖出估算</th><th>净额</th><th>买入占比</th><th>成交笔</th></tr></thead>"
+            "<thead><tr><th>股票</th><th>买入侧估算</th><th>卖出侧估算</th><th>估算差额</th><th>买入侧占比</th><th>成交笔</th></tr></thead>"
             f"<tbody>{rows_html}</tbody>"
             "</table></div></div>"
         )
@@ -1833,9 +1833,9 @@ def _render_alpaca_daily_flow(payload: Dict[str, Any]) -> str:
     <div class="tape-flow-block">
       <div class="flow-header">
         <div>
-          <h3 style="margin-bottom:4px">上一交易日成交额方向 / SIP Turnover</h3>
-          <div class="subtle">总成交额来自真实 SIP 1 分钟 VWAP × 成交量；买入/卖出为分钟价格位置估算，并非交易所直接提供的 aggressor side。</div>
-          <div class="subtle">teal=主动买入估算 · coral=主动卖出估算 · 按净额绝对值排序</div>
+          <h3 style="margin-bottom:4px">上一交易日成交额拆分估算 / SIP Turnover Estimate</h3>
+          <div class="subtle">SIP 1 分钟 VWAP × 成交量只能确认真实总成交额；买卖侧拆分由分钟价格位置估算，不是交易所 aggressor side，也不是真实资金净流。</div>
+          <div class="subtle">teal=买入侧估算 · coral=卖出侧估算 · 按估算差额绝对值排序</div>
         </div>
         {_badge(source + ' · ' + source_day, source_kind)}
       </div>
@@ -1875,13 +1875,13 @@ def _render_flow_card(symbol: str, components: List[Dict[str, Any]], summary: st
     return f"""
     <div class="flow-card">
       <div class="flow-title">
-        <h3 style="margin-bottom:4px">{esc(symbol)} 资金流</h3>
+        <h3 style="margin-bottom:4px">{esc(symbol)} 量价流向代理</h3>
         <div class="subtle">{summary}</div>
       </div>
       <div class="flow-body">
         <table>
-          <thead><tr><th>股票</th><th>流出天</th><th>CMF20热格</th><th>MFI-50热格</th><th>方向成交额(代理)</th><th>判定</th></tr></thead>
-          <tbody>{''.join(rows) if rows else '<tr><td colspan="6">暂无资金流数据</td></tr>'}</tbody>
+          <thead><tr><th>股票</th><th>下跌天</th><th>CMF20热格</th><th>MFI-50热格</th><th>5日方向成交额代理</th><th>判定</th></tr></thead>
+          <tbody>{''.join(rows) if rows else '<tr><td colspan="6">暂无量价流向数据</td></tr>'}</tbody>
         </table>
         {divergence}
       </div>
