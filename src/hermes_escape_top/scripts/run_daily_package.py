@@ -1130,8 +1130,12 @@ def _refreeze_manifest() -> None:
         print(f"[manifest] WARNING: re-freeze failed ({exc!r}); manifest may show DRIFT until manual refresh.")
 
 
-def _write_run_receipt(as_of: str, run_type: str) -> None:
+def _write_run_receipt(as_of: str, run_type: str, steps_ok: bool = True, step_error: str = "") -> None:
     """End-of-run self-attestation written by the scheduled daily run.
+
+    Called LAST, after every required step (incl. state commit). ``steps_ok=False``
+    forces a red receipt so a run that failed a required step can never certify
+    green just because the data-state self-checks happen to pass.
 
     Stamps WHEN the official run completed plus a few end-state invariants, so the
     dashboard can show a positive 'ran today, self-checked green' — the one signal
@@ -1145,6 +1149,9 @@ def _write_run_receipt(as_of: str, run_type: str) -> None:
         from hermes_escape_top.config import resolve_path
         config = load_config()
         checks = []
+        if not steps_ok:
+            checks.append({"name": "run_steps", "ok": False,
+                           "detail": step_error or "a required step failed before the receipt"})
         dates = _last_bar_dates()
         if dates:
             latest_bar = max(dates.values()).isoformat()
@@ -1253,16 +1260,24 @@ def main() -> None:
                 print(f"[audit] rotated; full history archived -> {arch.name}")
         except Exception as exc:
             print(f"[audit] WARNING: rotation skipped ({exc!r}); continuing.")
-        # Only the scheduled official run stamps the receipt — a manual_rerun
-        # preview must not move the "last official run" marker.
-        if args.run_type == "scheduled":
-            _write_run_receipt(as_of, args.run_type)
+    commit_error = ""
     if args.commit_state:
         if shadow:
             print("[M4-1] WARNING: --commit-state ignored in shadow mode.")
         else:
-            state_path = commit_state(translated, as_of)
-            print(f"[M4-1] state committed: {state_path}")
+            try:
+                state_path = commit_state(translated, as_of)
+                print(f"[M4-1] state committed: {state_path}")
+            except Exception as exc:
+                commit_error = f"state commit failed: {exc!r}"
+                print(f"[M4-1] ERROR: {commit_error}")
+    # Receipt LAST — only after every required step (incl. state commit). Only the
+    # scheduled official run stamps it (a manual_rerun preview must not move the
+    # marker); a failed required step forces a red receipt, never a false green.
+    if not shadow and args.run_type == "scheduled":
+        _write_run_receipt(as_of, args.run_type, steps_ok=(not commit_error), step_error=commit_error)
+    if commit_error:
+        sys.exit(1)
 
     print(f"[M4-1] Done. as_of={as_of} mode={'shadow' if shadow else 'LIVE'}")
 

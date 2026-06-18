@@ -326,8 +326,25 @@ def _refresh_manifest(config: Dict[str, Any], history_refreshed: bool) -> Dict[s
 
 
 def force_refresh_manifest(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Re-freeze the data manifest on demand (WebUI button). Returns status + frozen_at."""
+    """Re-freeze the data manifest on demand (WebUI button). Returns status + frozen_at.
+
+    Runs the history-integrity scan FIRST and refuses to re-freeze when bars are
+    corrupt — otherwise the button re-certifies corrupted / hand-edited CSVs as OK,
+    hiding a DRIFT that is real damage. Verify-then-freeze: the same discipline the
+    daily run applies before _refreeze_manifest, now enforced at the button too."""
     cfg = config or load_config()
+    offenders = _history_integrity_scan(cfg)
+    if offenders:
+        info = dict(manifest_status(cfg))   # keep current (DRIFT/…) status — do NOT freeze
+        info.update({
+            "status": info.get("status") or "DRIFT",
+            "refrozen": False,
+            "ok": False,
+            "integrity_offenders": offenders[:12],
+            "offender_count": len(offenders),
+            "error": "history integrity scan failed — refusing to re-freeze corrupt bars",
+        })
+        return info
     info = _refresh_manifest(cfg, history_refreshed=True)
     info.update(manifest_status(cfg))
     info["ok"] = info.get("status") == "OK"
