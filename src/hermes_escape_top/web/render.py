@@ -285,6 +285,17 @@ def render_dashboard(
     .flow-neutral {{ background:#f1f5f9; color:#475569; }}
     .flow-mid-pos {{ background:#bbf7d0; color:#166534; }}
     .flow-hot-pos {{ background:#86efac; color:#065f46; }}
+    .tape-flow-block {{ margin-top:16px; padding-top:14px; border-top:1px solid #dbe3ee; }}
+    .tape-flow-grid {{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; margin-top:10px; }}
+    .tape-flow-card {{ border:1px solid #dbe3ee; border-radius:8px; overflow:hidden; background:#fff; min-width:0; }}
+    .tape-flow-card .head {{ padding:10px 12px; background:#f8fafc; border-bottom:1px solid #e5e7eb; }}
+    .tape-flow-card .body {{ padding:10px; overflow-x:auto; }}
+    .tape-split {{ display:flex; height:8px; min-width:90px; border-radius:999px; overflow:hidden; background:#e5e7eb; margin-top:4px; }}
+    .tape-split .buy {{ background:#0f766e; }}
+    .tape-split .sell {{ background:#e76f51; }}
+    .tape-net-buy {{ color:#047857; font-weight:900; }}
+    .tape-net-sell {{ color:#b91c1c; font-weight:900; }}
+    .tape-net-flat {{ color:#475569; font-weight:900; }}
     .strategy-console {{ display:grid; gap:10px; }}
     .strategy-overview {{
       border:1px solid #dbe3ee;
@@ -399,6 +410,7 @@ def render_dashboard(
       .ibkr-head {{ grid-template-columns: 1fr; }}
       .macro-summary, .macro-factors {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .flow-grid {{ grid-template-columns: 1fr; }}
+      .tape-flow-grid {{ grid-template-columns: 1fr; }}
       .workbench-grid {{ grid-template-columns: 1fr; }}
       .strategy-card-grid, .strategy-metrics, .flow-heat-grid, .position-summary-grid {{ grid-template-columns: 1fr; }}
     }}
@@ -1748,7 +1760,87 @@ def _render_component_flow_section(payload: Dict[str, Any]) -> str:
         {_badge('flow as_of ' + esc(flow.get('as_of', 'NA')), 'watch')}
       </div>
       <div class="flow-grid">{''.join(tables)}</div>
+      {_render_alpaca_daily_flow(payload)}
     </section>
+    """
+
+
+def _render_alpaca_daily_flow(payload: Dict[str, Any]) -> str:
+    flow = payload.get("alpaca_daily_flow") or {}
+    baskets = flow.get("baskets") or {}
+    if not baskets:
+        return """
+        <div class="tape-flow-block">
+          <h3>上一交易日成交额方向 / SIP Turnover</h3>
+          <div class="warning-box">尚无 Alpaca SIP 日成交缓存；旧的 CMF/MFI 趋势参考仍可用。</div>
+        </div>
+        """
+
+    cards = []
+    for symbol in TRADE_SYMBOLS:
+        basket = baskets.get(symbol) or {}
+        components = sorted(
+            basket.get("components") or [],
+            key=lambda row: abs(_float(row.get("net_notional"), 0.0)),
+            reverse=True,
+        )
+        rows = []
+        for row in components:
+            buy_share = min(1.0, max(0.0, _float(row.get("buy_share"), 0.5)))
+            net = _float(row.get("net_notional"), 0.0)
+            net_class = "tape-net-buy" if net > 0 else "tape-net-sell" if net < 0 else "tape-net-flat"
+            rows.append(
+                "<tr>"
+                f"<td><b>{esc(row.get('symbol'))}</b></td>"
+                f"<td>{_fmt_flow_gross(row.get('buy_notional'))}</td>"
+                f"<td>{_fmt_flow_gross(row.get('sell_notional'))}</td>"
+                f"<td class='{net_class}'>{_fmt_flow_money(row.get('net_notional'))}</td>"
+                "<td>"
+                f"{buy_share * 100:.1f}%"
+                "<div class='tape-split' aria-label='主动买卖估算占比'>"
+                f"<span class='buy' style='width:{buy_share * 100:.1f}%'></span>"
+                f"<span class='sell' style='width:{(1.0 - buy_share) * 100:.1f}%'></span>"
+                "</div></td>"
+                f"<td>{int(_float(row.get('trade_count'), 0.0)):,}</td>"
+                "</tr>"
+            )
+        basket_net = _float(basket.get("net_notional"), 0.0)
+        basket_class = "tape-net-buy" if basket_net > 0 else "tape-net-sell" if basket_net < 0 else "tape-net-flat"
+        direction = {
+            "NET_BUY": "主动买入占优",
+            "NET_SELL": "主动卖出占优",
+            "BALANCED": "买卖接近平衡",
+            "MISSING": "数据缺失",
+        }.get(str(basket.get("direction")), str(basket.get("direction") or "NA"))
+        rows_html = "".join(rows) if rows else '<tr><td colspan="6">暂无成交数据</td></tr>'
+        cards.append(
+            "<div class='tape-flow-card'>"
+            "<div class='head'>"
+            f"<h3>{esc(symbol)} · {esc(direction)}</h3>"
+            f"<div class='{basket_class}'>净额 {_fmt_flow_money(basket.get('net_notional'))}</div>"
+            f"<div class='subtle'>总成交额 {_fmt_flow_gross(basket.get('total_notional'))} · "
+            f"覆盖 {esc(basket.get('component_count', 0))}/{esc(basket.get('requested_component_count', 0))} 只</div>"
+            "</div>"
+            "<div class='body'><table>"
+            "<thead><tr><th>股票</th><th>买入估算</th><th>卖出估算</th><th>净额</th><th>买入占比</th><th>成交笔</th></tr></thead>"
+            f"<tbody>{rows_html}</tbody>"
+            "</table></div></div>"
+        )
+    source_day = str(flow.get("as_of") or "NA")
+    source = str(flow.get("source") or "ALPACA_SIP_1MIN")
+    source_kind = "ok" if source_day == str(payload.get("as_of") or "")[:10] else "warn"
+    return f"""
+    <div class="tape-flow-block">
+      <div class="flow-header">
+        <div>
+          <h3 style="margin-bottom:4px">上一交易日成交额方向 / SIP Turnover</h3>
+          <div class="subtle">总成交额来自真实 SIP 1 分钟 VWAP × 成交量；买入/卖出为分钟价格位置估算，并非交易所直接提供的 aggressor side。</div>
+          <div class="subtle">teal=主动买入估算 · coral=主动卖出估算 · 按净额绝对值排序</div>
+        </div>
+        {_badge(source + ' · ' + source_day, source_kind)}
+      </div>
+      <div class="tape-flow-grid">{''.join(cards)}</div>
+    </div>
     """
 
 
@@ -3381,6 +3473,11 @@ def _fmt_flow_money(value: Any) -> str:
         if abs_val >= scale:
             return f"{sign}${abs_val / scale:.2f}{suffix}"
     return f"{sign}${abs_val:,.0f}"
+
+
+def _fmt_flow_gross(value: Any) -> str:
+    formatted = _fmt_flow_money(value)
+    return formatted[1:] if formatted.startswith("+") else formatted
 
 
 def _fmt_pct(value: Any, signed: bool = False) -> str:

@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 from hermes_escape_top.pipeline import score_pipeline
-from hermes_escape_top.web.server import _latest_score_payload
+from hermes_escape_top.web.server import _attach_alpaca_daily_flow, _latest_score_payload
 from hermes_escape_top.web.render import render_dashboard, write_dashboard
 
 
@@ -65,6 +65,23 @@ class Phase14WebTest(unittest.TestCase):
         self.assertEqual(latest["as_of"], "2026-06-04")
         self.assertEqual(latest["ibkr"]["source"], "tws")
         self.assertEqual(exact["as_of"], "2026-05-29")
+
+    def test_alpaca_flow_attachment_never_uses_a_future_session(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp)
+            for day in ("2026-06-16", "2026-06-18"):
+                (archive / f"alpaca_daily_flow_{day}.json").write_text(json.dumps({
+                    "schema_version": "alpaca-sip-daily-flow-v1",
+                    "as_of": day,
+                    "baskets": {"MSTR": {"net_notional": 1}},
+                }), encoding="utf-8")
+            payload = {"as_of": "2026-06-17"}
+            with mock.patch("hermes_escape_top.web.server.load_config", return_value={}), mock.patch(
+                "hermes_escape_top.web.server.resolve_path", return_value=archive
+            ):
+                _attach_alpaca_daily_flow(payload)
+
+        self.assertEqual(payload["alpaca_daily_flow"]["as_of"], "2026-06-16")
 
 
 if __name__ == "__main__":

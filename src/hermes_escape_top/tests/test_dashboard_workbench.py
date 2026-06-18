@@ -234,6 +234,40 @@ def _payload():
                 },
             },
         },
+        "alpaca_daily_flow": {
+            "schema_version": "alpaca-sip-daily-flow-v1",
+            "as_of": "2026-06-17",
+            "source": "ALPACA_SIP_1MIN",
+            "baskets": {
+                "MSTR": {
+                    "direction": "NET_BUY", "buy_notional": 1_200_000_000,
+                    "sell_notional": 800_000_000, "net_notional": 400_000_000,
+                    "total_notional": 2_000_000_000, "component_count": 1,
+                    "requested_component_count": 1,
+                    "components": [{"symbol": "MSTR", "buy_notional": 1_200_000_000,
+                                    "sell_notional": 800_000_000, "net_notional": 400_000_000,
+                                    "buy_share": 0.6, "trade_count": 12345}],
+                },
+                "FNGU": {
+                    "direction": "NET_SELL", "buy_notional": 3_000_000_000,
+                    "sell_notional": 3_500_000_000, "net_notional": -500_000_000,
+                    "total_notional": 6_500_000_000, "component_count": 1,
+                    "requested_component_count": 1,
+                    "components": [{"symbol": "NVDA", "buy_notional": 3_000_000_000,
+                                    "sell_notional": 3_500_000_000, "net_notional": -500_000_000,
+                                    "buy_share": 3 / 6.5, "trade_count": 54321}],
+                },
+                "SOXL": {
+                    "direction": "BALANCED", "buy_notional": 900_000_000,
+                    "sell_notional": 900_000_000, "net_notional": 0,
+                    "total_notional": 1_800_000_000, "component_count": 1,
+                    "requested_component_count": 1,
+                    "components": [{"symbol": "AMD", "buy_notional": 900_000_000,
+                                    "sell_notional": 900_000_000, "net_notional": 0,
+                                    "buy_share": 0.5, "trade_count": 22222}],
+                },
+            },
+        },
     }
 
 
@@ -302,6 +336,12 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     assert "NVDA" in html and "-$53.93B" in html
     assert "资金流热力解释" in html
     assert "CMF20热格" in html and "MFI-50热格" in html
+    assert "上一交易日成交额方向" in html and "ALPACA_SIP_1MIN · 2026-06-17" in html
+    assert "总成交额来自真实 SIP 1 分钟" in html and "并非交易所直接提供" in html
+    assert "主动买入占优" in html and "主动卖出占优" in html
+    assert "+$400.00M" in html and "-$500.00M" in html
+    assert "总成交额 $2.00B" in html and "买入估算</th>" in html
+    assert "+$1.20B" not in html
     assert "其他折叠详情" in html and "硬阀门全景" in html
 
 

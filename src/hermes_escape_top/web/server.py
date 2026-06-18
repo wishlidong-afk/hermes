@@ -46,6 +46,7 @@ RUN_DAILY_PKG = (
 )
 
 from ..config import load_config, resolve_path
+from ..core.data.alpaca_flow import load_daily_flow_snapshot
 from ..core.data.state_store import record_execution_confirmation
 from ..ibkr.live_check import run_live_check
 from ..ibkr.positions import write_demo_snapshot
@@ -153,6 +154,18 @@ def _read_run_receipt() -> dict:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {}
+
+
+def _attach_alpaca_daily_flow(payload: dict) -> dict:
+    """Attach the nearest non-future SIP flow cache without touching audit data."""
+    try:
+        config = load_config()
+        flow = load_daily_flow_snapshot(resolve_path(config, "archive_dir"), payload.get("as_of", ""))
+        if flow is not None:
+            payload["alpaca_daily_flow"] = flow
+    except Exception:
+        pass
+    return payload
 
 
 def _latest_score_payload(as_of: str, records: list | None = None) -> dict | None:
@@ -548,6 +561,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path in {"/", "/index.html"}:
                 audit_records = _read_audit_payloads()  # single audit read for all three lookups
                 payload = _latest_score_payload(as_of, audit_records) or _empty_dashboard_payload(as_of)
+                _attach_alpaca_daily_flow(payload)
                 payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of, records=audit_records)
                 payload["prev_valves"] = _prev_official_valves(audit_records, payload.get("as_of") or as_of)
                 payload["run_receipt"] = _read_run_receipt()
@@ -569,6 +583,8 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 payload = _latest_score_payload(as_of)
                 if payload is None:
                     payload = {"ok": False, "as_of": as_of, "message": "No cached score payload. POST /api/refresh_score to refresh."}
+                else:
+                    _attach_alpaca_daily_flow(payload)
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())
