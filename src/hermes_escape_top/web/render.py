@@ -1029,7 +1029,7 @@ def _flow_divergence(symbol: str, rows: List[Dict[str, Any]], fund_flow: Dict[st
         return (
             "<div class='warning-box' style='margin-top:8px'>"
             f"背离：{esc(symbol)} 基金层 CMF {_fmt_num(fund_cmf)} 仍为正，但 {esc(worst.get('symbol'))} "
-            f"底层资金流恶化（CMF {_fmt_num(worst_cmf)}，5日净流 {_fmt_flow_money(worst.get('legacy_signed_5d'))}）。"
+            f"底层资金流恶化（CMF {_fmt_num(worst_cmf)}，5日方向成交额代理 {_fmt_flow_money(worst.get('legacy_signed_5d'))}）。"
             "</div>"
         )
     return ""
@@ -1753,9 +1753,9 @@ def _render_component_flow_section(payload: Dict[str, Any]) -> str:
     <section>
       <div class="flow-header">
         <div>
-          <h2 style="margin-bottom:4px">穿透股票现金流 / Underlying Stock Flow</h2>
+          <h2 style="margin-bottom:4px">穿透资金流向 / Underlying Flow</h2>
           <div class="subtle">资金流热力解释：最危险桶 {esc(worst['symbol'] + ' / ' + worst['severity']) if worst else '暂无'} · 风险排序 {esc(order_text)} · 主要底层票 {weak_text}</div>
-          <div class="subtle">CMF20 / MFI-50 / 流出天数 / 5日估算净流。coral=流出，teal=流入。db={esc(flow.get('db_path', '未固化'))}</div>
+          <div class="subtle">CMF20 / MFI-50 / 流出天数 / 5日方向成交额(代理，真实净流见上方 SIP)。coral=流出，teal=流入。db={esc(flow.get('db_path', '未固化'))}</div>
         </div>
         {_badge('flow as_of ' + esc(flow.get('as_of', 'NA')), 'watch')}
       </div>
@@ -1880,7 +1880,7 @@ def _render_flow_card(symbol: str, components: List[Dict[str, Any]], summary: st
       </div>
       <div class="flow-body">
         <table>
-          <thead><tr><th>股票</th><th>流出天</th><th>CMF20热格</th><th>MFI-50热格</th><th>5日净流</th><th>判定</th></tr></thead>
+          <thead><tr><th>股票</th><th>流出天</th><th>CMF20热格</th><th>MFI-50热格</th><th>方向成交额(代理)</th><th>判定</th></tr></thead>
           <tbody>{''.join(rows) if rows else '<tr><td colspan="6">暂无资金流数据</td></tr>'}</tbody>
         </table>
         {divergence}
@@ -2753,7 +2753,7 @@ def _render_scripts(as_of: str) -> str:
         var msg = '策略数据刷新完成，载入 ' + (d.as_of || 'latest');
         st.textContent = msg;
         rememberRefresh('refresh-score-status', msg, 'strategy refreshed: as_of=' + (d.as_of || 'latest'));
-        setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest'); }}, 600);
+        setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest') + '&view=preview'; }}, 600);
       }} else {{
         st.textContent = '刷新失败: ' + (d.message || d.error || 'unknown');
         setBusy(btn, false);

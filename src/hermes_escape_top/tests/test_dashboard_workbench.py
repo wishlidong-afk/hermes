@@ -327,8 +327,8 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     assert "当前持仓 + IBKR 对账" in html
     assert "IBKR 现有总资产" in html
     assert "理想仓位上一交易日盈亏" in html
-    assert "穿透股票现金流" in html
-    assert html.index("当前持仓 + IBKR 对账") < html.index("穿透股票现金流")
+    assert "穿透资金流向" in html
+    assert html.index("当前持仓 + IBKR 对账") < html.index("穿透资金流向")
     assert "Mirror Reference" not in html
     assert "SOXL" in html and "买入缺口" in html
     assert "BOXX" in html and "+27.7%" in html

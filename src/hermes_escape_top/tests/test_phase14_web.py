@@ -27,7 +27,7 @@ class Phase14WebTest(unittest.TestCase):
         self.assertIn("更新持仓", html)
         self.assertIn("IBKR 现有总资产", html)
         self.assertIn("宏观 A 模块评分", html)
-        self.assertIn("穿透股票现金流", html)
+        self.assertIn("穿透资金流向", html)
 
     def test_write_dashboard_file(self) -> None:
         with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):

@@ -78,6 +78,18 @@ def test_explicit_as_of_shows_flagged_preview_when_no_scheduled():
     assert out["cache_status"].get("non_official") is True
 
 
+def test_view_preview_returns_the_manual_rerun_but_default_stays_official():
+    # #5: ?view=preview (the 更新策略数据 redirect) makes the intraday preview
+    # reachable + labeled non_official; default (no flag) still shows the official.
+    records = [
+        _rec("2026-06-17", "manual_rerun", "EXIT"),
+        _rec("2026-06-17", "scheduled", "REDUCE"),
+    ]
+    prev = _latest_score_payload("2026-06-17", records, prefer_preview=True)
+    assert prev["run_type"] == "manual_rerun" and prev["cache_status"].get("non_official") is True
+    assert _latest_score_payload("2026-06-17", records)["run_type"] == "scheduled"
+
+
 def test_preview_banner_only_for_non_scheduled():
     assert _render_preview_banner({"run_type": "scheduled"}) == ""
     banner = _render_preview_banner({"run_type": "manual_rerun", "as_of": "2026-06-16"})

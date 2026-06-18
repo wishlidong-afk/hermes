@@ -168,7 +168,7 @@ def _attach_alpaca_daily_flow(payload: dict) -> dict:
     return payload
 
 
-def _latest_score_payload(as_of: str, records: list | None = None) -> dict | None:
+def _latest_score_payload(as_of: str, records: list | None = None, prefer_preview: bool = False) -> dict | None:
     """Newest package score payload (or the one matching as_of). Operates on a
     pre-read record list when given (so the dashboard reads the audit once);
     otherwise reads it itself (back-compatible for the other endpoints)."""
@@ -182,6 +182,7 @@ def _latest_score_payload(as_of: str, records: list | None = None) -> dict | Non
         fallback_day = ""
         exact_sched = None       # official record exactly matching an explicit target
         exact_any = None         # newest record exactly matching the target (any run_type)
+        exact_preview = None     # newest NON-official record for the target (?view=preview)
         latest = None            # newest OFFICIAL (scheduled) run — the default headline
         latest_day = ""
         latest_any = None        # newest of any run_type — fallback only if no scheduled
@@ -216,6 +217,9 @@ def _latest_score_payload(as_of: str, records: list | None = None) -> dict | Non
                 if rt == "scheduled" and exact_sched is None:
                     exact_sched = dict(payload)
                     exact_sched["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True}
+                if rt != "scheduled" and exact_preview is None:
+                    exact_preview = dict(payload)
+                    exact_preview["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True, "non_official": True}
                 continue
             if pday and pday <= target and pday > fallback_day:
                 fallback_day = pday
@@ -231,6 +235,11 @@ def _latest_score_payload(as_of: str, records: list | None = None) -> dict | Non
                 latest_any["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True, "requested_as_of": raw_target, "non_official": True}
                 return latest_any
             return None
+        # ?view=preview explicitly asks for the intraday preview (the 更新策略数据
+        # button redirects here after a manual_rerun), so show the newest non-official
+        # record for that day; otherwise the official scheduled run always wins.
+        if prefer_preview and exact_preview is not None:
+            return exact_preview
         if exact_sched is not None:
             return exact_sched
         if exact_any is not None:
@@ -557,10 +566,11 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             parsed = urlparse(self.path)
             params = parse_qs(parsed.query)
             as_of = params.get("as_of", ["latest"])[0]
+            view = params.get("view", [""])[0]
 
             if parsed.path in {"/", "/index.html"}:
                 audit_records = _read_audit_payloads()  # single audit read for all three lookups
-                payload = _latest_score_payload(as_of, audit_records) or _empty_dashboard_payload(as_of)
+                payload = _latest_score_payload(as_of, audit_records, prefer_preview=(view == "preview")) or _empty_dashboard_payload(as_of)
                 _attach_alpaca_daily_flow(payload)
                 payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of, records=audit_records)
                 payload["prev_valves"] = _prev_official_valves(audit_records, payload.get("as_of") or as_of)
