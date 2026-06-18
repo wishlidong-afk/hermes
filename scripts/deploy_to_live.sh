@@ -1,8 +1,9 @@
 #!/bin/bash
 # repo -> live deploy (#6 Phase 1): 0-drift code sync, live-entry sync, restart,
 # end-to-end acceptance, and AUTO-rollback on any failure — so the script actually
-# delivers what CONTRIBUTING claims ("0 drift + restart"). True atomic switch +
-# cross-process lock are Phase 2, deferred until a concrete trigger (see review).
+# delivers what CONTRIBUTING claims ("0 drift + restart"). True atomic switch
+# (staging dir + symlink flip) is Phase 2, deferred until a concrete trigger (see
+# review); the cross-process lock shipped in #3 (core/safe_io.py pipeline_lock).
 #
 # Flow: guard -> backup -> rsync --delete + VERSION -> entry sync -> soft/config
 #       -> smoke -> restart -> accept (curl 200 + verify_live) -> commit.

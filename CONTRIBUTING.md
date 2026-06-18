@@ -46,7 +46,7 @@ bash scripts/deploy_to_live.sh
 6. **端到端验收**：curl 8766 == 200 + [`ops/verify_live.sh`](ops/verify_live.sh)（真入口走 `manual_rerun`，断言回执/manifest/NEXT5 效果落地）。**FAIL → 自动回滚**；
 7. 全绿才 commit `.hermes` git。
 
-> 真原子切换（软链 release）+ 跨进程锁是 Phase 2，按触发器延后（多机 / 撞出过不一致 / 自动化常态敲刷新端点时再上）。
+> 真原子切换（软链 release）是 Phase 2，按触发器延后（多机 / 撞出过不一致 / 自动化常态敲刷新端点时再上）。跨进程锁已随 #3（`2beea7d`，`core/safe_io.py` 的 `pipeline_lock`）完成。
 > 改了影响每日官方管线的东西，部署后用 8766 WebUI 亲自确认落地，别假设。
 
 ## 4. 数据纪律（这个系统的命门）
