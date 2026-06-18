@@ -36,6 +36,9 @@ src/hermes_escape_top/data/history/*.csv
 src/hermes_escape_top/data/soft_history/*.csv
 !src/hermes_escape_top/data/soft_history/mstr_btc_holdings.csv
 !src/hermes_escape_top/data/soft_history/onchain_mstr_features.csv
+# AAII can't be auto-refetched (needs a member session + manual Thursday append),
+# so unlike the other soft CSVs keep it tracked as seed.
+!src/hermes_escape_top/data/soft_history/aaii_sentiment.csv
 src/hermes_escape_top/data/archive/*.json
 src/hermes_escape_top/data/archive/*.sqlite
 src/hermes_escape_top/data/archive/*.jsonl
