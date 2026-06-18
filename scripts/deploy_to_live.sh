@@ -48,7 +48,16 @@ else
   echo "!! rollback: tar -xzf $LIVE/hermes_escape_top.predeploy_backup_$STAMP.tar.gz -C $LIVE"
   exit 2
 fi
-echo "run 'bash ~/.hermes/bin/run_daily.sh' (or wait for 07:10) and compare statuses."
+echo "-- end-to-end gate: run the REAL entry and assert effects landed --"
+if bash "$REPO/ops/verify_live.sh"; then
+  echo "verify_live PASS"
+else
+  echo "!! verify_live FAIL — the real entry (run_daily.sh -> -m) did not produce the"
+  echo "!! expected effects (receipt/manifest/NEXT5). The package smoke passed but the"
+  echo "!! actual run path is broken. NOT committing. Investigate before relying on it."
+  echo "!! rollback: tar -xzf $LIVE/hermes_escape_top.predeploy_backup_$STAMP.tar.gz -C $LIVE"
+  exit 3
+fi
 
 echo "== 5/5 commit in .hermes git repo =="
 # --no-verify: the ~/.hermes commit hook rejects versioned filenames
