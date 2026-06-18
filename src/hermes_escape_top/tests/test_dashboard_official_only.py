@@ -54,6 +54,30 @@ def test_explicit_as_of_request_unchanged():
     assert out["as_of"] == "2026-06-15"
 
 
+def test_explicit_as_of_prefers_scheduled_over_preview():
+    # 06-17 has both an official scheduled and a newer manual_rerun preview.
+    # Navigating to / being redirected to 06-17 must show the OFFICIAL, not the
+    # redundant preview (the 2026-06-18 confusion: refresh redirected to ?as_of=
+    # 06-17 and showed the preview though an identical official existed).
+    records = [
+        _rec("2026-06-17", "manual_rerun", "EXIT"),
+        _rec("2026-06-17", "scheduled", "REDUCE"),
+    ]
+    out = _latest_score_payload("2026-06-17", records)
+    assert out["run_type"] == "scheduled"
+    assert out["scores"]["SOXL"]["status"] == "REDUCE"
+    assert out["cache_status"].get("non_official") in (None, False)
+
+
+def test_explicit_as_of_shows_flagged_preview_when_no_scheduled():
+    # a genuine pre-official preview (no scheduled yet for that day) still shows,
+    # flagged non_official so the banner appears.
+    records = [_rec("2026-06-17", "manual_rerun", "EXIT")]
+    out = _latest_score_payload("2026-06-17", records)
+    assert out["run_type"] == "manual_rerun"
+    assert out["cache_status"].get("non_official") is True
+
+
 def test_preview_banner_only_for_non_scheduled():
     assert _render_preview_banner({"run_type": "scheduled"}) == ""
     banner = _render_preview_banner({"run_type": "manual_rerun", "as_of": "2026-06-16"})

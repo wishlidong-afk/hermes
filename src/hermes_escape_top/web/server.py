@@ -167,6 +167,8 @@ def _latest_score_payload(as_of: str, records: list | None = None) -> dict | Non
             records = _read_audit_payloads()
         fallback = None
         fallback_day = ""
+        exact_sched = None       # official record exactly matching an explicit target
+        exact_any = None         # newest record exactly matching the target (any run_type)
         latest = None            # newest OFFICIAL (scheduled) run — the default headline
         latest_day = ""
         latest_any = None        # newest of any run_type — fallback only if no scheduled
@@ -188,9 +190,20 @@ def _latest_score_payload(as_of: str, records: list | None = None) -> dict | Non
                     latest["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True, "requested_as_of": raw_target}
                 continue
             if pday == target:
-                payload = dict(payload)
-                payload["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True}
-                return payload
+                # Explicit date: prefer the OFFICIAL (scheduled) record for that day,
+                # so navigating to / being redirected to a date that already has an
+                # official run shows the official — not a redundant manual_rerun
+                # preview (records are newest-first → first match of each kind is the
+                # newest). A genuine pre-official preview (no scheduled yet for the
+                # day) still surfaces below, flagged non_official.
+                rt = str(payload.get("run_type", "scheduled"))
+                if exact_any is None:
+                    exact_any = dict(payload)
+                    exact_any["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True, "non_official": rt != "scheduled"}
+                if rt == "scheduled" and exact_sched is None:
+                    exact_sched = dict(payload)
+                    exact_sched["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True}
+                continue
             if pday and pday <= target and pday > fallback_day:
                 fallback_day = pday
                 fallback = dict(payload)
@@ -205,6 +218,10 @@ def _latest_score_payload(as_of: str, records: list | None = None) -> dict | Non
                 latest_any["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True, "requested_as_of": raw_target, "non_official": True}
                 return latest_any
             return None
+        if exact_sched is not None:
+            return exact_sched
+        if exact_any is not None:
+            return exact_any   # only a preview exists for that exact day (genuine pre-official)
         return fallback
     except Exception:
         return None
