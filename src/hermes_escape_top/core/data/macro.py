@@ -9,6 +9,7 @@ from typing import Dict, Optional
 import pandas as pd
 
 from ...config import resolve_path
+from ..safe_io import atomic_write_csv
 from .adapters import SoftDataRecord
 from .pit import asof_pick
 
@@ -62,7 +63,7 @@ class FredNetLiquiditySource:
         frame = fred_net_liquidity_frame(series["walcl"], series["wtregen"], series["rrp"])
         path = self.history_path(cfg)
         path.parent.mkdir(parents=True, exist_ok=True)
-        frame.to_csv(path, index=False)
+        atomic_write_csv(frame, path, index=False)
         return path
 
     def fetch(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:

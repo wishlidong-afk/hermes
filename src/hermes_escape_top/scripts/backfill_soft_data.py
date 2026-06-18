@@ -37,6 +37,7 @@ import pandas as pd
 warnings.filterwarnings("ignore")
 
 from hermes_escape_top.config import load_config, resolve_path
+from hermes_escape_top.core.safe_io import atomic_write_csv
 from hermes_escape_top.core.data.macro import (
     FredNetLiquiditySource,
     fetch_fred_graph_csv,
@@ -81,7 +82,7 @@ def _commit(path: Path, frame: pd.DataFrame) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
         shutil.copyfile(path, path.with_suffix(path.suffix + ".bak"))
-    frame.to_csv(path, index=False)
+    atomic_write_csv(frame, path, index=False)
 
 
 # ── FRED net-liquidity ──────────────────────────────────────────────────────

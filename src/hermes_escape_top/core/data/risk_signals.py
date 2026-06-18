@@ -32,6 +32,7 @@ import pandas as pd
 from ...config import load_config, resolve_path
 from .adapters import SoftDataRecord
 from .macro import fetch_fred_graph_csv
+from ..safe_io import atomic_write_csv
 from .pit import asof_pick
 from .store import LocalStore, safe_symbol
 
@@ -269,7 +270,7 @@ class FredPercentileSource:
         frame = self.build_frame(end=end, config=config)
         path = self.history_path(config)
         path.parent.mkdir(parents=True, exist_ok=True)
-        frame.to_csv(path, index=False)
+        atomic_write_csv(frame, path, index=False)
         return path
 
     def collect(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:

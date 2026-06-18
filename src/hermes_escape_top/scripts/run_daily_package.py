@@ -1183,7 +1183,7 @@ def _write_run_receipt(as_of: str, run_type: str, steps_ok: bool = True, step_er
         print(f"[receipt] WARNING: receipt write failed ({exc!r}); continuing.")
 
 
-def main() -> None:
+def _execute_daily() -> None:
     p = argparse.ArgumentParser(description="M4-1 package run-daily wrapper")
     p.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: today)")
     p.add_argument("--skip-refresh", action="store_true", help="Skip OHLCV history refresh")
@@ -1280,6 +1280,21 @@ def main() -> None:
         sys.exit(1)
 
     print(f"[M4-1] Done. as_of={as_of} mode={'shadow' if shadow else 'LIVE'}")
+
+
+def main() -> None:
+    # #3: every data-mutating run serializes against the WebUI refresh endpoints
+    # and any other daily run via one flock on <archive_dir>/.pipeline.lock. The
+    # cron MUST run, so it waits its turn (blocking) rather than bailing — but
+    # never hangs past the timeout if a holder is stuck.
+    from hermes_escape_top.core.safe_io import PipelineBusy, pipeline_lock
+
+    try:
+        with pipeline_lock(blocking=True, timeout=600):
+            _execute_daily()
+    except PipelineBusy as exc:
+        print(f"[M4-1] ABORT: {exc}; another run/refresh held the lock too long.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -60,7 +60,11 @@ def write_manifest(store_dir: str | Path, output_path: str | Path) -> Path:
     manifest = freeze_manifest(store_dir)
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(manifest.to_dict(), ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    # Atomic write (temp in same dir + replace) so a concurrent reader
+    # (manifest_status / verify_manifest) never sees a half-written manifest (#3).
+    tmp = out.with_name(out.name + ".tmp")
+    tmp.write_text(json.dumps(manifest.to_dict(), ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tmp.replace(out)
     return out
 
 

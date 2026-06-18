@@ -9,6 +9,7 @@ import pandas as pd
 from ..config import load_config, resolve_path
 from ..core.data.store import safe_symbol
 from ..core.data.wso_index import available_wso_indices, fetch_wso_index
+from ..core.safe_io import atomic_write_csv
 
 
 @dataclass(frozen=True)
@@ -50,7 +51,7 @@ def _write_history(path: Path, frame: pd.DataFrame) -> None:
     for column in ["source", "symbol"]:
         if column not in out:
             out[column] = None
-    out[["date", "open", "high", "low", "close", "adj_close", "volume", "source", "symbol"]].to_csv(path, index=False)
+    atomic_write_csv(out[["date", "open", "high", "low", "close", "adj_close", "volume", "source", "symbol"]], path, index=False)
 
 
 def _result(symbol: str, path: Path, frame: pd.DataFrame, updated: bool, source: str) -> OfficialIndexBackfillResult:

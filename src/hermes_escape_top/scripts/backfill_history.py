@@ -9,6 +9,7 @@ import pandas as pd
 
 from ..config import load_config, resolve_path
 from ..core.data.store import safe_symbol
+from ..core.safe_io import atomic_write_csv
 
 
 ROUTE_LEGS = ["BRK.B", "BOXX", "DBMF", "BIL", "SHV"]
@@ -247,7 +248,7 @@ def _write_history(path: Path, frame: pd.DataFrame) -> None:
     out.index.name = "date"
     out = out.reset_index()
     out = out.rename(columns={"Open": "open", "High": "high", "Low": "low", "Close": "close", "Adj Close": "adj_close", "Volume": "volume"})
-    out[["date", "open", "high", "low", "close", "adj_close", "volume"]].to_csv(path, index=False)
+    atomic_write_csv(out[["date", "open", "high", "low", "close", "adj_close", "volume"]], path, index=False)
 
 
 def _result(symbol: str, path: Path, frame: pd.DataFrame, updated: bool, source_symbol: str, reason: str = "") -> BackfillResult:

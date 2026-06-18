@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 import pandas as pd
 
 from ...config import resolve_path
+from ..safe_io import atomic_write_csv
 from .adapters import SoftDataRecord
 from .pit import asof_pick
 
@@ -34,7 +35,7 @@ class AaiiSource:
         frame = parse_aaii_sentiment_xls(xls_path)
         path = self.history_path(config)
         path.parent.mkdir(parents=True, exist_ok=True)
-        frame.to_csv(path, index=False)
+        atomic_write_csv(frame, path, index=False)
         return path
 
     def fetch(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:

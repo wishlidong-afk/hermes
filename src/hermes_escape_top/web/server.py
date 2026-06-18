@@ -50,6 +50,7 @@ from ..core.data.alpaca_flow import load_daily_flow_snapshot
 from ..core.data.state_store import record_execution_confirmation
 from ..ibkr.live_check import run_live_check
 from ..ibkr.positions import write_demo_snapshot
+from ..core.safe_io import PipelineBusy, pipeline_lock
 from ..pipeline import score_pipeline
 from .health import compute_health
 from .refresh import (
@@ -82,6 +83,15 @@ LOOPBACK_WRITE_ENDPOINTS = {
     "/api/refresh_positions",
     "/api/ibkr_live_check",
 }
+
+# #3: returned (HTTP 200) when a refresh endpoint can't take the pipeline lock —
+# another refresh or the daily run is mid-write. The button shows it and retries.
+_BUSY_PAYLOAD = {
+    "ok": False,
+    "busy": True,
+    "message": "另一个刷新或当日官方 run 正在写数据，本次已跳过以避免并发写坏。请几秒后重试。",
+}
+
 
 def _latest_precheck(as_of: str) -> dict | None:
     """Load latest daily_score_precheck without running score_pipeline."""
@@ -686,7 +696,10 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
 
             if parsed.path == "/api/refresh_manifest":
                 try:
-                    payload = force_refresh_manifest()
+                    with pipeline_lock(blocking=False):
+                        payload = force_refresh_manifest()
+                except PipelineBusy:
+                    payload = dict(_BUSY_PAYLOAD)
                 except Exception:
                     payload = {"ok": False, "status": "ERROR", "error": traceback.format_exc()[-2000:]}
                 self._send(200, "application/json; charset=utf-8",
@@ -696,7 +709,10 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/refresh_soft_data":
                 try:
                     from ..scripts.backfill_soft_data import refresh_all
-                    payload = refresh_all(only=req.get("only"))
+                    with pipeline_lock(blocking=False):
+                        payload = refresh_all(only=req.get("only"))
+                except PipelineBusy:
+                    payload = dict(_BUSY_PAYLOAD)
                 except Exception:
                     payload = {"ok": False, "error": traceback.format_exc()[-2000:]}
                 self._send(200, "application/json; charset=utf-8",
@@ -726,7 +742,10 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path in {"/api/refresh_score", "/api/score"}:
                 as_of = req.get("as_of", "latest")
                 try:
-                    payload = refresh_score_with_market_data(as_of)
+                    with pipeline_lock(blocking=False):
+                        payload = refresh_score_with_market_data(as_of)
+                except PipelineBusy:
+                    payload = dict(_BUSY_PAYLOAD, as_of=as_of)
                 except Exception:
                     payload = {
                         "ok": False,
@@ -741,7 +760,10 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/refresh_positions":
                 as_of = req.get("as_of", "latest")
                 try:
-                    payload = refresh_score_with_market_data(as_of)
+                    with pipeline_lock(blocking=False):
+                        payload = refresh_score_with_market_data(as_of)
+                except PipelineBusy:
+                    payload = dict(_BUSY_PAYLOAD, as_of=as_of)
                 except Exception:
                     payload = {
                         "ok": False,
