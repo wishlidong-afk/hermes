@@ -38,8 +38,8 @@
 
 ## 7. 部署 repo → live
 
-- `bash scripts/deploy_to_live.sh`：备份 tarball → 代码 rsync（加性）→ 软数据 live→repo 反向同步 → config diff 人工 y/n → import+决策对比 → .hermes git commit。
-- 回滚：解 `predeploy_backup_<stamp>.tar.gz`。
+- `bash scripts/deploy_to_live.sh`（**任一步失败自动回滚（解 tar + 重启）并退非零**，不是只提示）：并发守卫（`pgrep run_daily`，daily/刷新在跑即中止）→ 代码备份 tar（排除 `data/`）→ `rsync --delete` 仓库→live **真 0-drift** + 写 `VERSION=<hash>` + 从 [`ops/`](../ops/) 同步 live 入口脚本 → 软数据 live→repo 反向同步 + config diff 人工 y/N → smoke gate（`predeploy_smoke`）→ 重启 dashboard → `verify_live` 真入口端到端验收（curl 200 + 走 `manual_rerun` 断言效果落地）→ 全绿才 commit `.hermes`。
+- 回滚：失败时脚本自动解 `hermes_escape_top.predeploy_backup_<stamp>.tar.gz` 恢复代码并重启；手动恢复亦解同一 tar。真原子切换（软链 release）+ 跨进程锁属 Phase 2，按触发器延后。
 - daily 入口：launchd `com.hermes.daily` → `~/.hermes/bin/run_daily.sh` → `run_daily.py`，后者经 `python -m hermes_escape_top.scripts.run_daily_package` 跑**唯一的包引擎**（2026-06-17 起，旧的 standalone loose 副本已退役；`_discover_runtime_paths` 向上定位包，所以 `-m` 能从任意深度解析）。这些 live-only 入口/调度脚本的版本化副本在 [`ops/`](../ops/)。
 
 ## 7.5 仪表板服务（com.hermes.dashboard）
