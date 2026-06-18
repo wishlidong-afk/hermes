@@ -773,12 +773,18 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
         def log_message(self, *_): return  # noqa: silence default logging
 
         def _send(self, status: int, ct: str, body: bytes) -> None:
-            self.send_response(status)
-            self.send_header("Content-Type", ct)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.send_response(status)
+                self.send_header("Content-Type", ct)
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                # Client disconnected mid-response (e.g. clicked 更新策略数据 then
+                # navigated away during the ~70s rescore). Nothing to send to — not
+                # an error worth a traceback in dashboard.err.log.
+                pass
 
     return Handler
 
