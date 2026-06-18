@@ -18,14 +18,18 @@ mkdir -p "$LOG_DIR"
 LOG="$LOG_DIR/daily_$(date +%F).log"
 
 # System python3 verified to import numpy/pandas/scipy (3.9.6).
-# run_daily.py -> run_daily_package.py --live --commit-state; the package
-# script does its own interpreter selection for subprocesses (06-07 fix).
+# The normal path is --live --commit-state. --deploy-verify traverses the same
+# entry as a non-official manual preview without committing state or receipt.
 PY=/usr/bin/python3
 
 {
   echo "=== hermes daily run start $(date '+%F %T %Z') ==="
   "$PY" -c 'import numpy, pandas, scipy' || echo "WARNING: $PY lacks scientific deps"
-  "$PY" "$BASE/scripts/run_daily.py" --run-type scheduled
+  if [ "${1:-}" = "--deploy-verify" ]; then
+    "$PY" "$BASE/scripts/run_daily.py" --deploy-verify
+  else
+    "$PY" "$BASE/scripts/run_daily.py" --run-type scheduled "$@"
+  fi
 } >>"$LOG" 2>&1
 rc=$?
 echo "=== exit $rc at $(date '+%F %T') ===" >>"$LOG"

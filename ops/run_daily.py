@@ -7,6 +7,9 @@ engine — and every subprocess's PYTHONPATH — from escape-top/ no matter how 
 the file sits. Before 2026-06-17 this ran a shallower loose copy that silently
 drifted from the package (the B incident: daily ran 4-day-stale orchestration).
 Rollback: scripts/run_daily.py.bak_prepkg_<stamp> (+ restore the loose copy).
+
+`--deploy-verify` traverses the same package entry as a manual preview without
+committing state or stamping the scheduled-run receipt.
 """
 import os
 import subprocess
@@ -16,10 +19,47 @@ from pathlib import Path
 ESCAPE_TOP = Path(__file__).resolve().parent.parent  # .../escape-top, holds hermes_escape_top/
 PYTHON = sys.executable
 
+
+def build_command(args):
+    deploy_verify = "--deploy-verify" in args
+    forwarded = [arg for arg in args if arg != "--deploy-verify"]
+    cmd = [PYTHON, "-m", "hermes_escape_top.scripts.run_daily_package", "--live"]
+    if deploy_verify:
+        if forwarded:
+            raise SystemExit("--deploy-verify does not accept additional arguments")
+        cmd.extend(["--run-type", "manual_rerun"])
+    else:
+        cmd.append("--commit-state")
+        cmd.extend(forwarded)
+    return cmd
+
+
+def build_alpaca_flow_command():
+    return [
+        PYTHON,
+        "-m",
+        "hermes_escape_top.core.data.alpaca_flow",
+        "--as-of",
+        "latest",
+    ]
+
+
 if __name__ == "__main__":
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ESCAPE_TOP) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
-    cmd = [PYTHON, "-m", "hermes_escape_top.scripts.run_daily_package",
-           "--live", "--commit-state"] + sys.argv[1:]
+    cmd = build_command(sys.argv[1:])
     r = subprocess.run(cmd, cwd=str(ESCAPE_TOP), env=env)
+    if r.returncode == 0 and "--deploy-verify" not in sys.argv[1:]:
+        flow = subprocess.run(
+            build_alpaca_flow_command(),
+            cwd=str(ESCAPE_TOP),
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        if flow.returncode == 0:
+            print(f"[alpaca-flow] {flow.stdout.strip()}")
+        else:
+            detail = (flow.stderr or flow.stdout or "unknown error").strip()
+            print(f"[alpaca-flow] WARNING: refresh failed; keeping prior cache: {detail[-500:]}")
     sys.exit(r.returncode)

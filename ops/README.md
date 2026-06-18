@@ -29,6 +29,7 @@ change rarely and are synced/restored by hand from here when they do.
 `predeploy_smoke` runs the *package* and checks data state; it does **not** run the
 real entry. `verify_live.sh` closes that seam: it runs the actual
 `run_daily.sh → run_daily.py → -m` chain and asserts the **effects landed** (the
-run-receipt is fresh + green, and the maintenance steps appear in the log) — the
-one check that would have caught B at deploy time instead of at the next 07:10.
-Wired as the final gate of `deploy_to_live.sh`.
+manual audit is fresh, maintenance steps appear in the log, and no official
+receipt/state is written) — the one check that would have caught B at deploy time
+instead of at the next 07:10 without creating a second scheduled run. Wired as
+the final gate of `deploy_to_live.sh`.
