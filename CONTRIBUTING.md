@@ -36,14 +36,17 @@ python -m pytest tests/test_xxx.py    # 单文件
 bash scripts/deploy_to_live.sh
 ```
 
-该脚本的纪律（**不要绕过**）：
+该脚本的纪律（**不要绕过**）——**任一步失败即自动回滚(解 tar + 重启)并退非零**，不是只提示：
 
-1. 备份 live 现状到 `.bak`；
-2. `cp` 仓库 → live；
-3. 校验 **0 drift**（live 与仓库逐文件一致）；
-4. **第 4 步：过 6 项 smoke gate**（[`predeploy_smoke.py`](src/hermes_escape_top/scripts/predeploy_smoke.py)）——FRED publish_date 正确、常驻日频源可用、无源回归、证据链无 NA、manifest 不漂移、（WARN）无法解释的翻转。**任一 FAIL 即中止部署**；
-5. 重启：`launchctl kickstart -k gui/$(id -u)/com.hermes.dashboard`。
+1. **并发守卫**：`pgrep run_daily` 检测到 daily/刷新在跑就中止——不在运行上叠部署；
+2. **备份**：tar live 代码（排除 `data/`，一键可回滚）；
+3. **`rsync --delete` 仓库 → live = 真 0 drift**（repo 删/改名的文件 live 也清），写 `VERSION=<hash>`；并从 [`ops/`](ops/) 同步 live 入口脚本（`run_daily.sh` / `run_daily.py` / `serve_dashboard.sh`）；
+4. **smoke gate**（[`predeploy_smoke.py`](src/hermes_escape_top/scripts/predeploy_smoke.py)）：FRED publish_date、常驻日频源、无源回归、证据链无 NA、manifest 不漂移、（WARN）无法解释的翻转。**FAIL → 自动回滚**；
+5. **重启** dashboard：`launchctl kickstart -k gui/$(id -u)/com.hermes.dashboard`；
+6. **端到端验收**：curl 8766 == 200 + [`ops/verify_live.sh`](ops/verify_live.sh)（真入口走 `manual_rerun`，断言回执/manifest/NEXT5 效果落地）。**FAIL → 自动回滚**；
+7. 全绿才 commit `.hermes` git。
 
+> 真原子切换（软链 release）+ 跨进程锁是 Phase 2，按触发器延后（多机 / 撞出过不一致 / 自动化常态敲刷新端点时再上）。
 > 改了影响每日官方管线的东西，部署后用 8766 WebUI 亲自确认落地，别假设。
 
 ## 4. 数据纪律（这个系统的命门）
