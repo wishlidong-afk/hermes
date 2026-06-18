@@ -40,7 +40,7 @@
 
 - `bash scripts/deploy_to_live.sh`：备份 tarball → 代码 rsync（加性）→ 软数据 live→repo 反向同步 → config diff 人工 y/n → import+决策对比 → .hermes git commit。
 - 回滚：解 `predeploy_backup_<stamp>.tar.gz`。
-- 注意：live `scripts/run_daily_package.py`（standalone）有本地补丁，不在 rsync 范围内，改它需人工对比合入。
+- daily 入口：launchd `com.hermes.daily` → `~/.hermes/bin/run_daily.sh` → `run_daily.py`，后者经 `python -m hermes_escape_top.scripts.run_daily_package` 跑**唯一的包引擎**（2026-06-17 起，旧的 standalone loose 副本已退役；`_discover_runtime_paths` 向上定位包，所以 `-m` 能从任意深度解析）。这些 live-only 入口/调度脚本的版本化副本在 [`ops/`](../ops/)。
 
 ## 7.5 仪表板服务（com.hermes.dashboard）
 
