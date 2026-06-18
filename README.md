@@ -38,6 +38,8 @@ hermes/
 │   └── history/         ── 只读归档：历史复盘 / 因子尸检 / 校准报告 + code-reviews/
 │
 ├── scripts/             ← 顶层运维脚本（deploy_to_live.sh、各类诊断/回测）
+├── ops/                 ← live-only 入口/调度的版本化副本（run_daily.sh/.py、
+│                          serve_dashboard.sh、launchd plist）+ verify_live.sh 端到端门
 └── building/            ← 施工工件
     ├── reports/         ── 回测 & gate 产物（含全量回测 JSON，校准脚本的输入）
     ├── logs/            ── 施工/构建日志

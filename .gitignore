@@ -53,5 +53,10 @@ reports/shadow/
 src/hermes_escape_top/data/shadow/
 building/reports/system_validation_report.json
 
+# Runtime-generated status/coverage reports — rewritten by the daily run /
+# backfill, so they dirty the working tree every cron cycle. Keep out of git.
+building/logs/NEXT5_unlock_status.md
+building/reports/N0_history_coverage.md
+
 # Redundant point-in-time source snapshots — code is in src/, these are not referenced
 building/source_snapshots/
