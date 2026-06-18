@@ -1755,7 +1755,7 @@ def _render_component_flow_section(payload: Dict[str, Any]) -> str:
         <div>
           <h2 style="margin-bottom:4px">穿透股票成交与流向参考 / Underlying Turnover</h2>
           <div class="subtle">量价流向热力：最危险桶 {esc(worst['symbol'] + ' / ' + worst['severity']) if worst else '暂无'} · 风险排序 {esc(order_text)} · 主要底层票 {weak_text}</div>
-          <div class="subtle">CMF20 / MFI-50 / 下跌天数 / 5日方向成交额代理只表示量价趋势，不是真实资金净流。coral=偏弱，teal=偏强。db={esc(flow.get('db_path', '未固化'))}</div>
+          <div class="subtle">CMF20 / MFI-50 / 弱量价天数 / 5日方向成交额代理只表示量价趋势，不是真实资金净流。coral=偏弱，teal=偏强。db={esc(flow.get('db_path', '未固化'))}</div>
         </div>
         {_badge('flow as_of ' + esc(flow.get('as_of', 'NA')), 'watch')}
       </div>
@@ -1880,7 +1880,7 @@ def _render_flow_card(symbol: str, components: List[Dict[str, Any]], summary: st
       </div>
       <div class="flow-body">
         <table>
-          <thead><tr><th>股票</th><th>下跌天</th><th>CMF20热格</th><th>MFI-50热格</th><th>5日方向成交额代理</th><th>判定</th></tr></thead>
+          <thead><tr><th>股票</th><th>弱量价天</th><th>CMF20热格</th><th>MFI-50热格</th><th>5日方向成交额代理</th><th>判定</th></tr></thead>
           <tbody>{''.join(rows) if rows else '<tr><td colspan="6">暂无量价流向数据</td></tr>'}</tbody>
         </table>
         {divergence}

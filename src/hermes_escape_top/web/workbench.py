@@ -324,7 +324,7 @@ def _basket_table(fund: str, basket: Dict[str, Any], fund_flow: Dict[str, Any]) 
           基金层 CMF {_f(fund_cmf)} · 异常 {esc(abnormal if abnormal is not None else '—')} 只</div>
         <table style="width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed">
           <tr style="color:#888;text-align:center"><td style="width:60px;text-align:left"></td>
-            <td>CMF20</td><td>MFI−50</td><td>下跌天数</td><td style="width:90px;text-align:right">5日方向成交额代理</td><td style="width:90px">判定</td></tr>
+            <td>CMF20</td><td>MFI−50</td><td>弱量价天数</td><td style="width:90px;text-align:right">5日方向成交额代理</td><td style="width:90px">判定</td></tr>
           {''.join(body)}
         </table>{diverge}
       </div>"""
