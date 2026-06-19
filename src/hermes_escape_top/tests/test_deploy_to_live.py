@@ -82,6 +82,10 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(package / "core/removed.py", "REMOVED = True\n", 0o600)
     _write(package / "config/config.json", "{}\n", 0o640)
     _write(package / "data/soft_history/runtime.csv", "date,value\n2026-06-17,1\n", 0o600)
+    # S8 regression guard: a .py under data/ and config/ must NOT reach the .hermes
+    # commit even with `git add -f` — the :(exclude) pathspecs keep them out.
+    _write(package / "data/leak.py", "SECRET = 'runtime-data'\n", 0o600)
+    _write(package / "config/leak.py", "SECRET = 'config'\n", 0o600)
     _write(package / "data/archive/.pipeline.lock", "", 0o644)
     _write(package / "VERSION", "old-version\n", 0o644)
     _write(live / "scripts/run_daily.py", "print('old entry')\n", 0o700)
@@ -263,6 +267,9 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         "skills/investment/escape-top/hermes_escape_top/core/removed.py",
         "skills/investment/escape-top/scripts/run_daily.py",
     }
+    assert not any("leak.py" in path for path in committed), (
+        "git add -f leaked a data/ or config/ .py into the .hermes commit"
+    )
     assert "999" in runtime.read_text(encoding="utf-8")
     assert _snapshot(("repo-soft", Path(deploy_fixture["repo"]) / "src/hermes_escape_top/data/soft_history")) == {
         key: value

@@ -3,7 +3,7 @@
 > 日期：2026-06-19
 > 用途：交给 Agent A 独立复审 Agent B 的「部署修复 + 首次 R1-R5 上线 + 权限归一化」工作
 > repo / 分支：`~/Documents/github/hermes` · `hermes-docs`
-> 当前 repo/origin HEAD：`e89111a`　|　**live VERSION：`71e939c`**（已部署、已验收）
+> repo/origin HEAD：以 `git rev-parse --short HEAD` 为准（本文是 hermes-docs 上的文档提交，每次提交都会使 HEAD 前进，故此处不钉死哈希）　|　**live VERSION：`71e939c`**（已部署、已验收）
 > 关键前提：R1-R5 包代码已在前一轮复审通过；本轮只动**部署机制**和一次**真实上线 + live 权限**。
 
 **不要相信本文的自我评价。** 从源码追到真实行为，优先构造反例。我（Agent B）这轮**真的改了 live**（跑了部署、chmod 了 live CSV），所以你既要审代码，也要独立确认 live 没被弄坏。

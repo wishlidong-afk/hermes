@@ -116,6 +116,53 @@ def test_verify_live_uses_isolated_data_and_cleans_it(tmp_path):
     assert not list(temp_root.glob("hermes-deploy-verify.*"))
 
 
+def test_verify_live_fails_when_real_run_writes_official_receipt(tmp_path):
+    # Counterexample for the receipt-pollution gate (the MARK fix): a deploy-verify
+    # run that stamps an official receipt/state MUST make verify_live fail. Before
+    # the MARK fix this check was silently short-circuited under `set -u`.
+    base = tmp_path / "live" / "escape-top"
+    package_data = base / "hermes_escape_top" / "data"
+    (package_data / "history").mkdir(parents=True)
+    (package_data / "soft_history").mkdir()
+    (package_data / "archive").mkdir()
+    (package_data / "history" / "MSTR.csv").write_text("date,Close\n2026-06-18,100\n")
+
+    run_daily = tmp_path / "run_daily.sh"
+    run_daily.write_text(
+        "#!/bin/bash\n"
+        "set -eu\n"
+        "mkdir -p \"$HERMES_DATA_DIR/data/archive\"\n"
+        "ts=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)\n"
+        "printf '{\"payload\":{\"run_type\":\"manual_rerun\",\"run_ts\":\"%s\",\"as_of\":\"2026-06-18\"}}\\n' \"$ts\" > \"$HERMES_DATA_DIR/data/archive/audit_log.jsonl\"\n"
+        # maintenance steps pass, but the run ALSO stamps an official receipt -> pollution
+        "printf '[M4-1] score_pipeline OK\\n[manifest] OK\\n[NEXT5] OK\\n[receipt] official run stamped\\n' > \"$HERMES_RUN_LOG\"\n",
+        encoding="utf-8",
+    )
+    run_daily.chmod(0o755)
+    temp_root = tmp_path / "tmp"
+    temp_root.mkdir()
+    env = os.environ.copy()
+    env.update({
+        "HERMES_VERIFY_TEST_MODE": "1",
+        "HERMES_VERIFY_BASE": str(base),
+        "HERMES_VERIFY_RUN_DAILY": str(run_daily),
+        "HERMES_VERIFY_PYTHON": sys.executable,
+        "TMPDIR": str(temp_root),
+    })
+
+    result = subprocess.run(
+        ["bash", str(REPO_ROOT / "ops" / "verify_live.sh")],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "wrote official receipt/state" in result.stdout
+    assert "verify_live PASS" not in result.stdout
+
+
 def test_deploy_verify_skips_live_log_side_effects():
     script = (REPO_ROOT / "ops" / "run_daily.sh").read_text(encoding="utf-8")
 
