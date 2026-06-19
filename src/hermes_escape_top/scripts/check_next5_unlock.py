@@ -1,8 +1,7 @@
 """NEXT-5 元模型解锁条件扫描脚本。
 
-每日运行后把结果写到 building/logs/NEXT5_unlock_status.md，
-再由 run_daily.py 或手动 git push 同步到 GitHub。
-Remote scheduled agent 读取该文件判断是否解锁。
+每日运行后把结果写到当前运行数据根的 archive 目录。生产 live、
+HERMES_DATA_DIR 隔离验证和测试各写各自的数据根，不回写源码仓库。
 
 解锁条件 (来自 docs/BUILD_TICKETS.md NEXT-5):
   - 完成20日标签信号 ≥ 300
@@ -15,30 +14,16 @@ Usage:
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
-HERMES_ROOT   = Path(__file__).resolve().parents[1]
-JOURNAL_PATH  = HERMES_ROOT / "data" / "archive" / "signal_journal.jsonl"
+from hermes_escape_top.config import load_config, resolve_path
 
-# Write the status where it can be read. The script runs from the LIVE install,
-# so the hermes repo (the remote agent reads the file from GitHub) is elsewhere —
-# try the real checkout first. The previous candidate list OMITTED the actual repo
-# path, so the status went un-written and stale; always also write a live-local
-# fallback so the progress is never silently dropped.
-_CANDIDATES = [
-    Path.home() / "Documents" / "github" / "hermes",   # the actual repo
-    Path.home() / "hermes",
-    Path("/tmp/hermes-work"),
-    Path.home() / "Documents" / "hermes",
-]
-REPO_STATUS_PATH = None
-for c in _CANDIDATES:
-    if (c / "building").exists():
-        REPO_STATUS_PATH = c / "building" / "logs" / "NEXT5_unlock_status.md"
-        break
-LOCAL_STATUS_PATH = HERMES_ROOT / "data" / "archive" / "NEXT5_unlock_status.md"
+HERMES_ROOT   = Path(__file__).resolve().parents[1]
+ARCHIVE_DIR = resolve_path(load_config(), "archive_dir")
+JOURNAL_PATH = ARCHIVE_DIR / "signal_journal.jsonl"
+LOCAL_STATUS_PATH = ARCHIVE_DIR / "NEXT5_unlock_status.md"
 
 UNLOCK_LABELS    = 300
 UNLOCK_POSITIVE  = 40
@@ -132,7 +117,7 @@ def scan() -> Dict[str, Any]:
     dates = sorted({k[0] for k in seen_keys if k[0]})
 
     return {
-        "scanned_at":    datetime.utcnow().isoformat() + "Z",
+        "scanned_at":    datetime.now(timezone.utc).isoformat(),
         "journal_path":  str(JOURNAL_PATH),
         "journal_exists": JOURNAL_PATH.exists(),
         "total_labels":  total,
@@ -216,12 +201,8 @@ def main() -> None:
           f"体制: {result['n_regimes']}/{result['thresholds']['regimes']}")
     print(f"状态: {'🟢 UNLOCKED' if result['unlocked'] else '🔴 LOCKED'}")
 
-    for tp in (REPO_STATUS_PATH, LOCAL_STATUS_PATH):
-        if tp:
-            write_status(result, tp)
-            print(f"→ 状态写入: {tp}")
-    if not REPO_STATUS_PATH:
-        print("⚠ 未找到 hermes repo（候选路径都不存在）；仅写了本地 fallback")
+    write_status(result, LOCAL_STATUS_PATH)
+    print(f"→ 状态写入: {LOCAL_STATUS_PATH}")
 
     # 返回 exit code 0 = 未解锁，1 = 已解锁（方便脚本判断）
     import sys

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import json
 import importlib.util
+import os
 from pathlib import Path
+import subprocess
+import sys
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -40,8 +44,80 @@ def test_daily_entry_refreshes_alpaca_flow_from_latest_completed_session():
     assert command[-3:] == ["hermes_escape_top.core.data.alpaca_flow", "--as-of", "latest"]
 
 
+def test_daily_entry_writes_auxiliary_alpaca_status_atomically(tmp_path):
+    module = _load_run_daily_module()
+    path = tmp_path / "archive" / "alpaca_daily_flow_status.json"
+
+    record = module.write_alpaca_flow_status(
+        {"status": "ERROR", "error": "timeout"},
+        path=path,
+    )
+
+    assert record["status"] == "ERROR"
+    assert json.loads(path.read_text(encoding="utf-8"))["error"] == "timeout"
+    assert not list(path.parent.glob("*.tmp"))
+
+
 def test_verify_live_uses_non_official_entry_mode():
     script = (REPO_ROOT / "ops" / "verify_live.sh").read_text(encoding="utf-8")
 
-    assert 'run_daily.sh" --deploy-verify' in script
+    assert 'bash "$RUN_DAILY" --deploy-verify' in script
     assert 'payload.get("run_type") == "manual_rerun"' in script
+    assert 'HERMES_DATA_DIR="$VERIFY_ROOT"' in script
+
+
+def test_verify_live_uses_isolated_data_and_cleans_it(tmp_path):
+    base = tmp_path / "live" / "escape-top"
+    package_data = base / "hermes_escape_top" / "data"
+    (package_data / "history").mkdir(parents=True)
+    (package_data / "soft_history").mkdir()
+    archive = package_data / "archive"
+    archive.mkdir()
+    (package_data / "history" / "MSTR.csv").write_text("date,Close\n2026-06-18,100\n")
+    live_audit = archive / "audit_log.jsonl"
+    live_state = archive / "hermes_state.sqlite"
+    live_audit.write_text("live-audit-sentinel\n", encoding="utf-8")
+    live_state.write_bytes(b"live-state-sentinel")
+
+    run_daily = tmp_path / "run_daily.sh"
+    run_daily.write_text(
+        "#!/bin/bash\n"
+        "set -eu\n"
+        "mkdir -p \"$HERMES_DATA_DIR/data/archive\"\n"
+        "ts=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)\n"
+        "printf '{\"payload\":{\"run_type\":\"manual_rerun\",\"run_ts\":\"%s\",\"as_of\":\"2026-06-18\"}}\\n' \"$ts\" > \"$HERMES_DATA_DIR/data/archive/audit_log.jsonl\"\n"
+        "printf '[M4-1] score_pipeline OK\\n[manifest] OK\\n[NEXT5] OK\\n' > \"$HERMES_RUN_LOG\"\n",
+        encoding="utf-8",
+    )
+    run_daily.chmod(0o755)
+    temp_root = tmp_path / "tmp"
+    temp_root.mkdir()
+    env = os.environ.copy()
+    env.update({
+        "HERMES_VERIFY_TEST_MODE": "1",
+        "HERMES_VERIFY_BASE": str(base),
+        "HERMES_VERIFY_RUN_DAILY": str(run_daily),
+        "HERMES_VERIFY_PYTHON": sys.executable,
+        "TMPDIR": str(temp_root),
+    })
+
+    result = subprocess.run(
+        ["bash", str(REPO_ROOT / "ops" / "verify_live.sh")],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "verify_live PASS" in result.stdout
+    assert live_audit.read_text(encoding="utf-8") == "live-audit-sentinel\n"
+    assert live_state.read_bytes() == b"live-state-sentinel"
+    assert not list(temp_root.glob("hermes-deploy-verify.*"))
+
+
+def test_deploy_verify_skips_live_log_side_effects():
+    script = (REPO_ROOT / "ops" / "run_daily.sh").read_text(encoding="utf-8")
+
+    assert 'LOG="${HERMES_RUN_LOG:-' in script
+    assert '[ "$rc" -eq 0 ] && [ "$DEPLOY_VERIFY" -eq 0 ]' in script

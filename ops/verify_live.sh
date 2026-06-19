@@ -8,28 +8,71 @@
 # official receipt, or state commit. Exit non-zero on any failed assertion.
 set -uo pipefail
 
-BASE="$HOME/.hermes/skills/investment/escape-top"
+if [ "${HERMES_VERIFY_TEST_MODE:-0}" = "1" ]; then
+  BASE="${HERMES_VERIFY_BASE:?test mode requires HERMES_VERIFY_BASE}"
+  RUN_DAILY="${HERMES_VERIFY_RUN_DAILY:?test mode requires HERMES_VERIFY_RUN_DAILY}"
+  PYTHON="${HERMES_VERIFY_PYTHON:-/usr/bin/python3}"
+else
+  BASE="$HOME/.hermes/skills/investment/escape-top"
+  RUN_DAILY="$HOME/.hermes/bin/run_daily.sh"
+  PYTHON=/usr/bin/python3
+fi
 PKG="$BASE/hermes_escape_top"
-AUDIT="$PKG/data/archive/audit_log.jsonl"
-LOG="$HOME/.hermes/logs/daily/daily_$(date +%F).log"
+
+clone_item() {
+  local source="$1"
+  local target="$2"
+  cp -Rc "$source" "$target" 2>/dev/null || cp -R "$source" "$target"
+}
+
+seed_verify_data() {
+  local root="$1"
+  local source target item name
+  mkdir -p "$root/data/archive" || return 1
+  for name in history soft_history; do
+    source="$PKG/data/$name"
+    target="$root/data/$name"
+    [ ! -e "$source" ] || clone_item "$source" "$target" || return 1
+  done
+  for item in "$PKG/data/archive/"* "$PKG/data/archive/".[!.]*; do
+    [ -e "$item" ] || continue
+    name=$(basename "$item")
+    case "$name" in
+      audit_log.jsonl|.pipeline.lock) continue ;;
+    esac
+    clone_item "$item" "$root/data/archive/$name" || return 1
+  done
+  if [ -e "$PKG/data/sentiment.xls" ]; then
+    clone_item "$PKG/data/sentiment.xls" "$root/data/sentiment.xls" || return 1
+  fi
+}
+
+VERIFY_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/hermes-deploy-verify.XXXXXX") \
+  || { echo "FAIL: cannot create isolated verify data dir"; exit 1; }
+trap 'rm -rf "$VERIFY_ROOT"' EXIT
+seed_verify_data "$VERIFY_ROOT" \
+  || { echo "FAIL: cannot seed isolated verify data"; exit 1; }
+
+AUDIT="$VERIFY_ROOT/data/archive/audit_log.jsonl"
+LOG="$VERIFY_ROOT/verify_daily.log"
 
 echo "== verify_live: running the REAL daily entry in non-official mode =="
-MARK=$(wc -l < "$LOG" 2>/dev/null || echo 0)
-BEFORE_AUDIT=$(wc -l < "$AUDIT" 2>/dev/null || echo 0)
-bash "$HOME/.hermes/bin/run_daily.sh" --deploy-verify; rc=$?
+HERMES_DATA_DIR="$VERIFY_ROOT" HERMES_RUN_LOG="$LOG" \
+  bash "$RUN_DAILY" --deploy-verify
+rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL: run_daily.sh exited $rc"; exit 1; }
 
 fail=0
 
 # 1. A deploy check must append a manual preview, never a second official run.
-/usr/bin/python3 - "$AUDIT" "$BEFORE_AUDIT" <<'PY' || fail=1
+"$PYTHON" - "$AUDIT" <<'PY' || fail=1
 import datetime
 import json
 import sys
 
-path, before = sys.argv[1], int(sys.argv[2])
+path = sys.argv[1]
 lines = [line for line in open(path, encoding="utf-8") if line.strip()]
-assert len(lines) > before, "deploy verification did not append an audit record"
+assert lines, "deploy verification did not append an isolated audit record"
 payload = json.loads(lines[-1]).get("payload", {})
 assert payload.get("run_type") == "manual_rerun", payload.get("run_type")
 run_ts = datetime.datetime.fromisoformat(payload["run_ts"])
@@ -41,7 +84,7 @@ PY
 # 2. the maintenance steps actually executed (effects visible in this run's log) —
 #    a stale/half engine would be missing these even on exit 0.
 for step in "score_pipeline OK" "\[manifest\]" "\[NEXT5\]"; do
-  if tail -n +$((MARK + 1)) "$LOG" | grep -qE "$step"; then
+  if grep -qE "$step" "$LOG"; then
     echo "  ok: ran $step"
   else
     echo "  FAIL: real run is missing step: $step"; fail=1

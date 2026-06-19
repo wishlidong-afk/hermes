@@ -15,12 +15,14 @@ HEARTBEAT_GIST="3b2b29b5a45edb8964f2d0d119f619ba"
 BASE="$HOME/.hermes/skills/investment/escape-top"
 LOG_DIR="$HOME/.hermes/logs/daily"
 mkdir -p "$LOG_DIR"
-LOG="$LOG_DIR/daily_$(date +%F).log"
+LOG="${HERMES_RUN_LOG:-$LOG_DIR/daily_$(date +%F).log}"
 
 # System python3 verified to import numpy/pandas/scipy (3.9.6).
 # The normal path is --live --commit-state. --deploy-verify traverses the same
 # entry as a non-official manual preview without committing state or receipt.
 PY=/usr/bin/python3
+DEPLOY_VERIFY=0
+[ "${1:-}" = "--deploy-verify" ] && DEPLOY_VERIFY=1
 
 {
   echo "=== hermes daily run start $(date '+%F %T %Z') ==="
@@ -34,9 +36,9 @@ PY=/usr/bin/python3
 rc=$?
 echo "=== exit $rc at $(date '+%F %T') ===" >>"$LOG"
 
-if [ "$rc" -ne 0 ]; then
+if [ "$rc" -ne 0 ] && [ "$DEPLOY_VERIFY" -eq 0 ]; then
   /usr/bin/osascript -e "display notification \"exit $rc — see ${LOG/#$HOME/~}\" with title \"Hermes daily run FAILED\" sound name \"Basso\"" || true
-else
+elif [ "$rc" -eq 0 ] && [ "$DEPLOY_VERIFY" -eq 0 ]; then
   # Success heartbeat: best-effort, never affects the run's exit code.
   gh api "gists/$HEARTBEAT_GIST" -X PATCH \
     -f "files[heartbeat.txt][content]=$(date '+%F %T %Z') daily run OK" \
