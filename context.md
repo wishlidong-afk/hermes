@@ -1,6 +1,6 @@
 # Hermes 逃顶 + 镜像系统 - Agent 上下文
 
-> 维护于 2026-06-16（手工，依据代码；非脚本自动生成）。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准。
+> 维护于 2026-06-19（手工，依据代码；非脚本自动生成）。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准。
 
 本文给新 agent 一个快速、可执行的项目地图：系统做什么、数据怎样进来、评分怎样变成策略、哪些 flag 已经部署、WebUI 两个端口各负责什么，以及当前性能基线在哪里。
 
@@ -225,13 +225,13 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 运维：发布前 `scripts/predeploy_smoke.py`（FRED publish_date/源可用/决策行无 NA/manifest/软源回归）拦假数据；审计日志日运行轮转（`rotate_audit_log`，>100MB 归档 gz 后压缩主文件）。
 
-8766 POST 鉴权当前规则：
+8766 POST 鉴权的唯一政策（威胁模型：服务仅绑定 loopback，不经反向代理或对外暴露）：
 
-- 已知写端点：`refresh_score`、`refresh_positions`、`refresh_manifest`、`refresh_soft_data`、`ibkr_*`、`m4_*`、`confirm_execution`。
-- `Host` 必须是 localhost/127.0.0.1/::1。
-- `Origin` 若存在，也必须是 localhost/127.0.0.1/::1。
-- 必须提供 `HERMES_CONFIRM_TOKEN` 对应 token；浏览器 JS 会从 `?token=`、`sessionStorage/localStorage` 或 `window.HERMES_CONFIRM_TOKEN` 注入 `X-Hermes-Token`。
-- 无 token 或错 token 返回 HTTP 403。
+- 所有写端点的 `Host` 必须是 localhost/127.0.0.1/::1；`Origin` 若存在，也必须是本机 loopback。
+- 危险端点 `/api/m4_golive`、`/api/confirm_execution` 还必须提供 `HERMES_CONFIRM_TOKEN`；无 token 或错 token 返回 HTTP 403。
+- 低风险的数据刷新/重算端点 `m4_shadow`、`m4_backfill`、`refresh_manifest`、`refresh_soft_data`、`ibkr_demo_snapshot`、`refresh_score`、`refresh_positions`、`ibkr_live_check` 仅要求 loopback，不要求 token；它们不下单、不改变生产路由。
+- 锁被其他 daily/刷新持有时，写端点返回 HTTP 409，不启动第二个 writer。
+- 若 8766 未来绑定非 loopback、经反向代理或暴露到其他主机，在暴露前必须将全部 mutating POST 升级为 token 鉴权并补齐 CSRF/代理信任边界，不得直接沿用当前政策。
 
 ---
 
@@ -258,7 +258,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 12. 测试与验证
 
-当前静态测试计数：475 个 `def test_*`。
+当前回归结果：562 passed（2026-06-19）。
 
 标准命令：
 
@@ -272,7 +272,7 @@ PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/
 |---|---|
 | `test_market_indicator_cache.py` | flag OFF 不缓存；flag ON 跨 as_of 复用指标帧 |
 | `test_phase10_adapters.py` | FRED API `realtime_start` -> `publish_date`；source build_frame 不覆盖 PIT 日期 |
-| `test_phase15_integration.py` | 8766 写端点 token 通过/拒绝；无 token 403 不调用 handler |
+| `test_phase15_integration.py` | 危险写端点 token 通过/拒绝；低风险 refresh 仅 loopback；busy 409 不调用第二个 writer |
 | `test_validation_harness.py` | 单配置 PBO 不再伪造 1.0；多配置向量仍可计算 |
 | `test_flag_sweep_cache.py` | gate/backtest 配置打开 `use_indicator_cache` |
 
@@ -296,5 +296,5 @@ PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/
 1. 先读 `config/config.json` 和目标代码，不要相信旧报告的自然语言。
 2. 涉及评分、路由、仓位，必须说明 flag 状态和是否进生产路径。
 3. 涉及 backtest/gate，使用独立 `HERMES_DATA_DIR`，一次一个进程。
-4. 涉及 WebUI POST，记得本地 Host/Origin + `HERMES_CONFIRM_TOKEN`。
+4. 涉及 WebUI POST，遵守第 10 节的分级鉴权：全部端点限 loopback，只有 go-live 和 execution confirmation 额外要求 token。
 5. 任何“看似 no-op”的缓存或 PIT 修正，都要用 `input_hash` 或 gate 报告证明。
