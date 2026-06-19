@@ -160,7 +160,7 @@ def test_web_refresh_aborts_before_scoring_on_integrity_failure(tmp_path, monkey
     monkeypatch.setattr(refresh, "_history_is_fresh", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(refresh, "_stale_symbols", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(refresh, "_history_integrity_scan", lambda _cfg: ["QQQ.csv 2026-06-05 705.00 -> 2026-06-08 217.00"])
-    monkeypatch.setattr(refresh, "score_pipeline", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("score_pipeline should not run")))
+    monkeypatch.setattr(refresh, "_score_pipeline_locked", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("score_pipeline should not run")))
 
     def fake_write_refresh_run(*_args, **kwargs):
         captured.update(kwargs)

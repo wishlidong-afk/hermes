@@ -9,17 +9,38 @@ import pandas as pd
 
 from ..config import load_config, resolve_path, trade_symbols
 from ..core.data.manifest import verify_manifest, write_manifest
+from ..core.safe_io import assert_pipeline_lease, pipeline_lock
 from ..core.data.store import safe_symbol
 from ..core.data.state_store import write_refresh_run
-from ..pipeline import score_pipeline
+from ..pipeline import _score_pipeline_locked
 from ..scripts.backfill_history import all_backfill_symbols, backfill, online_soft_history_symbols
 
 
-def refresh_score_with_market_data(requested_as_of: Any = "latest") -> Dict[str, Any]:
+def refresh_score_with_market_data(
+    requested_as_of: Any = "latest",
+    *,
+    blocking: bool = True,
+) -> Dict[str, Any]:
+    """Run the complete refresh + score + refresh-ledger transaction."""
+    config = load_config()
+    lock_path = resolve_path(config, "archive_dir") / ".pipeline.lock"
+    with pipeline_lock(blocking=blocking, timeout=600, path=lock_path) as lease:
+        return _refresh_score_with_market_data_locked(requested_as_of, _lease=lease)
+
+
+def _refresh_score_with_market_data_locked(
+    requested_as_of: Any = "latest",
+    *,
+    _lease: Any,
+) -> Dict[str, Any]:
     """Refresh OHLCV first, then score the newest locally available trading day."""
     started = time.perf_counter()
     steps = []
     config = load_config()
+    assert_pipeline_lease(
+        _lease,
+        path=resolve_path(config, "archive_dir") / ".pipeline.lock",
+    )
     history_dir = resolve_path(config, "history_dir")
     state_db_path = resolve_path(config, "archive_dir") / "hermes_state.sqlite"
     symbols = all_backfill_symbols(config)
@@ -100,7 +121,7 @@ def refresh_score_with_market_data(requested_as_of: Any = "latest") -> Dict[str,
     ))
     as_of = latest_history_date(config, _critical_symbols(config)) or _normalize_as_of(requested_as_of)
     score_start = time.perf_counter()
-    payload = score_pipeline(as_of)
+    payload = _score_pipeline_locked(as_of, _lease=_lease)
     steps.append(_step("score_pipeline", "OK", score_start, as_of=as_of))
     soft = payload.get("soft_data") or {}
     soft_records = soft.get("records") or {}

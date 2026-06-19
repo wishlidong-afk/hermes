@@ -11,6 +11,7 @@ from .core.backtest.param_sweep import run_param_sweep
 from .core.backtest.reports import write_full_backtest_markdown, write_json_report
 from .core.backtest.run_full import run_full_backtest
 from .core.data.manifest import freeze_manifest, verify_manifest, write_manifest
+from .core.safe_io import pipeline_lock
 from .scripts.backfill_history import all_backfill_symbols, backfill, default_store_dir, write_coverage_report
 from .web.mirror_render import write_mirror_dashboard
 from .web.mirror_server import create_mirror_server
@@ -83,23 +84,27 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "bootstrap":
-        payload = bootstrap()
+        with pipeline_lock(blocking=True, timeout=600):
+            payload = bootstrap()
     elif args.command == "backfill-history":
-        symbols = args.symbols or all_backfill_symbols()
-        store_dir = Path(args.store_dir) if args.store_dir else default_store_dir()
-        results = backfill(symbols, start=args.start, end=args.end, store_dir=store_dir, repair_overlap_days=args.repair_overlap_days)
-        report_path = write_coverage_report(results, args.report)
+        with pipeline_lock(blocking=True, timeout=600):
+            symbols = args.symbols or all_backfill_symbols()
+            store_dir = Path(args.store_dir) if args.store_dir else default_store_dir()
+            results = backfill(symbols, start=args.start, end=args.end, store_dir=store_dir, repair_overlap_days=args.repair_overlap_days)
+            report_path = write_coverage_report(results, args.report)
         payload = {"schema_version": "escape-top-greenfield-history-backfill-v1", "report": str(report_path), "results": {k: v.to_dict() for k, v in results.items()}}
     elif args.command == "freeze-manifest":
-        path = write_manifest(args.store_dir, args.output)
-        manifest = freeze_manifest(args.store_dir)
+        with pipeline_lock(blocking=True, timeout=600):
+            path = write_manifest(args.store_dir, args.output)
+            manifest = freeze_manifest(args.store_dir)
         payload = {"schema_version": "escape-top-greenfield-manifest-freeze-v1", "output": str(path), "manifest_id": manifest.manifest_id, "entries": len(manifest.entries)}
     elif args.command == "verify-manifest":
         payload = {"schema_version": "escape-top-greenfield-manifest-verify-v1", "ok": verify_manifest(args.store_dir, args.manifest)}
     elif args.command == "empty-score":
         payload = empty_score_pipeline(args.as_of)
     elif args.command == "archive-soft-inputs":
-        payload = archive_soft_inputs(args.as_of)
+        with pipeline_lock(blocking=True, timeout=600):
+            payload = archive_soft_inputs(args.as_of)
     elif args.command == "flow":
         payload = flow_snapshot(args.as_of)
     elif args.command == "score":
@@ -107,7 +112,8 @@ def main() -> None:
     elif args.command == "ibkr-live":
         payload = run_live_check(args.as_of, write_report=not args.no_report)
     elif args.command == "soft-data":
-        payload = soft_data_snapshot(args.as_of)
+        with pipeline_lock(blocking=True, timeout=600):
+            payload = soft_data_snapshot(args.as_of)
     elif args.command == "replay":
         dates = available_replay_dates(args.start, args.end)
         payload = run_score_replay(dates, limit=args.limit)

@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 import numpy as np
 import pandas as pd
 
-from .config import CONFIG_PATH, load_config, trade_symbols
+from .config import CONFIG_PATH, load_config, resolve_path, trade_symbols
 from .core.data.base import Field, SymbolSnapshot
 from .core.data.flow import basket_flow, money_flow_metrics
 from .core.data.flow_store import write_flow_snapshot
@@ -43,6 +43,7 @@ from .mirror.strategy import build_mirror_plan
 from .mirror.store import write_mirror_snapshot
 from .core.scoring.scorer import score_symbol
 from .core.scoring.result import ScoreResult
+from .core.safe_io import assert_pipeline_lease, pipeline_lock
 
 
 def bootstrap() -> Dict[str, Any]:
@@ -125,6 +126,29 @@ def score_pipeline(
     include_ibkr: bool = True,
     run_type: str = "manual_rerun",
 ) -> Dict[str, Any]:
+    """Run one complete score transaction under the per-data-dir mutex."""
+    config = load_config(config_path)
+    lock_path = resolve_path(config, "archive_dir") / ".pipeline.lock"
+    with pipeline_lock(blocking=True, timeout=600, path=lock_path) as lease:
+        return _score_pipeline_locked(
+            as_of,
+            config_path=config_path,
+            shadow=shadow,
+            include_ibkr=include_ibkr,
+            run_type=run_type,
+            _lease=lease,
+        )
+
+
+def _score_pipeline_locked(
+    as_of: str,
+    config_path: Path = CONFIG_PATH,
+    shadow: bool = False,
+    include_ibkr: bool = True,
+    run_type: str = "manual_rerun",
+    *,
+    _lease: Any,
+) -> Dict[str, Any]:
     # run_type tags WHO triggered this run so the WebUI can tell the official
     # daily run ("scheduled") from an ad-hoc intraday re-run ("manual_rerun").
     # The 2026-06-11 incident: a verification re-run wrote a (contaminated)
@@ -132,6 +156,10 @@ def score_pipeline(
     # the UI just took the latest record. With this tag the UI pins the latest
     # SCHEDULED run as official and shows manual re-runs as non-official preview.
     config = load_config(config_path)
+    assert_pipeline_lease(
+        _lease,
+        path=resolve_path(config, "archive_dir") / ".pipeline.lock",
+    )
     store = LocalStore(config)
     market = MarketData(config=config, store=store)
     symbols = _snapshot_universe(config)

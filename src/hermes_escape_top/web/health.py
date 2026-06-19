@@ -9,7 +9,7 @@ Levels: OK (green) · DEGRADED (amber) · CRITICAL (red).
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from .refresh import _completed_trading_days_after
@@ -30,8 +30,15 @@ def compute_health(
     payload: Dict[str, Any],
     manifest_status: Optional[Dict[str, Any]] = None,
     today: Optional[date] = None,
+    now: Optional[datetime] = None,
+    ibkr_max_age_seconds: float = 15 * 60,
+    receipt_timeout_seconds: float = 2 * 60 * 60,
+    receipt_max_age_seconds: float = 26 * 60 * 60,
 ) -> Dict[str, Any]:
     today = today or date.today()
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
     manifest_status = manifest_status or {}
     checks: List[Dict[str, str]] = []
 
@@ -43,6 +50,9 @@ def compute_health(
     breakdown = payload.get("data_quality_breakdown") or {}
     ibkr = payload.get("ibkr") or {}
     dq = payload.get("data_quality") or {}
+    receipt = payload.get("run_receipt") or {}
+    sip_flow = payload.get("alpaca_daily_flow") or {}
+    sip_status = payload.get("alpaca_daily_flow_status") or {}
 
     # 1. Is there a scored payload at all?
     if not cache.get("hit"):
@@ -104,12 +114,62 @@ def compute_health(
     if missing_unexpected:
         add("DEGRADED", f"软数据源意外缺失 {len(missing_unexpected)}", ", ".join(missing_unexpected[:6]))
 
-    # 6. IBKR connectivity (can't reconcile real positions if down)
+    # 6. Today's scheduled receipt is the orchestration truth. The 26-hour age
+    #    limit relies on com.hermes.daily running at 07:10 on EVERY calendar day
+    #    (its StartCalendarInterval has no Weekday filter), including weekends
+    #    and market holidays. Price freshness above remains trading-calendar based.
+    #    Legacy receipts have no explicit status, so infer it from ok.
+    receipt_status = str(receipt.get("status") or ("OK" if receipt.get("ok") else "FAILED" if receipt else "MISSING"))
+    receipt_time = _parse_timestamp(receipt.get("finished_at") or receipt.get("run_at"))
+    receipt_started = _parse_timestamp(receipt.get("started_at") or receipt.get("run_at"))
+    receipt_age = _age_seconds(receipt_time, now)
+    if receipt_status == "MISSING":
+        add("CRITICAL", "今日官方 run 无回执", "scheduled receipt missing")
+    elif str(receipt.get("run_type") or "") != "scheduled":
+        add("CRITICAL", "官方 run 回执类型异常", f"run_type={receipt.get('run_type')}")
+    elif receipt_status == "FAILED":
+        detail = str(receipt.get("failed_step") or "unknown")
+        error = str(receipt.get("error") or "")
+        add("CRITICAL", "官方 run 失败", f"step={detail} {error}".strip()[:160])
+    elif receipt_status == "RUNNING":
+        running_age = _age_seconds(receipt_started, now)
+        if running_age is None or running_age > receipt_timeout_seconds:
+            add("CRITICAL", "官方 run 超时", f"running_age_seconds={running_age}")
+        else:
+            add("DEGRADED", "官方 run 正在执行", f"running_age_seconds={running_age:.0f}")
+    elif receipt_status == "OK":
+        if not receipt.get("ok"):
+            add("CRITICAL", "官方 run 自检失败", "receipt status=OK but ok=false")
+        elif receipt_age is None or receipt_age > receipt_max_age_seconds:
+            add("CRITICAL", "官方 run 已停摆", f"last_run={receipt.get('run_at')}")
+    else:
+        add("CRITICAL", "官方 run 回执状态未知", receipt_status)
+
+    # 7. IBKR connectivity and dynamic snapshot age. Never trust the frozen
+    #    snapshot_stale boolean from scoring time as the current health truth.
     src = str(ibkr.get("source") or "")
+    ibkr_time = _parse_timestamp(ibkr.get("sync_time"))
+    ibkr_age = _age_seconds(ibkr_time, now)
     if src in {"", "unavailable", "disabled"}:
         add("DEGRADED", "IBKR 未连接", str(ibkr.get("error") or "")[:60])
-    elif ibkr.get("snapshot_stale"):
-        add("DEGRADED", "IBKR 快照陈旧", "")
+    elif ibkr_age is None:
+        add("DEGRADED", "IBKR 快照时间缺失", f"source={src}")
+    elif ibkr_age > max(float(ibkr_max_age_seconds), 0.0):
+        add("DEGRADED", "IBKR 快照陈旧", f"age={ibkr_age:.0f}s max={ibkr_max_age_seconds:.0f}s")
+
+    # 8. SIP is auxiliary: stale data degrades the page but never converts a
+    #    successful core scheduled run into a false run failure.
+    sip_as_of = str(sip_flow.get("as_of") or "")[:10]
+    if str(sip_status.get("status") or "") in {"ERROR", "MISSING"}:
+        add(
+            "DEGRADED",
+            "SIP 资金流不可用",
+            str(sip_status.get("error") or sip_status.get("status") or "")[:120],
+        )
+    elif sip_flow and sip_as_of:
+        sip_stale = _completed_trading_days_after(sip_as_of, today)
+        if sip_stale >= 1:
+            add("DEGRADED", "SIP 资金流陈旧", f"as_of={sip_as_of} stale={sip_stale}d")
 
     overall = "OK"
     if any(c["level"] == "CRITICAL" for c in checks):
@@ -121,9 +181,31 @@ def compute_health(
         "level": overall,
         "as_of": as_of,
         "stale_trading_days": stale,
+        "receipt_status": receipt_status,
+        "receipt_age_seconds": receipt_age,
+        "ibkr_age_seconds": ibkr_age,
+        "sip_as_of": sip_as_of,
         "checks": checks,
         "summary": _summary(overall, checks),
     }
+
+
+def _parse_timestamp(value: Any) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
+    except (TypeError, ValueError):
+        return None
+
+
+def _age_seconds(value: Optional[datetime], now: datetime) -> Optional[float]:
+    if value is None:
+        return None
+    return max(0.0, (now - value.astimezone(now.tzinfo)).total_seconds())
 
 
 def _summary(level: str, checks: List[Dict[str, str]]) -> str:

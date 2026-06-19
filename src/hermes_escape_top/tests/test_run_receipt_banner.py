@@ -49,6 +49,22 @@ def test_amber_when_no_receipt():
     assert "无运行回执" in b and "var(--amber)" in b
 
 
+def test_running_receipt_is_amber_not_false_green():
+    b = _render_run_receipt_banner({"run_receipt": {
+        "status": "RUNNING", "run_at": _iso(0), "started_at": _iso(0),
+        "as_of": "2026-06-18", "ok": False, "checks": []}})
+    assert "var(--amber)" in b and "正在执行" in b
+    assert "自检全绿" not in b
+
+
+def test_failed_receipt_shows_failed_step_and_error():
+    b = _render_run_receipt_banner({"run_receipt": {
+        "status": "FAILED", "run_at": _iso(0), "as_of": "2026-06-18",
+        "ok": False, "failed_step": "artifact_write", "error": "disk full",
+        "checks": []}})
+    assert "var(--red)" in b and "artifact_write" in b and "disk full" in b
+
+
 def test_when_formatter_buckets():
     assert _run_receipt_when(_iso(0)).startswith("今天")
     assert _run_receipt_when(_iso(1)).startswith("昨天")

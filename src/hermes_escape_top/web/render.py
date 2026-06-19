@@ -2260,6 +2260,15 @@ def _render_run_receipt_banner(payload: Dict[str, Any]) -> str:
         )
     run_at = str(receipt.get("run_at", ""))
     when = _run_receipt_when(run_at)
+    status = str(receipt.get("status") or ("OK" if receipt.get("ok") else "FAILED"))
+    if status == "RUNNING":
+        return (
+            '<section class="panel" style="border-left:4px solid var(--amber);background:#fffbeb;'
+            'padding:8px 14px;margin-bottom:10px">'
+            '<span style="font-weight:600;color:var(--amber)">官方 run 正在执行</span>'
+            f'<span class="subtle" style="margin-left:8px">started={esc(when)} · as_of={esc(str(receipt.get("as_of", "")))}</span>'
+            '</section>'
+        )
     try:
         age_h = (datetime.now().astimezone() - datetime.fromisoformat(run_at)).total_seconds() / 3600
     except Exception:
@@ -2268,9 +2277,9 @@ def _render_run_receipt_banner(payload: Dict[str, Any]) -> str:
     # ~24h between runs; >30h means a cycle was missed (job didn't fire). Using
     # an age threshold — not "ran today" — avoids a false red every morning
     # before the 07:10 run completes.
-    stale = age_h > 30
+    stale = age_h > 26
     fails = [c for c in (receipt.get("checks") or []) if not c.get("ok")]
-    if not stale and not fails:
+    if status == "OK" and receipt.get("ok") and not stale and not fails:
         return (
             '<section class="panel" style="border-left:4px solid var(--green);background:#ecfdf5;'
             'padding:8px 14px;margin-bottom:10px">'
@@ -2281,6 +2290,11 @@ def _render_run_receipt_banner(payload: Dict[str, Any]) -> str:
     reasons = []
     if stale:
         reasons.append(f"<b>官方 run 已停摆</b>（上次 {esc(when)}）")
+    if status == "FAILED":
+        reasons.append(
+            f"step={esc(str(receipt.get('failed_step') or 'unknown'))}: "
+            f"{esc(str(receipt.get('error') or 'run failed'))}"
+        )
     for c in fails:
         reasons.append(f"{esc(str(c.get('name')))}: {esc(str(c.get('detail')))}")
     body = " · ".join(reasons) or "自检未通过"

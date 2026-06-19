@@ -336,9 +336,20 @@ def refresh_soft_data() -> None:
 
 # ── Step 2: run the package score pipeline ────────────────────────────────────
 
-def run_score_pipeline(as_of: str, shadow: bool = True, run_type: str = "manual_rerun") -> Dict[str, Any]:
+def run_score_pipeline(
+    as_of: str,
+    shadow: bool = True,
+    run_type: str = "manual_rerun",
+    *,
+    _lease: Any,
+) -> Dict[str, Any]:
     print(f"[M4-1] Running score_pipeline({as_of}, shadow={shadow}, run_type={run_type})…")
-    payload = pipeline.score_pipeline(as_of, shadow=shadow, run_type=run_type)
+    payload = pipeline._score_pipeline_locked(
+        as_of,
+        shadow=shadow,
+        run_type=run_type,
+        _lease=_lease,
+    )
     print(f"[M4-1] score_pipeline OK. Schema: {payload.get('schema_version')}")
     return payload
 
@@ -1130,7 +1141,16 @@ def _refreeze_manifest() -> None:
         print(f"[manifest] WARNING: re-freeze failed ({exc!r}); manifest may show DRIFT until manual refresh.")
 
 
-def _write_run_receipt(as_of: str, run_type: str, steps_ok: bool = True, step_error: str = "") -> None:
+def _write_run_receipt(
+    as_of: str,
+    run_type: str,
+    steps_ok: bool = True,
+    step_error: str = "",
+    *,
+    status: Optional[str] = None,
+    started_at: Optional[str] = None,
+    failed_step: str = "",
+) -> Optional[Dict[str, Any]]:
     """End-of-run self-attestation written by the scheduled daily run.
 
     Called LAST, after every required step (incl. state commit). ``steps_ok=False``
@@ -1144,12 +1164,33 @@ def _write_run_receipt(as_of: str, run_type: str, steps_ok: bool = True, step_er
     leaves the receipt's own check failing). Recomputed independently of the step
     calls, so it audits the real end state, not a step's self-report. Non-fatal.
     """
+    path: Optional[Path] = None
     try:
-        from datetime import datetime
         from hermes_escape_top.config import resolve_path
         config = load_config()
+        path = resolve_path(config, "archive_dir") / "run_receipt.json"
+        now = datetime.now().astimezone().isoformat(timespec="seconds")
+        started_at = started_at or now
+        requested_status = status or ("OK" if steps_ok else "FAILED")
+        if requested_status == "RUNNING":
+            receipt = {
+                "status": "RUNNING",
+                "run_at": now,
+                "started_at": started_at,
+                "finished_at": None,
+                "as_of": str(as_of),
+                "run_type": run_type,
+                "ok": False,
+                "failed_step": "",
+                "error": "",
+                "checks": [],
+            }
+            _atomic_write_json(path, receipt)
+            print(f"[receipt] RUNNING -> {path.name}")
+            return receipt
+
         checks = []
-        if not steps_ok:
+        if requested_status == "FAILED" or not steps_ok:
             checks.append({"name": "run_steps", "ok": False,
                            "detail": step_error or "a required step failed before the receipt"})
         dates = _last_bar_dates()
@@ -1168,36 +1209,118 @@ def _write_run_receipt(as_of: str, run_type: str, steps_ok: bool = True, step_er
             checks.append({"name": "manifest", "ok": ms == "OK", "detail": ms})
         except Exception as exc:
             checks.append({"name": "manifest", "ok": False, "detail": f"check err: {exc!r}"[:60]})
-        ok = all(c["ok"] for c in checks)
+        ok = requested_status == "OK" and all(c["ok"] for c in checks)
+        final_status = "OK" if ok else "FAILED"
         receipt = {
-            "run_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "status": final_status,
+            "run_at": now,
+            "started_at": started_at,
+            "finished_at": now,
             "as_of": str(as_of),
             "run_type": run_type,
             "ok": ok,
+            "failed_step": failed_step if final_status == "FAILED" else "",
+            "error": step_error if final_status == "FAILED" else "",
             "checks": checks,
         }
-        path = resolve_path(config, "archive_dir") / "run_receipt.json"
-        path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2), encoding="utf-8")
+        _atomic_write_json(path, receipt)
         print(f"[receipt] self-check {'OK' if ok else 'FAIL'} -> {path.name}")
+        return receipt
     except Exception as exc:
+        # A stale OK receipt is more dangerous than a missing receipt. If the
+        # replacement itself failed, remove the prior attestation so health
+        # becomes CRITICAL instead of continuing to show yesterday's green run.
+        if path is not None:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
         print(f"[receipt] WARNING: receipt write failed ({exc!r}); continuing.")
+        return None
 
 
-def _execute_daily() -> None:
-    p = argparse.ArgumentParser(description="M4-1 package run-daily wrapper")
-    p.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: today)")
-    p.add_argument("--skip-refresh", action="store_true", help="Skip OHLCV history refresh")
-    p.add_argument("--live", action="store_true",
-                   help="Write to live data/reports/orders dirs (shadow by default)")
-    p.add_argument("--commit-state", action="store_true",
-                   help="Update state.json (only with --live)")
-    p.add_argument("--run-type", default="manual_rerun",
-                   choices=["scheduled", "manual_rerun", "shadow"],
-                   help="Who triggered this run; the launchd daily job passes 'scheduled'. "
-                        "The WebUI pins the latest scheduled run as the official daily advice "
-                        "and shows manual_rerun separately as non-official preview.")
-    args = p.parse_args()
+def _atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
 
+
+def _build_daily_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="M4-1 package run-daily wrapper")
+    parser.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: today)")
+    parser.add_argument("--skip-refresh", action="store_true", help="Skip OHLCV history refresh")
+    parser.add_argument("--live", action="store_true",
+                        help="Write to live data/reports/orders dirs (shadow by default)")
+    parser.add_argument("--commit-state", action="store_true",
+                        help="Update state.json (only with --live)")
+    parser.add_argument("--run-type", default="manual_rerun",
+                        choices=["scheduled", "manual_rerun", "shadow"],
+                        help="Who triggered this run; the launchd daily job passes 'scheduled'. "
+                             "The WebUI pins the latest scheduled run as the official daily advice "
+                             "and shows manual_rerun separately as non-official preview.")
+    parser.add_argument("--lock-timeout", type=float, default=600.0,
+                        help=argparse.SUPPRESS)
+    return parser
+
+
+def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
+    scheduled = bool(args.live and args.run_type == "scheduled")
+    context = {
+        "as_of": str(args.as_of or date.today().isoformat()),
+        "step": "startup",
+    }
+    started_at = datetime.now().astimezone().isoformat(timespec="seconds")
+    if scheduled:
+        running = _write_run_receipt(
+            context["as_of"],
+            args.run_type,
+            status="RUNNING",
+            started_at=started_at,
+        )
+        if running is None:
+            raise RuntimeError("scheduled run cannot start without a RUNNING receipt")
+    try:
+        _execute_daily(args=args, _lease=_lease, _run_context=context)
+        if scheduled:
+            finished = _write_run_receipt(
+                context["as_of"],
+                args.run_type,
+                status="OK",
+                started_at=started_at,
+            )
+            if finished is None or finished.get("status") != "OK":
+                raise RuntimeError("scheduled run end-state receipt failed")
+    except BaseException as exc:
+        if scheduled:
+            _write_run_receipt(
+                context["as_of"],
+                args.run_type,
+                steps_ok=False,
+                step_error=f"{type(exc).__name__}: {exc}",
+                status="FAILED",
+                started_at=started_at,
+                failed_step=str(context.get("step") or "unknown"),
+            )
+        raise
+
+
+def _execute_daily(
+    *,
+    args: argparse.Namespace,
+    _lease: Any,
+    _run_context: Dict[str, str],
+) -> None:
     shadow = not args.live
     refresh_end = args.as_of or date.today().isoformat()
 
@@ -1207,6 +1330,7 @@ def _execute_daily() -> None:
         print(f"[M4-1] LIVE mode — writing to live dirs")
 
     if not args.skip_refresh:
+        _run_context["step"] = "history_refresh"
         # A hung source must never kill the scoring run — degrade to cached
         # data (the same philosophy each refresh step already applies to
         # non-zero exits; subprocess.TimeoutExpired previously escaped it).
@@ -1215,17 +1339,21 @@ def _execute_daily() -> None:
         except Exception as exc:
             print(f"[M4-1] WARNING: history refresh crashed ({exc!r}); proceeding with cached bars.")
         _heal_lagging_symbols(refresh_end)
+        _run_context["step"] = "soft_data_refresh"
         try:
             refresh_soft_data()
         except Exception as exc:
             print(f"[M4-1b] WARNING: soft refresh crashed ({exc!r}); proceeding with cached data.")
 
     as_of = args.as_of or _latest_available_as_of()
+    _run_context["as_of"] = str(as_of)
     if args.as_of is None:
         print(f"[M4-1] Auto-selected latest available as_of={as_of}")
 
+    _run_context["step"] = "preflight"
     _preflight_report(shadow, as_of)
 
+    _run_context["step"] = "history_integrity"
     offenders = _history_integrity_scan(load_config())
     if offenders:
         for line in offenders:
@@ -1240,18 +1368,30 @@ def _execute_daily() -> None:
     # DRIFT (health CRITICAL) every day. The integrity scan above already verified
     # the bars are clean — verify-then-freeze. Live, and only when a refresh ran.
     if not shadow and not args.skip_refresh:
+        _run_context["step"] = "manifest_refreeze"
         _refreeze_manifest()
 
-    payload = run_score_pipeline(as_of, shadow=shadow, run_type=args.run_type)
+    _run_context["step"] = "score_pipeline"
+    payload = run_score_pipeline(
+        as_of,
+        shadow=shadow,
+        run_type=args.run_type,
+        _lease=_lease,
+    )
+    _run_context["step"] = "translate"
     translated = translate(payload)
     orders = translated.get("orders_preview", {})
+    _run_context["step"] = "artifact_write"
     write_artifacts(translated, orders, as_of, shadow=shadow)
+    _run_context["step"] = "post_run_diff"
     _post_run_diff(payload, as_of, shadow)
+    _run_context["step"] = "next5_refresh"
     try:
         _refresh_next5_unlock()
     except Exception as exc:
         print(f"[NEXT5] WARNING: unlock scan failed ({exc!r}); continuing.")
     if not shadow:
+        _run_context["step"] = "audit_rotation"
         try:
             from hermes_escape_top.core.data.audit import rotate_audit_log
             from hermes_escape_top.config import resolve_path
@@ -1265,20 +1405,17 @@ def _execute_daily() -> None:
         if shadow:
             print("[M4-1] WARNING: --commit-state ignored in shadow mode.")
         else:
+            _run_context["step"] = "state_commit"
             try:
                 state_path = commit_state(translated, as_of)
                 print(f"[M4-1] state committed: {state_path}")
             except Exception as exc:
                 commit_error = f"state commit failed: {exc!r}"
                 print(f"[M4-1] ERROR: {commit_error}")
-    # Receipt LAST — only after every required step (incl. state commit). Only the
-    # scheduled official run stamps it (a manual_rerun preview must not move the
-    # marker); a failed required step forces a red receipt, never a false green.
-    if not shadow and args.run_type == "scheduled":
-        _write_run_receipt(as_of, args.run_type, steps_ok=(not commit_error), step_error=commit_error)
     if commit_error:
-        sys.exit(1)
+        raise RuntimeError(commit_error)
 
+    _run_context["step"] = "complete"
     print(f"[M4-1] Done. as_of={as_of} mode={'shadow' if shadow else 'LIVE'}")
 
 
@@ -1289,9 +1426,10 @@ def main() -> None:
     # never hangs past the timeout if a holder is stuck.
     from hermes_escape_top.core.safe_io import PipelineBusy, pipeline_lock
 
+    args = _build_daily_parser().parse_args()
     try:
-        with pipeline_lock(blocking=True, timeout=600):
-            _execute_daily()
+        with pipeline_lock(blocking=True, timeout=max(float(args.lock_timeout), 0.0)) as lease:
+            _run_daily_with_receipt(args, _lease=lease)
     except PipelineBusy as exc:
         print(f"[M4-1] ABORT: {exc}; another run/refresh held the lock too long.")
         sys.exit(1)

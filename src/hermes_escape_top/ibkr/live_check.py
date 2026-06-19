@@ -11,17 +11,43 @@ from pathlib import Path
 from typing import Any, Dict
 
 from hermes_escape_top.config import CONFIG_PATH, load_config, resolve_path
+from hermes_escape_top.core.safe_io import assert_pipeline_lease, pipeline_lock
 from hermes_escape_top.ibkr.positions import read_positions
-from hermes_escape_top.pipeline import score_pipeline
+from hermes_escape_top.pipeline import _score_pipeline_locked
 
 
 def run_live_check(
     as_of: str,
     config_path: Path = CONFIG_PATH,
     write_report: bool = True,
+    *,
+    blocking: bool = True,
+) -> Dict[str, Any]:
+    """Run the complete live-check workflow under the pipeline mutex."""
+    config = load_config(config_path)
+    lock_path = resolve_path(config, "archive_dir") / ".pipeline.lock"
+    with pipeline_lock(blocking=blocking, timeout=600, path=lock_path) as lease:
+        return _run_live_check_locked(
+            as_of,
+            config_path=config_path,
+            write_report=write_report,
+            _lease=lease,
+        )
+
+
+def _run_live_check_locked(
+    as_of: str,
+    config_path: Path = CONFIG_PATH,
+    write_report: bool = True,
+    *,
+    _lease: Any,
 ) -> Dict[str, Any]:
     """Verify that IBKR is live, then run one read-only strategy refresh."""
     config = load_config(config_path)
+    assert_pipeline_lease(
+        _lease,
+        path=resolve_path(config, "archive_dir") / ".pipeline.lock",
+    )
     checked_at = datetime.now(timezone.utc).isoformat()
     snap = read_positions(config)
     payload: Dict[str, Any] = {
@@ -50,7 +76,12 @@ def run_live_check(
         )
         return _finalize(payload, config, write_report)
 
-    score = score_pipeline(as_of, config_path=config_path, shadow=False)
+    score = _score_pipeline_locked(
+        as_of,
+        config_path=config_path,
+        shadow=False,
+        _lease=_lease,
+    )
     ibkr = score.get("ibkr") or {}
     payload.update({
         "ok": ibkr.get("source") == "tws",

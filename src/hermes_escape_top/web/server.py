@@ -51,7 +51,7 @@ from ..core.data.state_store import record_execution_confirmation
 from ..ibkr.live_check import run_live_check
 from ..ibkr.positions import write_demo_snapshot
 from ..core.safe_io import PipelineBusy, pipeline_lock
-from ..pipeline import score_pipeline
+from ..pipeline import _score_pipeline_locked
 from .health import compute_health
 from .refresh import (
     force_refresh_manifest,
@@ -84,8 +84,7 @@ LOOPBACK_WRITE_ENDPOINTS = {
     "/api/ibkr_live_check",
 }
 
-# #3: returned (HTTP 200) when a refresh endpoint can't take the pipeline lock —
-# another refresh or the daily run is mid-write. The button shows it and retries.
+# Returned with HTTP 409 when a write endpoint cannot take the pipeline lock.
 _BUSY_PAYLOAD = {
     "ok": False,
     "busy": True,
@@ -170,11 +169,18 @@ def _attach_alpaca_daily_flow(payload: dict) -> dict:
     """Attach the nearest non-future SIP flow cache without touching audit data."""
     try:
         config = load_config()
-        flow = load_daily_flow_snapshot(resolve_path(config, "archive_dir"), payload.get("as_of", ""))
+        archive_dir = resolve_path(config, "archive_dir")
+        status_path = archive_dir / "alpaca_daily_flow_status.json"
+        if status_path.exists():
+            payload["alpaca_daily_flow_status"] = json.loads(status_path.read_text(encoding="utf-8"))
+        flow = load_daily_flow_snapshot(archive_dir, payload.get("as_of", ""))
         if flow is not None:
             payload["alpaca_daily_flow"] = flow
-    except Exception:
-        pass
+            payload.setdefault("alpaca_daily_flow_status", {"status": "OK", "as_of": flow.get("as_of")})
+        else:
+            payload.setdefault("alpaca_daily_flow_status", {"status": "MISSING"})
+    except Exception as exc:
+        payload["alpaca_daily_flow_status"] = {"status": "ERROR", "error": str(exc)}
     return payload
 
 
@@ -444,13 +450,22 @@ def _shadow_status() -> dict:
 
 
 def _run_shadow(as_of: str) -> dict:
-    cmd = [PYTHON, str(RUN_DAILY_PKG), "--as-of", as_of, "--skip-refresh"]
+    cmd = [
+        PYTHON,
+        str(RUN_DAILY_PKG),
+        "--as-of",
+        as_of,
+        "--skip-refresh",
+        "--lock-timeout",
+        "0",
+    ]
     try:
         r = subprocess.run(cmd, cwd=str(BASE_DIR), env=_subprocess_env(), capture_output=True, text=True, timeout=180)
         output = r.stdout + ("\n[STDERR]\n" + r.stderr if r.stderr.strip() else "")
         ok = r.returncode == 0
         diff_result = _diff_shadow(as_of)
-        return {"ok": ok, "output": output[-2000:], "diff": diff_result}
+        busy = "pipeline busy" in output.lower()
+        return {"ok": ok, "busy": busy, "output": output[-2000:], "diff": diff_result}
     except subprocess.TimeoutExpired:
         return {"ok": False, "output": "Timeout (180s)", "diff": None}
     except Exception:
@@ -485,8 +500,15 @@ def _run_baseline(as_of: str) -> dict:
 
 
 def _backfill_compare(as_of: str) -> dict:
-    refresh = _run_history_refresh(as_of)
-    baseline = _run_baseline(as_of) if refresh.get("ok") else {"ok": False, "output": "Skipped baseline because refresh failed."}
+    # The legacy history/baseline legs do not acquire the package transaction
+    # themselves. Hold the shared mutex around both, then release it before the
+    # package shadow child takes the same lock normally.
+    with pipeline_lock(blocking=False):
+        refresh = _run_history_refresh(as_of)
+        baseline = _run_baseline(as_of) if refresh.get("ok") else {
+            "ok": False,
+            "output": "Skipped baseline because refresh failed.",
+        }
     shadow = _run_shadow(as_of) if baseline.get("ok") else {"ok": False, "output": "Skipped shadow because baseline failed.", "diff": None}
     output = (
         "=== history refresh ===\n" + str(refresh.get("output", "")) +
@@ -628,6 +650,8 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/health_status":
                 try:
                     score = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
+                    _attach_alpaca_daily_flow(score)
+                    score["run_receipt"] = _read_run_receipt()
                     try:
                         manifest = manifest_status()
                     except Exception:
@@ -673,14 +697,19 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/m4_shadow":
                 as_of = req.get("as_of", default_as_of)
                 result = _run_shadow(as_of)
-                self._send(200, "application/json; charset=utf-8",
+                self._send(409 if result.get("busy") else 200, "application/json; charset=utf-8",
                            json.dumps(result, ensure_ascii=False, indent=2, default=str).encode())
                 return
 
             if parsed.path == "/api/m4_backfill":
                 as_of = req.get("as_of", default_as_of)
-                result = _backfill_compare(as_of)
-                self._send(200, "application/json; charset=utf-8",
+                response_status = 200
+                try:
+                    result = _backfill_compare(as_of)
+                except PipelineBusy:
+                    result = dict(_BUSY_PAYLOAD, as_of=as_of)
+                    response_status = 409
+                self._send(response_status, "application/json; charset=utf-8",
                            json.dumps(result, ensure_ascii=False, indent=2, default=str).encode())
                 return
 
@@ -689,96 +718,117 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                     self._send(400, "application/json; charset=utf-8",
                                b'{"ok":false,"message":"Must send confirmed:true"}')
                     return
-                result = _flip_to_package()
-                self._send(200, "application/json; charset=utf-8",
+                response_status = 200
+                try:
+                    with pipeline_lock(blocking=False):
+                        result = _flip_to_package()
+                except PipelineBusy:
+                    result = dict(_BUSY_PAYLOAD)
+                    response_status = 409
+                self._send(response_status, "application/json; charset=utf-8",
                            json.dumps(result, ensure_ascii=False, default=str).encode())
                 return
 
             if parsed.path == "/api/refresh_manifest":
+                response_status = 200
                 try:
                     with pipeline_lock(blocking=False):
                         payload = force_refresh_manifest()
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD)
+                    response_status = 409
                 except Exception:
                     payload = {"ok": False, "status": "ERROR", "error": traceback.format_exc()[-2000:]}
-                self._send(200, "application/json; charset=utf-8",
+                self._send(response_status, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode())
                 return
 
             if parsed.path == "/api/refresh_soft_data":
+                response_status = 200
                 try:
                     from ..scripts.backfill_soft_data import refresh_all
                     with pipeline_lock(blocking=False):
                         payload = refresh_all(only=req.get("only"))
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD)
+                    response_status = 409
                 except Exception:
                     payload = {"ok": False, "error": traceback.format_exc()[-2000:]}
-                self._send(200, "application/json; charset=utf-8",
+                self._send(response_status, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode())
                 return
 
             if parsed.path == "/api/ibkr_demo_snapshot":
+                response_status = 200
                 try:
-                    written = write_demo_snapshot(force=bool(req.get("force")))
-                    payload = dict(written)
-                    if written.get("ok"):
-                        # Re-score so the cached dashboard payload reflects demo positions.
-                        latest = _latest_score_payload("latest") or {}
-                        as_of = latest.get("as_of") or default_as_of
-                        try:
-                            rescored = score_pipeline(str(as_of)[:10])
-                            payload["rescored_as_of"] = rescored.get("as_of")
-                            payload["ibkr_source"] = (rescored.get("ibkr") or {}).get("source")
-                        except Exception:
-                            payload["rescore_error"] = traceback.format_exc()[-1000:]
+                    with pipeline_lock(blocking=False) as lease:
+                        written = write_demo_snapshot(force=bool(req.get("force")))
+                        payload = dict(written)
+                        if written.get("ok"):
+                            # Re-score so the cached dashboard payload reflects demo positions.
+                            latest = _latest_score_payload("latest") or {}
+                            as_of = latest.get("as_of") or default_as_of
+                            try:
+                                rescored = _score_pipeline_locked(str(as_of)[:10], _lease=lease)
+                                payload["rescored_as_of"] = rescored.get("as_of")
+                                payload["ibkr_source"] = (rescored.get("ibkr") or {}).get("source")
+                            except Exception:
+                                payload["rescore_error"] = traceback.format_exc()[-1000:]
+                except PipelineBusy:
+                    payload = dict(_BUSY_PAYLOAD)
+                    response_status = 409
                 except Exception:
                     payload = {"ok": False, "error": traceback.format_exc()[-2000:]}
-                self._send(200, "application/json; charset=utf-8",
+                self._send(response_status, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode())
                 return
 
             if parsed.path in {"/api/refresh_score", "/api/score"}:
                 as_of = req.get("as_of", "latest")
+                response_status = 200
                 try:
-                    with pipeline_lock(blocking=False):
-                        payload = refresh_score_with_market_data(as_of)
+                    payload = refresh_score_with_market_data(as_of, blocking=False)
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD, as_of=as_of)
+                    response_status = 409
                 except Exception:
                     payload = {
                         "ok": False,
                         "as_of": as_of,
                         "error": traceback.format_exc()[-2000:],
                     }
-                self._send(200, "application/json; charset=utf-8",
+                self._send(response_status, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())
                 return
 
             if parsed.path == "/api/refresh_positions":
                 as_of = req.get("as_of", "latest")
+                response_status = 200
                 try:
-                    with pipeline_lock(blocking=False):
-                        payload = refresh_score_with_market_data(as_of)
+                    payload = refresh_score_with_market_data(as_of, blocking=False)
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD, as_of=as_of)
+                    response_status = 409
                 except Exception:
                     payload = {
                         "ok": False,
                         "as_of": as_of,
                         "error": traceback.format_exc()[-2000:],
                     }
-                self._send(200, "application/json; charset=utf-8",
+                self._send(response_status, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())
                 return
 
             if parsed.path == "/api/ibkr_live_check":
                 as_of = req.get("as_of", default_as_of)
+                response_status = 200
                 try:
-                    payload = run_live_check(as_of)
+                    payload = run_live_check(as_of, blocking=False)
+                except PipelineBusy:
+                    payload = dict(_BUSY_PAYLOAD, as_of=as_of)
+                    response_status = 409
                 except Exception:
                     payload = {
                         "ok": False,
@@ -786,32 +836,37 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                         "as_of": as_of,
                         "error": traceback.format_exc()[-2000:],
                     }
-                self._send(200, "application/json; charset=utf-8",
+                self._send(response_status, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())
                 return
 
             if parsed.path == "/api/confirm_execution":
+                response_status = 200
                 try:
-                    config = load_config()
-                    state_db_path = resolve_path(config, "archive_dir") / "hermes_state.sqlite"
-                    payload = record_execution_confirmation(
-                        state_db_path,
-                        symbol=str(req.get("symbol", "")).upper(),
-                        tranche=str(req.get("tranche", "")),
-                        status=str(req.get("status", "CONFIRMED")),
-                        source=str(req.get("source", "manual_web")),
-                        confirmed_at=req.get("confirmed_at"),
-                        payload=req,
-                    )
-                    payload["ok"] = True
-                    payload["auth_status"] = auth_status
+                    with pipeline_lock(blocking=False):
+                        config = load_config()
+                        state_db_path = resolve_path(config, "archive_dir") / "hermes_state.sqlite"
+                        payload = record_execution_confirmation(
+                            state_db_path,
+                            symbol=str(req.get("symbol", "")).upper(),
+                            tranche=str(req.get("tranche", "")),
+                            status=str(req.get("status", "CONFIRMED")),
+                            source=str(req.get("source", "manual_web")),
+                            confirmed_at=req.get("confirmed_at"),
+                            payload=req,
+                        )
+                        payload["ok"] = True
+                        payload["auth_status"] = auth_status
+                except PipelineBusy:
+                    payload = dict(_BUSY_PAYLOAD)
+                    response_status = 409
                 except Exception:
                     payload = {
                         "ok": False,
                         "error": traceback.format_exc()[-2000:],
                     }
-                self._send(200, "application/json; charset=utf-8",
+                self._send(response_status, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())
                 return

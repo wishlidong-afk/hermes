@@ -1,10 +1,18 @@
 """#3 — pipeline mutex + atomic CSV writes."""
+import os
+import stat
+import threading
 import time
 
 import pandas as pd
 import pytest
 
-from hermes_escape_top.core.safe_io import PipelineBusy, atomic_write_csv, pipeline_lock
+from hermes_escape_top.core.safe_io import (
+    PipelineBusy,
+    assert_pipeline_lease,
+    atomic_write_csv,
+    pipeline_lock,
+)
 
 
 def test_nonblocking_lock_conflicts_even_same_process(tmp_path):
@@ -24,6 +32,27 @@ def test_lock_released_on_exit_and_reacquirable(tmp_path):
         pass
     with pipeline_lock(blocking=False, path=lock):  # released → re-acquire works
         pass
+
+
+def test_pipeline_lease_is_active_only_inside_owning_context(tmp_path):
+    lock = tmp_path / ".pipeline.lock"
+    with pipeline_lock(blocking=False, path=lock) as lease:
+        assert_pipeline_lease(lease, path=lock)
+    with pytest.raises(RuntimeError, match="inactive"):
+        assert_pipeline_lease(lease, path=lock)
+
+
+def test_pipeline_lease_cannot_cross_threads(tmp_path):
+    lock = tmp_path / ".pipeline.lock"
+    errors = []
+    with pipeline_lock(blocking=False, path=lock) as lease:
+        thread = threading.Thread(
+            target=lambda: _capture_lease_error(errors, lease, lock),
+        )
+        thread.start()
+        thread.join(timeout=5)
+    assert len(errors) == 1
+    assert "thread" in str(errors[0])
 
 
 def test_lock_does_not_leak_on_exception(tmp_path):
@@ -68,3 +97,20 @@ def test_atomic_write_csv_keeps_old_file_on_failure(tmp_path):
         atomic_write_csv(_Boom(), path, index=False)
     assert path.read_text() == original          # reader still sees the old file
     assert not list(path.parent.glob("*.tmp"))   # temp cleaned up
+
+
+def test_atomic_write_csv_preserves_existing_mode(tmp_path):
+    path = tmp_path / "x.csv"
+    path.write_text("a\n1\n", encoding="utf-8")
+    os.chmod(path, 0o644)
+
+    atomic_write_csv(pd.DataFrame({"a": [2]}), path, index=False)
+
+    assert stat.S_IMODE(path.stat().st_mode) == 0o644
+
+
+def _capture_lease_error(errors, lease, path):
+    try:
+        assert_pipeline_lease(lease, path=path)
+    except Exception as exc:
+        errors.append(exc)

@@ -6,6 +6,7 @@ import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from ..core.safe_io import PipelineBusy
 from .mirror_render import render_mirror_dashboard
 from .refresh import refresh_score_with_market_data
 from .server import _empty_dashboard_payload, _latest_score_payload
@@ -49,15 +50,24 @@ def make_mirror_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
 
             if parsed.path in {"/api/refresh_score", "/api/score", "/api/refresh_positions"}:
                 as_of = req.get("as_of", "latest")
+                response_status = 200
                 try:
-                    payload = refresh_score_with_market_data(as_of)
+                    payload = refresh_score_with_market_data(as_of, blocking=False)
+                except PipelineBusy:
+                    payload = {
+                        "ok": False,
+                        "busy": True,
+                        "as_of": as_of,
+                        "message": "another pipeline writer is active",
+                    }
+                    response_status = 409
                 except Exception:
                     payload = {
                         "ok": False,
                         "as_of": as_of,
                         "error": traceback.format_exc()[-2000:],
                     }
-                self._send(200, "application/json; charset=utf-8", json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, default=str).encode())
+                self._send(response_status, "application/json; charset=utf-8", json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, default=str).encode())
                 return
 
             self._send(404, "text/plain; charset=utf-8", b"not found")

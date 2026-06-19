@@ -18,15 +18,16 @@ CSV. This module closes both seams:
     reader sees either the old or the new file (never a torn one) and a crash
     mid-write leaves the prior file intact.
 
-Acquire the lock ONLY at the two top entry points (``run_daily_package.main`` and
-the web ``do_POST`` handler), never inside a shared helper: a locked function
-that called another locked function would self-deadlock, because ``flock`` on a
-second fd of the same process conflicts with the first.
+Acquire the lock at a public transaction boundary. A workflow that already owns
+the mutex passes its active private lease to an approved locked helper; it never
+opens a second lock fd, which would self-deadlock in the same process.
 """
 from __future__ import annotations
 
 import os
+import stat
 import tempfile
+import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -40,6 +41,46 @@ except ImportError:  # pragma: no cover - Windows has no flock
 
 class PipelineBusy(RuntimeError):
     """Raised when the pipeline lock is held and the caller asked not to wait."""
+
+
+_PIPELINE_LEASE_CAPABILITY = object()
+
+
+class _PipelineLease:
+    """Runtime proof that the current process/thread owns a pipeline lock."""
+
+    __slots__ = ("_capability", "_active", "_fd", "_path", "_pid", "_thread_id")
+
+    def __init__(self, fd: int, path: Path) -> None:
+        self._capability = _PIPELINE_LEASE_CAPABILITY
+        self._active = True
+        self._fd = fd
+        self._path = Path(path).resolve()
+        self._pid = os.getpid()
+        self._thread_id = threading.get_ident()
+
+    def _deactivate(self) -> None:
+        self._active = False
+
+
+def assert_pipeline_lease(lease: Any, *, path: Optional[Path] = None) -> None:
+    """Reject calls that are not inside the owning pipeline-lock context."""
+    if not isinstance(lease, _PipelineLease) or lease._capability is not _PIPELINE_LEASE_CAPABILITY:
+        raise RuntimeError("invalid pipeline lease")
+    if not lease._active:
+        raise RuntimeError("inactive pipeline lease")
+    if lease._pid != os.getpid():
+        raise RuntimeError("pipeline lease belongs to another process")
+    if lease._thread_id != threading.get_ident():
+        raise RuntimeError("pipeline lease belongs to another thread")
+    if path is not None and lease._path != Path(path).resolve():
+        raise RuntimeError(f"pipeline lease path mismatch: {lease._path} != {Path(path).resolve()}")
+
+
+def pipeline_lease_fd(lease: Any) -> int:
+    """Return the active lock fd for inheritance by a guarded subprocess."""
+    assert_pipeline_lease(lease)
+    return int(lease._fd)
 
 
 def pipeline_lock_path() -> Path:
@@ -57,7 +98,7 @@ def pipeline_lock(
     timeout: float = 600.0,
     poll: float = 0.5,
     path: Optional[Path] = None,
-) -> Iterator[None]:
+) -> Iterator[_PipelineLease]:
     """Hold an exclusive pipeline lock for the duration of the context.
 
     blocking=True  → wait up to ``timeout`` s for the lock, then raise
@@ -68,30 +109,36 @@ def pipeline_lock(
     """
     lock_path = Path(path) if path is not None else pipeline_lock_path()
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    if fcntl is None:  # pragma: no cover - no flock available off POSIX
-        yield
-        return
     fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o644)
+    lease: Optional[_PipelineLease] = None
     try:
-        if blocking:
+        if fcntl is None:  # pragma: no cover - no flock available off POSIX
+            pass
+        elif blocking:
             deadline = time.monotonic() + max(timeout, 0.0)
             while True:
                 try:
                     fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                     break
-                except (BlockingIOError, OSError):
+                except BlockingIOError:
                     if time.monotonic() >= deadline:
                         raise PipelineBusy(f"pipeline lock held > {timeout:.0f}s ({lock_path})")
                     time.sleep(poll)
+                except InterruptedError:
+                    continue
         else:
             try:
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except (BlockingIOError, OSError):
+            except BlockingIOError:
                 raise PipelineBusy(f"pipeline busy ({lock_path})")
-        yield
+        lease = _PipelineLease(fd, lock_path)
+        yield lease
     finally:
+        if lease is not None:
+            lease._deactivate()
         try:
-            fcntl.flock(fd, fcntl.LOCK_UN)
+            if fcntl is not None:
+                fcntl.flock(fd, fcntl.LOCK_UN)
         finally:
             os.close(fd)
 
@@ -107,10 +154,12 @@ def atomic_write_csv(frame: Any, path: Any, **to_csv_kwargs: Any) -> None:
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else 0o644
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
     os.close(fd)
     try:
         frame.to_csv(tmp, **to_csv_kwargs)
+        os.chmod(tmp, mode)
         os.replace(tmp, path)
     except BaseException:
         try:

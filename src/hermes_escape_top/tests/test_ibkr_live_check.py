@@ -21,7 +21,7 @@ class IbkrLiveCheckTest(unittest.TestCase):
         )
         with (
             mock.patch.object(live_check, "read_positions", return_value=snap),
-            mock.patch.object(live_check, "score_pipeline") as score_mock,
+            mock.patch.object(live_check, "_score_pipeline_locked") as score_mock,
         ):
             payload = live_check.run_live_check("2026-05-29", write_report=False)
 
@@ -65,7 +65,7 @@ class IbkrLiveCheckTest(unittest.TestCase):
         }
         with (
             mock.patch.object(live_check, "read_positions", return_value=snap),
-            mock.patch.object(live_check, "score_pipeline", return_value=score_payload),
+            mock.patch.object(live_check, "_score_pipeline_locked", return_value=score_payload),
         ):
             payload = live_check.run_live_check("2026-05-29", write_report=False)
 

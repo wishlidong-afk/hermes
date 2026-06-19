@@ -4,10 +4,12 @@ import json
 import threading
 import unittest
 import urllib.request
+import urllib.error
 from unittest import mock
 
 from hermes_escape_top.web.mirror_render import render_mirror_dashboard
 from hermes_escape_top.web.mirror_server import create_mirror_server
+from hermes_escape_top.core.safe_io import PipelineBusy
 
 
 def sample_payload() -> dict:
@@ -108,6 +110,30 @@ class MirrorWebTest(unittest.TestCase):
                 self.assertIn("mirror", payload)
                 self.assertEqual(payload["mirror"]["decisions"]["FNGU_QQQ"]["selected_symbol"], "FNGU")
                 self.assertEqual(set(payload["mirror"]["decisions"]), {"FNGU_QQQ", "SOXL_SOXX"})
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_mirror_refresh_busy_returns_409(self) -> None:
+        server = create_mirror_server("127.0.0.1", 0, "2026-06-02")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_port}/api/refresh_score",
+                data=b'{"as_of":"2026-06-02"}',
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with mock.patch(
+                "hermes_escape_top.web.mirror_server.refresh_score_with_market_data",
+                side_effect=PipelineBusy("pipeline busy"),
+            ):
+                with self.assertRaises(urllib.error.HTTPError) as ctx:
+                    urllib.request.urlopen(request, timeout=10)
+            self.assertEqual(ctx.exception.code, 409)
+            self.assertTrue(json.loads(ctx.exception.read().decode("utf-8"))["busy"])
         finally:
             server.shutdown()
             server.server_close()

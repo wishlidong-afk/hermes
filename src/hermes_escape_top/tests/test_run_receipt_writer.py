@@ -5,6 +5,9 @@ commit_state, so a failed state commit could still show '自检全绿')."""
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
+
+import pytest
 
 from hermes_escape_top.scripts import run_daily_package as rdp
 
@@ -31,3 +34,53 @@ def test_receipt_green_when_steps_ok_and_checks_pass(monkeypatch, tmp_path):
     r = json.loads((tmp_path / "run_receipt.json").read_text())
     assert r["ok"] is True
     assert not any(c["name"] == "run_steps" for c in r["checks"])  # no failure check added
+
+
+def test_receipt_running_state_has_no_finished_at(monkeypatch, tmp_path):
+    _patch(monkeypatch, tmp_path)
+    rdp._write_run_receipt(
+        "2026-06-17",
+        "scheduled",
+        status="RUNNING",
+        started_at="2026-06-17T07:10:00+08:00",
+    )
+    r = json.loads((tmp_path / "run_receipt.json").read_text())
+    assert r["status"] == "RUNNING"
+    assert r["started_at"] == "2026-06-17T07:10:00+08:00"
+    assert r["finished_at"] is None
+    assert r["ok"] is False
+
+
+def test_top_level_failure_overwrites_running_receipt(monkeypatch, tmp_path):
+    _patch(monkeypatch, tmp_path)
+    args = SimpleNamespace(live=True, run_type="scheduled", as_of="2026-06-17")
+
+    def fail(*, args, _lease, _run_context):
+        _run_context["step"] = "artifact_write"
+        raise OSError("disk full")
+
+    monkeypatch.setattr(rdp, "_execute_daily", fail)
+    with pytest.raises(OSError, match="disk full"):
+        rdp._run_daily_with_receipt(args, _lease=object())
+
+    receipt = json.loads((tmp_path / "run_receipt.json").read_text())
+    assert receipt["status"] == "FAILED"
+    assert receipt["failed_step"] == "artifact_write"
+    assert "disk full" in receipt["error"]
+    assert receipt["finished_at"]
+
+
+def test_receipt_write_failure_removes_prior_green_attestation(monkeypatch, tmp_path):
+    _patch(monkeypatch, tmp_path)
+    receipt_path = tmp_path / "run_receipt.json"
+    receipt_path.write_text('{"status":"OK","ok":true}\n', encoding="utf-8")
+    monkeypatch.setattr(
+        rdp,
+        "_atomic_write_json",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")),
+    )
+
+    result = rdp._write_run_receipt("2026-06-17", "scheduled", status="RUNNING")
+
+    assert result is None
+    assert not receipt_path.exists()
