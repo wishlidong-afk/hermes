@@ -87,6 +87,11 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(live / "scripts/run_daily.py", "print('old entry')\n", 0o700)
     _write(bin_dir / "run_daily.sh", "#!/bin/sh\nexit 10\n", 0o750)
     _write(bin_dir / "serve_dashboard.sh", "#!/bin/sh\nexit 11\n", 0o740)
+    # Replicate the real ~/.hermes/.gitignore: it ignores bin/ and tests/, so the
+    # allowlist entry scripts are untracked+ignored and the commit step must
+    # `git add -f`. The old fixture had no .gitignore (git add . tracked bin/), so
+    # the success test passed while the real deploy's `git add` failed + rolled back.
+    _write(hermes_home / ".gitignore", "bin/\ntests/\n")
     _init_git(hermes_home)
 
     repo_soft = repo / "src/hermes_escape_top/data/soft_history"

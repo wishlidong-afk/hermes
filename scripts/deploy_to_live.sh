@@ -389,7 +389,10 @@ stage_deploy_allowlist() {
   while IFS= read -r path; do
     paths+=("$path")
   done < <(deploy_git_pathspecs)
-  git -C "$HERMES_HOME" add -- "${paths[@]}"
+  # -f: the allowlist is the explicit deploy intent, so force past .hermes/.gitignore
+  # (which ignores bin/ and tests/). The :(exclude) pathspecs still keep tests/,
+  # data/ and config/ out, so this never re-introduces runtime/sensitive data.
+  git -C "$HERMES_HOME" add -f -- "${paths[@]}"
 }
 
 commit_deploy_allowlist() {

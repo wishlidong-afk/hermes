@@ -90,7 +90,7 @@ for step in "score_pipeline OK" "\[manifest\]" "\[NEXT5\]"; do
     echo "  FAIL: real run is missing step: $step"; fail=1
   fi
 done
-if tail -n +$((MARK + 1)) "$LOG" | grep -qE "\[receipt\]|state committed"; then
+if grep -qE "\[receipt\]|state committed" "$LOG"; then
   echo "  FAIL: deploy verification wrote official receipt/state"; fail=1
 else
   echo "  ok: official receipt/state untouched"
