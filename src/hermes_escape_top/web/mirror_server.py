@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from ..core.safe_io import PipelineBusy
 from .mirror_render import render_mirror_dashboard
-from .refresh import refresh_score_with_market_data
+from .refresh import refresh_positions_only, refresh_score_with_market_data
 from .server import _empty_dashboard_payload, _latest_score_payload
 
 
@@ -52,7 +52,8 @@ def make_mirror_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 as_of = req.get("as_of", "latest")
                 response_status = 200
                 try:
-                    payload = refresh_score_with_market_data(as_of, blocking=False)
+                    refresh = refresh_positions_only if parsed.path == "/api/refresh_positions" else refresh_score_with_market_data
+                    payload = refresh(as_of, blocking=False)
                 except PipelineBusy:
                     payload = {
                         "ok": False,

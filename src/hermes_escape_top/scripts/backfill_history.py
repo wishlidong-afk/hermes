@@ -237,8 +237,14 @@ def _normalize_download(frame: pd.DataFrame, expected_symbol: str | None = None)
     out = out[columns]
     for col in columns:
         out[col] = pd.to_numeric(out[col], errors="coerce")
+    if "Close" in out:
+        # Vendors can expose an in-progress row with OH(L) populated but no
+        # settled close. Never let that partial row replace a valid cached bar.
+        out = out[out["Close"].notna() & (out["Close"] > 0)]
     if "Adj Close" not in out and "Close" in out:
         out["Adj Close"] = out["Close"]
+    elif "Adj Close" in out and "Close" in out:
+        out["Adj Close"] = out["Adj Close"].fillna(out["Close"])
     return out[[col for col in ["Open", "High", "Low", "Close", "Adj Close", "Volume"] if col in out.columns]]
 
 

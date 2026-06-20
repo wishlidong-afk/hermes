@@ -2782,7 +2782,7 @@ def _render_scripts(as_of: str) -> str:
     var st = document.getElementById('refresh-positions-status');
     setBusy(btn, true);
     st.textContent = '正在拉取 IBKR 持仓...';
-    postJson('/api/refresh_positions', {{as_of: 'latest', refresh_history: true}}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+    postJson('/api/refresh_positions', {{as_of: 'latest'}}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       var ibkr = d.ibkr || {{}};
       if (ibkr.source) {{
         var msg = '持仓刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');

@@ -89,8 +89,10 @@ PYTHON = (
 sys.path.insert(0, str(PACKAGE_PARENT))
 
 from hermes_escape_top import pipeline
-from hermes_escape_top.config import load_config
+from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.data.store import LocalStore, safe_symbol
+from hermes_escape_top.core.safe_io import assert_pipeline_lease
+from hermes_escape_top.scripts.backfill_history import all_backfill_symbols, backfill, write_coverage_report
 
 TRADE_SYMBOLS = ["MSTR", "FNGU", "SOXL"]
 
@@ -136,25 +138,32 @@ def _latest_available_as_of() -> str:
 
 # ── Step 1: refresh OHLCV history ────────────────────────────────────────────
 
-def refresh_history(as_of: str) -> None:
-    """Fetch the latest OHLCV bar via the package's backfill-history command."""
+def refresh_history(as_of: str, *, _lease: Any) -> None:
+    """Fetch the latest OHLCV bar inside the daily transaction lease."""
     print(f"[M4-1] Refreshing OHLCV history up to {as_of}…")
-    result = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.cli", "backfill-history",
-         "--end", as_of, "--repair-overlap-days", "3"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
+    config = load_config()
+    assert_pipeline_lease(
+        _lease,
+        path=resolve_path(config, "archive_dir") / ".pipeline.lock",
     )
-    if result.returncode != 0:
-        print("[M4-1] WARNING: backfill-history returned non-zero; proceeding with cached data.")
-        print(result.stderr[-500:] if result.stderr else "")
-    else:
-        print("[M4-1] History refresh OK.")
+    results = backfill(
+        all_backfill_symbols(config),
+        start="2018-01-01",
+        end=as_of,
+        store_dir=resolve_path(config, "history_dir"),
+        repair_overlap_days=3,
+    )
+    write_coverage_report(results, BASE_DIR / "reports" / "N0_history_coverage.md")
+    print("[M4-1] History refresh OK.")
 
 
-def _heal_lagging_symbols(end: str, max_passes: int = 2, delay_s: float = 3.0) -> None:
+def _heal_lagging_symbols(
+    end: str,
+    *,
+    _lease: Any,
+    max_passes: int = 2,
+    delay_s: float = 3.0,
+) -> None:
     """Re-fetch, individually, any symbol whose last cached bar lags its peers.
 
     A batch backfill can hit Yahoo rate-limiting and return stale data for a
@@ -176,6 +185,11 @@ def _heal_lagging_symbols(end: str, max_passes: int = 2, delay_s: float = 3.0) -
     try:
         import time
 
+        config = load_config()
+        assert_pipeline_lease(
+            _lease,
+            path=resolve_path(config, "archive_dir") / ".pipeline.lock",
+        )
         for attempt in range(max_passes):
             dates = _last_bar_dates()
             if not dates:
@@ -189,14 +203,15 @@ def _heal_lagging_symbols(end: str, max_passes: int = 2, delay_s: float = 3.0) -
             print(f"[M4-1] self-heal: {laggards} lag peers' latest bar "
                   f"{target.isoformat()}; re-fetching individually")
             for sym in laggards:
-                res = subprocess.run(
-                    [PYTHON, "-m", "hermes_escape_top.cli", "backfill-history",
-                     "--symbols", sym, "--end", end, "--repair-overlap-days", "3"],
-                    cwd=str(BASE_DIR), env=_subprocess_env(),
-                    capture_output=True, text=True,
+                result = backfill(
+                    [sym],
+                    start="2018-01-01",
+                    end=end,
+                    store_dir=resolve_path(config, "history_dir"),
+                    repair_overlap_days=3,
                 )
-                if res.returncode != 0:
-                    print(f"[M4-1] self-heal: {sym} re-fetch non-zero; leaving cached.")
+                if not result.get(sym) or not result[sym].updated:
+                    print(f"[M4-1] self-heal: {sym} did not advance; leaving cached.")
         residual = _last_bar_dates()
         if residual:
             tgt = max(residual.values())
@@ -887,6 +902,16 @@ def _history_integrity_scan(config) -> list:
             rows = list(_csv.reader(path.open()))[-12:]
         except OSError:
             continue
+        if rows:
+            latest = rows[-1]
+            try:
+                latest_close = float(latest[4])
+                latest_valid = latest_close > 0
+            except (ValueError, IndexError):
+                latest_valid = False
+            if not latest_valid:
+                latest_date = latest[0] if latest else "unknown"
+                offenders.append(f"{path.name} latest row {latest_date} missing close")
         closes = []
         for r in rows:
             try:
@@ -1335,10 +1360,10 @@ def _execute_daily(
         # data (the same philosophy each refresh step already applies to
         # non-zero exits; subprocess.TimeoutExpired previously escaped it).
         try:
-            refresh_history(refresh_end)
+            refresh_history(refresh_end, _lease=_lease)
         except Exception as exc:
             print(f"[M4-1] WARNING: history refresh crashed ({exc!r}); proceeding with cached bars.")
-        _heal_lagging_symbols(refresh_end)
+        _heal_lagging_symbols(refresh_end, _lease=_lease)
         _run_context["step"] = "soft_data_refresh"
         try:
             refresh_soft_data()

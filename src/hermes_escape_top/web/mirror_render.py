@@ -698,7 +698,7 @@ def _render_scripts(as_of: str) -> str:
     fetch('/api/refresh_positions', {{
       method: 'POST',
       headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{as_of: 'latest', refresh_history: true}})
+      body: JSON.stringify({{as_of: 'latest'}})
     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       var ibkr = d.ibkr || {{}};
       if (ibkr.source) {{

@@ -79,10 +79,11 @@ class Phase15IntegrationTest(unittest.TestCase):
                 headers=_auth_headers(content_type=False),
                 method="POST",
             )
-            with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}), mock.patch("hermes_escape_top.web.server.refresh_score_with_market_data", return_value=refreshed_payload):
+            with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}), mock.patch("hermes_escape_top.web.server.refresh_positions_only", return_value=refreshed_payload) as refresh_positions:
                 with urllib.request.urlopen(request, timeout=30) as response:
                     payload = json.loads(response.read().decode("utf-8"))
                 self.assertIn("ibkr", payload)
+                refresh_positions.assert_called_once_with("latest", blocking=False)
             with urllib.request.urlopen(f"{base}/api/score", timeout=10) as response:
                 payload = json.loads(response.read().decode("utf-8"))
                 self.assertIn("posterior_pnl", payload)

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from hermes_escape_top.scripts.backfill_history import _sanity_check_download
+from hermes_escape_top.scripts.backfill_history import _sanity_check_download, backfill
 
 
 def _frame(closes, start="2026-06-01"):
@@ -58,6 +58,39 @@ def test_normal_append_accepted():
     existing = _frame([700, 705, 710])
     ok, _ = _sanity_check_download("QQQ", existing, _frame([715, 720], start="2026-06-04"))
     assert ok
+
+
+def test_incomplete_overlap_bar_cannot_erase_cached_close(tmp_path):
+    path = tmp_path / "DBMF.csv"
+    path.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-06-17,30.68,30.77,30.61,30.67,30.67,1246700\n"
+        "2026-06-18,30.73,30.94,30.61,30.82,30.82,1630478\n",
+        encoding="utf-8",
+    )
+    incoming = pd.DataFrame(
+        {
+            "Open": [30.68, 30.73],
+            "High": [30.77, 30.94],
+            "Low": [30.61, 30.61],
+            "Close": [30.67, float("nan")],
+            "Adj Close": [30.67, float("nan")],
+            "Volume": [1246700, 1630478],
+        },
+        index=pd.to_datetime(["2026-06-17", "2026-06-18"]),
+    )
+
+    backfill(
+        ["DBMF"],
+        start="2026-06-17",
+        end="2026-06-18",
+        store_dir=tmp_path,
+        downloader=lambda *_args: incoming,
+        repair_overlap_days=3,
+    )
+
+    saved = pd.read_csv(path)
+    assert saved.loc[saved["date"] == "2026-06-18", "close"].item() == 30.82
 
 
 def test_vol_index_gets_wider_band_but_still_catches_cross_wiring():
@@ -138,6 +171,26 @@ def test_web_refresh_integrity_scan_flags_cross_wired_file(tmp_path):
     assert any("QQQ.csv" in item for item in offenders)
     assert not any("_VIX" in item for item in offenders)
     assert not any("KLAC.csv" in item for item in offenders)
+
+
+def test_integrity_scans_reject_latest_bar_without_close(tmp_path):
+    import importlib
+    refresh = importlib.import_module("hermes_escape_top.web.refresh")
+    rdp = importlib.import_module("hermes_escape_top.scripts.run_daily_package")
+    hist = tmp_path / "history"
+    hist.mkdir()
+    (hist / "DBMF.csv").write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-06-17,30.68,30.77,30.61,30.67,30.67,1246700\n"
+        "2026-06-18,30.73,30.94,30.61,,,1630478\n",
+        encoding="utf-8",
+    )
+    cfg = {"paths": {"history_dir": str(hist)}}
+
+    assert any("DBMF.csv latest row 2026-06-18 missing close" in item
+               for item in refresh._history_integrity_scan(cfg))
+    assert any("DBMF.csv latest row 2026-06-18 missing close" in item
+               for item in rdp._history_integrity_scan(cfg))
 
 
 def test_web_refresh_aborts_before_scoring_on_integrity_failure(tmp_path, monkeypatch):

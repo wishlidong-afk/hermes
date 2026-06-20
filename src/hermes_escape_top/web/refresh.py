@@ -28,6 +28,19 @@ def refresh_score_with_market_data(
         return _refresh_score_with_market_data_locked(requested_as_of, _lease=lease)
 
 
+def refresh_positions_only(
+    requested_as_of: Any = "latest",
+    *,
+    blocking: bool = True,
+) -> Dict[str, Any]:
+    """Refresh the read-only IBKR snapshot by rescoring cached market data."""
+    config = load_config()
+    lock_path = resolve_path(config, "archive_dir") / ".pipeline.lock"
+    with pipeline_lock(blocking=blocking, timeout=600, path=lock_path) as lease:
+        as_of = latest_history_date(config, _critical_symbols(config)) or _normalize_as_of(requested_as_of)
+        return _score_pipeline_locked(as_of, _lease=lease)
+
+
 def _refresh_score_with_market_data_locked(
     requested_as_of: Any = "latest",
     *,
@@ -232,6 +245,12 @@ def _history_integrity_scan(config: Dict[str, Any]) -> list[str]:
             continue
         close = pd.to_numeric(frame.get("close"), errors="coerce")
         dates = frame.get("date")
+        if frame.empty:
+            continue
+        latest_close = close.iloc[-1]
+        latest_date = str(dates.iloc[-1])
+        if pd.isna(latest_close) or float(latest_close) <= 0:
+            offenders.append(f"{path.name} latest row {latest_date} missing close")
         rows = [
             (str(day), float(value))
             for day, value in zip(dates, close)

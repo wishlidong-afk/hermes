@@ -56,6 +56,7 @@ from .health import compute_health
 from .refresh import (
     force_refresh_manifest,
     manifest_status,
+    refresh_positions_only,
     refresh_score_with_market_data,
 )
 from .render import render_dashboard
@@ -806,7 +807,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 as_of = req.get("as_of", "latest")
                 response_status = 200
                 try:
-                    payload = refresh_score_with_market_data(as_of, blocking=False)
+                    payload = refresh_positions_only(as_of, blocking=False)
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD, as_of=as_of)
                     response_status = 409
