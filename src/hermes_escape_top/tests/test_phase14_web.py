@@ -25,6 +25,8 @@ class Phase14WebTest(unittest.TestCase):
         self.assertNotIn("Mirror Reference", html)
         self.assertIn("IBKR Live 验收", html)
         self.assertIn("更新持仓", html)
+        self.assertIn("ibkr.source === 'tws' && !ibkr.snapshot_stale", html)
+        self.assertIn("持仓未更新：未连接 IBKR Live", html)
         self.assertIn("IBKR 现有总资产", html)
         self.assertIn("宏观 A 模块评分", html)
         self.assertIn("穿透股票成交与流向参考", html)

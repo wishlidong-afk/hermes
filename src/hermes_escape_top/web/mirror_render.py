@@ -701,13 +701,20 @@ def _render_scripts(as_of: str) -> str:
       body: JSON.stringify({{as_of: 'latest'}})
     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       var ibkr = d.ibkr || {{}};
-      if (ibkr.source) {{
+      if (ibkr.source === 'tws' && !ibkr.snapshot_stale) {{
         var msg = '持仓刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
         var detail = 'ibkr refreshed: source=' + ibkr.source + '\\nnet_liq=' + ibkr.net_liq;
         st.textContent = msg;
         showResult(detail);
         rememberRefresh('refresh-positions-status', msg, detail);
         setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest'); }}, 700);
+      }} else if (ibkr.source) {{
+        var staleMsg = '持仓未更新：未连接 IBKR Live，沿用 ' + ibkr.source + ' 快照';
+        var staleDetail = ibkr.error || ('source=' + ibkr.source);
+        st.textContent = staleMsg;
+        showResult(staleDetail);
+        rememberRefresh('refresh-positions-status', staleMsg, staleDetail);
+        setBusy(btn, false);
       }} else {{
         st.textContent = '持仓刷新失败: ' + (d.message || d.error || 'unknown');
         setBusy(btn, false);
