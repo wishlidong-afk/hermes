@@ -31,6 +31,22 @@ class Phase14WebTest(unittest.TestCase):
         self.assertIn("宏观 A 模块评分", html)
         self.assertIn("穿透股票成交与流向参考", html)
 
+    def test_refresh_redirects_all_land_on_preview_view(self) -> None:
+        # Both refresh buttons (更新策略数据 / 更新持仓) write a manual_rerun
+        # preview record, so their success redirects must carry &view=preview.
+        # Without it the page lands on the official scheduled record and the
+        # user sees the OLD snapshot despite a successful refresh — exactly how
+        # 更新持仓 regressed (it redirected bare while 更新策略数据 had the flag).
+        import re
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            payload = score_pipeline("2026-05-29")
+        html = render_dashboard(payload)
+        redirects = re.findall(r"location\.href = '/\?as_of='[^;]*;", html)
+        self.assertGreaterEqual(len(redirects), 2)  # at least 更新策略数据 + 更新持仓
+        for redirect in redirects:
+            self.assertIn("view=preview", redirect,
+                          f"post-refresh redirect must reach the preview view: {redirect}")
+
     def test_write_dashboard_file(self) -> None:
         with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
             payload = score_pipeline("2026-05-29")
