@@ -33,11 +33,21 @@ def refresh_positions_only(
     *,
     blocking: bool = True,
 ) -> Dict[str, Any]:
-    """Refresh the read-only IBKR snapshot by rescoring cached market data."""
+    """Refresh the read-only IBKR snapshot by rescoring cached market data.
+
+    as_of is gated on the same symbols the scheduled run uses (QQQ, SPY, trade
+    symbols) — deliberately NOT _critical_symbols. _critical_symbols also carries
+    ^VIX, an auxiliary volatility index that routinely lags a day; as the strict
+    min it would drag this manual refresh back to a stale trading day (scoring
+    e.g. 06-22 while the official run is already on 06-23), so the fresh-IBKR
+    preview would still read "行情陈旧". Mirror run_daily_package._last_bar_dates
+    so the button lands on the same trading day as the official record.
+    """
     config = load_config()
     lock_path = resolve_path(config, "archive_dir") / ".pipeline.lock"
     with pipeline_lock(blocking=blocking, timeout=600, path=lock_path) as lease:
-        as_of = latest_history_date(config, _critical_symbols(config)) or _normalize_as_of(requested_as_of)
+        gating_symbols = ["QQQ", "SPY", *trade_symbols(config)]
+        as_of = latest_history_date(config, gating_symbols) or _normalize_as_of(requested_as_of)
         return _score_pipeline_locked(as_of, _lease=lease)
 
 
