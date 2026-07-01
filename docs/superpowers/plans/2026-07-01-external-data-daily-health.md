@@ -207,3 +207,26 @@ git commit -m "feat: refresh external fred bundle during daily run"
 - Spec coverage: covers daily preflight and health explanation only.
 - Placeholder scan: no TBD/TODO/implement later placeholders.
 - Type consistency: `refresh_external_sources() -> list[dict]` is used only by daily wrapper and tests.
+
+---
+
+### Addendum: 8766 Source-Operation UI
+
+**Files:**
+- Modify: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/web/render.py`
+- Test: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/tests/test_dashboard_workbench.py`
+
+**Behavior:**
+- The existing collapsible data-trust zone includes an "外部源运维" table when `external_source_status` is present.
+- The table renders the FRED bundle sources in stable order: `dollar`, `real_rate`, `fred_net_liquidity`.
+- Each row shows latest promoted data date, latest source-run timestamp, status/error note, and a per-source refresh button.
+- Buttons reuse the existing `/api/refresh_external_source` endpoint and update their own per-row status text.
+- Missing source-run ledger rows stay operationally visible in this table but are not merged into the data-trust table as `ExternalSourceRunner · MISSING`, avoiding a false "soft data missing" read when existing soft-history data is still usable.
+
+**Verification:**
+
+```bash
+PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests/test_dashboard_workbench.py::test_trust_zone_uses_external_source_ledger_status -q
+PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests/test_dashboard_workbench.py src/hermes_escape_top/tests/test_phase15_integration.py src/hermes_escape_top/tests/test_health_truth.py src/hermes_escape_top/tests/test_refresh_external_cli.py -q
+PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests -q
+```

@@ -356,15 +356,35 @@ def test_trust_zone_uses_external_source_ledger_status():
             "latest_promoted_as_of": "2026-06-30",
             "latest_started_at": "2026-07-01T02:00:00+00:00",
             "message": "",
-        }
+        },
+        "real_rate": {
+            "source_id": "real_rate",
+            "status": "ERROR",
+            "latest_promoted_as_of": "2026-06-29",
+            "started_at": "2026-07-01T03:00:00+00:00",
+            "error_message": "FRED timeout",
+        },
+        "fred_net_liquidity": {
+            "source_id": "fred_net_liquidity",
+            "status": "MISSING",
+        },
     }
 
     html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
 
+    assert "外部源运维" in html
     assert "dollar" in html
     assert "2026-06-30" in html
     assert "ExternalSourceRunner · OK" in html
     assert "refreshExternalSource('dollar')" in html
+    assert "real_rate" in html
+    assert "ExternalSourceRunner · ERROR" in html
+    assert "FRED timeout" in html
+    assert "refreshExternalSource('real_rate')" in html
+    assert "fred_net_liquidity" in html
+    assert "尚无 ledger run" in html
+    assert "refreshExternalSource('fred_net_liquidity')" in html
+    assert "external-source-real_rate-status" in html
 
 
 def test_missing_external_source_ledger_does_not_mark_existing_data_missing():

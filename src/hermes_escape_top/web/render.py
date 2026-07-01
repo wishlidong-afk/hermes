@@ -48,6 +48,13 @@ TRUST_SOURCE_MAX_AGE_DAYS = {
     "real_rate": 6,
 }
 
+EXTERNAL_SOURCE_ORDER = ["dollar", "real_rate", "fred_net_liquidity"]
+EXTERNAL_SOURCE_LABELS = {
+    "dollar": "DXY / Dollar",
+    "real_rate": "10Y Real Rate",
+    "fred_net_liquidity": "FRED Net Liquidity",
+}
+
 RUNBOOK_REFS = {
     "normal": ("runbook-normal", "正常运行", "确认 run_daily/watchdog 成功，检查日报末行、preflight 和 post-run diff。"),
     "data": ("runbook-data", "数据缺失 / 过期", "先补跑 run_daily；若单源过期，按 FRED/AAII/NAAIM/COT 对应命令刷新。"),
@@ -2399,15 +2406,83 @@ def _render_data_trust_zone(payload: Dict[str, Any]) -> str:
 
 def _render_external_source_controls(payload: Dict[str, Any]) -> str:
     external = payload.get("external_source_status") or {}
-    if not isinstance(external, dict) or "dollar" not in external:
+    if not isinstance(external, dict) or not external:
         return ""
+    source_ids = list(EXTERNAL_SOURCE_ORDER)
+    source_ids.extend(
+        sorted(str(name) for name in external.keys() if str(name) not in EXTERNAL_SOURCE_ORDER)
+    )
+    rows = []
+    for source_id in source_ids:
+        row = external.get(source_id) if isinstance(external.get(source_id), dict) else {}
+        status = str((row or {}).get("status") or "MISSING")
+        latest = (
+            (row or {}).get("latest_promoted_as_of")
+            or (row or {}).get("latest_normalized_as_of")
+            or "—"
+        )
+        run_time = (
+            (row or {}).get("finished_at")
+            or (row or {}).get("latest_finished_at")
+            or (row or {}).get("started_at")
+            or (row or {}).get("latest_started_at")
+            or "—"
+        )
+        note = (
+            (row or {}).get("error_message")
+            or (row or {}).get("message")
+            or (row or {}).get("error")
+            or (row or {}).get("error_type")
+            or ("尚无 ledger run" if status == "MISSING" else "")
+        )
+        safe_id = _external_source_dom_id(source_id)
+        rows.append(
+            "<tr>"
+            f"<td><b>{esc(source_id)}</b><div class='subtle'>{esc(EXTERNAL_SOURCE_LABELS.get(source_id, 'External source'))}</div></td>"
+            f"<td>{_external_source_status_badge(status)}</td>"
+            f"<td>{esc(str(latest)[:10])}</td>"
+            f"<td><span class='subtle'>{esc(str(run_time))}</span></td>"
+            f"<td>{esc(note or '—')}</td>"
+            "<td>"
+            f"<button class='btn-muted' style='padding:3px 9px;font-size:12px;min-height:26px' "
+            f"onclick=\"refreshExternalSource('{safe_id}')\" id='external-source-{safe_id}-btn'>刷新</button>"
+            f" <span class='subtle' id='external-source-{safe_id}-status'></span>"
+            "</td>"
+            "</tr>"
+        )
     return (
-        "<div class='subtle' style='margin-top:8px'>"
-        "<button class='btn-muted' style='padding:3px 9px;font-size:12px' "
-        "onclick=\"refreshExternalSource('dollar')\" id='external-source-dollar-btn'>刷新 dollar 外部源</button>"
-        " <span id='external-source-status'></span>"
+        "<div class='external-source-ops' style='margin-top:12px'>"
+        "<div style='display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px'>"
+        "<div><b>外部源运维</b> <span class='subtle'>FRED bundle：单源刷新、ledger 状态、最新入库日</span></div>"
+        "<span class='subtle' id='external-source-status'></span>"
+        "</div>"
+        "<div class='table-scroll'>"
+        "<table>"
+        "<thead><tr><th>源</th><th>run</th><th>最新数据日</th><th>最近刷新</th><th>备注</th><th>操作</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table>"
+        "</div>"
         "</div>"
     )
+
+
+def _external_source_dom_id(source_id: Any) -> str:
+    text = str(source_id or "").strip()
+    safe = "".join(ch for ch in text if ch.isalnum() or ch in {"_", "-"})
+    return safe or "source"
+
+
+def _external_source_status_badge(status: str) -> str:
+    upper = str(status or "UNKNOWN").upper()
+    if upper == "OK":
+        kind = "ok"
+    elif upper in {"MISSING", "UNKNOWN"}:
+        kind = "watch"
+    elif upper in {"ERROR", "FAILED", "FAIL"}:
+        kind = "danger"
+    else:
+        kind = "warn"
+    return _badge(upper, kind)
 
 
 def _data_trust_rows(payload: Dict[str, Any]) -> List[Dict[str, str]]:
@@ -2900,7 +2975,8 @@ def _render_scripts(as_of: str) -> str:
   }};
   window.refreshExternalSource = function(sourceId) {{
     var btn = document.getElementById('external-source-' + sourceId + '-btn');
-    var st = document.getElementById('external-source-status');
+    var st = document.getElementById('external-source-' + sourceId + '-status') ||
+             document.getElementById('external-source-status');
     setBusy(btn, true);
     if (st) st.textContent = '正在刷新 ' + sourceId + ' 外部源...';
     postJson('/api/refresh_external_source', {{source_id: sourceId}})
