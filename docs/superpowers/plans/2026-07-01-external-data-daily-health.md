@@ -193,6 +193,50 @@ PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/
 PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests -q
 ```
 
+---
+
+### Addendum: AAII ExternalSourceRunner Probe
+
+**Files:**
+- Add: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/core/data/external_sources/aaii.py`
+- Modify: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/refresh_external.py`
+- Modify: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/web/render.py`
+- Tests: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/tests/test_external_source_aaii.py`, `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/tests/test_refresh_external_cli.py`, `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/tests/test_dashboard_workbench.py`
+
+**Behavior:**
+- `aaii_sentiment` joins `refresh_external.SOURCE_IDS` and attempts to refresh `soft_history/aaii_sentiment.csv` through `ExternalSourceRunner`.
+- The adapter reads AAII's official public sentiment results page, parses the recent rendered table, merges rows into the existing seeded history, and recomputes the existing AAII percentile columns.
+- The public page is treated as a recent-row probe, not a full-history authority. Existing seeded history remains necessary for rolling percentiles.
+- Output columns stay compatible with existing scoring: `date`, `publish_date`, `aaii_bull`, `aaii_bear`, `aaii_bull_bear_spread`, `aaii_bull_pctl`, `aaii_spread_pctl`.
+- 8766 external-source operations table renders `aaii_sentiment` with its own refresh button.
+
+**Source Risk:**
+- AAII's official public page is currently visible in a browser, but Python fetches can be blocked by Imperva/anti-bot interstitials. A blocked page must surface as source-run `FETCH_ERROR` and health DEGRADED while keeping cached soft-history data; it must not silently promote stale data as fresh.
+- If AAII keeps blocking non-browser automation, the next increment should be a manual import path for a downloaded AAII CSV/XLS file through the same runner.
+
+**Verification:**
+
+```bash
+PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests/test_external_source_aaii.py src/hermes_escape_top/tests/test_refresh_external_cli.py::test_refresh_external_source_aaii_calls_runner src/hermes_escape_top/tests/test_refresh_external_cli.py::test_refresh_external_cli_accepts_aaii src/hermes_escape_top/tests/test_dashboard_workbench.py::test_trust_zone_uses_external_source_ledger_status -q
+PYTHONPATH=src /Users/liweishi/.hermes-v3/.venv/bin/python - <<'PY'
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import shutil
+from hermes_escape_top.core.data.external_sources.aaii import AaiiSentimentAdapter, aaii_sentiment_spec
+from hermes_escape_top.core.data.external_sources.runner import run_external_source_refresh
+
+seed = Path("src/hermes_escape_top/data/soft_history/aaii_sentiment.csv")
+with TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    target = root / "soft_history" / "aaii_sentiment.csv"
+    target.parent.mkdir(parents=True)
+    shutil.copy2(seed, target)
+    run = run_external_source_refresh(aaii_sentiment_spec(target_path=target), AaiiSentimentAdapter(seed_path=target), root / "archive")
+    print(run.status, run.latest_promoted_as_of, run.error_type, run.error_message)
+PY
+PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests -q
+```
+
 - [ ] **Step 3: Commit**
 
 ```bash

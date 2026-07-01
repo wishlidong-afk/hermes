@@ -374,6 +374,11 @@ def test_trust_zone_uses_external_source_ledger_status():
             "latest_promoted_as_of": "2026-06-24",
             "finished_at": "2026-06-25T14:00:00+00:00",
         },
+        "aaii_sentiment": {
+            "source_id": "aaii_sentiment",
+            "status": "FETCH_ERROR",
+            "error_message": "AAII public endpoint blocked; manual import required",
+        },
     }
 
     html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
@@ -393,6 +398,10 @@ def test_trust_zone_uses_external_source_ledger_status():
     assert "naaim_exposure" in html
     assert "NAAIM Exposure" in html
     assert "refreshExternalSource('naaim_exposure')" in html
+    assert "aaii_sentiment" in html
+    assert "AAII Sentiment" in html
+    assert "AAII public endpoint blocked; manual import required" in html
+    assert "refreshExternalSource('aaii_sentiment')" in html
     assert "external-source-real_rate-status" in html
 
 

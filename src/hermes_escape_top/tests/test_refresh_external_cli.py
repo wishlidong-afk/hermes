@@ -18,6 +18,7 @@ def _config(tmp_path):
             "data_real_rate": True,
             "data_net_liquidity": True,
             "data_naaim": True,
+            "data_aaii": True,
         },
     }
 
@@ -123,6 +124,36 @@ def test_refresh_external_source_naaim_calls_runner(monkeypatch, tmp_path):
     assert calls["archive_dir"] == tmp_path / "archive"
 
 
+def test_refresh_external_source_aaii_calls_runner(monkeypatch, tmp_path):
+    calls = {}
+
+    def fake_runner(spec, adapter, archive_dir):
+        calls["spec"] = spec
+        calls["adapter"] = adapter
+        calls["archive_dir"] = archive_dir
+        return SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"})
+
+    monkeypatch.setattr(refresh_external, "load_config", lambda: _config(tmp_path))
+    monkeypatch.setattr(refresh_external, "run_external_source_refresh", fake_runner)
+
+    result = refresh_external.refresh_source("aaii_sentiment")
+
+    assert result["status"] == "OK"
+    assert calls["spec"].source_id == "aaii_sentiment"
+    assert calls["spec"].target_path == tmp_path / "soft_history" / "aaii_sentiment.csv"
+    assert calls["spec"].required_columns == (
+        "date",
+        "publish_date",
+        "aaii_bull",
+        "aaii_bear",
+        "aaii_bull_bear_spread",
+        "aaii_bull_pctl",
+        "aaii_spread_pctl",
+    )
+    assert calls["adapter"].url.endswith("/sentimentsurvey/sent_results")
+    assert calls["archive_dir"] == tmp_path / "archive"
+
+
 def test_refresh_external_status_prints_latest_ledger(monkeypatch, tmp_path, capsys):
     cfg = _config(tmp_path)
     append_source_run(
@@ -144,6 +175,7 @@ def test_refresh_external_status_prints_latest_ledger(monkeypatch, tmp_path, cap
     assert out["real_rate"]["status"] == "MISSING"
     assert out["fred_net_liquidity"]["status"] == "MISSING"
     assert out["naaim_exposure"]["status"] == "MISSING"
+    assert out["aaii_sentiment"]["status"] == "MISSING"
 
 
 def test_refresh_external_cli_accepts_real_rate(monkeypatch, tmp_path, capsys):
@@ -175,4 +207,20 @@ def test_refresh_external_cli_accepts_naaim(monkeypatch, tmp_path, capsys):
     out = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert out["source_id"] == "naaim_exposure"
+    assert out["status"] == "OK"
+
+
+def test_refresh_external_cli_accepts_aaii(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(refresh_external, "load_config", lambda: _config(tmp_path))
+    monkeypatch.setattr(
+        refresh_external,
+        "run_external_source_refresh",
+        lambda spec, adapter, archive_dir: SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"}),
+    )
+
+    rc = refresh_external.main(["--source", "aaii_sentiment"])
+
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert out["source_id"] == "aaii_sentiment"
     assert out["status"] == "OK"

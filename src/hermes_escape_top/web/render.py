@@ -48,12 +48,13 @@ TRUST_SOURCE_MAX_AGE_DAYS = {
     "real_rate": 6,
 }
 
-EXTERNAL_SOURCE_ORDER = ["dollar", "real_rate", "fred_net_liquidity", "naaim_exposure"]
+EXTERNAL_SOURCE_ORDER = ["dollar", "real_rate", "fred_net_liquidity", "naaim_exposure", "aaii_sentiment"]
 EXTERNAL_SOURCE_LABELS = {
     "dollar": "DXY / Dollar",
     "real_rate": "10Y Real Rate",
     "fred_net_liquidity": "FRED Net Liquidity",
     "naaim_exposure": "NAAIM Exposure",
+    "aaii_sentiment": "AAII Sentiment",
 }
 
 RUNBOOK_REFS = {

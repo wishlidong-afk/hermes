@@ -6,9 +6,11 @@ from typing import Any
 
 from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.data.external_sources import (
+    AaiiSentimentAdapter,
     FredNetLiquidityAdapter,
     FredPercentileAdapter,
     NaaimExposureAdapter,
+    aaii_sentiment_spec,
     fred_net_liquidity_spec,
     fred_percentile_spec,
     naaim_exposure_spec,
@@ -16,7 +18,7 @@ from hermes_escape_top.core.data.external_sources import (
     source_status,
 )
 
-SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity", "naaim_exposure")
+SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity", "naaim_exposure", "aaii_sentiment")
 
 
 def dollar_source(config: dict[str, Any]):
@@ -57,12 +59,18 @@ def naaim_exposure_source(config: dict[str, Any]):
     return naaim_exposure_spec(target_path=target), NaaimExposureAdapter()
 
 
+def aaii_sentiment_source(config: dict[str, Any]):
+    target = resolve_path(config, "soft_history_dir") / "aaii_sentiment.csv"
+    return aaii_sentiment_spec(target_path=target), AaiiSentimentAdapter(seed_path=target)
+
+
 def source_factories():
     return {
         "dollar": dollar_source,
         "real_rate": real_rate_source,
         "fred_net_liquidity": fred_net_liquidity_source,
         "naaim_exposure": naaim_exposure_source,
+        "aaii_sentiment": aaii_sentiment_source,
     }
 
 
