@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the first external-data source (`dollar`) run automatically before each daily package run, and make 8766 explain the latest external-source automation status.
+**Goal:** Make the FRED external-data bundle (`dollar`, `real_rate`, `fred_net_liquidity`) run automatically before each daily package run, and make 8766 explain the latest external-source automation status.
 
-**Architecture:** Reuse the existing `ExternalSourceRunner` and `refresh_external.refresh_source("dollar")`; do not create a second fetch path. The daily wrapper treats external refresh as non-fatal and writes all outcomes to the source-run ledger. The Web health layer reads `payload["external_source_status"]` and reports automation failures separately from scoring failures.
+**Architecture:** Reuse the existing `ExternalSourceRunner` and `refresh_external.SOURCE_IDS`; do not create a second fetch path. The daily wrapper treats each external refresh as non-fatal and writes all outcomes to the source-run ledger. The Web health layer reads `payload["external_source_status"]` and reports automation failures separately from scoring failures.
 
 **Tech Stack:** Python stdlib, existing `pipeline_lock`, existing JSONL source-run ledger, pytest.
 
@@ -18,7 +18,7 @@
 
 ---
 
-### Task 1: Daily `dollar` External Refresh Preflight
+### Task 1: Daily FRED-Bundle External Refresh Preflight
 
 **Files:**
 - Modify: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py`
@@ -34,27 +34,35 @@
 from hermes_escape_top.scripts import run_daily_package as rdp
 
 
-def test_refresh_external_sources_runs_dollar_without_raising(monkeypatch):
+def test_refresh_external_sources_runs_fred_bundle_without_raising(monkeypatch):
     calls = []
-    monkeypatch.setattr(rdp.refresh_external, "refresh_source", lambda source: calls.append(source) or {"source_id": source, "status": "OK"})
+    monkeypatch.setattr(
+        rdp.refresh_external,
+        "refresh_source",
+        lambda source: calls.append(source) or {"source_id": source, "status": "OK"},
+    )
 
     out = rdp.refresh_external_sources()
 
-    assert calls == ["dollar"]
-    assert out == [{"source_id": "dollar", "status": "OK"}]
+    assert calls == list(rdp.refresh_external.SOURCE_IDS)
+    assert [row["source_id"] for row in out] == list(rdp.refresh_external.SOURCE_IDS)
 
 
-def test_refresh_external_sources_keeps_daily_alive_on_failure(monkeypatch):
-    def boom(source):
-        raise RuntimeError("fred timeout")
+def test_refresh_external_sources_keeps_daily_alive_on_single_source_failure(monkeypatch):
+    def flaky(source):
+        if source == "real_rate":
+            raise RuntimeError("fred timeout")
+        return {"source_id": source, "status": "OK"}
 
-    monkeypatch.setattr(rdp.refresh_external, "refresh_source", boom)
+    monkeypatch.setattr(rdp.refresh_external, "refresh_source", flaky)
 
     out = rdp.refresh_external_sources()
 
-    assert out[0]["source_id"] == "dollar"
-    assert out[0]["status"] == "ERROR"
-    assert "fred timeout" in out[0]["error"]
+    by_source = {row["source_id"]: row for row in out}
+    assert by_source["dollar"]["status"] == "OK"
+    assert by_source["real_rate"]["status"] == "ERROR"
+    assert "fred timeout" in by_source["real_rate"]["error"]
+    assert by_source["fred_net_liquidity"]["status"] == "OK"
 ```
 
 - [ ] **Step 2: Run tests to verify red**
@@ -73,9 +81,10 @@ Add `from hermes_escape_top.scripts import refresh_external` and:
 
 ```python
 def refresh_external_sources() -> list[dict]:
-    print("[M4-1a] Refreshing external source ledger sources (dollar)...")
+    source_ids = tuple(refresh_external.SOURCE_IDS)
+    print(f"[M4-1a] Refreshing external source ledger sources ({', '.join(source_ids)})...")
     runs = []
-    for source_id in ("dollar",):
+    for source_id in source_ids:
         try:
             run = refresh_external.refresh_source(source_id)
             runs.append(run)
@@ -188,7 +197,7 @@ PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/
 
 ```bash
 git add docs/superpowers/plans/2026-07-01-external-data-daily-health.md src/hermes_escape_top/scripts/run_daily_package.py src/hermes_escape_top/web/health.py src/hermes_escape_top/tests/test_run_daily_external_sources.py src/hermes_escape_top/tests/test_health_truth.py
-git commit -m "feat: refresh external dollar source during daily run"
+git commit -m "feat: refresh external fred bundle during daily run"
 ```
 
 ---

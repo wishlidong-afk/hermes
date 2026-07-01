@@ -230,16 +230,17 @@ def _heal_lagging_symbols(
 # ── Step 1a: refresh ledgered external sources ───────────────────────────────
 
 def refresh_external_sources() -> list[dict]:
-    """Refresh single-source external feeds before the broad legacy soft refresh.
+    """Refresh ledgered external feeds before the broad legacy soft refresh.
 
     Non-fatal by design: ExternalSourceRunner validates and atomically promotes
     good data; on failure the cached CSV remains authoritative and the ledger
     records the error for health/WebUI. A transient FRED outage must not abort the
     daily scoring run.
     """
-    print("[M4-1a] Refreshing external source ledger sources (dollar)…")
+    source_ids = tuple(refresh_external.SOURCE_IDS)
+    print(f"[M4-1a] Refreshing external source ledger sources ({', '.join(source_ids)})…")
     runs: list[dict] = []
-    for source_id in ("dollar",):
+    for source_id in source_ids:
         try:
             run = refresh_external.refresh_source(source_id)
             runs.append(run)

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from hermes_escape_top.scripts import run_daily_package as rdp
 
 
-def test_refresh_external_sources_runs_dollar_without_raising(monkeypatch):
+def test_refresh_external_sources_runs_fred_bundle_without_raising(monkeypatch):
     calls = []
 
     def fake_refresh(source_id: str) -> dict:
@@ -16,21 +16,27 @@ def test_refresh_external_sources_runs_dollar_without_raising(monkeypatch):
 
     out = rdp.refresh_external_sources()
 
-    assert calls == ["dollar"]
-    assert out == [{"source_id": "dollar", "status": "OK", "latest_promoted_as_of": "2026-06-26"}]
+    assert calls == list(rdp.refresh_external.SOURCE_IDS)
+    assert [row["source_id"] for row in out] == list(rdp.refresh_external.SOURCE_IDS)
+    assert all(row["status"] == "OK" for row in out)
 
 
-def test_refresh_external_sources_keeps_daily_alive_on_failure(monkeypatch):
-    def boom(_source_id: str) -> dict:
-        raise RuntimeError("fred timeout")
+def test_refresh_external_sources_keeps_daily_alive_on_single_source_failure(monkeypatch):
+    def flaky(source_id: str) -> dict:
+        if source_id == "real_rate":
+            raise RuntimeError("fred timeout")
+        return {"source_id": source_id, "status": "OK"}
 
-    monkeypatch.setattr(rdp.refresh_external, "refresh_source", boom)
+    monkeypatch.setattr(rdp.refresh_external, "refresh_source", flaky)
 
     out = rdp.refresh_external_sources()
 
-    assert out[0]["source_id"] == "dollar"
-    assert out[0]["status"] == "ERROR"
-    assert "fred timeout" in out[0]["error"]
+    assert [row["source_id"] for row in out] == list(rdp.refresh_external.SOURCE_IDS)
+    by_source = {row["source_id"]: row for row in out}
+    assert by_source["dollar"]["status"] == "OK"
+    assert by_source["real_rate"]["status"] == "ERROR"
+    assert "fred timeout" in by_source["real_rate"]["error"]
+    assert by_source["fred_net_liquidity"]["status"] == "OK"
 
 
 def test_execute_daily_runs_external_sources_before_legacy_soft_refresh(monkeypatch):
