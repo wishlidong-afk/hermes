@@ -53,6 +53,7 @@ def compute_health(
     receipt = payload.get("run_receipt") or {}
     sip_flow = payload.get("alpaca_daily_flow") or {}
     sip_status = payload.get("alpaca_daily_flow_status") or {}
+    external_sources = payload.get("external_source_status") or {}
 
     # 1. Is there a scored payload at all?
     if not cache.get("hit"):
@@ -170,6 +171,23 @@ def compute_health(
         sip_stale = _completed_trading_days_after(sip_as_of, today)
         if sip_stale >= 1:
             add("DEGRADED", "SIP 资金流陈旧", f"as_of={sip_as_of} stale={sip_stale}d")
+
+    # 9. Source-run ledger: tells operators whether the automatic external
+    #    refresh machinery itself ran. This is separate from CSV freshness: a
+    #    failed external fetch keeps cached data, but the failure should be
+    #    visible before it turns into a soft-data SLO breach.
+    if isinstance(external_sources, dict):
+        for source_id, row in external_sources.items():
+            if not isinstance(row, dict):
+                continue
+            status = str(row.get("status") or "")
+            if status == "OK":
+                continue
+            if status == "MISSING":
+                add("DEGRADED", "外部数据源未自动刷新", str(source_id))
+                continue
+            detail = f"{source_id}: {status} {row.get('error_message') or row.get('error') or ''}".strip()
+            add("DEGRADED", "外部数据源刷新失败", detail[:160])
 
     overall = "OK"
     if any(c["level"] == "CRITICAL" for c in checks):

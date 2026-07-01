@@ -96,6 +96,7 @@ from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.data.store import LocalStore, safe_symbol
 from hermes_escape_top.core.safe_io import assert_pipeline_lease
 from hermes_escape_top.scripts.backfill_history import all_backfill_symbols, backfill, write_coverage_report
+from hermes_escape_top.scripts import refresh_external
 
 TRADE_SYMBOLS = ["MSTR", "FNGU", "SOXL"]
 
@@ -224,6 +225,37 @@ def _heal_lagging_symbols(
                       f"{max_passes} passes; as_of holds conservatively.")
     except Exception as exc:
         print(f"[M4-1] WARNING: self-heal step failed ({exc!r}); using batch result.")
+
+
+# ── Step 1a: refresh ledgered external sources ───────────────────────────────
+
+def refresh_external_sources() -> list[dict]:
+    """Refresh single-source external feeds before the broad legacy soft refresh.
+
+    Non-fatal by design: ExternalSourceRunner validates and atomically promotes
+    good data; on failure the cached CSV remains authoritative and the ledger
+    records the error for health/WebUI. A transient FRED outage must not abort the
+    daily scoring run.
+    """
+    print("[M4-1a] Refreshing external source ledger sources (dollar)…")
+    runs: list[dict] = []
+    for source_id in ("dollar",):
+        try:
+            run = refresh_external.refresh_source(source_id)
+            runs.append(run)
+            print(
+                f"[M4-1a] {source_id} external refresh {run.get('status')} "
+                f"latest={run.get('latest_promoted_as_of') or run.get('latest_normalized_as_of')}"
+            )
+        except Exception as exc:
+            run = {
+                "source_id": source_id,
+                "status": "ERROR",
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+            runs.append(run)
+            print(f"[M4-1a] WARNING: {source_id} external refresh failed ({exc!r}); keeping cached data.")
+    return runs
 
 
 # ── Step 1b: refresh slow soft data (FRED signals, NAAIM) ────────────────────
@@ -1367,6 +1399,11 @@ def _execute_daily(
         except Exception as exc:
             print(f"[M4-1] WARNING: history refresh crashed ({exc!r}); proceeding with cached bars.")
         _heal_lagging_symbols(refresh_end, _lease=_lease)
+        _run_context["step"] = "external_source_refresh"
+        try:
+            refresh_external_sources()
+        except Exception as exc:
+            print(f"[M4-1a] WARNING: external source refresh crashed ({exc!r}); proceeding with cached data.")
         _run_context["step"] = "soft_data_refresh"
         try:
             refresh_soft_data()

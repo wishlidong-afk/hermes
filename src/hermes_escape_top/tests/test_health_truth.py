@@ -109,6 +109,42 @@ def test_sip_refresh_error_degrades_without_failing_core_receipt():
     assert any("SIP 资金流不可用" in check["label"] for check in health["checks"])
 
 
+def test_external_source_failure_degrades_with_reason():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "dollar": {
+            "source_id": "dollar",
+            "status": "FETCH_ERROR",
+            "error_message": "FRED 503",
+        }
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "DEGRADED"
+    assert any(
+        "外部数据源刷新失败" in check["label"]
+        and "dollar" in check["detail"]
+        and "FRED 503" in check["detail"]
+        for check in health["checks"]
+    )
+
+
+def test_missing_external_source_ledger_degrades_but_not_critical():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "dollar": {
+            "source_id": "dollar",
+            "status": "MISSING",
+        }
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "DEGRADED"
+    assert any("外部数据源未自动刷新" in check["label"] for check in health["checks"])
+
+
 def test_previous_receipt_expires_after_next_run_grace_window():
     # com.hermes.daily runs every calendar day at 07:10. The extra two hours
     # distinguish a missed daily job from normal weekend/holiday price staleness.
