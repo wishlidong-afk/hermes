@@ -448,7 +448,7 @@ fail_locked_swap() {
 sync_code() {
   local dst="${1:-$PKG}"
   rsync -a --checksum --delete \
-    --exclude='tests/' --exclude='config/' --exclude='data/' --exclude='orders/' \
+    --exclude='/tests/' --exclude='/config/' --exclude='/data/' --exclude='/orders/' \
     --include='*/' --include='*.py' --exclude='*' \
     "$REPO/src/hermes_escape_top/" "$dst/"
 }

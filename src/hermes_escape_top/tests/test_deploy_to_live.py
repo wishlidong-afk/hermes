@@ -71,6 +71,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
 
     _write(repo / "src/hermes_escape_top/core/keep.py", "VALUE = 'new'\n")
     _write(repo / "src/hermes_escape_top/core/added.py", "ADDED = True\n")
+    _write(repo / "src/hermes_escape_top/core/data/keep.py", "DATA_CODE = True\n")
     _write(repo / "src/hermes_escape_top/config/config.json", "{}\n")
     _write(repo / "src/hermes_escape_top/data/soft_history/source.csv", "date,value\n2026-06-18,2\n")
     _write(repo / "ops/run_daily.sh", "#!/bin/sh\nexit 0\n", 0o755)
@@ -251,6 +252,7 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
     release = current.resolve()
     assert release.parent == live / "releases"
     assert (release / "hermes_escape_top/core/added.py").is_file()
+    assert (release / "hermes_escape_top/core/data/keep.py").is_file()
     assert not (release / "hermes_escape_top/core/removed.py").exists()
     assert (release / "hermes_escape_top/data").is_symlink()
     assert (release / "hermes_escape_top/config").is_symlink()
@@ -277,6 +279,7 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         "skills/investment/escape-top/current",
         f"{release_prefix}/hermes_escape_top/VERSION",
         f"{release_prefix}/hermes_escape_top/core/added.py",
+        f"{release_prefix}/hermes_escape_top/core/data/keep.py",
         f"{release_prefix}/hermes_escape_top/core/keep.py",
         f"{release_prefix}/scripts/run_daily.py",
         "skills/investment/escape-top/scripts/run_daily.py",
