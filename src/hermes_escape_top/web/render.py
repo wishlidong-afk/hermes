@@ -2781,14 +2781,14 @@ def _render_scripts(as_of: str) -> str:
     var btn = document.getElementById('refresh-positions-btn');
     var st = document.getElementById('refresh-positions-status');
     setBusy(btn, true);
-    st.textContent = '正在拉取 IBKR 持仓...';
+    st.textContent = '正在轻量读取 IBKR 持仓（不重抓行情、不重算官方策略）...';
     postJson('/api/refresh_positions', {{as_of: 'latest'}}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       var ibkr = d.ibkr || {{}};
       if (ibkr.source === 'tws' && !ibkr.snapshot_stale) {{
-        var msg = '持仓刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
+        var msg = '持仓轻量刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
         st.textContent = msg;
-        rememberRefresh('refresh-positions-status', msg, 'ibkr refreshed: source=' + ibkr.source + '\\nnet_liq=' + ibkr.net_liq);
-        setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest') + '&view=preview'; }}, 600);
+        rememberRefresh('refresh-positions-status', msg, 'ibkr refreshed only; no market refresh, no official rerun\\nsource=' + ibkr.source + '\\nnet_liq=' + ibkr.net_liq);
+        setTimeout(function() {{ location.href = '/?as_of=' + encodeURIComponent(d.as_of || 'latest'); }}, 600);
       }} else if (ibkr.source) {{
         var staleMsg = '持仓未更新：未连接 IBKR Live，沿用 ' + ibkr.source + ' 快照';
         st.textContent = staleMsg;

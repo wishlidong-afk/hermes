@@ -500,10 +500,38 @@ def _insert_reentry_states(conn: sqlite3.Connection, score_run_id: int, payload:
         )
 
 
-def _insert_ibkr_snapshot(conn: sqlite3.Connection, as_of: Any, ibkr: Dict[str, Any], now: str) -> None:
+def write_ibkr_snapshot(
+    path: Path,
+    *,
+    as_of: Any,
+    ibkr: Dict[str, Any],
+    retention: Optional[Dict[str, int]] = None,
+) -> Dict[str, Any]:
+    """Persist one read-only IBKR snapshot without creating a score run."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    now = _now()
+    with sqlite3.connect(path) as conn:
+        _ensure_schema(conn)
+        snapshot_id = _insert_ibkr_snapshot(conn, as_of, ibkr, now)
+        cfg = dict(DEFAULT_STATE_RETENTION)
+        if retention:
+            cfg.update({key: int(value) for key, value in retention.items() if value is not None})
+        _retain_latest_ids(
+            conn,
+            "ibkr_snapshots",
+            cfg.get("ibkr_snapshots", DEFAULT_STATE_RETENTION["ibkr_snapshots"]),
+        )
+    return {
+        "db_path": str(path),
+        "ibkr_snapshot_id": snapshot_id,
+        "written_at": now,
+    }
+
+
+def _insert_ibkr_snapshot(conn: sqlite3.Connection, as_of: Any, ibkr: Dict[str, Any], now: str) -> Optional[int]:
     if not ibkr:
-        return
-    conn.execute(
+        return None
+    cur = conn.execute(
         """
         INSERT INTO ibkr_snapshots
         (as_of, source, account_id, net_liq, sync_time, snapshot_stale, client_id, error, payload_json, created_at)
@@ -522,6 +550,7 @@ def _insert_ibkr_snapshot(conn: sqlite3.Connection, as_of: Any, ibkr: Dict[str, 
             now,
         ),
     )
+    return int(cur.lastrowid)
 
 
 def _recent_ibkr_snapshots_conn(conn: sqlite3.Connection, limit: int = 5) -> list[Dict[str, Any]]:

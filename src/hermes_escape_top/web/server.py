@@ -57,6 +57,7 @@ from ..core.safe_io import PipelineBusy, pipeline_lock
 from ..pipeline import _score_pipeline_locked
 from .health import compute_health
 from .refresh import (
+    apply_ibkr_position_overlay,
     force_refresh_manifest,
     manifest_status,
     refresh_positions_only,
@@ -607,6 +608,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path in {"/", "/index.html"}:
                 audit_records = _read_audit_payloads()  # single audit read for all three lookups
                 payload = _latest_score_payload(as_of, audit_records, prefer_preview=(view == "preview")) or _empty_dashboard_payload(as_of)
+                payload = apply_ibkr_position_overlay(payload)
                 _attach_alpaca_daily_flow(payload)
                 payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of, records=audit_records)
                 payload["prev_valves"] = _prev_official_valves(audit_records, payload.get("as_of") or as_of)
@@ -630,6 +632,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 if payload is None:
                     payload = {"ok": False, "as_of": as_of, "message": "No cached score payload. POST /api/refresh_score to refresh."}
                 else:
+                    payload = apply_ibkr_position_overlay(payload)
                     _attach_alpaca_daily_flow(payload)
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
@@ -810,7 +813,8 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 as_of = req.get("as_of", "latest")
                 response_status = 200
                 try:
-                    payload = refresh_positions_only(as_of, blocking=False)
+                    base_payload = _latest_score_payload(as_of) or {"as_of": as_of}
+                    payload = refresh_positions_only(as_of, blocking=False, base_payload=base_payload)
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD, as_of=as_of)
                     response_status = 409

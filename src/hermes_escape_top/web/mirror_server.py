@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from ..core.safe_io import PipelineBusy
 from .mirror_render import render_mirror_dashboard
-from .refresh import refresh_positions_only, refresh_score_with_market_data
+from .refresh import apply_ibkr_position_overlay, refresh_positions_only, refresh_score_with_market_data
 from .server import _empty_dashboard_payload, _latest_score_payload
 
 
@@ -23,6 +23,7 @@ def make_mirror_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
 
             if parsed.path in {"/", "/index.html"}:
                 payload = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
+                payload = apply_ibkr_position_overlay(payload)
                 self._send(200, "text/html; charset=utf-8", render_mirror_dashboard(payload).encode())
                 return
 
@@ -30,6 +31,8 @@ def make_mirror_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 payload = _latest_score_payload(as_of)
                 if payload is None:
                     payload = {"ok": False, "as_of": as_of, "message": "No cached score payload. POST /api/refresh_score to refresh."}
+                else:
+                    payload = apply_ibkr_position_overlay(payload)
                 self._send(200, "application/json; charset=utf-8", json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, default=str).encode())
                 return
 
@@ -53,7 +56,10 @@ def make_mirror_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 response_status = 200
                 try:
                     refresh = refresh_positions_only if parsed.path == "/api/refresh_positions" else refresh_score_with_market_data
-                    payload = refresh(as_of, blocking=False)
+                    if parsed.path == "/api/refresh_positions":
+                        payload = refresh(as_of, blocking=False, base_payload=_latest_score_payload(as_of) or {"as_of": as_of})
+                    else:
+                        payload = refresh(as_of, blocking=False)
                 except PipelineBusy:
                     payload = {
                         "ok": False,

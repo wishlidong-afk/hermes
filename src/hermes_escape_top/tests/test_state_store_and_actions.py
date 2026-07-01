@@ -16,6 +16,7 @@ from hermes_escape_top.core.data.state_store import (
     recent_ibkr_snapshots,
     record_execution_confirmation,
     sync_execution_confirmations,
+    write_ibkr_snapshot,
     write_refresh_run,
     write_state_snapshot,
 )
@@ -255,6 +256,24 @@ class StateStoreAndActionTest(unittest.TestCase):
         self.assertEqual(decisions, 2)
         self.assertEqual(factors, 2)
         self.assertEqual(refresh_runs, 2)
+        self.assertEqual(ibkr_snapshots, 2)
+
+    def test_ibkr_only_snapshot_retention_does_not_prune_score_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "hermes_state.sqlite"
+            for day in ["2026-06-01", "2026-06-02", "2026-06-03"]:
+                write_state_snapshot(path, _minimal_payload(day), retention={"score_runs": 10})
+            for day in ["2026-06-04", "2026-06-05", "2026-06-06"]:
+                write_ibkr_snapshot(
+                    path,
+                    as_of=day,
+                    ibkr={"source": "tws", "account_id": "U_TEST", "net_liq": 100000, "sync_time": f"{day}T13:30:00+00:00"},
+                    retention={"score_runs": 1, "ibkr_snapshots": 2},
+                )
+            with sqlite3.connect(path) as conn:
+                score_runs = conn.execute("SELECT COUNT(*) FROM score_runs").fetchone()[0]
+                ibkr_snapshots = conn.execute("SELECT COUNT(*) FROM ibkr_snapshots").fetchone()[0]
+        self.assertEqual(score_runs, 3)
         self.assertEqual(ibkr_snapshots, 2)
 
     def test_pipeline_auto_confirms_t1_from_ibkr_executions(self) -> None:

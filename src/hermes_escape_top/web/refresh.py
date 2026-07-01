@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
 import pandas as pd
@@ -11,9 +14,14 @@ from ..config import load_config, resolve_path, trade_symbols
 from ..core.data.manifest import verify_manifest, write_manifest
 from ..core.safe_io import assert_pipeline_lease, pipeline_lock
 from ..core.data.store import safe_symbol
-from ..core.data.state_store import write_refresh_run
+from ..core.data.state_store import recent_ibkr_snapshots, write_ibkr_snapshot, write_refresh_run
+from ..ibkr.positions import read_positions
+from ..ibkr.reconcile import reconcile as ibkr_reconcile
 from ..pipeline import _score_pipeline_locked
 from ..scripts.backfill_history import all_backfill_symbols, backfill, online_soft_history_symbols
+
+
+IBKR_POSITION_OVERLAY = "ibkr_position_overlay.json"
 
 
 def refresh_score_with_market_data(
@@ -32,23 +40,109 @@ def refresh_positions_only(
     requested_as_of: Any = "latest",
     *,
     blocking: bool = True,
+    base_payload: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Refresh the read-only IBKR snapshot by rescoring cached market data.
+    """Refresh only the external IBKR position layer.
 
-    as_of is gated on the same symbols the scheduled run uses (QQQ, SPY, trade
-    symbols) — deliberately NOT _critical_symbols. _critical_symbols also carries
-    ^VIX, an auxiliary volatility index that routinely lags a day; as the strict
-    min it would drag this manual refresh back to a stale trading day (scoring
-    e.g. 06-22 while the official run is already on 06-23), so the fresh-IBKR
-    preview would still read "行情陈旧". Mirror run_daily_package._last_bar_dates
-    so the button lands on the same trading day as the official record.
+    This endpoint intentionally does not refresh market history and does not run
+    score_pipeline. It reads live/cached IBKR positions, reconciles them against
+    the currently displayed strategy payload, then stores a small overlay that the
+    dashboard can merge onto the official run.
     """
     config = load_config()
     lock_path = resolve_path(config, "archive_dir") / ".pipeline.lock"
-    with pipeline_lock(blocking=blocking, timeout=600, path=lock_path) as lease:
-        gating_symbols = ["QQQ", "SPY", *trade_symbols(config)]
-        as_of = latest_history_date(config, gating_symbols) or _normalize_as_of(requested_as_of)
-        return _score_pipeline_locked(as_of, _lease=lease)
+    with pipeline_lock(blocking=blocking, timeout=60, path=lock_path):
+        payload = dict(base_payload or {})
+        if not payload.get("as_of"):
+            gating_symbols = ["QQQ", "SPY", *trade_symbols(config)]
+            payload["as_of"] = latest_history_date(config, gating_symbols) or _normalize_as_of(requested_as_of)
+        as_of = str(payload.get("as_of") or requested_as_of)[:10]
+        if not config.get("ibkr", {}).get("enabled", False):
+            ibkr = {"source": "disabled", "note": "set ibkr.enabled=true to activate"}
+        else:
+            snap = read_positions(config)
+            ibkr = ibkr_reconcile(
+                snap,
+                payload.get("sizing") or {},
+                payload.get("routing") or {},
+            ).to_dict()
+
+        archive_dir = resolve_path(config, "archive_dir")
+        state_db_path = archive_dir / "hermes_state.sqlite"
+        state_meta = write_ibkr_snapshot(
+            state_db_path,
+            as_of=as_of,
+            ibkr=ibkr,
+            retention=config.get("state_retention"),
+        )
+        history = recent_ibkr_snapshots(state_db_path, limit=5)
+        refreshed_at = datetime.now(timezone.utc).isoformat()
+        status = {
+            "schema_version": "hermes-ibkr-position-overlay-v1",
+            "status": "OK" if ibkr.get("source") == "tws" and not ibkr.get("snapshot_stale") else "DEGRADED",
+            "as_of": as_of,
+            "refreshed_at": refreshed_at,
+            "base_input_hash": payload.get("input_hash"),
+            "score_pipeline": False,
+            "history_refreshed": False,
+            "official_run_written": False,
+            "state_db_path": state_meta["db_path"],
+            "ibkr_snapshot_id": state_meta.get("ibkr_snapshot_id"),
+        }
+        overlay = {
+            **status,
+            "ibkr": ibkr,
+        }
+        _atomic_write_json(archive_dir / IBKR_POSITION_OVERLAY, overlay)
+        payload["as_of"] = as_of
+        payload["ibkr"] = ibkr
+        payload["ibkr_history"] = history
+        payload["ibkr_refresh_status"] = status
+        payload["ok"] = status["status"] == "OK"
+        return payload
+
+
+def apply_ibkr_position_overlay(payload: Dict[str, Any], config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Merge a same-run IBKR overlay onto a cached official score payload."""
+    if not payload:
+        return payload
+    cfg = config or load_config()
+    path = resolve_path(cfg, "archive_dir") / IBKR_POSITION_OVERLAY
+    try:
+        overlay = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return payload
+    if str(overlay.get("as_of") or "")[:10] != str(payload.get("as_of") or "")[:10]:
+        return payload
+    base_hash = overlay.get("base_input_hash")
+    payload_hash = payload.get("input_hash")
+    # A scored payload carries an input_hash and the overlay must have been keyed
+    # to that exact run. Reject when the payload has a hash but the overlay's is
+    # missing or different -- otherwise an overlay written before any official run
+    # existed (base_input_hash=None) would bleed onto a later, different official
+    # run for the same as_of, which is the cross-run staleness this gate exists to
+    # stop. A payload without a hash (empty/fallback dashboard) keeps the lenient
+    # path so a just-refreshed position layer still shows before the first run.
+    if payload_hash and str(base_hash or "") != str(payload_hash):
+        return payload
+    ibkr = overlay.get("ibkr")
+    if not isinstance(ibkr, dict):
+        return payload
+    merged = dict(payload)
+    merged["ibkr"] = ibkr
+    merged["ibkr_refresh_status"] = {
+        key: value
+        for key, value in overlay.items()
+        if key != "ibkr"
+    }
+    try:
+        merged["ibkr_history"] = recent_ibkr_snapshots(
+            resolve_path(cfg, "archive_dir") / "hermes_state.sqlite",
+            limit=5,
+        )
+    except Exception:
+        pass
+    return merged
 
 
 def _refresh_score_with_market_data_locked(
@@ -233,6 +327,23 @@ def _step(name: str, status: str, step_start: float, **extra: Any) -> Dict[str, 
         "duration_ms": round((time.perf_counter() - step_start) * 1000.0, 2),
         **extra,
     }
+
+
+def _atomic_write_json(path: Any, payload: Dict[str, Any]) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, ensure_ascii=False, indent=2, sort_keys=True, default=str)
+            fh.write("\n")
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _history_integrity_scan(config: Dict[str, Any]) -> list[str]:

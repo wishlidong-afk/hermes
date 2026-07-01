@@ -694,7 +694,7 @@ def _render_scripts(as_of: str) -> str:
     var btn = document.getElementById('refresh-positions-btn');
     var st = document.getElementById('refresh-positions-status');
     setBusy(btn, true);
-    st.textContent = '正在同步 IBKR 持仓...';
+    st.textContent = '正在轻量读取 IBKR 持仓（不重抓行情、不重算官方策略）...';
     fetch('/api/refresh_positions', {{
       method: 'POST',
       headers: {{'Content-Type': 'application/json'}},
@@ -702,8 +702,8 @@ def _render_scripts(as_of: str) -> str:
     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       var ibkr = d.ibkr || {{}};
       if (ibkr.source === 'tws' && !ibkr.snapshot_stale) {{
-        var msg = '持仓刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
-        var detail = 'ibkr refreshed: source=' + ibkr.source + '\\nnet_liq=' + ibkr.net_liq;
+        var msg = '持仓轻量刷新完成: ' + ibkr.source + ' · NetLiq ' + (ibkr.net_liq || 'NA');
+        var detail = 'ibkr refreshed only; no market refresh, no official rerun\\nsource=' + ibkr.source + '\\nnet_liq=' + ibkr.net_liq;
         st.textContent = msg;
         showResult(detail);
         rememberRefresh('refresh-positions-status', msg, detail);

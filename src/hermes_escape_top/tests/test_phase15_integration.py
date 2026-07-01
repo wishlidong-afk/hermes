@@ -83,7 +83,12 @@ class Phase15IntegrationTest(unittest.TestCase):
                 with urllib.request.urlopen(request, timeout=30) as response:
                     payload = json.loads(response.read().decode("utf-8"))
                 self.assertIn("ibkr", payload)
-                refresh_positions.assert_called_once_with("latest", blocking=False)
+                refresh_positions.assert_called_once()
+                args, kwargs = refresh_positions.call_args
+                self.assertEqual(args, ("latest",))
+                self.assertFalse(kwargs["blocking"])
+                self.assertIn("as_of", kwargs["base_payload"])
+                self.assertIn("sizing", kwargs["base_payload"])
             with urllib.request.urlopen(f"{base}/api/score", timeout=10) as response:
                 payload = json.loads(response.read().decode("utf-8"))
                 self.assertIn("posterior_pnl", payload)
