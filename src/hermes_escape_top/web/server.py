@@ -55,6 +55,8 @@ from ..ibkr.live_check import run_live_check
 from ..ibkr.positions import write_demo_snapshot
 from ..core.safe_io import PipelineBusy, pipeline_lock
 from ..pipeline import _score_pipeline_locked
+from ..scripts.refresh_external import refresh_source as refresh_external_source
+from ..scripts.refresh_external import status as external_source_status
 from .health import compute_health
 from .refresh import (
     apply_ibkr_position_overlay,
@@ -86,6 +88,7 @@ LOOPBACK_WRITE_ENDPOINTS = {
     "/api/ibkr_demo_snapshot",
     "/api/refresh_score",
     "/api/refresh_positions",
+    "/api/refresh_external_source",
     "/api/ibkr_live_check",
 }
 
@@ -186,6 +189,15 @@ def _attach_alpaca_daily_flow(payload: dict) -> dict:
             payload.setdefault("alpaca_daily_flow_status", {"status": "MISSING"})
     except Exception as exc:
         payload["alpaca_daily_flow_status"] = {"status": "ERROR", "error": str(exc)}
+    return payload
+
+
+def _attach_external_source_status(payload: dict) -> dict:
+    """Attach source-run ledger status for UI trust display; no network calls."""
+    try:
+        payload["external_source_status"] = external_source_status(load_config())
+    except Exception as exc:
+        payload["external_source_status_error"] = str(exc)
     return payload
 
 
@@ -610,6 +622,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 payload = _latest_score_payload(as_of, audit_records, prefer_preview=(view == "preview")) or _empty_dashboard_payload(as_of)
                 payload = apply_ibkr_position_overlay(payload)
                 _attach_alpaca_daily_flow(payload)
+                _attach_external_source_status(payload)
                 payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of, records=audit_records)
                 payload["prev_valves"] = _prev_official_valves(audit_records, payload.get("as_of") or as_of)
                 payload["run_receipt"] = _read_run_receipt()
@@ -634,6 +647,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 else:
                     payload = apply_ibkr_position_overlay(payload)
                     _attach_alpaca_daily_flow(payload)
+                    _attach_external_source_status(payload)
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())
@@ -654,11 +668,21 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                            json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode())
                 return
 
+            if parsed.path == "/api/external_source_status":
+                try:
+                    payload = {"ok": True, "sources": external_source_status(load_config())}
+                except Exception:
+                    payload = {"ok": False, "error": traceback.format_exc()[-1000:]}
+                self._send(200, "application/json; charset=utf-8",
+                           json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode())
+                return
+
             if parsed.path == "/api/health_status":
                 try:
                     score = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
                     score = apply_ibkr_position_overlay(score)
                     _attach_alpaca_daily_flow(score)
+                    _attach_external_source_status(score)
                     score["run_receipt"] = _read_run_receipt()
                     try:
                         manifest = manifest_status()
@@ -825,6 +849,34 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                         "as_of": as_of,
                         "error": traceback.format_exc()[-2000:],
                     }
+                self._send(response_status, "application/json; charset=utf-8",
+                           json.dumps(payload, ensure_ascii=False, indent=2,
+                                      sort_keys=True, default=str).encode())
+                return
+
+            if parsed.path == "/api/refresh_external_source":
+                source_id = str(req.get("source_id") or req.get("source") or "").strip()
+                response_status = 200
+                if not source_id:
+                    payload = {"ok": False, "error": "source_id is required"}
+                    response_status = 400
+                else:
+                    try:
+                        with pipeline_lock(blocking=False):
+                            run = refresh_external_source(source_id)
+                        payload = {"ok": run.get("status") == "OK", "run": run}
+                    except PipelineBusy:
+                        payload = dict(_BUSY_PAYLOAD, source_id=source_id)
+                        response_status = 409
+                    except ValueError as exc:
+                        payload = {"ok": False, "source_id": source_id, "error": str(exc)}
+                        response_status = 400
+                    except Exception:
+                        payload = {
+                            "ok": False,
+                            "source_id": source_id,
+                            "error": traceback.format_exc()[-2000:],
+                        }
                 self._send(response_status, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())

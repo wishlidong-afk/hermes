@@ -347,6 +347,48 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     assert "其他折叠详情" in html and "硬阀门全景" in html
 
 
+def test_trust_zone_uses_external_source_ledger_status():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "dollar": {
+            "source_id": "dollar",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-06-30",
+            "latest_started_at": "2026-07-01T02:00:00+00:00",
+            "message": "",
+        }
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    assert "dollar" in html
+    assert "2026-06-30" in html
+    assert "ExternalSourceRunner · OK" in html
+    assert "refreshExternalSource('dollar')" in html
+
+
+def test_missing_external_source_ledger_does_not_mark_existing_data_missing():
+    payload = _payload()
+    payload["soft_data"]["records"]["dollar"] = {
+        "as_of": "2026-06-30",
+        "data_available": True,
+        "is_proxy": False,
+        "source": "FRED_DXY",
+    }
+    payload["external_source_status"] = {
+        "dollar": {
+            "source_id": "dollar",
+            "status": "MISSING",
+        }
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    assert "FRED_DXY" in html
+    assert "ExternalSourceRunner · MISSING" not in html
+    assert "refreshExternalSource('dollar')" in html
+
+
 def test_strategy_console_explains_forced_status_floor():
     payload = _payload()
     payload["scores"]["SOXL"]["final_score"] = 32.53

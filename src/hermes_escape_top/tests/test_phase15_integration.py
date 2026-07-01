@@ -246,6 +246,83 @@ class Phase15IntegrationTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
+    def test_external_source_status_endpoint_reads_ledger(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            with mock.patch(
+                "hermes_escape_top.web.server.external_source_status",
+                return_value={
+                    "dollar": {
+                        "source_id": "dollar",
+                        "status": "OK",
+                        "latest_promoted_as_of": "2026-06-30",
+                    }
+                },
+            ):
+                with urllib.request.urlopen(f"{base}/api/external_source_status", timeout=10) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["sources"]["dollar"]["status"], "OK")
+            self.assertEqual(payload["sources"]["dollar"]["latest_promoted_as_of"], "2026-06-30")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_external_source_refresh_endpoint_is_single_source_and_loopback_only(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = urllib.request.Request(
+                f"{base}/api/refresh_external_source",
+                data=b'{"source_id":"dollar"}',
+                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},
+                method="POST",
+            )
+            with mock.patch(
+                "hermes_escape_top.web.server.refresh_external_source",
+                return_value={"source_id": "dollar", "status": "OK", "promoted": True},
+            ) as refresh:
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            refresh.assert_called_once_with("dollar")
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["run"]["status"], "OK")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_external_source_refresh_returns_409_while_pipeline_lock_is_held(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_port}/api/refresh_external_source",
+                data=b'{"source_id":"dollar"}',
+                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},
+                method="POST",
+            )
+            with mock.patch(
+                "hermes_escape_top.web.server.pipeline_lock",
+                side_effect=PipelineBusy("pipeline busy"),
+            ), mock.patch("hermes_escape_top.web.server.refresh_external_source") as refresh:
+                with self.assertRaises(urllib.error.HTTPError) as ctx:
+                    urllib.request.urlopen(request, timeout=10)
+            self.assertEqual(ctx.exception.code, 409)
+            self.assertTrue(json.loads(ctx.exception.read().decode("utf-8"))["busy"])
+            refresh.assert_not_called()
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_refresh_score_is_loopback_only_no_token_required(self) -> None:
         # The data-refresh endpoint (the '刷新策略数据' button) must work from a
         # loopback browser WITHOUT a token — token friction belongs only on the

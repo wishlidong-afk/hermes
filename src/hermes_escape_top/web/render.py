@@ -2391,8 +2391,22 @@ def _render_data_trust_zone(payload: Dict[str, Any]) -> str:
         f"<tbody>{body_html}</tbody>"
         "</table>"
         "</div>"
+        f"{_render_external_source_controls(payload)}"
         "</div>"
         "</details>"
+    )
+
+
+def _render_external_source_controls(payload: Dict[str, Any]) -> str:
+    external = payload.get("external_source_status") or {}
+    if not isinstance(external, dict) or "dollar" not in external:
+        return ""
+    return (
+        "<div class='subtle' style='margin-top:8px'>"
+        "<button class='btn-muted' style='padding:3px 9px;font-size:12px' "
+        "onclick=\"refreshExternalSource('dollar')\" id='external-source-dollar-btn'>刷新 dollar 外部源</button>"
+        " <span id='external-source-status'></span>"
+        "</div>"
     )
 
 
@@ -2435,6 +2449,24 @@ def _data_trust_candidates_from_payload(payload: Dict[str, Any]) -> List[Dict[st
         copied = dict(row)
         copied.setdefault("name", row.get("name"))
         candidates.append(copied)
+
+    for name, row in (payload.get("external_source_status") or {}).items():
+        if not isinstance(row, dict):
+            continue
+        status = str(row.get("status") or "UNKNOWN")
+        if status == "MISSING":
+            continue
+        latest = row.get("latest_promoted_as_of") or row.get("latest_normalized_as_of")
+        candidates.append({
+            "name": row.get("source_id") or name,
+            "status": "AVAILABLE" if status == "OK" else status,
+            "data_available": status == "OK",
+            "is_proxy": False,
+            "latest_data_date": latest,
+            "as_of": latest,
+            "source": f"ExternalSourceRunner · {status}",
+            "reason": row.get("message") or row.get("error") or "",
+        })
     return candidates
 
 
@@ -2865,6 +2897,23 @@ def _render_scripts(as_of: str) -> str:
         out.textContent = JSON.stringify(d, null, 2);
         out.style.display = 'block';
       }}).catch(function(e) {{ setBusy(btn, false); st.textContent = '失败: ' + e; }});
+  }};
+  window.refreshExternalSource = function(sourceId) {{
+    var btn = document.getElementById('external-source-' + sourceId + '-btn');
+    var st = document.getElementById('external-source-status');
+    setBusy(btn, true);
+    if (st) st.textContent = '正在刷新 ' + sourceId + ' 外部源...';
+    postJson('/api/refresh_external_source', {{source_id: sourceId}})
+      .then(function(r) {{ return r.json(); }}).then(function(d) {{
+        setBusy(btn, false);
+        if (d.ok) {{
+          var run = d.run || {{}};
+          if (st) st.textContent = sourceId + ' 已刷新 ✓ latest=' + (run.latest_promoted_as_of || run.latest_normalized_as_of || 'NA');
+          setTimeout(function() {{ location.reload(); }}, 900);
+        }} else {{
+          if (st) st.textContent = sourceId + ' 刷新失败: ' + (d.message || d.error || d.status || 'unknown');
+        }}
+      }}).catch(function(e) {{ setBusy(btn, false); if (st) st.textContent = sourceId + ' 刷新失败: ' + e; }});
   }};
   window.loadIbkrDemo = function() {{
     var btn = document.getElementById('ibkr-demo-btn');
