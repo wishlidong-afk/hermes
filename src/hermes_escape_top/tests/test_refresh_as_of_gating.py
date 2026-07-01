@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import json
 from contextlib import contextmanager
+from datetime import date
 from pathlib import Path
 from unittest import mock
 
+from hermes_escape_top.core.data.base import Field, SymbolSnapshot
 from hermes_escape_top.web import refresh as refresh_mod
 from hermes_escape_top.web.refresh import apply_ibkr_position_overlay, refresh_positions_only
 from hermes_escape_top.ibkr.positions import PositionRecord, PositionSnapshot
@@ -117,3 +119,57 @@ def test_overlay_applies_when_payload_has_no_hash(tmp_path):
     _write_overlay(archive, as_of="2026-06-30", base_input_hash=None)
     out = _apply(archive, {"as_of": "2026-06-30", "ibkr": {"source": "stale"}})
     assert out["ibkr"]["source"] == "tws"
+
+
+def test_overlay_refreshes_action_context_when_ibkr_state_changes(tmp_path):
+    archive = tmp_path / "archive"
+    _write_overlay(
+        archive,
+        as_of="2026-06-30",
+        base_input_hash="h1",
+        ibkr={"source": "tws", "snapshot_stale": False},
+    )
+    day = date(2026, 6, 30)
+    snapshot = SymbolSnapshot(
+        "SOXL",
+        day,
+        {"close": Field("close", 100.0, "unit", day)},
+    )
+    payload = {
+        "as_of": "2026-06-30",
+        "input_hash": "h1",
+        "snapshots": {"SOXL": snapshot.to_dict()},
+        "data_quality": {"level": "HIGH", "overall_score": 97.0},
+        "ibkr": {"source": "snapshot", "snapshot_stale": True},
+        "scores": {
+            "SOXL": {
+                "status": "HOLD",
+                "final_score": 5.0,
+                "sell_fraction": 0.0,
+                "hard_valve_hits": [],
+                "missing_weight": 0.0,
+                "factor_scores": {},
+            }
+        },
+        "sizing": {"SOXL": {"sleeve_cap": 0.3, "target_weight": 0.1}},
+        "routing": {"SOXL": {"applies": False}},
+        "reentry": {"SOXL": {}},
+        "posterior_pnl": {"portfolio_value": 100000.0},
+        "decision_layers": {
+            "SOXL": {
+                "action_confidence": {
+                    "level": "MEDIUM",
+                    "score": 70.0,
+                    "reasons": ["IBKR is snapshot/stale or unavailable"],
+                }
+            }
+        },
+        "today_ops": {"ibkr_stale": True},
+    }
+
+    out = _apply(archive, payload)
+
+    confidence = out["decision_layers"]["SOXL"]["action_confidence"]
+    assert out["ibkr"]["source"] == "tws"
+    assert out["today_ops"]["ibkr_stale"] is False
+    assert "IBKR is snapshot/stale or unavailable" not in confidence["reasons"]

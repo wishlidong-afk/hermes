@@ -657,6 +657,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/health_status":
                 try:
                     score = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
+                    score = apply_ibkr_position_overlay(score)
                     _attach_alpaca_daily_flow(score)
                     score["run_receipt"] = _read_run_receipt()
                     try:

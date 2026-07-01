@@ -102,6 +102,52 @@ class Phase15IntegrationTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
+    def test_health_status_uses_ibkr_overlay_before_computing_health(self) -> None:
+        stale_payload = {
+            "as_of": "2026-05-29",
+            "cache_status": {"hit": True},
+            "data_quality": {"level": "HIGH", "overall_score": 97.0},
+            "data_quality_breakdown": {"sources": []},
+            "ibkr": {
+                "source": "snapshot",
+                "sync_time": "2026-01-01T00:00:00+00:00",
+                "snapshot_stale": True,
+            },
+        }
+        fresh_payload = {
+            **stale_payload,
+            "ibkr": {
+                "source": "tws",
+                "sync_time": "2026-05-29T12:00:00+00:00",
+                "snapshot_stale": False,
+            },
+        }
+
+        def compute_health_probe(payload, manifest):
+            self.assertEqual(payload["ibkr"]["source"], "tws")
+            self.assertFalse(payload["ibkr"]["snapshot_stale"])
+            return {"level": "OK", "checks": []}
+
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            with mock.patch("hermes_escape_top.web.server._latest_score_payload", return_value=stale_payload), \
+                 mock.patch("hermes_escape_top.web.server.apply_ibkr_position_overlay", return_value=fresh_payload) as overlay, \
+                 mock.patch("hermes_escape_top.web.server._attach_alpaca_daily_flow", side_effect=lambda payload: payload), \
+                 mock.patch("hermes_escape_top.web.server._read_run_receipt", return_value={}), \
+                 mock.patch("hermes_escape_top.web.server.manifest_status", return_value={"status": "OK"}), \
+                 mock.patch("hermes_escape_top.web.server.compute_health", side_effect=compute_health_probe):
+                with urllib.request.urlopen(f"{base}/api/health_status", timeout=10) as response:
+                    health = json.loads(response.read().decode("utf-8"))
+            overlay.assert_called_once()
+            self.assertEqual(health["level"], "OK")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_server_ibkr_live_endpoint(self) -> None:
         server = create_server("127.0.0.1", 0, "2026-05-29")
         thread = threading.Thread(target=server.serve_forever, daemon=True)

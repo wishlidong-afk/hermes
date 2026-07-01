@@ -11,10 +11,12 @@ from typing import Any, Dict, Iterable, Optional
 import pandas as pd
 
 from ..config import load_config, resolve_path, trade_symbols
+from ..core.data.base import SymbolSnapshot
 from ..core.data.manifest import verify_manifest, write_manifest
 from ..core.safe_io import assert_pipeline_lease, pipeline_lock
 from ..core.data.store import safe_symbol
 from ..core.data.state_store import recent_ibkr_snapshots, write_ibkr_snapshot, write_refresh_run
+from ..core.decision.action_intents import build_action_context
 from ..ibkr.positions import read_positions
 from ..ibkr.reconcile import reconcile as ibkr_reconcile
 from ..pipeline import _score_pipeline_locked
@@ -142,7 +144,26 @@ def apply_ibkr_position_overlay(payload: Dict[str, Any], config: Optional[Dict[s
         )
     except Exception:
         pass
-    return merged
+    return _refresh_action_context_after_overlay(merged)
+
+
+def _refresh_action_context_after_overlay(payload: Dict[str, Any]) -> Dict[str, Any]:
+    snapshots_payload = payload.get("snapshots") or {}
+    if not isinstance(snapshots_payload, dict) or not snapshots_payload:
+        return payload
+    try:
+        snapshots = {
+            symbol: SymbolSnapshot.from_dict(snapshot)
+            for symbol, snapshot in snapshots_payload.items()
+            if isinstance(snapshot, dict)
+        }
+        if not snapshots:
+            return payload
+        refreshed = dict(payload)
+        refreshed.update(build_action_context(refreshed, snapshots))
+        return refreshed
+    except Exception:
+        return payload
 
 
 def _refresh_score_with_market_data_locked(
