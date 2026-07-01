@@ -13,7 +13,12 @@ def _config(tmp_path):
             "archive_dir": str(tmp_path / "archive"),
             "soft_history_dir": str(tmp_path / "soft_history"),
         },
-        "features": {"data_dollar": True, "data_real_rate": True, "data_net_liquidity": True},
+        "features": {
+            "data_dollar": True,
+            "data_real_rate": True,
+            "data_net_liquidity": True,
+            "data_naaim": True,
+        },
     }
 
 
@@ -90,6 +95,34 @@ def test_refresh_external_source_fred_net_liquidity_calls_runner(monkeypatch, tm
     assert calls["archive_dir"] == tmp_path / "archive"
 
 
+def test_refresh_external_source_naaim_calls_runner(monkeypatch, tmp_path):
+    calls = {}
+
+    def fake_runner(spec, adapter, archive_dir):
+        calls["spec"] = spec
+        calls["adapter"] = adapter
+        calls["archive_dir"] = archive_dir
+        return SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"})
+
+    monkeypatch.setattr(refresh_external, "load_config", lambda: _config(tmp_path))
+    monkeypatch.setattr(refresh_external, "run_external_source_refresh", fake_runner)
+
+    result = refresh_external.refresh_source("naaim_exposure")
+
+    assert result["status"] == "OK"
+    assert calls["spec"].source_id == "naaim_exposure"
+    assert calls["spec"].target_path == tmp_path / "soft_history" / "naaim_exposure.csv"
+    assert calls["spec"].required_columns == (
+        "date",
+        "publish_date",
+        "naaim_exposure",
+        "naaim_pctl",
+        "is_proxy",
+    )
+    assert calls["adapter"].index_url.endswith("/programs/naaim-exposure-index/")
+    assert calls["archive_dir"] == tmp_path / "archive"
+
+
 def test_refresh_external_status_prints_latest_ledger(monkeypatch, tmp_path, capsys):
     cfg = _config(tmp_path)
     append_source_run(
@@ -110,6 +143,7 @@ def test_refresh_external_status_prints_latest_ledger(monkeypatch, tmp_path, cap
     assert out["dollar"]["latest_promoted_as_of"] == "2026-06-30"
     assert out["real_rate"]["status"] == "MISSING"
     assert out["fred_net_liquidity"]["status"] == "MISSING"
+    assert out["naaim_exposure"]["status"] == "MISSING"
 
 
 def test_refresh_external_cli_accepts_real_rate(monkeypatch, tmp_path, capsys):
@@ -125,4 +159,20 @@ def test_refresh_external_cli_accepts_real_rate(monkeypatch, tmp_path, capsys):
     out = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert out["source_id"] == "real_rate"
+    assert out["status"] == "OK"
+
+
+def test_refresh_external_cli_accepts_naaim(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(refresh_external, "load_config", lambda: _config(tmp_path))
+    monkeypatch.setattr(
+        refresh_external,
+        "run_external_source_refresh",
+        lambda spec, adapter, archive_dir: SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"}),
+    )
+
+    rc = refresh_external.main(["--source", "naaim_exposure"])
+
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert out["source_id"] == "naaim_exposure"
     assert out["status"] == "OK"

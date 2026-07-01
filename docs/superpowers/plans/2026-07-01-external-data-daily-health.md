@@ -218,7 +218,7 @@ git commit -m "feat: refresh external fred bundle during daily run"
 
 **Behavior:**
 - The existing collapsible data-trust zone includes an "外部源运维" table when `external_source_status` is present.
-- The table renders the FRED bundle sources in stable order: `dollar`, `real_rate`, `fred_net_liquidity`.
+- The table renders registered external sources in stable order: `dollar`, `real_rate`, `fred_net_liquidity`, then source-specific additions such as `naaim_exposure`.
 - Each row shows latest promoted data date, latest source-run timestamp, status/error note, and a per-source refresh button.
 - Buttons reuse the existing `/api/refresh_external_source` endpoint and update their own per-row status text.
 - Missing source-run ledger rows stay operationally visible in this table but are not merged into the data-trust table as `ExternalSourceRunner · MISSING`, avoiding a false "soft data missing" read when existing soft-history data is still usable.
@@ -228,5 +228,48 @@ git commit -m "feat: refresh external fred bundle during daily run"
 ```bash
 PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests/test_dashboard_workbench.py::test_trust_zone_uses_external_source_ledger_status -q
 PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests/test_dashboard_workbench.py src/hermes_escape_top/tests/test_phase15_integration.py src/hermes_escape_top/tests/test_health_truth.py src/hermes_escape_top/tests/test_refresh_external_cli.py -q
+PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests -q
+```
+
+---
+
+### Addendum: NAAIM ExternalSourceRunner
+
+**Files:**
+- Add: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/core/data/external_sources/naaim.py`
+- Modify: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/refresh_external.py`
+- Modify: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py`
+- Modify: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/web/render.py`
+- Tests: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/tests/test_external_source_naaim.py`, `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/tests/test_refresh_external_cli.py`, `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/tests/test_run_daily_external_sources.py`, `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/tests/test_dashboard_workbench.py`
+
+**Behavior:**
+- `naaim_exposure` joins `refresh_external.SOURCE_IDS` and refreshes `soft_history/naaim_exposure.csv` through `ExternalSourceRunner`.
+- The adapter discovers the official NAAIM xlsx link from `https://www.naaim.org/programs/naaim-exposure-index/`, records the workbook URL in raw source-run evidence, validates output shape, and promotes only validated CSV.
+- Output columns stay compatible with existing scoring: `date`, `publish_date`, `naaim_exposure`, `naaim_pctl`, `is_proxy`.
+- PIT alignment uses survey date + 1 day for `publish_date`, matching the official Thursday posting convention and the older `backfill_pcr_naaim.py` note.
+- The daily legacy soft-data block no longer runs `backfill_soft_data --only naaim`; NAAIM is owned by the external-source preflight to avoid a post-runner overwrite.
+- 8766 external-source operations table renders `naaim_exposure` with its own refresh button.
+
+**Source Risk:**
+- The official NAAIM page currently remains public and exposes a since-inception xlsx, but it announces a subscription-based access model effective 2026-08-01. After that date, failures should surface as source-run `FETCH_ERROR`/`VALIDATION_ERROR` and health DEGRADED rather than silently reusing stale data.
+
+**Verification:**
+
+```bash
+PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests/test_external_source_naaim.py src/hermes_escape_top/tests/test_refresh_external_cli.py src/hermes_escape_top/tests/test_run_daily_external_sources.py src/hermes_escape_top/tests/test_dashboard_workbench.py -q
+PYTHONPATH=src /Users/liweishi/.hermes-v3/.venv/bin/python - <<'PY'
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import pandas as pd
+from hermes_escape_top.core.data.external_sources.naaim import NaaimExposureAdapter, naaim_exposure_spec
+from hermes_escape_top.core.data.external_sources.runner import run_external_source_refresh
+
+with TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    target = root / "soft_history" / "naaim_exposure.csv"
+    run = run_external_source_refresh(naaim_exposure_spec(target_path=target), NaaimExposureAdapter(), root / "archive")
+    print(run.status, run.latest_promoted_as_of)
+    print(pd.read_csv(target).tail(3).to_dict("records"))
+PY
 PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests -q
 ```

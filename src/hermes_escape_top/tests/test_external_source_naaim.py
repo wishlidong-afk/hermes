@@ -1,0 +1,111 @@
+from __future__ import annotations
+
+import datetime as dt
+from io import BytesIO
+from zipfile import ZIP_DEFLATED, ZipFile
+
+import pandas as pd
+
+from hermes_escape_top.core.data.external_sources.ledger import latest_source_run
+from hermes_escape_top.core.data.external_sources.naaim import (
+    NaaimExposureAdapter,
+    discover_naaim_xlsx_url,
+    naaim_exposure_spec,
+)
+from hermes_escape_top.core.data.external_sources.runner import run_external_source_refresh
+
+
+def _naaim_xlsx() -> bytes:
+    out = BytesIO()
+    rows = [
+        ["Date", "NAAIM Number", "Mean/Average", "Deviation"],
+        [dt.date(2026, 6, 3).isoformat(), 86.82, 90.0, 72.07],
+        [dt.date(2026, 6, 10).isoformat(), 79.27, 88.0, 53.30],
+        [dt.date(2026, 6, 17).isoformat(), 92.83, 95.0, 49.11],
+        [dt.date(2026, 6, 24).isoformat(), 98.59, 98.0, 43.91],
+    ]
+    sheet_rows = []
+    for r_idx, row in enumerate(rows, start=1):
+        cells = []
+        for c_idx, value in enumerate(row, start=1):
+            ref = f"{chr(64 + c_idx)}{r_idx}"
+            if isinstance(value, str):
+                cells.append(f'<c r="{ref}" t="inlineStr"><is><t>{value}</t></is></c>')
+            else:
+                cells.append(f'<c r="{ref}"><v>{value}</v></c>')
+        sheet_rows.append(f'<row r="{r_idx}">{"".join(cells)}</row>')
+    sheet = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        '<sheetData>'
+        f'{"".join(sheet_rows)}'
+        '</sheetData>'
+        '</worksheet>'
+    )
+    with ZipFile(out, "w", ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            '<Default Extension="xml" ContentType="application/xml"/>'
+            '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            '</Types>'
+        ))
+        zf.writestr("_rels/.rels", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            '</Relationships>'
+        ))
+        zf.writestr("xl/workbook.xml", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>'
+            '</workbook>'
+        ))
+        zf.writestr("xl/_rels/workbook.xml.rels", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            '</Relationships>'
+        ))
+        zf.writestr("xl/worksheets/sheet1.xml", sheet)
+    return out.getvalue()
+
+
+def test_discover_naaim_xlsx_url_prefers_since_inception_workbook():
+    html = """
+      <a href="https://naaim.org/wp-content/uploads/2026/06/small.xlsx">Small</a>
+      <a href="/wp-content/uploads/2026/06/USE_Data-since-Inception_2026-06-24.xlsx">HERE</a>
+    """
+
+    url = discover_naaim_xlsx_url(html, "https://www.naaim.org/programs/naaim-exposure-index/")
+
+    assert url == "https://www.naaim.org/wp-content/uploads/2026/06/USE_Data-since-Inception_2026-06-24.xlsx"
+
+
+def test_naaim_adapter_promotes_existing_soft_history_shape(tmp_path):
+    xlsx_url = "https://naaim.org/wp-content/uploads/2026/06/USE_Data-since-Inception_2026-06-24.xlsx"
+    html = f'<a href="{xlsx_url}">Download EXCEL file with data since inception</a>'
+    adapter = NaaimExposureAdapter(
+        fetch_text=lambda _url: html,
+        fetch_bytes=lambda url: _naaim_xlsx() if url == xlsx_url else b"",
+        percentile_window=3,
+        min_periods=1,
+    )
+    target = tmp_path / "soft_history" / "naaim_exposure.csv"
+    spec = naaim_exposure_spec(target_path=target, min_rows=4)
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    out = pd.read_csv(target)
+    assert run.status == "OK"
+    assert list(out.columns) == ["date", "publish_date", "naaim_exposure", "naaim_pctl", "is_proxy"]
+    assert out["date"].tolist() == ["2026-06-03", "2026-06-10", "2026-06-17", "2026-06-24"]
+    assert out["publish_date"].tolist() == ["2026-06-04", "2026-06-11", "2026-06-18", "2026-06-25"]
+    assert out["naaim_exposure"].tolist() == [86.82, 79.27, 92.83, 98.59]
+    assert out["naaim_pctl"].round(2).tolist() == [100.0, 50.0, 100.0, 100.0]
+    assert out["is_proxy"].tolist() == [False, False, False, False]
+    assert latest_source_run(tmp_path / "archive", "naaim_exposure")["latest_promoted_as_of"] == "2026-06-24"

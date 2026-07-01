@@ -48,11 +48,12 @@ TRUST_SOURCE_MAX_AGE_DAYS = {
     "real_rate": 6,
 }
 
-EXTERNAL_SOURCE_ORDER = ["dollar", "real_rate", "fred_net_liquidity"]
+EXTERNAL_SOURCE_ORDER = ["dollar", "real_rate", "fred_net_liquidity", "naaim_exposure"]
 EXTERNAL_SOURCE_LABELS = {
     "dollar": "DXY / Dollar",
     "real_rate": "10Y Real Rate",
     "fred_net_liquidity": "FRED Net Liquidity",
+    "naaim_exposure": "NAAIM Exposure",
 }
 
 RUNBOOK_REFS = {
@@ -2453,7 +2454,7 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
     return (
         "<div class='external-source-ops' style='margin-top:12px'>"
         "<div style='display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px'>"
-        "<div><b>外部源运维</b> <span class='subtle'>FRED bundle：单源刷新、ledger 状态、最新入库日</span></div>"
+        "<div><b>外部源运维</b> <span class='subtle'>ExternalSourceRunner：单源刷新、ledger 状态、最新入库日</span></div>"
         "<span class='subtle' id='external-source-status'></span>"
         "</div>"
         "<div class='table-scroll'>"

@@ -8,13 +8,15 @@ from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.data.external_sources import (
     FredNetLiquidityAdapter,
     FredPercentileAdapter,
+    NaaimExposureAdapter,
     fred_net_liquidity_spec,
     fred_percentile_spec,
+    naaim_exposure_spec,
     run_external_source_refresh,
     source_status,
 )
 
-SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity")
+SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity", "naaim_exposure")
 
 
 def dollar_source(config: dict[str, Any]):
@@ -50,11 +52,17 @@ def fred_net_liquidity_source(config: dict[str, Any]):
     return fred_net_liquidity_spec(target_path=target), FredNetLiquidityAdapter()
 
 
+def naaim_exposure_source(config: dict[str, Any]):
+    target = resolve_path(config, "soft_history_dir") / "naaim_exposure.csv"
+    return naaim_exposure_spec(target_path=target), NaaimExposureAdapter()
+
+
 def source_factories():
     return {
         "dollar": dollar_source,
         "real_rate": real_rate_source,
         "fred_net_liquidity": fred_net_liquidity_source,
+        "naaim_exposure": naaim_exposure_source,
     }
 
 

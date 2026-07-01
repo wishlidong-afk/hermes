@@ -368,6 +368,12 @@ def test_trust_zone_uses_external_source_ledger_status():
             "source_id": "fred_net_liquidity",
             "status": "MISSING",
         },
+        "naaim_exposure": {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-06-24",
+            "finished_at": "2026-06-25T14:00:00+00:00",
+        },
     }
 
     html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
@@ -384,6 +390,9 @@ def test_trust_zone_uses_external_source_ledger_status():
     assert "fred_net_liquidity" in html
     assert "尚无 ledger run" in html
     assert "refreshExternalSource('fred_net_liquidity')" in html
+    assert "naaim_exposure" in html
+    assert "NAAIM Exposure" in html
+    assert "refreshExternalSource('naaim_exposure')" in html
     assert "external-source-real_rate-status" in html
 
 

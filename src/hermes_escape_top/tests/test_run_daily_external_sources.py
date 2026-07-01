@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from hermes_escape_top.scripts import run_daily_package as rdp
 
 
-def test_refresh_external_sources_runs_fred_bundle_without_raising(monkeypatch):
+def test_refresh_external_sources_runs_registered_bundle_without_raising(monkeypatch):
     calls = []
 
     def fake_refresh(source_id: str) -> dict:
@@ -37,6 +37,26 @@ def test_refresh_external_sources_keeps_daily_alive_on_single_source_failure(mon
     assert by_source["real_rate"]["status"] == "ERROR"
     assert "fred timeout" in by_source["real_rate"]["error"]
     assert by_source["fred_net_liquidity"]["status"] == "OK"
+
+
+def test_refresh_soft_data_no_longer_refreshes_naaim_legacy(monkeypatch):
+    calls = []
+
+    def fake_run(args, **_kwargs):
+        calls.append(args)
+        return SimpleNamespace(returncode=0, stderr="")
+
+    monkeypatch.setattr(rdp.subprocess, "run", fake_run)
+
+    rdp.refresh_soft_data()
+
+    only_args = [
+        args[args.index("--only") + 1]
+        for args in calls
+        if "--only" in args
+    ]
+    assert only_args == ["fred", "fred_risk", "cot"]
+    assert "naaim" not in only_args
 
 
 def test_execute_daily_runs_external_sources_before_legacy_soft_refresh(monkeypatch):

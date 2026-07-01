@@ -259,17 +259,18 @@ def refresh_external_sources() -> list[dict]:
     return runs
 
 
-# ── Step 1b: refresh slow soft data (FRED signals, NAAIM) ────────────────────
+# ── Step 1b: refresh legacy slow soft data (non-runner sources) ───────────────
 
 def refresh_soft_data() -> None:
-    """Refresh slow-moving soft-data CSVs (FRED risk signals, NAAIM, COT).
+    """Refresh slow-moving soft-data CSVs not yet owned by ExternalSourceRunner.
 
     Non-fatal: a failure here does not block scoring; the scoring engine will
     use whatever cached soft data exists and report staleness via health.py.
     AAII is excluded (no auto-parseable endpoint; requires manual download or
-    Claude-in-Chrome session per prior procedure).
+    Claude-in-Chrome session per prior procedure). NAAIM is refreshed earlier
+    through ExternalSourceRunner, so this legacy block must not write it again.
     """
-    print("[M4-1b] Refreshing soft data sources (FRED risk signals + NAAIM)…")
+    print("[M4-1b] Refreshing legacy soft data sources (FRED risk signals + COT)…")
     result = subprocess.run(
         [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
          "--only", "fred"],
@@ -298,20 +299,6 @@ def refresh_soft_data() -> None:
         print("[M4-1b] WARNING: FRED risk signals refresh failed; proceeding with cached data.")
     else:
         print("[M4-1b] FRED risk signals OK.")
-
-    result3 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
-         "--only", "naaim"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    if result3.returncode != 0:
-        print("[M4-1b] WARNING: NAAIM refresh failed (weekly source — normal if not Wednesday); continuing.")
-    else:
-        print("[M4-1b] NAAIM refresh OK.")
 
     result4 = subprocess.run(
         [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
