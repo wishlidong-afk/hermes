@@ -6,11 +6,13 @@ from typing import Any, Callable
 
 import pandas as pd
 
+from ..macro import FredNetLiquiditySource, fetch_fred_graph_csv, fred_net_liquidity_frame
 from ..risk_signals import _last_percentile, fetch_fred_series_frame
 from .registry import ExternalSourceSpec
 
 
 FetchFredFrame = Callable[..., pd.DataFrame]
+FetchFredSeries = Callable[..., pd.Series]
 
 
 @dataclass(frozen=True)
@@ -65,4 +67,66 @@ def fred_percentile_spec(
         source_id=source_id,
         target_path=target_path,
         required_columns=("date", "publish_date", field, f"{field}_pctl"),
+    )
+
+
+@dataclass(frozen=True)
+class FredNetLiquidityAdapter:
+    start: str = "2015-01-01"
+    end: str | None = None
+    percentile_window: int = 252
+    fetch_series: FetchFredSeries = fetch_fred_graph_csv
+    fred_ids: dict[str, str] | None = None
+
+    def _ids(self) -> dict[str, str]:
+        return dict(self.fred_ids or FredNetLiquiditySource.fred_ids)
+
+    def fetch_raw(self) -> dict[str, list[dict[str, Any]]]:
+        raw: dict[str, list[dict[str, Any]]] = {}
+        for name, series_id in self._ids().items():
+            series = self.fetch_series(series_id, start=self.start, end=self.end)
+            if series is None:
+                raw[name] = []
+                continue
+            local = pd.Series(series).dropna().sort_index()
+            rows = []
+            for idx, value in local.items():
+                rows.append({"date": pd.Timestamp(idx).date().isoformat(), "value": float(value)})
+            raw[name] = rows
+        return raw
+
+    def parse(self, raw: dict[str, list[dict[str, Any]]]) -> pd.DataFrame:
+        series: dict[str, pd.Series] = {}
+        for name in self._ids():
+            frame = pd.DataFrame((raw or {}).get(name) or [])
+            if frame.empty:
+                series[name] = pd.Series(dtype="float64")
+                continue
+            dates = pd.to_datetime(frame["date"], errors="coerce")
+            values = pd.to_numeric(frame["value"], errors="coerce")
+            parsed = pd.Series(values.values, index=dates).dropna().sort_index()
+            series[name] = parsed
+        return fred_net_liquidity_frame(
+            series["walcl"],
+            series["wtregen"],
+            series["rrp"],
+            percentile_window=self.percentile_window,
+        )
+
+
+def fred_net_liquidity_spec(*, target_path: Path) -> ExternalSourceSpec:
+    return ExternalSourceSpec(
+        source_id="fred_net_liquidity",
+        target_path=target_path,
+        required_columns=(
+            "date",
+            "publish_date",
+            "walcl",
+            "wtregen",
+            "rrp",
+            "net_liq",
+            "net_liq_chg10",
+            "net_liq_chg10_pctl",
+        ),
+        min_rows=60,
     )
