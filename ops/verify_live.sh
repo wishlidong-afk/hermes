@@ -13,7 +13,11 @@ if [ "${HERMES_VERIFY_TEST_MODE:-0}" = "1" ]; then
   RUN_DAILY="${HERMES_VERIFY_RUN_DAILY:?test mode requires HERMES_VERIFY_RUN_DAILY}"
   PYTHON="${HERMES_VERIFY_PYTHON:-/usr/bin/python3}"
 else
-  BASE="$HOME/.hermes/skills/investment/escape-top"
+  LIVE_ROOT="$HOME/.hermes/skills/investment/escape-top"
+  BASE="$LIVE_ROOT"
+  if [ -d "$LIVE_ROOT/current/hermes_escape_top" ]; then
+    BASE="$LIVE_ROOT/current"
+  fi
   RUN_DAILY="$HOME/.hermes/bin/run_daily.sh"
   PYTHON=/usr/bin/python3
 fi

@@ -7,6 +7,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -42,6 +44,26 @@ def test_daily_entry_refreshes_alpaca_flow_from_latest_completed_session():
     command = module.build_alpaca_flow_command()
 
     assert command[-3:] == ["hermes_escape_top.core.data.alpaca_flow", "--as-of", "latest"]
+
+
+def test_daily_entry_honors_runtime_root_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    runtime = tmp_path / "escape-top-runtime"
+    monkeypatch.setenv("HERMES_RUNTIME_ROOT", str(runtime))
+
+    module = _load_run_daily_module()
+
+    assert module.RUNTIME_ROOT == runtime.resolve()
+
+
+def test_shell_entrypoints_prefer_current_release_when_present():
+    daily = (REPO_ROOT / "ops" / "run_daily.sh").read_text(encoding="utf-8")
+    dashboard = (REPO_ROOT / "ops" / "serve_dashboard.sh").read_text(encoding="utf-8")
+
+    assert 'if [ -d "$BASE/current/hermes_escape_top" ]; then' in daily
+    assert 'RUNTIME="$BASE/current"' in daily
+    assert 'HERMES_RUNTIME_ROOT="$BASE"' in daily
+    assert 'export HERMES_RUNTIME_ROOT="$BASE"' in dashboard
+    assert 'export PYTHONPATH="$RUNTIME"' in dashboard
 
 
 def test_daily_entry_writes_auxiliary_alpaca_status_atomically(tmp_path):

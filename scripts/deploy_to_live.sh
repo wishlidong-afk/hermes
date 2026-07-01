@@ -58,6 +58,29 @@ else
   BACKUP="$BACKUP_DIR/hermes_escape_top.predeploy_backup_$STAMP"
 fi
 
+RELEASES="$LIVE/releases"
+CURRENT="$LIVE/current"
+PREVIOUS="$LIVE/previous"
+SHARED_PKG="$LIVE/shared/hermes_escape_top"
+LEGACY_PKG="$LIVE/hermes_escape_top"
+RELEASE_ID="${HASH}_${STAMP}"
+NEW_RELEASE="$RELEASES/$RELEASE_ID"
+NEW_PKG="$NEW_RELEASE/hermes_escape_top"
+
+if [ -d "$CURRENT/hermes_escape_top" ]; then
+  ACTIVE_BASE="$CURRENT"
+  PKG="$CURRENT/hermes_escape_top"
+else
+  ACTIVE_BASE="$LIVE"
+  PKG="${PKG:-$LEGACY_PKG}"
+fi
+
+if [ -d "$SHARED_PKG/data/archive" ]; then
+  LOCK_ARCHIVE_DIR="$SHARED_PKG/data/archive"
+else
+  LOCK_ARCHIVE_DIR="$PKG/data/archive"
+fi
+
 die() { echo "$1" >&2; exit "${2:-1}"; }
 
 run_override() {
@@ -82,8 +105,8 @@ validate_test_contract() {
 validate_paths() {
   [ -d "$REPO/src/hermes_escape_top" ] || die "!! repo package missing: $REPO" 64
   [ -d "$PKG" ] || die "!! live package missing: $PKG" 64
-  [ -d "$PKG/data/archive" ] || die "!! live archive missing: $PKG/data/archive" 64
-  [ -d "$LIVE/scripts" ] || die "!! live scripts missing: $LIVE/scripts" 64
+  [ -d "$LOCK_ARCHIVE_DIR" ] || die "!! live archive missing: $LOCK_ARCHIVE_DIR" 64
+  [ -d "$LIVE/scripts" ] || [ -d "$CURRENT/scripts" ] || die "!! live scripts missing: $LIVE/scripts" 64
   mkdir -p "$BACKUP_DIR" || die "!! cannot create backup directory: $BACKUP_DIR" 64
 }
 
@@ -92,7 +115,7 @@ require_pipeline_lock_held() {
   case "$fd" in
     ''|*[!0-9]*) die "!! internal mode requires a valid HERMES_PIPELINE_LOCK_FD" 65 ;;
   esac
-  "$PYTHON" - "$PKG/data/archive/.pipeline.lock" "$fd" <<'PY' \
+  "$PYTHON" - "$LOCK_ARCHIVE_DIR/.pipeline.lock" "$fd" <<'PY' \
     || die "!! internal mode requires the pipeline lock to be held" 65
 import errno
 import fcntl
@@ -201,18 +224,20 @@ dashboard_is_healthy() {
 }
 
 run_import_smoke() {
+  local base="${1:-$ACTIVE_BASE}"
   if [ "$TEST_MODE" = "1" ]; then
     run_override "$SMOKE_IMPORT_CMD"
   else
-    ( cd "$LIVE" && PYTHONPATH=. /usr/bin/python3 -c "import hermes_escape_top.pipeline" )
+    ( cd "$base" && HERMES_RUNTIME_ROOT="$LIVE" PYTHONPATH=. /usr/bin/python3 -c "import hermes_escape_top.pipeline" )
   fi
 }
 
 run_predeploy_smoke() {
+  local base="${1:-$ACTIVE_BASE}"
   if [ "$TEST_MODE" = "1" ]; then
     run_override "$SMOKE_CMD"
   else
-    ( cd "$LIVE" && PYTHONPATH=. /usr/bin/python3 -m hermes_escape_top.scripts.predeploy_smoke )
+    ( cd "$base" && HERMES_RUNTIME_ROOT="$LIVE" PYTHONPATH=. /usr/bin/python3 -m hermes_escape_top.scripts.predeploy_smoke )
   fi
 }
 
@@ -226,9 +251,15 @@ run_verify_live() {
 
 run_with_pipeline_lock() {
   local internal_mode="$1"
+  local archive_dir
+  if [ -d "$SHARED_PKG/data/archive" ]; then
+    archive_dir="$SHARED_PKG/data/archive"
+  else
+    archive_dir="$LOCK_ARCHIVE_DIR"
+  fi
   PYTHONPATH="$LOCK_PYTHONPATH" "$PYTHON" \
     -m hermes_escape_top.scripts.pipeline_lock_exec \
-    --archive-dir "$PKG/data/archive" --timeout 600 -- \
+    --archive-dir "$archive_dir" --timeout 600 -- \
     /bin/bash "$SCRIPT_PATH" "$internal_mode" "$STAMP" "$HASH" "$BACKUP"
 }
 
@@ -278,13 +309,98 @@ restore_git_index() {
   fi
 }
 
+backup_link_state() {
+  local path="$1"
+  local name="$2"
+  mkdir -p "$BACKUP/links" || return 1
+  if [ -L "$path" ]; then
+    echo symlink > "$BACKUP/links/$name.state" || return 1
+    readlink "$path" > "$BACKUP/links/$name.target" || return 1
+  elif [ -e "$path" ]; then
+    echo other > "$BACKUP/links/$name.state" || return 1
+  else
+    echo absent > "$BACKUP/links/$name.state" || return 1
+  fi
+}
+
+restore_link_state() {
+  local path="$1"
+  local name="$2"
+  local state target tmp
+  state=$(cat "$BACKUP/links/$name.state" 2>/dev/null) || return 1
+  if [ "$state" = "symlink" ]; then
+    target=$(cat "$BACKUP/links/$name.target" 2>/dev/null) || return 1
+    tmp="$path.rollback.$STAMP.tmp"
+    rm -f "$tmp" || return 1
+    ln -s "$target" "$tmp" || return 1
+    "$PYTHON" - "$tmp" "$path" <<'PY' || return 1
+import os
+import sys
+os.replace(sys.argv[1], sys.argv[2])
+PY
+  elif [ "$state" = "absent" ]; then
+    rm -f "$path" || return 1
+  elif [ "$state" = "other" ]; then
+    echo "cannot restore non-symlink release pointer: $path" >&2
+    return 1
+  else
+    return 1
+  fi
+}
+
+backup_shared_state() {
+  if [ -e "$SHARED_PKG" ]; then
+    echo present > "$BACKUP/shared_pkg.state" || return 1
+  else
+    echo absent > "$BACKUP/shared_pkg.state" || return 1
+  fi
+}
+
+restore_shared_state() {
+  local state
+  state=$(cat "$BACKUP/shared_pkg.state" 2>/dev/null) || return 1
+  if [ "$state" = "absent" ]; then
+    rm -rf "$SHARED_PKG" || return 1
+    rmdir "$LIVE/shared" 2>/dev/null || true
+  fi
+}
+
+backup_path_state() {
+  local path="$1"
+  local name="$2"
+  if [ -e "$path" ]; then
+    echo present > "$BACKUP/$name.state" || return 1
+  else
+    echo absent > "$BACKUP/$name.state" || return 1
+  fi
+}
+
+restore_path_state() {
+  local path="$1"
+  local name="$2"
+  local state
+  state=$(cat "$BACKUP/$name.state" 2>/dev/null) || return 1
+  if [ "$state" = "absent" ]; then
+    rm -rf "$path" || return 1
+  fi
+}
+
 create_backup() {
   mkdir "$BACKUP" || return 1
   mkdir -p "$BACKUP/package" "$BACKUP/live_scripts" "$BACKUP/bin" || return 1
   rsync -a --exclude='data/' "$PKG/" "$BACKUP/package/" || return 1
-  rsync -a "$LIVE/scripts/" "$BACKUP/live_scripts/" || return 1
+  if [ -d "$LIVE/scripts" ]; then
+    rsync -a "$LIVE/scripts/" "$BACKUP/live_scripts/" || return 1
+  fi
   backup_entry "$BIN/run_daily.sh" run_daily.sh || return 1
   backup_entry "$BIN/serve_dashboard.sh" serve_dashboard.sh || return 1
+  backup_link_state "$CURRENT" current || return 1
+  backup_link_state "$PREVIOUS" previous || return 1
+  backup_shared_state || return 1
+  backup_path_state "$LIVE/data" live_data || return 1
+  backup_path_state "$LIVE/reports" live_reports || return 1
+  backup_path_state "$LIVE/orders" live_orders || return 1
+  backup_path_state "$RELEASES" releases_dir || return 1
   backup_git_index || return 1
 }
 
@@ -302,9 +418,19 @@ rollback_locked() {
 
   local failed=0
   rsync -a --checksum --delete --exclude='data/' "$BACKUP/package/" "$PKG/" || failed=1
-  rsync -a --checksum --delete "$BACKUP/live_scripts/" "$LIVE/scripts/" || failed=1
+  if [ -d "$LIVE/scripts" ]; then
+    rsync -a --checksum --delete "$BACKUP/live_scripts/" "$LIVE/scripts/" || failed=1
+  fi
   restore_entry "$BIN/run_daily.sh" run_daily.sh || failed=1
   restore_entry "$BIN/serve_dashboard.sh" serve_dashboard.sh || failed=1
+  restore_link_state "$CURRENT" current || failed=1
+  restore_link_state "$PREVIOUS" previous || failed=1
+  rm -rf "$NEW_RELEASE" || failed=1
+  restore_path_state "$RELEASES" releases_dir || failed=1
+  restore_shared_state || failed=1
+  restore_path_state "$LIVE/data" live_data || failed=1
+  restore_path_state "$LIVE/reports" live_reports || failed=1
+  restore_path_state "$LIVE/orders" live_orders || failed=1
   restore_git_index || failed=1
   [ "$failed" = 0 ]
 }
@@ -320,13 +446,90 @@ fail_locked_swap() {
 }
 
 sync_code() {
+  local dst="${1:-$PKG}"
   rsync -a --checksum --delete \
     --exclude='tests/' --exclude='config/' --exclude='data/' --exclude='orders/' \
     --include='*/' --include='*.py' --exclude='*' \
-    "$REPO/src/hermes_escape_top/" "$PKG/"
+    "$REPO/src/hermes_escape_top/" "$dst/"
 }
 
 sync_entries() {
+  local src
+  mkdir -p "$BIN" "$LIVE/scripts" "$NEW_RELEASE/scripts" || return 1
+  src="$REPO/ops/run_daily.sh"
+  cp "$src" "$BIN/run_daily.sh" || return 1
+  src="$REPO/ops/serve_dashboard.sh"
+  cp "$src" "$BIN/serve_dashboard.sh" || return 1
+  src="$REPO/ops/run_daily.py"
+  cp "$src" "$NEW_RELEASE/scripts/run_daily.py" || return 1
+  cp "$src" "$LIVE/scripts/run_daily.py" || return 1
+  chmod +x "$BIN/run_daily.sh" "$BIN/serve_dashboard.sh" \
+    "$NEW_RELEASE/scripts/run_daily.py" "$LIVE/scripts/run_daily.py" \
+    2>/dev/null || true
+}
+
+prepare_shared_runtime() {
+  mkdir -p "$RELEASES" "$SHARED_PKG" "$LIVE/data" "$LIVE/reports" "$LIVE/orders" || return 1
+  if [ ! -e "$SHARED_PKG/data" ]; then
+    [ -d "$LEGACY_PKG/data" ] || return 1
+    cp -pR "$LEGACY_PKG/data" "$SHARED_PKG/data" || return 1
+  fi
+  if [ ! -e "$SHARED_PKG/config" ]; then
+    [ -d "$LEGACY_PKG/config" ] || return 1
+    cp -pR "$LEGACY_PKG/config" "$SHARED_PKG/config" || return 1
+  fi
+  [ -d "$SHARED_PKG/data/archive" ] || return 1
+}
+
+link_release_runtime() {
+  ln -s "$SHARED_PKG/data" "$NEW_PKG/data" || return 1
+  ln -s "$SHARED_PKG/config" "$NEW_PKG/config" || return 1
+  ln -s "$LIVE/data" "$NEW_RELEASE/data" || return 1
+  ln -s "$LIVE/reports" "$NEW_RELEASE/reports" || return 1
+  ln -s "$LIVE/orders" "$NEW_RELEASE/orders" || return 1
+}
+
+point_symlink() {
+  local link="$1"
+  local target="$2"
+  "$PYTHON" - "$link" "$target" <<'PY'
+import os
+import pathlib
+import sys
+link = pathlib.Path(sys.argv[1])
+target = pathlib.Path(sys.argv[2])
+tmp = link.with_name(f".{link.name}.{os.getpid()}.tmp")
+try:
+    tmp.unlink()
+except FileNotFoundError:
+    pass
+relative = os.path.relpath(target, link.parent)
+os.symlink(relative, tmp)
+os.replace(tmp, link)
+PY
+}
+
+switch_current_release() {
+  local old_target=""
+  if [ -L "$CURRENT" ]; then
+    old_target=$(readlink "$CURRENT") || return 1
+  fi
+  point_symlink "$CURRENT" "$NEW_RELEASE" || return 1
+  if [ -n "$old_target" ]; then
+    point_symlink "$PREVIOUS" "$LIVE/$old_target" || return 1
+  fi
+}
+
+stage_release() {
+  rm -rf "$NEW_RELEASE" || return 1
+  mkdir -p "$NEW_PKG" || return 1
+  sync_code "$NEW_PKG" || return 1
+  echo "$HASH $STAMP" > "$NEW_PKG/VERSION" || return 1
+  link_release_runtime || return 1
+  sync_entries || return 1
+}
+
+sync_entries_legacy() {
   local pair src dst
   for pair in \
     "run_daily.sh:$BIN/run_daily.sh" \
@@ -344,21 +547,19 @@ run_locked_swap() {
   echo "== 1/7 backup exact live/repo trees + git index =="
   create_backup || die "!! backup failed; partial backup retained: $BACKUP" 1
 
-  echo "== 2/7 code rsync repo->live (--delete; *.py excl tests/config/data) =="
-  sync_code || fail_locked_swap "!! code rsync failed" 1
-  echo "$HASH $STAMP" > "$PKG/VERSION" \
-    || fail_locked_swap "!! VERSION write failed" 1
+  echo "== 2/7 prepare shared runtime + stage versioned release =="
+  prepare_shared_runtime || fail_locked_swap "!! shared runtime prep failed" 1
+  stage_release || fail_locked_swap "!! release staging failed" 1
 
-  echo "== 3/7 sync live-only entry scripts from ops/ =="
-  sync_entries || fail_locked_swap "!! entry sync failed" 1
+  echo "== 3/7 staged release ready: $RELEASE_ID =="
   maybe_fail post_sync || fail_locked_swap "!! post-sync validation failed" 1
 
   echo "== 4/7 config gate (human; runtime data never writes back to repo) =="
-  if ! diff -u "$PKG/config/config.json" "$REPO/src/hermes_escape_top/config/config.json"; then
+  if ! diff -u "$SHARED_PKG/config/config.json" "$REPO/src/hermes_escape_top/config/config.json"; then
     local ans
     read -r -p "Apply repo config to live? [y/N] " ans
     if [ "${ans:-N}" = "y" ]; then
-      cp "$REPO/src/hermes_escape_top/config/config.json" "$PKG/config/config.json" \
+      cp "$REPO/src/hermes_escape_top/config/config.json" "$SHARED_PKG/config/config.json" \
         || fail_locked_swap "!! config apply failed" 1
       echo "  config applied (pre-deploy copy is in backup)"
     else
@@ -366,22 +567,23 @@ run_locked_swap() {
     fi
   fi
 
-  echo "== 5/7 smoke on live (rollback on fail) =="
+  echo "== 5/7 smoke staged release + atomic current switch =="
   maybe_fail smoke || fail_locked_swap "!! smoke gate FAIL" 2
-  run_import_smoke || fail_locked_swap "!! import broken after deploy" 2
-  run_predeploy_smoke || fail_locked_swap "!! smoke gate FAIL" 2
+  run_import_smoke "$NEW_RELEASE" || fail_locked_swap "!! import broken in staged release" 2
+  run_predeploy_smoke "$NEW_RELEASE" || fail_locked_swap "!! smoke gate FAIL" 2
+  switch_current_release || fail_locked_swap "!! current symlink switch failed" 2
 }
 
 deploy_git_pathspecs() {
   printf '%s\n' \
-    ':(glob)skills/investment/escape-top/hermes_escape_top/**/*.py' \
-    ':(exclude,glob)skills/investment/escape-top/hermes_escape_top/tests/**' \
-    ':(exclude,glob)skills/investment/escape-top/hermes_escape_top/data/**' \
-    ':(exclude,glob)skills/investment/escape-top/hermes_escape_top/config/**' \
-    'skills/investment/escape-top/hermes_escape_top/VERSION' \
+    ":(glob)skills/investment/escape-top/releases/$RELEASE_ID/hermes_escape_top/**/*.py" \
+    "skills/investment/escape-top/releases/$RELEASE_ID/hermes_escape_top/VERSION" \
+    "skills/investment/escape-top/releases/$RELEASE_ID/scripts/run_daily.py" \
+    'skills/investment/escape-top/current' \
     'skills/investment/escape-top/scripts/run_daily.py' \
     'bin/run_daily.sh' \
     'bin/serve_dashboard.sh'
+  [ -L "$PREVIOUS" ] && printf '%s\n' 'skills/investment/escape-top/previous'
 }
 
 stage_deploy_allowlist() {
@@ -473,7 +675,11 @@ fi
 
 echo "== 6/7 accept dashboard + verify live =="
 dashboard_is_healthy || rollback_after_release "!! dashboard not serving 200 after restart" 2
-echo "  dashboard up · live VERSION=$(cat "$PKG/VERSION")"
+if [ -f "$CURRENT/hermes_escape_top/VERSION" ]; then
+  echo "  dashboard up · live VERSION=$(cat "$CURRENT/hermes_escape_top/VERSION")"
+else
+  echo "  dashboard up · live VERSION=$(cat "$PKG/VERSION")"
+fi
 echo "-- end-to-end: real entry (manual_rerun) effects landed --"
 maybe_fail verify_live || rollback_after_release "!! verify_live FAIL — real entry broken" 3
 run_verify_live || rollback_after_release "!! verify_live FAIL — real entry broken" 3

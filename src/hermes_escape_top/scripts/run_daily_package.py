@@ -42,8 +42,11 @@ def _discover_runtime_paths() -> tuple[Path, Path]:
     the package module self-locate from escape-top/hermes_escape_top/scripts/ too,
     so there can be ONE engine. Installed layout returns the same (escape-top,
     escape-top) the loose copy did — behavior-identical, just position-robust."""
+    runtime_override = os.environ.get("HERMES_RUNTIME_ROOT")
     for parent in SCRIPT_PATH.parents:
         if (parent / "hermes_escape_top" / "__init__.py").exists():
+            if runtime_override:
+                return Path(runtime_override).expanduser().resolve(), parent
             # Repo nests the package under src/; keep runtime_root at the repo root.
             if parent.name == "src":
                 return parent.parent, parent

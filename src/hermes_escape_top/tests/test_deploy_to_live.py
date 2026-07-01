@@ -100,6 +100,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
 
     repo_soft = repo / "src/hermes_escape_top/data/soft_history"
     roots = (
+        ("live", live),
         ("package", package),
         ("live-scripts", live / "scripts"),
         ("bin", bin_dir),
@@ -244,10 +245,22 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert result.stdout.count("deploy OK") == 1
-    assert (deploy_fixture["package"] / "core/added.py").is_file()
-    assert not (deploy_fixture["package"] / "core/removed.py").exists()
+    live = Path(deploy_fixture["live"])
+    current = live / "current"
+    assert current.is_symlink()
+    release = current.resolve()
+    assert release.parent == live / "releases"
+    assert (release / "hermes_escape_top/core/added.py").is_file()
+    assert not (release / "hermes_escape_top/core/removed.py").exists()
+    assert (release / "hermes_escape_top/data").is_symlink()
+    assert (release / "hermes_escape_top/config").is_symlink()
+    assert (release / "data").is_symlink()
+    assert (release / "reports").is_symlink()
+    assert (release / "orders").is_symlink()
+    assert not (Path(deploy_fixture["package"]) / "core/added.py").exists()
     subject = _git(Path(deploy_fixture["hermes_home"]), "log", "-1", "--format=%s").stdout
     assert subject.startswith("deploy escape-top @")
+    release_prefix = f"skills/investment/escape-top/releases/{release.name}"
     committed = set(
         _git(
             Path(deploy_fixture["hermes_home"]),
@@ -261,10 +274,11 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
     assert committed == {
         "bin/run_daily.sh",
         "bin/serve_dashboard.sh",
-        "skills/investment/escape-top/hermes_escape_top/VERSION",
-        "skills/investment/escape-top/hermes_escape_top/core/added.py",
-        "skills/investment/escape-top/hermes_escape_top/core/keep.py",
-        "skills/investment/escape-top/hermes_escape_top/core/removed.py",
+        "skills/investment/escape-top/current",
+        f"{release_prefix}/hermes_escape_top/VERSION",
+        f"{release_prefix}/hermes_escape_top/core/added.py",
+        f"{release_prefix}/hermes_escape_top/core/keep.py",
+        f"{release_prefix}/scripts/run_daily.py",
         "skills/investment/escape-top/scripts/run_daily.py",
     }
     assert not any("leak.py" in path for path in committed), (
@@ -364,9 +378,9 @@ def test_pre_staged_allowlist_file_aborts_before_dashboard_stop(
     deploy_fixture: dict[str, object],
 ) -> None:
     hermes_home = Path(deploy_fixture["hermes_home"])
-    staged = hermes_home / "skills/investment/escape-top/hermes_escape_top/core/keep.py"
-    staged.write_text("VALUE = 'human-staged'\n", encoding="utf-8")
-    _git(hermes_home, "add", str(staged.relative_to(hermes_home)))
+    staged = hermes_home / "bin/run_daily.sh"
+    staged.write_text("#!/bin/sh\nexit 99\n", encoding="utf-8")
+    _git(hermes_home, "add", "-f", str(staged.relative_to(hermes_home)))
 
     result = _run(deploy_fixture)
 

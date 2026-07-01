@@ -39,14 +39,13 @@
 ## 7. 部署 repo → live
 
 - `bash scripts/deploy_to_live.sh`。部署开始会短暂停止 8766；这是为避免 dashboard 在同步中途惰性 import 到半套代码，通常只持续 smoke 与重启所需时间。
-- 脚本先停 dashboard，再由 Python `fcntl` helper **一次 acquire** 同一把 `<archive_dir>/.pipeline.lock`，连续完成：精确目录备份 → `rsync --delete` 仓库代码到 live → 写 `VERSION` → 同步 [`ops/`](../ops/) 入口 → config diff 人工 y/N → import/predeploy smoke。整段中间不释放锁，daily、Web refresh、CLI score 都不能插入。
+- 脚本先停 dashboard，再由 Python `fcntl` helper **一次 acquire** 同一把 `<archive_dir>/.pipeline.lock`，连续完成：精确目录备份 → 构建 `releases/<hash>_<stamp>/` staging → 共享运行态挂载（`data/`、`reports/`、`orders/`、package `data/config` 不进 release）→ 同步 [`ops/`](../ops/) 入口 → config diff 人工 y/N → staging import/predeploy smoke → `current` symlink 原子切换。整段中间不释放锁，daily、Web refresh、CLI score 都不能插入。
 - 真正的持锁边界是 `pipeline_lock_exec` 父进程的单次 `fcntl` lease。内部 `--locked-swap/--locked-rollback` 还会校验继承 FD 与目标 lock 是同一 inode，并用新 OFD 非阻塞抢锁必须得到 `EWOULDBLOCK`；这是防止 agent/人工直接调内部模式的 guardrail，不宣称能对抗拥有本机同用户代码执行权限的恶意调用者。
 - smoke 成功后释放部署锁并重启 dashboard；`verify_live` 再按正常事务获取锁。验证仍走真实 `run_daily.sh --deploy-verify` 与新 live 代码，但 `HERMES_DATA_DIR`、日志和 audit/SQLite 指向 APFS 临时隔离副本；它必须产生 `manual_rerun`，不得改官方 receipt/state、live audit、live SQLite、heartbeat 或 live 日志。
 - live 运行数据不再反向同步到 repo。需要研究快照时使用显式导出到独立目录；部署本身不修改 repo 的 `data/soft_history`。
-- 全部验收通过后，`.hermes` 只提交 allowlist：package Python（排除 tests/config/data）、`VERSION`、`scripts/run_daily.py`、`bin/run_daily.sh`、`bin/serve_dashboard.sh`。SQLite、audit/journal、持仓、order preview、logs/reports、备份、token/key/config 不进入部署 commit。
-- 回滚：任何同步、smoke、dashboard、verify 或 `.hermes` commit 失败都会停止 dashboard、重新获取同一把锁，并用隔离备份目录 `~/.hermes-deploy-backups/escape-top/hermes_escape_top.predeploy_backup_<stamp>/` 配合 `rsync --delete` 恢复精确文件集合、内容、权限、VERSION、入口脚本和原 git index；随后重启 dashboard、非零退出，且绝不打印 `deploy OK`。rollback 本身失败会输出 `DOUBLE FAILURE` 与保留的 backup 路径，不自动重试。
-- 目前仍是第一阶段的原目录精确切换；versioned release + symlink 原子切换需在本阶段稳定观察 3 个交易日后另行实施。
-- daily 入口：launchd `com.hermes.daily` → `~/.hermes/bin/run_daily.sh` → `run_daily.py`，后者经 `python -m hermes_escape_top.scripts.run_daily_package` 跑**唯一的包引擎**（2026-06-17 起，旧的 standalone loose 副本已退役；`_discover_runtime_paths` 向上定位包，所以 `-m` 能从任意深度解析）。这些 live-only 入口/调度脚本的版本化副本在 [`ops/`](../ops/)。
+- 全部验收通过后，`.hermes` 只提交 allowlist：`current`/`previous` 指针、当前 release 内 package Python（排除 tests/config/data）、`VERSION`、release `scripts/run_daily.py`、稳定入口 `scripts/run_daily.py`、`bin/run_daily.sh`、`bin/serve_dashboard.sh`。SQLite、audit/journal、持仓、order preview、logs/reports、备份、token/key/config 不进入部署 commit。
+- 回滚：任何同步、smoke、dashboard、verify 或 `.hermes` commit 失败都会停止 dashboard、重新获取同一把锁，并用隔离备份目录 `~/.hermes-deploy-backups/escape-top/hermes_escape_top.predeploy_backup_<stamp>/` 恢复入口脚本、`current/previous` 指针、共享运行态初始状态和原 git index；如果已切到新 release，则把 `current` 原子切回旧 release 或恢复 legacy 原目录模式；随后重启 dashboard、非零退出，且绝不打印 `deploy OK`。rollback 本身失败会输出 `DOUBLE FAILURE` 与保留的 backup 路径，不自动重试。
+- daily 入口：launchd `com.hermes.daily` → `~/.hermes/bin/run_daily.sh` → `~/.hermes/skills/investment/escape-top/current/scripts/run_daily.py`（若 `current` 尚不存在则回退 legacy root），后者经 `python -m hermes_escape_top.scripts.run_daily_package` 跑**唯一的包引擎**。`HERMES_RUNTIME_ROOT` 固定为稳定 live 根目录，所以代码从 `current` release 导入，运行态仍写稳定的 `data/`、`reports/`、`orders/`、package `data/archive`。
 
 ### 7.1 已登记的一次性 live 权限维护
 

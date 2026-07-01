@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ESCAPE_TOP = Path(__file__).resolve().parent.parent  # .../escape-top, holds hermes_escape_top/
+RUNTIME_ROOT = Path(os.environ.get("HERMES_RUNTIME_ROOT", str(ESCAPE_TOP))).expanduser().resolve()
 PYTHON = sys.executable
 
 
@@ -76,13 +77,14 @@ def write_alpaca_flow_status(payload, *, path):
 
 if __name__ == "__main__":
     env = dict(os.environ)
+    env["HERMES_RUNTIME_ROOT"] = str(RUNTIME_ROOT)
     env["PYTHONPATH"] = str(ESCAPE_TOP) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     cmd = build_command(sys.argv[1:])
-    r = subprocess.run(cmd, cwd=str(ESCAPE_TOP), env=env)
+    r = subprocess.run(cmd, cwd=str(RUNTIME_ROOT), env=env)
     if r.returncode == 0 and "--deploy-verify" not in sys.argv[1:]:
         flow = subprocess.run(
             build_alpaca_flow_command(),
-            cwd=str(ESCAPE_TOP),
+            cwd=str(RUNTIME_ROOT),
             env=env,
             capture_output=True,
             text=True,

@@ -13,6 +13,10 @@ export LANG="en_US.UTF-8"
 HEARTBEAT_GIST="3b2b29b5a45edb8964f2d0d119f619ba"
 
 BASE="$HOME/.hermes/skills/investment/escape-top"
+RUNTIME="$BASE"
+if [ -d "$BASE/current/hermes_escape_top" ]; then
+  RUNTIME="$BASE/current"
+fi
 LOG_DIR="$HOME/.hermes/logs/daily"
 mkdir -p "$LOG_DIR"
 LOG="${HERMES_RUN_LOG:-$LOG_DIR/daily_$(date +%F).log}"
@@ -28,9 +32,9 @@ DEPLOY_VERIFY=0
   echo "=== hermes daily run start $(date '+%F %T %Z') ==="
   "$PY" -c 'import numpy, pandas, scipy' || echo "WARNING: $PY lacks scientific deps"
   if [ "${1:-}" = "--deploy-verify" ]; then
-    "$PY" "$BASE/scripts/run_daily.py" --deploy-verify
+    HERMES_RUNTIME_ROOT="$BASE" "$PY" "$RUNTIME/scripts/run_daily.py" --deploy-verify
   else
-    "$PY" "$BASE/scripts/run_daily.py" --run-type scheduled "$@"
+    HERMES_RUNTIME_ROOT="$BASE" "$PY" "$RUNTIME/scripts/run_daily.py" --run-type scheduled "$@"
   fi
 } >>"$LOG" 2>&1
 rc=$?

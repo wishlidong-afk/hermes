@@ -25,6 +25,9 @@ PACKAGE_DIR = Path(__file__).resolve().parents[1]
 
 
 def _runtime_root() -> Path:
+    override = os.environ.get("HERMES_RUNTIME_ROOT")
+    if override:
+        return Path(override).expanduser().resolve()
     local_root = PACKAGE_DIR.parent
     if (local_root / "scripts").exists() or (local_root / "data").exists():
         return local_root

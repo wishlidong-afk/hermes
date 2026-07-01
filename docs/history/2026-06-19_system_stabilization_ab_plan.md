@@ -337,7 +337,7 @@ staging 内先 smoke，通过后用原子 symlink rename 切换 `current`。失�
 
 ### R6. versioned release 原子切换
 
-在 R1-R5 稳定运行至少 3 个交易日后单独执行。不要提前与高优先级修复捆绑。
+状态：2026-07-01 已进入实施。设计为稳定 live 容器 + `releases/<hash>_<stamp>/` 版本目录 + `current`/`previous` symlink 原子切换；package `data/config` 与根 `data/reports/orders` 保持共享运行态，不随 release 回滚。入口脚本通过 `HERMES_RUNTIME_ROOT` 固定运行态根目录，避免代码物理位置进入 `releases/` 后把 state/report 写进版本目录。
 
 ---
 
@@ -766,5 +766,5 @@ repo clean 证明、focused/full tests 和残余风险。
 
 交付边界：
 
-- R1-R5 的代码、测试、行为证明和运维文档已闭环。本批只保留人工 review 后的真实部署验收；R6 versioned release 需在本阶段上线后稳定观察 3 个交易日再实施，不是本批代码变更的遗漏。
+- R1-R5 的代码、测试、行为证明和运维文档已闭环。R6 在 2026-07-01 的后续批次实施，真实部署验收以 `deploy_to_live.sh` 输出、`current` symlink、8766 版本和 `verify_live PASS` 为准。
 - 本批未触碰 live、launchd、8766，也未执行真实部署或 git commit；需人工 review 后另开部署窗口。
