@@ -578,6 +578,11 @@ deploy_git_pathspecs() {
   printf '%s\n' \
     ":(glob)skills/investment/escape-top/releases/$RELEASE_ID/hermes_escape_top/**/*.py" \
     "skills/investment/escape-top/releases/$RELEASE_ID/hermes_escape_top/VERSION" \
+    "skills/investment/escape-top/releases/$RELEASE_ID/hermes_escape_top/config" \
+    "skills/investment/escape-top/releases/$RELEASE_ID/hermes_escape_top/data" \
+    "skills/investment/escape-top/releases/$RELEASE_ID/data" \
+    "skills/investment/escape-top/releases/$RELEASE_ID/reports" \
+    "skills/investment/escape-top/releases/$RELEASE_ID/orders" \
     "skills/investment/escape-top/releases/$RELEASE_ID/scripts/run_daily.py" \
     'skills/investment/escape-top/current' \
     'skills/investment/escape-top/scripts/run_daily.py' \
