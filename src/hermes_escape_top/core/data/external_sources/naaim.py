@@ -62,6 +62,7 @@ class NaaimExposureAdapter:
         return {
             "index_url": self.index_url,
             "xlsx_url": xlsx_url,
+            "xlsx_sha256": hashlib.sha256(xlsx).hexdigest(),
             "xlsx_base64": base64.b64encode(xlsx).decode("ascii"),
         }
 

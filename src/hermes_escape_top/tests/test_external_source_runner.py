@@ -58,6 +58,22 @@ def test_success_writes_staging_promotes_target_and_records_ledger(tmp_path):
     assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "OK"
 
 
+def test_success_without_official_file_evidence_does_not_invent_file_metadata(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+
+    run_external_source_refresh(spec, FakeAdapter(), tmp_path / "archive")
+    latest = latest_source_run(tmp_path / "archive", "dollar")
+
+    assert latest["official_issue_as_of"] is None
+    assert latest["official_file_name"] is None
+    assert latest["official_file_sha256"] is None
+
+
 def test_validation_failure_preserves_existing_target_and_records_error(tmp_path):
     target = tmp_path / "soft_history" / "dollar.csv"
     target.parent.mkdir(parents=True)

@@ -377,6 +377,8 @@ def test_trust_zone_uses_external_source_ledger_status():
             "status": "OK",
             "latest_promoted_as_of": "2026-06-24",
             "finished_at": "2026-06-25T14:00:00+00:00",
+            "official_issue_as_of": "2026-06-24",
+            "official_file_sha256": "abcdef1234567890",
         },
         "aaii_sentiment": {
             "source_id": "aaii_sentiment",
@@ -404,12 +406,13 @@ def test_trust_zone_uses_external_source_ledger_status():
     assert "naaim_exposure" in html
     assert "NAAIM Exposure" in html
     assert "refreshExternalSource('naaim_exposure')" in html
+    assert "issue=2026-06-24 sha=abcdef12" in html
     assert "aaii_sentiment" in html
     assert "AAII Sentiment" in html
     assert "AAII public endpoint blocked; manual import required" in html
     assert "refreshExternalSource('aaii_sentiment')" in html
-    assert "--source aaii_sentiment --import-file ~/Downloads/sentiment.xls" in html
-    assert "--source naaim_exposure --import-file ~/Downloads/naaim.xlsx" in html
+    assert "--source aaii_sentiment --import-file ~/.hermes/external_imports/sentiment.xls" in html
+    assert "--source naaim_exposure --import-file ~/.hermes/external_imports/naaim.xlsx" in html
     assert "刷新全部外部源" in html
     assert "refreshExternalSources()" in html
     assert "external-source-real_rate-status" in html

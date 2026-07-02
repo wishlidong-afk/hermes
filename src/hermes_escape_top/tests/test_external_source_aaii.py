@@ -153,6 +153,9 @@ def test_aaii_import_adapter_promotes_official_file_through_ledger(tmp_path):
     raw = json.loads((tmp_path / "archive" / "external_sources" / "aaii_sentiment" / run.run_id / "raw.json").read_text())
     assert raw["file_name"] == "sentiment.csv"
     assert raw["source"] == "manual_official_file"
+    assert ledger["official_file_name"] == "sentiment.csv"
+    assert ledger["official_file_sha256"] == raw["content_sha256"]
+    assert ledger["official_issue_as_of"] == "2026-07-02"
 
 
 def test_aaii_latest_import_file_checks_hermes_external_imports(monkeypatch, tmp_path):

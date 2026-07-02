@@ -2479,7 +2479,13 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
             freshness_note = freshness
             if age is not None:
                 freshness_note += f" · {age}d"
-        note_parts = [part for part in (freshness_note, str(note or ""), next_action) if part]
+        official_note = ""
+        if (row or {}).get("official_issue_as_of") or (row or {}).get("official_file_sha256"):
+            official_note = (
+                f"issue={str((row or {}).get('official_issue_as_of') or '—')[:10]} "
+                f"sha={str((row or {}).get('official_file_sha256') or '—')[:8]}"
+            )
+        note_parts = [part for part in (freshness_note, official_note, str(note or ""), next_action) if part]
         safe_id = _external_source_dom_id(source_id)
         rows.append(
             "<tr>"
@@ -2513,9 +2519,9 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
         "</div>"
         "<div class='subtle' style='margin-top:7px'>"
         "AAII/NAAIM 自动抓取失败时，只接受官方下载文件导入："
-        "<code>PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source aaii_sentiment --import-file ~/Downloads/sentiment.xls</code>"
+        "<code>PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source aaii_sentiment --import-file ~/.hermes/external_imports/sentiment.xls</code>"
         "；"
-        "<code>PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source naaim_exposure --import-file ~/Downloads/naaim.xlsx</code>"
+        "<code>PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source naaim_exposure --import-file ~/.hermes/external_imports/naaim.xlsx</code>"
         "。镜像源仅用于核对，不直接替代生产真值。"
         "</div>"
         "</div>"

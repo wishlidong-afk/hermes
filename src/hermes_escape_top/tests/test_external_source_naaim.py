@@ -132,6 +132,9 @@ def test_naaim_import_adapter_promotes_official_workbook_through_ledger(tmp_path
     assert out["date"].tolist() == ["2026-06-03", "2026-06-10", "2026-06-17", "2026-06-24"]
     assert out["naaim_exposure"].tolist() == [86.82, 79.27, 92.83, 98.59]
     assert ledger["status"] == "OK"
+    assert ledger["official_file_name"] == "USE_Data-since-Inception_2026-06-24.xlsx"
+    assert ledger["official_file_sha256"]
+    assert ledger["official_issue_as_of"] == "2026-06-24"
 
 
 def test_naaim_latest_import_file_checks_hermes_external_imports(monkeypatch, tmp_path):

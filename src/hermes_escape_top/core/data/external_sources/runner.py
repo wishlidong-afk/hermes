@@ -26,6 +26,9 @@ class ExternalSourceRun:
     normalized_path: str | None = None
     validation_path: str | None = None
     latest_promoted_as_of: str | None = None
+    official_issue_as_of: str | None = None
+    official_file_name: str | None = None
+    official_file_sha256: str | None = None
     error_type: str | None = None
     error_message: str | None = None
     input_hash: str | None = None
@@ -97,6 +100,7 @@ def run_external_source_refresh(
     validation_path.write_text(json.dumps(validation_payload, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
 
     if validation_error:
+        official = _official_metadata(raw, latest_frame_date(spec, frame))
         return _record(
             archive_dir,
             spec,
@@ -110,9 +114,14 @@ def run_external_source_refresh(
             error_message=validation_error,
             input_hash=input_hash,
             output_hash=output_hash,
+            official_issue_as_of=official["official_issue_as_of"],
+            official_file_name=official["official_file_name"],
+            official_file_sha256=official["official_file_sha256"],
         )
 
     atomic_write_csv(frame, spec.target_path, index=False)
+    latest_as_of = latest_frame_date(spec, frame)
+    official = _official_metadata(raw, latest_as_of)
     return _record(
         archive_dir,
         spec,
@@ -122,9 +131,12 @@ def run_external_source_refresh(
         raw_path=raw_path,
         normalized_path=normalized_path,
         validation_path=validation_path,
-        latest_promoted_as_of=latest_frame_date(spec, frame),
+        latest_promoted_as_of=latest_as_of,
         input_hash=input_hash,
         output_hash=output_hash,
+        official_issue_as_of=official["official_issue_as_of"],
+        official_file_name=official["official_file_name"],
+        official_file_sha256=official["official_file_sha256"],
     )
 
 
@@ -139,6 +151,9 @@ def _record(
     normalized_path: Path | None = None,
     validation_path: Path | None = None,
     latest_promoted_as_of: str | None = None,
+    official_issue_as_of: str | None = None,
+    official_file_name: str | None = None,
+    official_file_sha256: str | None = None,
     error_type: str | None = None,
     error_message: str | None = None,
     input_hash: str | None = None,
@@ -155,6 +170,9 @@ def _record(
         normalized_path=str(normalized_path) if normalized_path else None,
         validation_path=str(validation_path) if validation_path else None,
         latest_promoted_as_of=latest_promoted_as_of,
+        official_issue_as_of=official_issue_as_of,
+        official_file_name=official_file_name,
+        official_file_sha256=official_file_sha256,
         error_type=error_type,
         error_message=error_message,
         input_hash=input_hash,
@@ -173,3 +191,22 @@ def _iso(now: datetime | None = None) -> str:
 
 def _sha256(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _official_metadata(raw: Any, latest_as_of: str | None) -> dict[str, str | None]:
+    if not isinstance(raw, dict):
+        return {
+            "official_issue_as_of": None,
+            "official_file_name": None,
+            "official_file_sha256": None,
+        }
+    file_name = raw.get("file_name")
+    if not file_name and raw.get("xlsx_url"):
+        file_name = str(raw.get("xlsx_url")).rstrip("/").split("/")[-1] or None
+    file_sha256 = raw.get("content_sha256") or raw.get("xlsx_sha256")
+    has_file_evidence = bool(file_name or file_sha256)
+    return {
+        "official_issue_as_of": latest_as_of if has_file_evidence else None,
+        "official_file_name": str(file_name) if file_name else None,
+        "official_file_sha256": str(file_sha256) if file_sha256 else None,
+    }
