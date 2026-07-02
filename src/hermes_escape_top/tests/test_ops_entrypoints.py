@@ -4,6 +4,7 @@ import json
 import importlib.util
 import os
 from pathlib import Path
+import plistlib
 import subprocess
 import sys
 
@@ -58,12 +59,29 @@ def test_daily_entry_honors_runtime_root_env(monkeypatch: pytest.MonkeyPatch, tm
 def test_shell_entrypoints_prefer_current_release_when_present():
     daily = (REPO_ROOT / "ops" / "run_daily.sh").read_text(encoding="utf-8")
     dashboard = (REPO_ROOT / "ops" / "serve_dashboard.sh").read_text(encoding="utf-8")
+    external = (REPO_ROOT / "ops" / "refresh_external_precheck.sh").read_text(encoding="utf-8")
 
     assert 'if [ -d "$BASE/current/hermes_escape_top" ]; then' in daily
     assert 'RUNTIME="$BASE/current"' in daily
     assert 'HERMES_RUNTIME_ROOT="$RUNTIME"' in daily
     assert 'export HERMES_RUNTIME_ROOT="$RUNTIME"' in dashboard
     assert 'export PYTHONPATH="$RUNTIME"' in dashboard
+    assert 'if [ -d "$BASE/current/hermes_escape_top" ]; then' in external
+    assert 'RUNTIME="$BASE/current"' in external
+    assert 'HERMES_RUNTIME_ROOT="$RUNTIME"' in external
+    assert 'export PYTHONPATH="$RUNTIME"' in external
+    assert 'hermes_escape_top.scripts.refresh_external --pre-daily-check' in external
+
+
+def test_external_precheck_launchagent_runs_before_daily():
+    plist_path = REPO_ROOT / "ops" / "launchagents" / "com.hermes.external-precheck.plist"
+    data = plistlib.loads(plist_path.read_bytes())
+
+    assert data["Label"] == "com.hermes.external-precheck"
+    assert data["ProgramArguments"] == ["/bin/bash", "/Users/liweishi/.hermes/bin/refresh_external_precheck.sh"]
+    assert data["StartCalendarInterval"] == {"Hour": 6, "Minute": 45}
+    assert data["StandardOutPath"].endswith("/logs/external_precheck.launchd.out.log")
+    assert data["StandardErrorPath"].endswith("/logs/external_precheck.launchd.err.log")
 
 
 def test_run_daily_entry_uses_current_release_runtime_and_data_root(tmp_path):

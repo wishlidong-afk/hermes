@@ -146,17 +146,19 @@ def compute_health(
     else:
         add("CRITICAL", "官方 run 回执状态未知", receipt_status)
 
-    # 7. IBKR connectivity and dynamic snapshot age. Never trust the frozen
-    #    snapshot_stale boolean from scoring time as the current health truth.
+    # 7. IBKR is an auxiliary position-reconciliation layer, not strategy input.
+    #    Keep it visible, but do not let an unstable local Gateway downgrade the
+    #    official strategy/data health. Never trust the frozen snapshot_stale
+    #    boolean from scoring time as the current position-truth age.
     src = str(ibkr.get("source") or "")
     ibkr_time = _parse_timestamp(ibkr.get("sync_time"))
     ibkr_age = _age_seconds(ibkr_time, now)
     if src in {"", "unavailable", "disabled"}:
-        add("DEGRADED", "IBKR 未连接", str(ibkr.get("error") or "")[:60])
+        add("INFO", "IBKR 未连接", str(ibkr.get("error") or "")[:60])
     elif ibkr_age is None:
-        add("DEGRADED", "IBKR 快照时间缺失", f"source={src}")
+        add("INFO", "IBKR 快照时间缺失", f"source={src}")
     elif ibkr_age > max(float(ibkr_max_age_seconds), 0.0):
-        add("DEGRADED", "IBKR 快照陈旧", f"age={ibkr_age:.0f}s max={ibkr_max_age_seconds:.0f}s")
+        add("INFO", "IBKR 快照陈旧", f"age={ibkr_age:.0f}s max={ibkr_max_age_seconds:.0f}s")
 
     # 8. SIP is auxiliary: stale data degrades the page but never converts a
     #    successful core scheduled run into a false run failure.

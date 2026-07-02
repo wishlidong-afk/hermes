@@ -76,6 +76,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(repo / "src/hermes_escape_top/data/soft_history/source.csv", "date,value\n2026-06-18,2\n")
     _write(repo / "ops/run_daily.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/serve_dashboard.sh", "#!/bin/sh\nexit 0\n", 0o755)
+    _write(repo / "ops/refresh_external_precheck.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/run_daily.py", "print('new entry')\n", 0o755)
     _init_git(repo)
 
@@ -92,6 +93,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(live / "scripts/run_daily.py", "print('old entry')\n", 0o700)
     _write(bin_dir / "run_daily.sh", "#!/bin/sh\nexit 10\n", 0o750)
     _write(bin_dir / "serve_dashboard.sh", "#!/bin/sh\nexit 11\n", 0o740)
+    _write(bin_dir / "refresh_external_precheck.sh", "#!/bin/sh\nexit 12\n", 0o730)
     # Replicate the real ~/.hermes/.gitignore: it ignores bin/ and tests/, so the
     # allowlist entry scripts are untracked+ignored and the commit step must
     # `git add -f`. The old fixture had no .gitignore (git add . tracked bin/), so
@@ -276,6 +278,7 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
     assert committed == {
         "bin/run_daily.sh",
         "bin/serve_dashboard.sh",
+        "bin/refresh_external_precheck.sh",
         "skills/investment/escape-top/current",
         f"{release_prefix}/data",
         f"{release_prefix}/hermes_escape_top/config",

@@ -17,6 +17,7 @@ reviewer can see the *whole* execution path, not just the package.
 | repo `ops/` | live location | notes |
 |---|---|---|
 | `run_daily.sh` | `~/.hermes/bin/run_daily.sh` | launchd `com.hermes.daily` ExecStart; `$HOME`-relative (portable) |
+| `refresh_external_precheck.sh` | `~/.hermes/bin/refresh_external_precheck.sh` | launchd `com.hermes.external-precheck` ExecStart; runs external source readiness before daily, no scoring/official run write |
 | `run_daily.py` | `~/.hermes/skills/investment/escape-top/scripts/run_daily.py` | runs the package via `-m` (single engine) |
 | `serve_dashboard.sh` | `~/.hermes/bin/serve_dashboard.sh` | launchd `com.hermes.dashboard` ExecStart; `$HOME`-relative |
 | `launchagents/com.hermes.*.plist` | `~/Library/LaunchAgents/` | **machine-specific** (absolute `/Users/...` paths) — reference/backup, edit paths before reuse on another machine |

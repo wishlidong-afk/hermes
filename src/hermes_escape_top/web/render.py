@@ -2196,12 +2196,13 @@ def _render_health_banner(health: Dict[str, Any]) -> str:
     color = "var(--red)" if crit else "var(--amber)"
     bg = "#fef2f2" if crit else "#fffbeb"
     title = "🚨 运行严重降级 / CRITICAL" if crit else "⚠️ 运行降级 / DEGRADED"
-    refs = [_runbook_key_for_check(c) for c in checks]
+    actionable_checks = [c for c in checks if c.get("level") in {"CRITICAL", "DEGRADED"}]
+    refs = [_runbook_key_for_check(c) for c in actionable_checks]
     items = "".join(
         f'<li><b style="color:{"var(--red)" if c.get("level")=="CRITICAL" else "var(--amber)"}">'
         f'{esc(c.get("label"))}</b>{(" — " + esc(c.get("detail"))) if c.get("detail") else ""} '
         f'<a href="#{RUNBOOK_REFS[_runbook_key_for_check(c)][0]}">处理清单</a></li>'
-        for c in checks
+        for c in actionable_checks
     )
     return (
         f'<section class="panel" style="border:2px solid {color};background:{bg};'

@@ -44,16 +44,32 @@ def _health(payload: dict) -> dict:
     )
 
 
-def test_ibkr_age_is_recomputed_from_sync_time():
+def test_ibkr_age_is_recomputed_from_sync_time_without_degrading_strategy_health():
     payload = _payload()
     payload["ibkr"]["sync_time"] = "2026-01-01T00:00:00+00:00"
     payload["ibkr"]["snapshot_stale"] = False
 
     health = _health(payload)
 
-    assert health["level"] == "DEGRADED"
+    assert health["level"] == "OK"
     assert health["ibkr_age_seconds"] > 900
-    assert any("IBKR 快照陈旧" in check["label"] for check in health["checks"])
+    check = next(check for check in health["checks"] if "IBKR 快照陈旧" in check["label"])
+    assert check["level"] == "INFO"
+
+
+def test_ibkr_unavailable_is_auxiliary_not_strategy_degradation():
+    payload = _payload()
+    payload["ibkr"] = {
+        "source": "unavailable",
+        "error": "Gateway offline",
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "OK"
+    check = next(check for check in health["checks"] if "IBKR 未连接" in check["label"])
+    assert check["level"] == "INFO"
+    assert "Gateway offline" in check["detail"]
 
 
 def test_failed_scheduled_receipt_is_critical():

@@ -502,6 +502,34 @@ def test_health_banner_links_each_degraded_check_to_runbook_summary():
     assert "Runbook: 数据缺失 / 过期" in html
 
 
+def test_health_banner_ignores_auxiliary_info_checks():
+    html = _render_health_banner({
+        "level": "OK",
+        "checks": [
+            {"level": "INFO", "label": "IBKR 快照陈旧", "detail": "age=3600s max=900s"},
+        ],
+    })
+
+    assert "运行健康" in html
+    assert "IBKR 快照陈旧" not in html
+    assert "运行降级" not in html
+
+
+def test_degraded_health_banner_lists_only_actionable_checks():
+    html = _render_health_banner({
+        "level": "DEGRADED",
+        "checks": [
+            {"level": "INFO", "label": "IBKR 快照陈旧", "detail": "age=3600s max=900s"},
+            {"level": "DEGRADED", "label": "外部数据源陈旧", "detail": "dollar"},
+        ],
+    })
+
+    assert "外部数据源陈旧" in html
+    assert "IBKR 快照陈旧" not in html
+    assert "#runbook-data" in html
+    assert "#runbook-ibkr" not in html
+
+
 # --- value-correctness regression guards (the 2026-06-14 dashboard bugs) ---
 # These assert the rendered VALUES, not just that a section/string is present —
 # the fixture already fed module_a={MSTR:14,...} but nothing checked the output,
