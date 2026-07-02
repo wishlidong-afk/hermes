@@ -307,6 +307,7 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     html = render_mod.render_dashboard(_payload(), health={"level": "OK"}, manifest_status={"status": "OK"})
 
     assert "系统状态 + 数据质量" in html
+    assert "策略数据" in html and "持仓对账" in html and "辅助资金流" in html
     # 8765 workbench retired — its launch button must NOT be on the dashboard.
     assert "工作台 8765" not in html
     assert "127.0.0.1:8765" not in html

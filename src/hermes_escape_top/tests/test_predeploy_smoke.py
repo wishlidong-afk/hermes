@@ -130,3 +130,31 @@ def test_always_on_daily_skips_unwired_source():
     # a build that doesn't wire it).
     _, ok, _ = smoke.check_always_on_daily_available({"soft_data": {"records": {}}})
     assert ok
+
+
+def test_repo_live_data_root_points_repo_smoke_at_live_current(monkeypatch, tmp_path):
+    repo = tmp_path / "repo"
+    package = repo / "src" / "hermes_escape_top"
+    package.mkdir(parents=True)
+    (repo / ".git").mkdir()
+    home = tmp_path / "home"
+    live_pkg = home / ".hermes" / "skills" / "investment" / "escape-top" / "current" / "hermes_escape_top"
+    (live_pkg / "data").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.delenv("HERMES_DATA_DIR", raising=False)
+    monkeypatch.setattr(smoke, "PACKAGE_DIR", package)
+
+    with smoke.repo_live_data_root() as data_root:
+        assert data_root == live_pkg
+        assert smoke.os.environ["HERMES_DATA_DIR"] == str(live_pkg)
+
+    assert "HERMES_DATA_DIR" not in smoke.os.environ
+
+
+def test_repo_live_data_root_respects_explicit_data_root(monkeypatch, tmp_path):
+    explicit = tmp_path / "explicit"
+    monkeypatch.setenv("HERMES_DATA_DIR", str(explicit))
+
+    with smoke.repo_live_data_root() as data_root:
+        assert data_root is None
+        assert smoke.os.environ["HERMES_DATA_DIR"] == str(explicit)

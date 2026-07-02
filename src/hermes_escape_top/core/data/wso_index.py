@@ -74,7 +74,7 @@ def fetch_wso_index(symbol: str, http_get: Optional[HttpGet] = None) -> WsoIndex
         "q[instId]": str(spec["instrument_id"]),
         "q[marketId]": str(spec["market_id"]),
         "q[mode]": "hist",
-        "q[ts]": str(int(pd.Timestamp.utcnow().timestamp()) // 60 * 60),
+        "q[ts]": str(int(pd.Timestamp.now(tz="UTC").timestamp()) // 60 * 60),
     }
     referer = f"https://www.wallstreet-online.de/indizes/{spec['url_slug']}"
     payload = getter(

@@ -52,9 +52,11 @@ def test_ibkr_age_is_recomputed_from_sync_time_without_degrading_strategy_health
     health = _health(payload)
 
     assert health["level"] == "OK"
+    assert health["layers"]["position_reconciliation"]["level"] == "INFO"
     assert health["ibkr_age_seconds"] > 900
     check = next(check for check in health["checks"] if "IBKR 快照陈旧" in check["label"])
     assert check["level"] == "INFO"
+    assert check["layer"] == "position_reconciliation"
 
 
 def test_ibkr_unavailable_is_auxiliary_not_strategy_degradation():
@@ -67,8 +69,10 @@ def test_ibkr_unavailable_is_auxiliary_not_strategy_degradation():
     health = _health(payload)
 
     assert health["level"] == "OK"
+    assert health["layers"]["position_reconciliation"]["level"] == "INFO"
     check = next(check for check in health["checks"] if "IBKR 未连接" in check["label"])
     assert check["level"] == "INFO"
+    assert check["layer"] == "position_reconciliation"
     assert "Gateway offline" in check["detail"]
 
 
@@ -108,9 +112,12 @@ def test_stale_sip_as_of_degrades_without_failing_core_receipt():
 
     health = _health(payload)
 
-    assert health["level"] == "DEGRADED"
+    assert health["level"] == "OK"
+    assert health["layers"]["strategy_data"]["level"] == "OK"
+    assert health["layers"]["auxiliary_flows"]["level"] == "DEGRADED"
     assert health["receipt_status"] == "OK"
-    assert any("SIP 资金流陈旧" in check["label"] for check in health["checks"])
+    check = next(check for check in health["checks"] if "SIP 资金流陈旧" in check["label"])
+    assert check["layer"] == "auxiliary_flows"
 
 
 def test_sip_refresh_error_degrades_without_failing_core_receipt():
@@ -120,9 +127,11 @@ def test_sip_refresh_error_degrades_without_failing_core_receipt():
 
     health = _health(payload)
 
-    assert health["level"] == "DEGRADED"
+    assert health["level"] == "OK"
+    assert health["layers"]["auxiliary_flows"]["level"] == "DEGRADED"
     assert health["receipt_status"] == "OK"
-    assert any("SIP 资金流不可用" in check["label"] for check in health["checks"])
+    check = next(check for check in health["checks"] if "SIP 资金流不可用" in check["label"])
+    assert check["layer"] == "auxiliary_flows"
 
 
 def test_external_source_failure_degrades_with_reason():
@@ -138,6 +147,7 @@ def test_external_source_failure_degrades_with_reason():
     health = _health(payload)
 
     assert health["level"] == "DEGRADED"
+    assert health["layers"]["strategy_data"]["level"] == "DEGRADED"
     assert any(
         "外部数据源刷新失败" in check["label"]
         and "dollar" in check["detail"]

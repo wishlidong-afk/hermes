@@ -530,13 +530,19 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
     regime = payload.get("regime") or {}
     ibkr = payload.get("ibkr") or {}
     state = payload.get("state") or {}
-    checks = health.get("checks") or []
+    checks = [
+        item for item in (health.get("checks") or [])
+        if item.get("level") in {"CRITICAL", "DEGRADED"}
+        and item.get("layer", "strategy_data") == "strategy_data"
+    ]
     check_text = "；".join(str(item.get("label")) for item in checks[:2]) if checks else "无"
     return f"""
     <section>
       <h2>系统状态 + 数据质量 / System Health</h2>
       <div class="position-summary-grid">
-        {_metric('运行状态', esc((health or {}).get('level', 'OK')))}
+        {_metric('策略数据', _health_layer_metric(health, 'strategy_data'))}
+        {_metric('持仓对账', _health_layer_metric(health, 'position_reconciliation'))}
+        {_metric('辅助资金流', _health_layer_metric(health, 'auxiliary_flows'))}
         {_metric('Data', f"{esc(dq.get('level', 'NA'))} {_fmt_num(dq.get('overall_score'))}")}
         {_metric('Manifest', esc(manifest_status.get('status', 'NA')))}
         {_metric('IBKR', esc(ibkr.get('source', 'disabled')) + (' / STALE' if ibkr.get('snapshot_stale') else ''))}
@@ -552,6 +558,33 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
       </details>
     </section>
     """
+
+
+def _health_layer_metric(health: Dict[str, Any], layer: str) -> str:
+    layers = (health or {}).get("layers") or {}
+    row = layers.get(layer) or {}
+    level = str(row.get("level") or ((health or {}).get("level") if layer == "strategy_data" else "OK") or "OK")
+    checks = row.get("checks") or []
+    actionable = [c for c in checks if c.get("level") in {"CRITICAL", "DEGRADED"}]
+    info = [c for c in checks if c.get("level") == "INFO"]
+    if actionable:
+        detail = str(actionable[0].get("label") or "")[:18]
+    elif info:
+        detail = str(info[0].get("label") or "")[:18]
+    else:
+        detail = "OK"
+    return f"{_badge(level, _health_level_kind(level))} <span class='subtle'>{esc(detail)}</span>"
+
+
+def _health_level_kind(level: str) -> str:
+    upper = str(level or "OK").upper()
+    if upper == "CRITICAL":
+        return "danger"
+    if upper == "DEGRADED":
+        return "warn"
+    if upper == "INFO":
+        return "watch"
+    return "ok"
 
 
 _STATUS_HISTORY_COLOR = {

@@ -1304,6 +1304,83 @@ def _atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
         raise
 
 
+def _atomic_write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+
+
+def _write_system_health_report(
+    payload: Dict[str, Any],
+    as_of: str,
+    receipt: Dict[str, Any],
+    shadow: bool = False,
+) -> Dict[str, Path]:
+    from hermes_escape_top.web.health import compute_health
+    from hermes_escape_top.web.refresh import manifest_status
+
+    config = load_config()
+    report_payload = dict(payload)
+    report_payload["run_receipt"] = receipt
+    manifest = manifest_status(config)
+    health = compute_health(report_payload, manifest)
+    generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
+    report = {
+        "schema_version": "hermes-system-health-v1",
+        "generated_at": generated_at,
+        "as_of": as_of,
+        "input_hash": payload.get("input_hash"),
+        "run_type": payload.get("run_type"),
+        "manifest_status": manifest,
+        "run_receipt": receipt,
+        "health": health,
+    }
+    report_dir = _artifact_root() / "reports" / ("shadow" if shadow else "")
+    report_dir.mkdir(parents=True, exist_ok=True)
+    json_path = report_dir / f"system_health_{as_of}.json"
+    md_path = report_dir / f"system_health_{as_of}.md"
+    _atomic_write_json(json_path, report)
+    _atomic_write_text(md_path, _render_system_health_markdown(report))
+    print(f"[health] written: {json_path}")
+    print(f"[health] written: {md_path}")
+    return {"json": json_path, "markdown": md_path}
+
+
+def _render_system_health_markdown(report: Dict[str, Any]) -> str:
+    health = report.get("health") or {}
+    layers = health.get("layers") or {}
+    lines = [
+        f"# Hermes System Health — {report.get('as_of')}",
+        "",
+        f"- generated_at: `{report.get('generated_at')}`",
+        f"- overall_strategy_level: `{health.get('level')}`",
+        f"- input_hash: `{str(report.get('input_hash') or 'NA')[:16]}`",
+        f"- manifest: `{(report.get('manifest_status') or {}).get('status', 'NA')}`",
+        f"- receipt: `{(report.get('run_receipt') or {}).get('status', 'NA')}`",
+        "",
+        "| Layer | Level | Checks |",
+        "|---|---|---|",
+    ]
+    for key in ("strategy_data", "position_reconciliation", "auxiliary_flows"):
+        row = layers.get(key) or {}
+        checks = row.get("checks") or []
+        check_text = "; ".join(
+            f"{item.get('level')} {item.get('label')} {item.get('detail') or ''}".strip()
+            for item in checks
+        ) or "OK"
+        lines.append(f"| {row.get('label', key)} | {row.get('level', 'OK')} | {check_text} |")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def _build_daily_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="M4-1 package run-daily wrapper")
     parser.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: today)")
@@ -1339,7 +1416,7 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
         if running is None:
             raise RuntimeError("scheduled run cannot start without a RUNNING receipt")
     try:
-        _execute_daily(args=args, _lease=_lease, _run_context=context)
+        payload = _execute_daily(args=args, _lease=_lease, _run_context=context)
         if scheduled:
             finished = _write_run_receipt(
                 context["as_of"],
@@ -1349,6 +1426,8 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
             )
             if finished is None or finished.get("status") != "OK":
                 raise RuntimeError("scheduled run end-state receipt failed")
+            context["step"] = "system_health_report"
+            _write_system_health_report(payload, context["as_of"], finished, shadow=False)
     except BaseException as exc:
         if scheduled:
             _write_run_receipt(
@@ -1368,7 +1447,7 @@ def _execute_daily(
     args: argparse.Namespace,
     _lease: Any,
     _run_context: Dict[str, str],
-) -> None:
+) -> Dict[str, Any]:
     shadow = not args.live
     refresh_end = args.as_of or date.today().isoformat()
 
@@ -1470,6 +1549,7 @@ def _execute_daily(
 
     _run_context["step"] = "complete"
     print(f"[M4-1] Done. as_of={as_of} mode={'shadow' if shadow else 'LIVE'}")
+    return payload
 
 
 def main() -> None:

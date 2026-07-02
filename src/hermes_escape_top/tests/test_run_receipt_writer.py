@@ -70,6 +70,61 @@ def test_top_level_failure_overwrites_running_receipt(monkeypatch, tmp_path):
     assert receipt["finished_at"]
 
 
+def test_scheduled_run_writes_system_health_report_after_ok_receipt(monkeypatch, tmp_path):
+    _patch(monkeypatch, tmp_path)
+    args = SimpleNamespace(live=True, run_type="scheduled", as_of="2026-06-17")
+    captured = {}
+
+    monkeypatch.setattr(rdp, "_execute_daily", lambda **_kwargs: {"as_of": "2026-06-17"})
+    monkeypatch.setattr(
+        rdp,
+        "_write_system_health_report",
+        lambda payload, as_of, receipt, shadow=False: captured.update(
+            {"payload": payload, "as_of": as_of, "receipt": receipt, "shadow": shadow}
+        ),
+    )
+
+    rdp._run_daily_with_receipt(args, _lease=object())
+
+    assert captured["as_of"] == "2026-06-17"
+    assert captured["receipt"]["status"] == "OK"
+    assert captured["shadow"] is False
+
+
+def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
+    monkeypatch.setenv("HERMES_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(rdp, "load_config", lambda: {"paths": {"archive_dir": "data/archive"}})
+    monkeypatch.setattr(
+        "hermes_escape_top.web.refresh.manifest_status",
+        lambda _config=None: {"status": "OK"},
+    )
+    payload = {
+        "as_of": "2026-06-17",
+        "cache_status": {"hit": True},
+        "data_quality": {"level": "HIGH", "overall_score": 1.0},
+        "data_quality_breakdown": {"sources": []},
+        "ibkr": {"source": "unavailable", "error": "Gateway offline"},
+        "alpaca_daily_flow": {"as_of": "2026-06-17"},
+    }
+    receipt = {
+        "status": "OK",
+        "run_type": "scheduled",
+        "run_at": "2026-06-17T07:10:00+08:00",
+        "finished_at": "2026-06-17T07:12:00+08:00",
+        "ok": True,
+    }
+
+    out = rdp._write_system_health_report(payload, "2026-06-17", receipt)
+
+    assert out["json"] == tmp_path / "reports" / "system_health_2026-06-17.json"
+    assert out["markdown"] == tmp_path / "reports" / "system_health_2026-06-17.md"
+    assert out["json"].exists()
+    assert out["markdown"].exists()
+    data = json.loads(out["json"].read_text(encoding="utf-8"))
+    assert data["health"]["layers"]["position_reconciliation"]["level"] == "INFO"
+    assert "策略数据" in out["markdown"].read_text(encoding="utf-8")
+
+
 def test_receipt_write_failure_removes_prior_green_attestation(monkeypatch, tmp_path):
     _patch(monkeypatch, tmp_path)
     receipt_path = tmp_path / "run_receipt.json"

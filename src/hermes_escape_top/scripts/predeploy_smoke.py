@@ -29,11 +29,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import os
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
-from ..config import load_config, resolve_path
+from ..config import DATA_DIR_ENV, PACKAGE_DIR, load_config, resolve_path
 
 
 # FRED-sourced soft series -> their feature flag. Only flag-ON series are checked.
@@ -48,6 +51,50 @@ FRED_SOFT_SOURCES = {
 _EXPECTED_OFF = {"gex", "valuation"}
 
 CheckResult = Tuple[str, bool, str]  # (name, ok, detail)
+
+
+@contextlib.contextmanager
+def repo_live_data_root() -> Iterator[Optional[Path]]:
+    """Use live current data when the smoke is run from the repo checkout.
+
+    The repo package still contains development fixture data; running the smoke
+    directly from ``src/`` should validate code against live/mirrored runtime
+    state, not fail on stale package fixtures. Explicit HERMES_DATA_DIR always
+    wins, and packaged/staged releases keep their own data symlink.
+    """
+    if os.environ.get(DATA_DIR_ENV):
+        yield None
+        return
+    repo_root = _repo_root_for_package(PACKAGE_DIR)
+    live_pkg = _live_current_package_dir()
+    if repo_root is None or live_pkg is None:
+        yield None
+        return
+    previous = os.environ.get(DATA_DIR_ENV)
+    os.environ[DATA_DIR_ENV] = str(live_pkg)
+    try:
+        yield live_pkg
+    finally:
+        if previous is None:
+            os.environ.pop(DATA_DIR_ENV, None)
+        else:
+            os.environ[DATA_DIR_ENV] = previous
+
+
+def _repo_root_for_package(package_dir: Path) -> Optional[Path]:
+    try:
+        if package_dir.parent.name != "src":
+            return None
+        repo = package_dir.parents[1]
+    except IndexError:
+        return None
+    return repo if (repo / ".git").exists() else None
+
+
+def _live_current_package_dir() -> Optional[Path]:
+    home = Path(os.environ.get("HOME") or str(Path.home())).expanduser()
+    live_pkg = home / ".hermes" / "skills" / "investment" / "escape-top" / "current" / "hermes_escape_top"
+    return live_pkg if (live_pkg / "data").exists() else None
 
 
 def _read_recent_official_payloads(config: Dict[str, Any], n: int = 2) -> List[Dict[str, Any]]:
@@ -216,30 +263,32 @@ def check_no_unexplained_flip(prev: Optional[Dict[str, Any]], curr: Optional[Dic
 
 def run_smoke(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Run all checks; return {ok, fatal_ok, checks:[{name,ok,fatal,detail}]}."""
-    config = config or load_config()
-    payloads = _read_recent_official_payloads(config, n=2)
-    curr = payloads[-1] if payloads else {}
-    prev = payloads[-2] if len(payloads) >= 2 else None
+    with repo_live_data_root() if config is None else contextlib.nullcontext(None) as data_root:
+        config = config or load_config()
+        payloads = _read_recent_official_payloads(config, n=2)
+        curr = payloads[-1] if payloads else {}
+        prev = payloads[-2] if len(payloads) >= 2 else None
 
-    fatal: List[CheckResult] = [
-        check_fred_publish_dates(config),
-        check_on_sources_available(config, curr),
-        check_always_on_daily_available(curr),
-        check_no_source_regression(prev, curr),
-        check_no_na_in_evidence(curr),
-        check_manifest_not_drift(config),
-    ]
-    warn: List[CheckResult] = [check_no_unexplained_flip(prev, curr)]
+        fatal: List[CheckResult] = [
+            check_fred_publish_dates(config),
+            check_on_sources_available(config, curr),
+            check_always_on_daily_available(curr),
+            check_no_source_regression(prev, curr),
+            check_no_na_in_evidence(curr),
+            check_manifest_not_drift(config),
+        ]
+        warn: List[CheckResult] = [check_no_unexplained_flip(prev, curr)]
 
-    checks = ([{"name": n, "ok": ok, "fatal": True, "detail": d} for n, ok, d in fatal]
-              + [{"name": n, "ok": ok, "fatal": False, "detail": d} for n, ok, d in warn])
-    fatal_ok = all(ok for _, ok, _ in fatal)
-    return {
-        "ok": fatal_ok,
-        "fatal_ok": fatal_ok,
-        "as_of": str(curr.get("as_of", "")) if curr else None,
-        "checks": checks,
-    }
+        checks = ([{"name": n, "ok": ok, "fatal": True, "detail": d} for n, ok, d in fatal]
+                  + [{"name": n, "ok": ok, "fatal": False, "detail": d} for n, ok, d in warn])
+        fatal_ok = all(ok for _, ok, _ in fatal)
+        return {
+            "ok": fatal_ok,
+            "fatal_ok": fatal_ok,
+            "as_of": str(curr.get("as_of", "")) if curr else None,
+            "data_root": str(data_root) if data_root else None,
+            "checks": checks,
+        }
 
 
 def main() -> None:

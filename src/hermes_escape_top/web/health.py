@@ -25,6 +25,12 @@ _ONLINE_SOFT_SOURCES = {
     "financial_stress", "ndx_concentration", "move",
 }
 
+_LAYER_LABELS = {
+    "strategy_data": "策略数据",
+    "position_reconciliation": "持仓对账",
+    "auxiliary_flows": "辅助资金流",
+}
+
 
 def compute_health(
     payload: Dict[str, Any],
@@ -42,8 +48,8 @@ def compute_health(
     manifest_status = manifest_status or {}
     checks: List[Dict[str, str]] = []
 
-    def add(level: str, label: str, detail: str = "") -> None:
-        checks.append({"level": level, "label": label, "detail": detail})
+    def add(level: str, label: str, detail: str = "", layer: str = "strategy_data") -> None:
+        checks.append({"level": level, "label": label, "detail": detail, "layer": layer})
 
     cache = payload.get("cache_status") or {}
     as_of = str(payload.get("as_of", ""))[:10]
@@ -154,11 +160,11 @@ def compute_health(
     ibkr_time = _parse_timestamp(ibkr.get("sync_time"))
     ibkr_age = _age_seconds(ibkr_time, now)
     if src in {"", "unavailable", "disabled"}:
-        add("INFO", "IBKR 未连接", str(ibkr.get("error") or "")[:60])
+        add("INFO", "IBKR 未连接", str(ibkr.get("error") or "")[:60], "position_reconciliation")
     elif ibkr_age is None:
-        add("INFO", "IBKR 快照时间缺失", f"source={src}")
+        add("INFO", "IBKR 快照时间缺失", f"source={src}", "position_reconciliation")
     elif ibkr_age > max(float(ibkr_max_age_seconds), 0.0):
-        add("INFO", "IBKR 快照陈旧", f"age={ibkr_age:.0f}s max={ibkr_max_age_seconds:.0f}s")
+        add("INFO", "IBKR 快照陈旧", f"age={ibkr_age:.0f}s max={ibkr_max_age_seconds:.0f}s", "position_reconciliation")
 
     # 8. SIP is auxiliary: stale data degrades the page but never converts a
     #    successful core scheduled run into a false run failure.
@@ -168,11 +174,12 @@ def compute_health(
             "DEGRADED",
             "SIP 资金流不可用",
             str(sip_status.get("error") or sip_status.get("status") or "")[:120],
+            "auxiliary_flows",
         )
     elif sip_flow and sip_as_of:
         sip_stale = _completed_trading_days_after(sip_as_of, today)
         if sip_stale >= 1:
-            add("DEGRADED", "SIP 资金流陈旧", f"as_of={sip_as_of} stale={sip_stale}d")
+            add("DEGRADED", "SIP 资金流陈旧", f"as_of={sip_as_of} stale={sip_stale}d", "auxiliary_flows")
 
     # 9. Source-run ledger: tells operators whether the automatic external
     #    refresh machinery itself ran. This is separate from CSV freshness: a
@@ -199,14 +206,12 @@ def compute_health(
             detail = f"{source_id}: {status} {row.get('error_message') or row.get('error') or ''}".strip()
             add("DEGRADED", "外部数据源刷新失败", detail[:160])
 
-    overall = "OK"
-    if any(c["level"] == "CRITICAL" for c in checks):
-        overall = "CRITICAL"
-    elif any(c["level"] == "DEGRADED" for c in checks):
-        overall = "DEGRADED"
+    layers = _layers(checks)
+    overall = layers["strategy_data"]["level"]
 
     return {
         "level": overall,
+        "layers": layers,
         "as_of": as_of,
         "stale_trading_days": stale,
         "receipt_status": receipt_status,
@@ -216,6 +221,28 @@ def compute_health(
         "checks": checks,
         "summary": _summary(overall, checks),
     }
+
+
+def _layers(checks: List[Dict[str, str]]) -> Dict[str, Dict[str, Any]]:
+    out: Dict[str, Dict[str, Any]] = {}
+    for key, label in _LAYER_LABELS.items():
+        subset = [c for c in checks if c.get("layer", "strategy_data") == key]
+        out[key] = {
+            "label": label,
+            "level": _level_from_checks(subset),
+            "checks": subset,
+        }
+    return out
+
+
+def _level_from_checks(checks: List[Dict[str, str]]) -> str:
+    if any(c.get("level") == "CRITICAL" for c in checks):
+        return "CRITICAL"
+    if any(c.get("level") == "DEGRADED" for c in checks):
+        return "DEGRADED"
+    if any(c.get("level") == "INFO" for c in checks):
+        return "INFO"
+    return "OK"
 
 
 def _parse_timestamp(value: Any) -> Optional[datetime]:
@@ -238,9 +265,9 @@ def _age_seconds(value: Optional[datetime], now: datetime) -> Optional[float]:
 
 def _summary(level: str, checks: List[Dict[str, str]]) -> str:
     if level == "OK":
-        return "全部正常：行情新鲜、数据清单一致、数据质量达标。"
-    crit = [c["label"] for c in checks if c["level"] == "CRITICAL"]
-    deg = [c["label"] for c in checks if c["level"] == "DEGRADED"]
+        return "策略数据正常：行情新鲜、数据清单一致、数据质量达标。"
+    crit = [c["label"] for c in checks if c["level"] == "CRITICAL" and c.get("layer", "strategy_data") == "strategy_data"]
+    deg = [c["label"] for c in checks if c["level"] == "DEGRADED" and c.get("layer", "strategy_data") == "strategy_data"]
     parts = []
     if crit:
         parts.append("严重：" + "、".join(crit))
