@@ -2468,6 +2468,13 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
         f"<tbody>{''.join(rows)}</tbody>"
         "</table>"
         "</div>"
+        "<div class='subtle' style='margin-top:7px'>"
+        "AAII/NAAIM 自动抓取失败时，只接受官方下载文件导入："
+        "<code>PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source aaii_sentiment --import-file ~/Downloads/sentiment.xls</code>"
+        "；"
+        "<code>PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source naaim_exposure --import-file ~/Downloads/naaim.xlsx</code>"
+        "。镜像源仅用于核对，不直接替代生产真值。"
+        "</div>"
         "</div>"
     )
 

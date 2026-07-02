@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 
 import pandas as pd
 
 from hermes_escape_top.core.data.external_sources.aaii import (
     AaiiSentimentAdapter,
+    AaiiSentimentImportAdapter,
     parse_aaii_public_rows,
     aaii_sentiment_spec,
 )
@@ -106,3 +108,47 @@ def test_aaii_adapter_records_fetch_error_on_challenge_page(tmp_path):
     assert run.status == "FETCH_ERROR"
     assert run.error_type == "ValueError"
     assert "blocked" in str(run.error_message).lower()
+
+
+def test_aaii_import_adapter_promotes_official_file_through_ledger(tmp_path):
+    seed_path = tmp_path / "soft_history" / "aaii_sentiment.csv"
+    _seed_aaii(seed_path, end="2026-06-18", rows=80)
+    import_path = tmp_path / "sentiment.csv"
+    import_path.write_text(
+        "\n".join(
+            [
+                "Reported,Bullish,Neutral,Bearish,Bull-Bear",
+                "2026-06-25,44.9,25.0,30.1,14.8",
+                "2026-07-02,38.2,28.0,33.8,4.4",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    adapter = AaiiSentimentImportAdapter(
+        seed_path=seed_path,
+        import_path=import_path,
+        percentile_window=10,
+        min_periods=1,
+    )
+
+    run = run_external_source_refresh(
+        aaii_sentiment_spec(target_path=seed_path, min_rows=60),
+        adapter,
+        tmp_path / "archive",
+    )
+
+    out = pd.read_csv(seed_path)
+    latest = out.iloc[-1]
+    ledger = latest_source_run(tmp_path / "archive", "aaii_sentiment")
+    assert run.status == "OK"
+    assert run.latest_promoted_as_of == "2026-07-02"
+    assert latest["date"] == "2026-07-02"
+    assert latest["publish_date"] == "2026-07-02"
+    assert latest["aaii_bull"] == 0.382
+    assert latest["aaii_bear"] == 0.338
+    assert round(float(latest["aaii_bull_bear_spread"]), 3) == 0.044
+    assert ledger["status"] == "OK"
+    raw = json.loads((tmp_path / "archive" / "external_sources" / "aaii_sentiment" / run.run_id / "raw.json").read_text())
+    assert raw["file_name"] == "sentiment.csv"
+    assert raw["source"] == "manual_official_file"

@@ -12,8 +12,10 @@
 ## 2. 数据缺失 / 过期
 
 - preflight 出现 `STALE` 或 watchdog 报警：先手动 `bash ~/.hermes/bin/run_daily.sh`，看 M4-1b 四个刷新步骤哪个 WARNING。
-- 单源手动刷新：`cd ~/.hermes/skills/investment/escape-top && PYTHONPATH=. python3 -m hermes_escape_top.scripts.backfill_soft_data --only {fred|fred_risk|naaim|cot|aaii}`。
-- AAII 403：需会员会话，走 Claude-in-Chrome 抓取流程（记忆/历史会话有步骤），Thursday 约定追加 CSV。
+- 外部源统一刷新：`cd ~/.hermes/skills/investment/escape-top/current && PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --all`。单源刷新：`--source {dollar|real_rate|fred_net_liquidity|naaim_exposure|aaii_sentiment}`。
+- AAII 403/Imperva：用已登录浏览器从 AAII Sentiment Survey 页面下载官方 `sentiment.xls`，再执行 `cd ~/.hermes/skills/investment/escape-top/current && PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source aaii_sentiment --import-file ~/Downloads/sentiment.xls`。导入仍会写 `external_source_runs.jsonl`、raw evidence、normalized CSV 和 validation，不允许手工直接编辑 `soft_history/aaii_sentiment.csv`。
+- NAAIM 官网 XLSX 发现失败或 2026-08-01 后订阅化：从 NAAIM 官方页/订阅页下载 workbook，再执行 `cd ~/.hermes/skills/investment/escape-top/current && PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source naaim_exposure --import-file ~/Downloads/naaim.xlsx`。镜像源（如 YCharts/MacroMicro）只用于核对，不直接替代生产真值。
+- 旧 `backfill_soft_data --only {naaim|aaii}` 只作为诊断参考；生产刷新以 ExternalSourceRunner ledger 为准。
 - 缺数据≠安全：`use_soft_data_max_age` 翻闸后超龄源自动走 missing_weight（当前 OFF，翻闸见 §6）。
 
 ## 3. Suspect valve PENDING

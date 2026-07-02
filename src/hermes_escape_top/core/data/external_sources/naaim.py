@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import re
 import urllib.request
@@ -51,7 +52,10 @@ class NaaimExposureAdapter:
         html = self.fetch_text(self.index_url)
         xlsx_url = discover_naaim_xlsx_url(html, self.index_url)
         if not xlsx_url:
-            raise ValueError("could not discover NAAIM xlsx URL")
+            raise ValueError(
+                "could not discover NAAIM xlsx URL; download the official workbook "
+                "and run refresh_external --source naaim_exposure --import-file PATH"
+            )
         xlsx = self.fetch_bytes(xlsx_url)
         if not xlsx:
             raise ValueError("downloaded empty NAAIM xlsx")
@@ -65,20 +69,39 @@ class NaaimExposureAdapter:
         xlsx = base64.b64decode(str((raw or {}).get("xlsx_base64") or ""))
         rows = _xlsx_rows(xlsx)
         records = _naaim_records(rows)
+        return _records_frame(records, self.percentile_window, self.min_periods)
+
+
+@dataclass(frozen=True)
+class NaaimExposureImportAdapter:
+    import_path: Path
+    percentile_window: int = 252
+    min_periods: int = 20
+
+    def fetch_raw(self) -> dict[str, Any]:
+        path = Path(self.import_path).expanduser()
+        if not path.exists():
+            raise FileNotFoundError(str(path))
+        content = path.read_bytes()
+        if not content:
+            raise ValueError(f"NAAIM import file is empty: {path}")
+        return {
+            "source": "manual_official_file",
+            "file_name": path.name,
+            "file_size": len(content),
+            "file_mtime": path.stat().st_mtime,
+            "content_sha256": hashlib.sha256(content).hexdigest(),
+            "content_base64": base64.b64encode(content).decode("ascii"),
+        }
+
+    def parse(self, raw: dict[str, Any]) -> pd.DataFrame:
+        content = base64.b64decode(str((raw or {}).get("content_base64") or ""))
+        file_name = str((raw or {}).get("file_name") or "naaim")
+        rows = _naaim_import_rows(content, file_name)
+        records = _naaim_records(rows)
         if not records:
-            return pd.DataFrame(columns=["date", "publish_date", "naaim_exposure", "naaim_pctl", "is_proxy"])
-        frame = pd.DataFrame(records).drop_duplicates("date").sort_values("date").reset_index(drop=True)
-        frame["publish_date"] = frame["date"].map(lambda value: value + timedelta(days=1))
-        frame["naaim_pctl"] = (
-            frame["naaim_exposure"]
-            .rolling(self.percentile_window, min_periods=self.min_periods)
-            .apply(_last_percentile, raw=False)
-            .round(2)
-        )
-        frame["is_proxy"] = False
-        frame["date"] = frame["date"].astype(str)
-        frame["publish_date"] = frame["publish_date"].astype(str)
-        return frame[["date", "publish_date", "naaim_exposure", "naaim_pctl", "is_proxy"]]
+            raise ValueError("NAAIM import file contained no usable exposure rows")
+        return _records_frame(records, self.percentile_window, self.min_periods)
 
 
 def naaim_exposure_spec(*, target_path: Path, min_rows: int = 60) -> ExternalSourceSpec:
@@ -110,6 +133,30 @@ def _xlsx_rows(raw: bytes) -> list[list[Any]]:
         return [list(row) for row in wb.active.iter_rows(values_only=True)]
     except ImportError:
         return _xlsx_rows_stdlib(raw)
+
+
+def _naaim_import_rows(raw: bytes, file_name: str) -> list[list[Any]]:
+    if file_name.lower().endswith((".csv", ".txt")):
+        frame = pd.read_csv(io.BytesIO(raw))
+        return [list(frame.columns)] + frame.astype(object).where(pd.notna(frame), None).values.tolist()
+    return _xlsx_rows(raw)
+
+
+def _records_frame(records: list[dict[str, Any]], percentile_window: int, min_periods: int) -> pd.DataFrame:
+    if not records:
+        return pd.DataFrame(columns=["date", "publish_date", "naaim_exposure", "naaim_pctl", "is_proxy"])
+    frame = pd.DataFrame(records).drop_duplicates("date").sort_values("date").reset_index(drop=True)
+    frame["publish_date"] = frame["date"].map(lambda value: value + timedelta(days=1))
+    frame["naaim_pctl"] = (
+        frame["naaim_exposure"]
+        .rolling(percentile_window, min_periods=min_periods)
+        .apply(_last_percentile, raw=False)
+        .round(2)
+    )
+    frame["is_proxy"] = False
+    frame["date"] = frame["date"].astype(str)
+    frame["publish_date"] = frame["publish_date"].astype(str)
+    return frame[["date", "publish_date", "naaim_exposure", "naaim_pctl", "is_proxy"]]
 
 
 def _xlsx_rows_stdlib(raw: bytes) -> list[list[Any]]:

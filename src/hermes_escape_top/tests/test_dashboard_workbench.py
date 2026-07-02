@@ -402,6 +402,8 @@ def test_trust_zone_uses_external_source_ledger_status():
     assert "AAII Sentiment" in html
     assert "AAII public endpoint blocked; manual import required" in html
     assert "refreshExternalSource('aaii_sentiment')" in html
+    assert "--source aaii_sentiment --import-file ~/Downloads/sentiment.xls" in html
+    assert "--source naaim_exposure --import-file ~/Downloads/naaim.xlsx" in html
     assert "刷新全部外部源" in html
     assert "refreshExternalSources()" in html
     assert "external-source-real_rate-status" in html

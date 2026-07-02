@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 from typing import Any
 
 from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.data.external_sources import (
     AaiiSentimentAdapter,
+    AaiiSentimentImportAdapter,
     FredNetLiquidityAdapter,
     FredPercentileAdapter,
     NaaimExposureAdapter,
+    NaaimExposureImportAdapter,
     aaii_sentiment_spec,
     fred_net_liquidity_spec,
     fred_percentile_spec,
@@ -19,6 +22,7 @@ from hermes_escape_top.core.data.external_sources import (
 )
 
 SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity", "naaim_exposure", "aaii_sentiment")
+IMPORT_FILE_SOURCE_IDS = ("naaim_exposure", "aaii_sentiment")
 
 
 def dollar_source(config: dict[str, Any]):
@@ -82,12 +86,19 @@ def source_specs(config: dict[str, Any]):
     return specs
 
 
-def refresh_source(source_id: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
+def refresh_source(source_id: str, config: dict[str, Any] | None = None, *, import_file: str | None = None) -> dict[str, Any]:
     cfg = config or load_config()
     factories = source_factories()
     if source_id not in factories:
         raise ValueError(f"unsupported external source: {source_id}")
     spec, adapter = factories[source_id](cfg)
+    if import_file:
+        if source_id == "aaii_sentiment":
+            adapter = AaiiSentimentImportAdapter(seed_path=spec.target_path, import_path=Path(import_file).expanduser())
+        elif source_id == "naaim_exposure":
+            adapter = NaaimExposureImportAdapter(import_path=Path(import_file).expanduser())
+        else:
+            raise ValueError(f"--import-file is not supported for source: {source_id}")
     run = run_external_source_refresh(spec, adapter, resolve_path(cfg, "archive_dir"))
     return run.to_dict()
 
@@ -126,15 +137,20 @@ def status(config: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Refresh Hermes external data sources independently.")
     parser.add_argument("--source", choices=list(SOURCE_IDS), help="Refresh one source.")
+    parser.add_argument("--import-file", help="Import an official downloaded source file for supported sources.")
     parser.add_argument("--all", action="store_true", help="Refresh all registered sources.")
     parser.add_argument("--status", action="store_true", help="Print latest source-run status.")
     args = parser.parse_args(argv)
 
+    if args.import_file and not args.source:
+        parser.error("--import-file requires --source")
+    if args.import_file and args.source not in IMPORT_FILE_SOURCE_IDS:
+        parser.error("--import-file is supported only for: " + ", ".join(IMPORT_FILE_SOURCE_IDS))
     if args.status:
         print(json.dumps(status(), ensure_ascii=False, indent=2, sort_keys=True, default=str))
         return 0
     if args.source:
-        print(json.dumps(refresh_source(args.source), ensure_ascii=False, indent=2, sort_keys=True, default=str))
+        print(json.dumps(refresh_source(args.source, import_file=args.import_file), ensure_ascii=False, indent=2, sort_keys=True, default=str))
         return 0
     if args.all:
         print(json.dumps(refresh_all_sources(), ensure_ascii=False, indent=2, sort_keys=True, default=str))

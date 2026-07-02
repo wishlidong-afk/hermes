@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
+import pytest
+
 from hermes_escape_top.core.data.external_sources.ledger import append_source_run
 from hermes_escape_top.scripts import refresh_external
 
@@ -249,6 +251,66 @@ def test_refresh_external_cli_accepts_aaii(monkeypatch, tmp_path, capsys):
     assert rc == 0
     assert out["source_id"] == "aaii_sentiment"
     assert out["status"] == "OK"
+
+
+def test_refresh_external_cli_accepts_aaii_import_file(monkeypatch, tmp_path, capsys):
+    calls = {}
+    import_path = tmp_path / "sentiment.csv"
+    import_path.write_text("Reported,Bullish,Neutral,Bearish,Bull-Bear\n2026-07-02,38.2,28.0,33.8,4.4\n", encoding="utf-8")
+
+    def fake_runner(spec, adapter, archive_dir):
+        calls["adapter"] = adapter
+        return SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"})
+
+    monkeypatch.setattr(refresh_external, "load_config", lambda: _config(tmp_path))
+    monkeypatch.setattr(refresh_external, "run_external_source_refresh", fake_runner)
+
+    rc = refresh_external.main(["--source", "aaii_sentiment", "--import-file", str(import_path)])
+
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert out["source_id"] == "aaii_sentiment"
+    assert out["status"] == "OK"
+    assert calls["adapter"].import_path == import_path
+
+
+def test_refresh_external_cli_accepts_naaim_import_file(monkeypatch, tmp_path, capsys):
+    calls = {}
+    import_path = tmp_path / "naaim.xlsx"
+    import_path.write_bytes(b"fake workbook")
+
+    def fake_runner(spec, adapter, archive_dir):
+        calls["spec"] = spec
+        calls["adapter"] = adapter
+        return SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"})
+
+    monkeypatch.setattr(refresh_external, "load_config", lambda: _config(tmp_path))
+    monkeypatch.setattr(refresh_external, "run_external_source_refresh", fake_runner)
+
+    rc = refresh_external.main(["--source", "naaim_exposure", "--import-file", str(import_path)])
+
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert out["source_id"] == "naaim_exposure"
+    assert out["status"] == "OK"
+    assert calls["spec"].source_id == "naaim_exposure"
+    assert calls["adapter"].import_path == import_path
+
+
+def test_refresh_external_cli_rejects_import_file_without_source(capsys):
+    with pytest.raises(SystemExit) as exc:
+        refresh_external.main(["--import-file", "/tmp/sentiment.csv"])
+
+    assert exc.value.code == 2
+    assert "--import-file requires --source" in capsys.readouterr().err
+
+
+def test_refresh_external_cli_rejects_import_file_for_unsupported_source(capsys):
+    with pytest.raises(SystemExit) as exc:
+        refresh_external.main(["--source", "dollar", "--import-file", "/tmp/dollar.csv"])
+
+    assert exc.value.code == 2
+    assert "--import-file is supported only for" in capsys.readouterr().err
 
 
 def test_refresh_external_cli_accepts_all(monkeypatch, tmp_path, capsys):

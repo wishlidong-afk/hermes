@@ -9,6 +9,7 @@ import pandas as pd
 from hermes_escape_top.core.data.external_sources.ledger import latest_source_run
 from hermes_escape_top.core.data.external_sources.naaim import (
     NaaimExposureAdapter,
+    NaaimExposureImportAdapter,
     discover_naaim_xlsx_url,
     naaim_exposure_spec,
 )
@@ -109,3 +110,24 @@ def test_naaim_adapter_promotes_existing_soft_history_shape(tmp_path):
     assert out["naaim_pctl"].round(2).tolist() == [100.0, 50.0, 100.0, 100.0]
     assert out["is_proxy"].tolist() == [False, False, False, False]
     assert latest_source_run(tmp_path / "archive", "naaim_exposure")["latest_promoted_as_of"] == "2026-06-24"
+
+
+def test_naaim_import_adapter_promotes_official_workbook_through_ledger(tmp_path):
+    import_path = tmp_path / "USE_Data-since-Inception_2026-06-24.xlsx"
+    import_path.write_bytes(_naaim_xlsx())
+    target = tmp_path / "soft_history" / "naaim_exposure.csv"
+    adapter = NaaimExposureImportAdapter(
+        import_path=import_path,
+        percentile_window=3,
+        min_periods=1,
+    )
+
+    run = run_external_source_refresh(naaim_exposure_spec(target_path=target, min_rows=4), adapter, tmp_path / "archive")
+
+    out = pd.read_csv(target)
+    ledger = latest_source_run(tmp_path / "archive", "naaim_exposure")
+    assert run.status == "OK"
+    assert run.latest_promoted_as_of == "2026-06-24"
+    assert out["date"].tolist() == ["2026-06-03", "2026-06-10", "2026-06-17", "2026-06-24"]
+    assert out["naaim_exposure"].tolist() == [86.82, 79.27, 92.83, 98.59]
+    assert ledger["status"] == "OK"
