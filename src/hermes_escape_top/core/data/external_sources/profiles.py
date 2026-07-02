@@ -61,6 +61,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="NAAIM official XLSX",
         fallback="official workbook import",
         import_globs=(
+            "~/.hermes/external_imports/*naaim*.xlsx",
+            "~/.hermes/external_imports/*NAAIM*.xlsx",
+            "~/.hermes/external_imports/USE_Data*.xlsx",
             "~/Downloads/*naaim*.xlsx",
             "~/Downloads/*NAAIM*.xlsx",
             "~/Downloads/USE_Data*.xlsx",
@@ -75,6 +78,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="AAII official sentiment.xls",
         fallback="browser download + official file import",
         import_globs=(
+            "~/.hermes/external_imports/sentiment*.xls",
+            "~/.hermes/external_imports/sentiment*.xlsx",
+            "~/.hermes/external_imports/sentiment*.csv",
             "~/Downloads/sentiment*.xls",
             "~/Downloads/sentiment*.xlsx",
             "~/Downloads/sentiment*.csv",

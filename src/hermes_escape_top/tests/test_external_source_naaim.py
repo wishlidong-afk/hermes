@@ -13,6 +13,7 @@ from hermes_escape_top.core.data.external_sources.naaim import (
     discover_naaim_xlsx_url,
     naaim_exposure_spec,
 )
+from hermes_escape_top.core.data.external_sources.profiles import latest_import_file, profile_for
 from hermes_escape_top.core.data.external_sources.runner import run_external_source_refresh
 
 
@@ -131,3 +132,13 @@ def test_naaim_import_adapter_promotes_official_workbook_through_ledger(tmp_path
     assert out["date"].tolist() == ["2026-06-03", "2026-06-10", "2026-06-17", "2026-06-24"]
     assert out["naaim_exposure"].tolist() == [86.82, 79.27, 92.83, 98.59]
     assert ledger["status"] == "OK"
+
+
+def test_naaim_latest_import_file_checks_hermes_external_imports(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    import_dir = tmp_path / ".hermes" / "external_imports"
+    import_dir.mkdir(parents=True)
+    official = import_dir / "USE_Data-since-Inception.xlsx"
+    official.write_bytes(_naaim_xlsx())
+
+    assert latest_import_file(profile_for("naaim_exposure")) == official

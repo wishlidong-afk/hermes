@@ -12,6 +12,7 @@ from hermes_escape_top.core.data.external_sources.aaii import (
     aaii_sentiment_spec,
 )
 from hermes_escape_top.core.data.external_sources.ledger import latest_source_run
+from hermes_escape_top.core.data.external_sources.profiles import latest_import_file, profile_for
 from hermes_escape_top.core.data.external_sources.runner import run_external_source_refresh
 
 
@@ -152,3 +153,13 @@ def test_aaii_import_adapter_promotes_official_file_through_ledger(tmp_path):
     raw = json.loads((tmp_path / "archive" / "external_sources" / "aaii_sentiment" / run.run_id / "raw.json").read_text())
     assert raw["file_name"] == "sentiment.csv"
     assert raw["source"] == "manual_official_file"
+
+
+def test_aaii_latest_import_file_checks_hermes_external_imports(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    import_dir = tmp_path / ".hermes" / "external_imports"
+    import_dir.mkdir(parents=True)
+    official = import_dir / "sentiment.xls"
+    official.write_text("official", encoding="utf-8")
+
+    assert latest_import_file(profile_for("aaii_sentiment")) == official

@@ -18,6 +18,7 @@ export PYTHONPATH="$RUNTIME"
 
 LOG_DIR="$HOME/.hermes/logs/external"
 mkdir -p "$LOG_DIR"
+mkdir -p "$HOME/.hermes/external_imports"
 LOG="${HERMES_EXTERNAL_PRECHECK_LOG:-$LOG_DIR/external_precheck_$(date +%F).log}"
 OUT_JSON="$LOG_DIR/external_precheck_latest.json"
 TMP_JSON="$OUT_JSON.$$"
