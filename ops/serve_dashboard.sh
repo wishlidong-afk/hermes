@@ -9,7 +9,7 @@ RUNTIME="$BASE"
 if [ -d "$BASE/current/hermes_escape_top" ]; then
   RUNTIME="$BASE/current"
 fi
-export HERMES_RUNTIME_ROOT="$BASE"
+export HERMES_RUNTIME_ROOT="$RUNTIME"
 export PYTHONPATH="$RUNTIME"
 export HERMES_DATA_DIR="$RUNTIME/hermes_escape_top"
 # Enables the fail-secure write-endpoint auth (golive/refresh/confirm). The

@@ -61,9 +61,48 @@ def test_shell_entrypoints_prefer_current_release_when_present():
 
     assert 'if [ -d "$BASE/current/hermes_escape_top" ]; then' in daily
     assert 'RUNTIME="$BASE/current"' in daily
-    assert 'HERMES_RUNTIME_ROOT="$BASE"' in daily
-    assert 'export HERMES_RUNTIME_ROOT="$BASE"' in dashboard
+    assert 'HERMES_RUNTIME_ROOT="$RUNTIME"' in daily
+    assert 'export HERMES_RUNTIME_ROOT="$RUNTIME"' in dashboard
     assert 'export PYTHONPATH="$RUNTIME"' in dashboard
+
+
+def test_run_daily_entry_uses_current_release_runtime_and_data_root(tmp_path):
+    home = tmp_path / "home"
+    live = home / ".hermes" / "skills" / "investment" / "escape-top"
+    current = live / "current"
+    script = current / "scripts" / "run_daily.py"
+    package = current / "hermes_escape_top"
+    script.parent.mkdir(parents=True)
+    package.mkdir(parents=True)
+    marker = tmp_path / "entry_env.json"
+    script.write_text(
+        "import json, os, pathlib, sys\n"
+        f"marker = pathlib.Path({str(marker)!r})\n"
+        "payload = {\n"
+        "    'argv': sys.argv[1:],\n"
+        "    'cwd': os.getcwd(),\n"
+        "    'HERMES_RUNTIME_ROOT': os.environ.get('HERMES_RUNTIME_ROOT'),\n"
+        "    'HERMES_DATA_DIR': os.environ.get('HERMES_DATA_DIR'),\n"
+        "}\n"
+        "marker.write_text(json.dumps(payload, sort_keys=True))\n",
+        encoding="utf-8",
+    )
+
+    env = {**os.environ, "HOME": str(home), "HERMES_RUN_LOG": str(tmp_path / "daily.log")}
+    env.pop("HERMES_DATA_DIR", None)
+    result = subprocess.run(
+        ["bash", str(REPO_ROOT / "ops" / "run_daily.sh"), "--deploy-verify"],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(marker.read_text(encoding="utf-8"))
+    assert payload["argv"] == ["--deploy-verify"]
+    assert payload["HERMES_RUNTIME_ROOT"] == str(current)
+    assert payload["HERMES_DATA_DIR"] == str(package)
 
 
 def test_daily_entry_writes_auxiliary_alpaca_status_atomically(tmp_path):
