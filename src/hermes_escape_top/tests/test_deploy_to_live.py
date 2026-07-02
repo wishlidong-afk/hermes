@@ -66,6 +66,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     live = hermes_home / "skills" / "investment" / "escape-top"
     package = live / "hermes_escape_top"
     bin_dir = hermes_home / "bin"
+    launchagents_dir = tmp_path / "LaunchAgents"
     backup_dir = tmp_path / "backups"
     events = tmp_path / "deploy-events.log"
 
@@ -77,6 +78,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(repo / "ops/run_daily.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/serve_dashboard.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/refresh_external_precheck.sh", "#!/bin/sh\nexit 0\n", 0o755)
+    _write(repo / "ops/launchagents/com.hermes.external-precheck.plist", "<plist><dict><key>new</key><true/></dict></plist>\n")
     _write(repo / "ops/run_daily.py", "print('new entry')\n", 0o755)
     _init_git(repo)
 
@@ -94,6 +96,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(bin_dir / "run_daily.sh", "#!/bin/sh\nexit 10\n", 0o750)
     _write(bin_dir / "serve_dashboard.sh", "#!/bin/sh\nexit 11\n", 0o740)
     _write(bin_dir / "refresh_external_precheck.sh", "#!/bin/sh\nexit 12\n", 0o730)
+    _write(launchagents_dir / "com.hermes.external-precheck.plist", "<plist><dict><key>old</key><true/></dict></plist>\n")
     # Replicate the real ~/.hermes/.gitignore: it ignores bin/ and tests/, so the
     # allowlist entry scripts are untracked+ignored and the commit step must
     # `git add -f`. The old fixture had no .gitignore (git add . tracked bin/), so
@@ -107,6 +110,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
         ("package", package),
         ("live-scripts", live / "scripts"),
         ("bin", bin_dir),
+        ("launchagents", launchagents_dir),
         ("repo-soft", repo_soft),
     )
     quoted_events = str(events).replace("'", "'\\''")
@@ -119,6 +123,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
             "HERMES_DEPLOY_LIVE": str(live),
             "HERMES_DEPLOY_PACKAGE": str(package),
             "HERMES_DEPLOY_BIN": str(bin_dir),
+            "HERMES_DEPLOY_LAUNCHAGENTS_DIR": str(launchagents_dir),
             "HERMES_DEPLOY_BACKUP_DIR": str(backup_dir),
             "HERMES_DEPLOY_PYTHON": sys.executable,
             "HERMES_DEPLOY_LOCK_PYTHONPATH": str(REPO_ROOT / "src"),
@@ -136,6 +141,9 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
             "HERMES_DEPLOY_DASHBOARD_HEALTH_CMD": (
                 f"echo health-${{HERMES_PIPELINE_LOCK_FD:+locked}} >> '{quoted_events}'"
             ),
+            "HERMES_DEPLOY_EXTERNAL_PRECHECK_RELOAD_CMD": (
+                f"echo external-reload-${{HERMES_PIPELINE_LOCK_FD:+locked}} >> '{quoted_events}'"
+            ),
             "HERMES_DEPLOY_VERIFY_CMD": (
                 f"echo verify-${{HERMES_PIPELINE_LOCK_FD:+locked}} >> '{quoted_events}'"
             ),
@@ -147,6 +155,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
         "live": live,
         "package": package,
         "bin": bin_dir,
+        "launchagents": launchagents_dir,
         "backup": backup_dir,
         "events": events,
         "roots": roots,
@@ -180,6 +189,7 @@ def test_deploy_script_exposes_isolated_fixture_contract() -> None:
         "HERMES_DEPLOY_BACKUP_DIR",
         "HERMES_DEPLOY_DASHBOARD_STOP_CMD",
         "HERMES_DEPLOY_DASHBOARD_RESTART_CMD",
+        "HERMES_DEPLOY_EXTERNAL_PRECHECK_RELOAD_CMD",
         "HERMES_DEPLOY_FAIL_AT",
         "--locked-swap",
         "--locked-rollback",
@@ -194,6 +204,7 @@ def test_deploy_script_exposes_isolated_fixture_contract() -> None:
     [
         ("post_sync", 1),
         ("smoke", 2),
+        ("external_precheck_reload", 2),
         ("dashboard_restart", 2),
         ("verify_live", 3),
         ("hermes_commit", 3),
@@ -295,6 +306,9 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
     assert not any("leak.py" in path for path in committed), (
         "git add -f leaked a data/ or config/ .py into the .hermes commit"
     )
+    assert (
+        Path(deploy_fixture["launchagents"]) / "com.hermes.external-precheck.plist"
+    ).read_text(encoding="utf-8") == "<plist><dict><key>new</key><true/></dict></plist>\n"
     assert "999" in runtime.read_text(encoding="utf-8")
     assert _snapshot(("repo-soft", Path(deploy_fixture["repo"]) / "src/hermes_escape_top/data/soft_history")) == {
         key: value
@@ -307,6 +321,7 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         "stop",
         "smoke-import-locked",
         "smoke-locked",
+        "external-reload-",
         "restart-",
         "health-",
         "verify-",

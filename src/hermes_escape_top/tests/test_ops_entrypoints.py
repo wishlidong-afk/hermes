@@ -79,7 +79,10 @@ def test_external_precheck_launchagent_runs_before_daily():
 
     assert data["Label"] == "com.hermes.external-precheck"
     assert data["ProgramArguments"] == ["/bin/bash", "/Users/liweishi/.hermes/bin/refresh_external_precheck.sh"]
-    assert data["StartCalendarInterval"] == {"Hour": 6, "Minute": 45}
+    assert data["StartCalendarInterval"] == [
+        {"Hour": 6, "Minute": 45},
+        {"Hour": 7, "Minute": 5},
+    ]
     assert data["StandardOutPath"].endswith("/logs/external_precheck.launchd.out.log")
     assert data["StandardErrorPath"].endswith("/logs/external_precheck.launchd.err.log")
 

@@ -15,6 +15,7 @@ if [ "$TEST_MODE" = "1" ]; then
   LIVE="${HERMES_DEPLOY_LIVE:-}"
   PKG="${HERMES_DEPLOY_PACKAGE:-}"
   BIN="${HERMES_DEPLOY_BIN:-}"
+  LAUNCHAGENTS_DIR="${HERMES_DEPLOY_LAUNCHAGENTS_DIR:-$HERMES_HOME/Library/LaunchAgents}"
   BACKUP_DIR="${HERMES_DEPLOY_BACKUP_DIR:-}"
   PYTHON="${HERMES_DEPLOY_PYTHON:-}"
   LOCK_PYTHONPATH="${HERMES_DEPLOY_LOCK_PYTHONPATH:-}"
@@ -22,6 +23,7 @@ if [ "$TEST_MODE" = "1" ]; then
   DASHBOARD_STOP_CMD="${HERMES_DEPLOY_DASHBOARD_STOP_CMD:-}"
   DASHBOARD_RESTART_CMD="${HERMES_DEPLOY_DASHBOARD_RESTART_CMD:-}"
   DASHBOARD_HEALTH_CMD="${HERMES_DEPLOY_DASHBOARD_HEALTH_CMD:-}"
+  EXTERNAL_PRECHECK_RELOAD_CMD="${HERMES_DEPLOY_EXTERNAL_PRECHECK_RELOAD_CMD:-}"
   SMOKE_IMPORT_CMD="${HERMES_DEPLOY_SMOKE_IMPORT_CMD:-}"
   SMOKE_CMD="${HERMES_DEPLOY_SMOKE_CMD:-}"
   VERIFY_CMD="${HERMES_DEPLOY_VERIFY_CMD:-}"
@@ -34,6 +36,7 @@ else
   LIVE="$HERMES_HOME/skills/investment/escape-top"
   PKG="$LIVE/hermes_escape_top"
   BIN="$HERMES_HOME/bin"
+  LAUNCHAGENTS_DIR="$HOME/Library/LaunchAgents"
   BACKUP_DIR="$HOME/.hermes-deploy-backups/escape-top"
   PYTHON="/usr/bin/python3"
   LOCK_PYTHONPATH="$REPO/src"
@@ -41,6 +44,7 @@ else
   DASHBOARD_STOP_CMD=""
   DASHBOARD_RESTART_CMD=""
   DASHBOARD_HEALTH_CMD=""
+  EXTERNAL_PRECHECK_RELOAD_CMD=""
   SMOKE_IMPORT_CMD=""
   SMOKE_CMD=""
   VERIFY_CMD=""
@@ -66,6 +70,7 @@ LEGACY_PKG="$LIVE/hermes_escape_top"
 RELEASE_ID="${HASH}_${STAMP}"
 NEW_RELEASE="$RELEASES/$RELEASE_ID"
 NEW_PKG="$NEW_RELEASE/hermes_escape_top"
+EXTERNAL_PRECHECK_LAUNCHAGENT="$LAUNCHAGENTS_DIR/com.hermes.external-precheck.plist"
 
 if [ -d "$CURRENT/hermes_escape_top" ]; then
   ACTIVE_BASE="$CURRENT"
@@ -93,9 +98,11 @@ validate_test_contract() {
   for name in \
     HERMES_DEPLOY_REPO HERMES_DEPLOY_HOME HERMES_DEPLOY_LIVE \
     HERMES_DEPLOY_PACKAGE HERMES_DEPLOY_BIN HERMES_DEPLOY_BACKUP_DIR \
+    HERMES_DEPLOY_LAUNCHAGENTS_DIR \
     HERMES_DEPLOY_PYTHON HERMES_DEPLOY_LOCK_PYTHONPATH \
     HERMES_DEPLOY_GUARD_CMD HERMES_DEPLOY_DASHBOARD_STOP_CMD \
     HERMES_DEPLOY_DASHBOARD_RESTART_CMD HERMES_DEPLOY_DASHBOARD_HEALTH_CMD \
+    HERMES_DEPLOY_EXTERNAL_PRECHECK_RELOAD_CMD \
     HERMES_DEPLOY_SMOKE_IMPORT_CMD HERMES_DEPLOY_SMOKE_CMD \
     HERMES_DEPLOY_VERIFY_CMD; do
     [ -n "${!name:-}" ] || die "!! test mode requires $name" 64
@@ -206,6 +213,19 @@ restart_dashboard() {
   local plist="$HOME/Library/LaunchAgents/com.hermes.dashboard.plist"
   launchctl bootstrap "$domain" "$plist" >/dev/null 2>&1 || return 1
   launchctl kickstart -k "$target"
+}
+
+reload_external_precheck_launchagent() {
+  if [ "$TEST_MODE" = "1" ]; then
+    run_override "$EXTERNAL_PRECHECK_RELOAD_CMD"
+    return
+  fi
+  local domain="gui/$(id -u)"
+  local target="$domain/com.hermes.external-precheck"
+  if launchctl print "$target" >/dev/null 2>&1; then
+    launchctl bootout "$target" >/dev/null 2>&1 || return 1
+  fi
+  launchctl bootstrap "$domain" "$EXTERNAL_PRECHECK_LAUNCHAGENT" >/dev/null 2>&1
 }
 
 dashboard_is_healthy() {
@@ -395,6 +415,7 @@ create_backup() {
   backup_entry "$BIN/run_daily.sh" run_daily.sh || return 1
   backup_entry "$BIN/serve_dashboard.sh" serve_dashboard.sh || return 1
   backup_entry "$BIN/refresh_external_precheck.sh" refresh_external_precheck.sh || return 1
+  backup_entry "$EXTERNAL_PRECHECK_LAUNCHAGENT" external_precheck_launchagent.plist || return 1
   backup_link_state "$CURRENT" current || return 1
   backup_link_state "$PREVIOUS" previous || return 1
   backup_shared_state || return 1
@@ -425,6 +446,7 @@ rollback_locked() {
   restore_entry "$BIN/run_daily.sh" run_daily.sh || failed=1
   restore_entry "$BIN/serve_dashboard.sh" serve_dashboard.sh || failed=1
   restore_entry "$BIN/refresh_external_precheck.sh" refresh_external_precheck.sh || failed=1
+  restore_entry "$EXTERNAL_PRECHECK_LAUNCHAGENT" external_precheck_launchagent.plist || failed=1
   restore_link_state "$CURRENT" current || failed=1
   restore_link_state "$PREVIOUS" previous || failed=1
   rm -rf "$NEW_RELEASE" || failed=1
@@ -457,19 +479,22 @@ sync_code() {
 
 sync_entries() {
   local src
-  mkdir -p "$BIN" "$LIVE/scripts" "$NEW_RELEASE/scripts" || return 1
+  mkdir -p "$BIN" "$LAUNCHAGENTS_DIR" "$LIVE/scripts" "$NEW_RELEASE/scripts" || return 1
   src="$REPO/ops/run_daily.sh"
   cp "$src" "$BIN/run_daily.sh" || return 1
   src="$REPO/ops/serve_dashboard.sh"
   cp "$src" "$BIN/serve_dashboard.sh" || return 1
   src="$REPO/ops/refresh_external_precheck.sh"
   cp "$src" "$BIN/refresh_external_precheck.sh" || return 1
+  src="$REPO/ops/launchagents/com.hermes.external-precheck.plist"
+  cp "$src" "$EXTERNAL_PRECHECK_LAUNCHAGENT" || return 1
   src="$REPO/ops/run_daily.py"
   cp "$src" "$NEW_RELEASE/scripts/run_daily.py" || return 1
   cp "$src" "$LIVE/scripts/run_daily.py" || return 1
   chmod +x "$BIN/run_daily.sh" "$BIN/serve_dashboard.sh" "$BIN/refresh_external_precheck.sh" \
     "$NEW_RELEASE/scripts/run_daily.py" "$LIVE/scripts/run_daily.py" \
     2>/dev/null || true
+  chmod 0644 "$EXTERNAL_PRECHECK_LAUNCHAGENT" 2>/dev/null || true
 }
 
 prepare_shared_runtime() {
@@ -535,10 +560,12 @@ stage_release() {
 
 sync_entries_legacy() {
   local pair src dst
+  mkdir -p "$LAUNCHAGENTS_DIR" || return 1
   for pair in \
     "run_daily.sh:$BIN/run_daily.sh" \
     "serve_dashboard.sh:$BIN/serve_dashboard.sh" \
     "refresh_external_precheck.sh:$BIN/refresh_external_precheck.sh" \
+    "launchagents/com.hermes.external-precheck.plist:$EXTERNAL_PRECHECK_LAUNCHAGENT" \
     "run_daily.py:$LIVE/scripts/run_daily.py"; do
     src="$REPO/ops/${pair%%:*}"
     dst="${pair##*:}"
@@ -628,6 +655,8 @@ rollback_after_release() {
   if [ "$rollback_rc" -ne 0 ]; then
     die "!! DOUBLE FAILURE: $message; locked rollback failed ($rollback_rc); dashboard remains stopped; backup: $BACKUP" 90
   fi
+  reload_external_precheck_launchagent \
+    || die "!! DOUBLE FAILURE: $message; rollback restored plist but external precheck reload failed; dashboard remains stopped; backup: $BACKUP" 90
   restart_dashboard
   restart_rc=$?
   [ "$restart_rc" -eq 0 ] \
@@ -671,6 +700,11 @@ fi
 
 # The lock helper has exited here. Dashboard lifecycle is never managed while
 # HERMES_PIPELINE_LOCK_FD is present.
+maybe_fail external_precheck_reload \
+  || rollback_after_release "!! external precheck LaunchAgent reload failed" 2
+reload_external_precheck_launchagent \
+  || rollback_after_release "!! external precheck LaunchAgent reload failed" 2
+
 maybe_fail dashboard_restart \
   || rollback_after_release "!! dashboard restart failed" 2
 restart_dashboard
