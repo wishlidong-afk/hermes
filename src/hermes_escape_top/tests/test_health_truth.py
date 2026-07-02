@@ -145,6 +145,29 @@ def test_missing_external_source_ledger_degrades_but_not_critical():
     assert any("外部数据源未自动刷新" in check["label"] for check in health["checks"])
 
 
+def test_stale_external_source_profile_degrades_even_when_last_run_ok():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "dollar": {
+            "source_id": "dollar",
+            "status": "OK",
+            "freshness_status": "STALE",
+            "age_days": 14,
+            "next_action": "run refresh_external --source dollar",
+        }
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "DEGRADED"
+    assert any(
+        "外部数据源陈旧" in check["label"]
+        and "dollar" in check["detail"]
+        and "run refresh_external --source dollar" in check["detail"]
+        for check in health["checks"]
+    )
+
+
 def test_previous_receipt_expires_after_next_run_grace_window():
     # com.hermes.daily runs every calendar day at 07:10. The extra two hours
     # distinguish a missed daily job from normal weekend/holiday price staleness.

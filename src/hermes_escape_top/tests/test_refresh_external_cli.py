@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
@@ -180,11 +181,41 @@ def test_refresh_external_status_prints_latest_ledger(monkeypatch, tmp_path, cap
     assert out["aaii_sentiment"]["status"] == "MISSING"
 
 
+def test_refresh_external_status_adds_profile_and_freshness(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    append_source_run(
+        tmp_path / "archive",
+        {
+            "source_id": "dollar",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-06-18",
+        },
+    )
+    append_source_run(
+        tmp_path / "archive",
+        {
+            "source_id": "aaii_sentiment",
+            "status": "FETCH_ERROR",
+            "error_message": "AAII public endpoint blocked",
+        },
+    )
+
+    out = refresh_external.status(cfg, today=date(2026, 7, 2))
+
+    assert out["dollar"]["cadence"] == "weekly"
+    assert out["dollar"]["max_age_days"] == 10
+    assert out["dollar"]["age_days"] == 14
+    assert out["dollar"]["freshness_status"] == "STALE"
+    assert out["dollar"]["next_action"].startswith("run refresh_external")
+    assert out["aaii_sentiment"]["failure_kind"] == "AUTH_REQUIRED"
+    assert "--import-file" in out["aaii_sentiment"]["next_action"]
+
+
 def test_refresh_external_all_sources_keeps_going_on_single_failure(monkeypatch, tmp_path):
     calls = []
     cfg = _config(tmp_path)
 
-    def fake_refresh(source_id: str, config=None):
+    def fake_refresh(source_id: str, config=None, **_kwargs):
         assert config is cfg
         calls.append(source_id)
         if source_id == "aaii_sentiment":
@@ -203,6 +234,94 @@ def test_refresh_external_all_sources_keeps_going_on_single_failure(monkeypatch,
     assert [row["source_id"] for row in result["runs"]] == list(refresh_external.SOURCE_IDS)
     assert result["runs"][-1]["status"] == "ERROR"
     assert "blocked" in result["runs"][-1]["error"]
+
+
+def test_refresh_external_pre_daily_check_marks_stale_sources_not_ready(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda config=None, auto_import=True: {"ok": True, "ok_count": 5, "error_count": 0, "runs": []},
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {"source_id": "dollar", "status": "OK", "freshness_status": "STALE", "next_action": "refresh dollar"},
+            "real_rate": {"source_id": "real_rate", "status": "OK", "freshness_status": "OK"},
+        },
+    )
+
+    result = refresh_external.pre_daily_check(cfg, today=date(2026, 7, 2))
+
+    assert result["ready"] is False
+    assert result["blocking_sources"] == ["dollar"]
+    assert result["sources"]["dollar"]["next_action"] == "refresh dollar"
+
+
+def test_refresh_external_source_auto_imports_latest_official_file_after_fetch_error(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    import_path = tmp_path / "sentiment.xls"
+    import_path.write_bytes(b"official file")
+    calls = []
+
+    def fake_runner(spec, adapter, archive_dir):
+        calls.append(type(adapter).__name__)
+        if len(calls) == 1:
+            return SimpleNamespace(to_dict=lambda: {
+                "source_id": spec.source_id,
+                "status": "FETCH_ERROR",
+                "error_message": "AAII public endpoint blocked",
+            })
+        return SimpleNamespace(to_dict=lambda: {
+            "source_id": spec.source_id,
+            "status": "OK",
+            "latest_promoted_as_of": "2026-06-25",
+        })
+
+    monkeypatch.setattr(refresh_external, "run_external_source_refresh", fake_runner)
+    monkeypatch.setattr(refresh_external, "latest_import_file", lambda _profile: import_path)
+
+    result = refresh_external.refresh_source("aaii_sentiment", cfg, auto_import=True)
+
+    assert calls == ["AaiiSentimentAdapter", "AaiiSentimentImportAdapter"]
+    assert result["status"] == "OK"
+    assert result["latest_promoted_as_of"] == "2026-06-25"
+    assert result["fallback_from_status"] == "FETCH_ERROR"
+    assert result["fallback_import_file"] == str(import_path)
+
+
+def test_open_official_download_waits_for_new_file_and_imports(monkeypatch, tmp_path):
+    opened = []
+    downloaded = tmp_path / "sentiment.xls"
+
+    def fake_opener(url: str) -> None:
+        opened.append(url)
+        downloaded.write_bytes(b"official xls")
+
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_source",
+        lambda source_id, config=None, import_file=None, **_kwargs: {
+            "source_id": source_id,
+            "status": "OK",
+            "import_file": import_file,
+        },
+    )
+
+    result = refresh_external.open_official_download_and_import(
+        "aaii_sentiment",
+        _config(tmp_path),
+        downloads_dir=tmp_path,
+        opener=fake_opener,
+        timeout_seconds=0.1,
+        poll_seconds=0.01,
+    )
+
+    assert opened == ["https://www.aaii.com/files/surveys/sentiment.xls"]
+    assert result["status"] == "OK"
+    assert result["import_file"] == str(downloaded)
+    assert result["downloaded_file"] == str(downloaded)
 
 
 def test_refresh_external_cli_accepts_real_rate(monkeypatch, tmp_path, capsys):
@@ -318,7 +437,7 @@ def test_refresh_external_cli_accepts_all(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(
         refresh_external,
         "refresh_all_sources",
-        lambda: {"ok": True, "ok_count": 5, "error_count": 0, "runs": []},
+        lambda **_kwargs: {"ok": True, "ok_count": 5, "error_count": 0, "runs": []},
     )
 
     rc = refresh_external.main(["--all"])

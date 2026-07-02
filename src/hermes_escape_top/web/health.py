@@ -181,6 +181,14 @@ def compute_health(
             if not isinstance(row, dict):
                 continue
             status = str(row.get("status") or "")
+            freshness = str(row.get("freshness_status") or "")
+            if status == "OK" and freshness == "STALE":
+                detail = (
+                    f"{source_id}: age={row.get('age_days')}d "
+                    f"{row.get('next_action') or ''}"
+                ).strip()
+                add("DEGRADED", "外部数据源陈旧", detail[:160])
+                continue
             if status == "OK":
                 continue
             if status == "MISSING":

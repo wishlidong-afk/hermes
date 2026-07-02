@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
+import time
+from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.data.external_sources import (
@@ -16,13 +19,20 @@ from hermes_escape_top.core.data.external_sources import (
     aaii_sentiment_spec,
     fred_net_liquidity_spec,
     fred_percentile_spec,
+    enrich_source_status,
+    latest_import_file,
     naaim_exposure_spec,
+    profile_for,
     run_external_source_refresh,
     source_status,
 )
 
 SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity", "naaim_exposure", "aaii_sentiment")
 IMPORT_FILE_SOURCE_IDS = ("naaim_exposure", "aaii_sentiment")
+OFFICIAL_BROWSER_URLS = {
+    "aaii_sentiment": "https://www.aaii.com/files/surveys/sentiment.xls",
+    "naaim_exposure": "https://www.naaim.org/programs/naaim-exposure-index/",
+}
 
 
 def dollar_source(config: dict[str, Any]):
@@ -86,29 +96,42 @@ def source_specs(config: dict[str, Any]):
     return specs
 
 
-def refresh_source(source_id: str, config: dict[str, Any] | None = None, *, import_file: str | None = None) -> dict[str, Any]:
+def refresh_source(
+    source_id: str,
+    config: dict[str, Any] | None = None,
+    *,
+    import_file: str | None = None,
+    auto_import: bool = False,
+) -> dict[str, Any]:
     cfg = config or load_config()
     factories = source_factories()
     if source_id not in factories:
         raise ValueError(f"unsupported external source: {source_id}")
     spec, adapter = factories[source_id](cfg)
     if import_file:
-        if source_id == "aaii_sentiment":
-            adapter = AaiiSentimentImportAdapter(seed_path=spec.target_path, import_path=Path(import_file).expanduser())
-        elif source_id == "naaim_exposure":
-            adapter = NaaimExposureImportAdapter(import_path=Path(import_file).expanduser())
-        else:
-            raise ValueError(f"--import-file is not supported for source: {source_id}")
+        adapter = _import_adapter(source_id, spec, Path(import_file).expanduser())
     run = run_external_source_refresh(spec, adapter, resolve_path(cfg, "archive_dir"))
-    return run.to_dict()
+    result = run.to_dict()
+    if auto_import and not import_file and str(result.get("status")) != "OK":
+        fallback = _latest_import_for(source_id)
+        if fallback is not None:
+            fallback_run = run_external_source_refresh(
+                spec,
+                _import_adapter(source_id, spec, fallback),
+                resolve_path(cfg, "archive_dir"),
+            ).to_dict()
+            fallback_run["fallback_from_status"] = result.get("status")
+            fallback_run["fallback_import_file"] = str(fallback)
+            return fallback_run
+    return result
 
 
-def refresh_all_sources(config: dict[str, Any] | None = None) -> dict[str, Any]:
+def refresh_all_sources(config: dict[str, Any] | None = None, *, auto_import: bool = True) -> dict[str, Any]:
     cfg = config or load_config()
     runs: list[dict[str, Any]] = []
     for source_id in SOURCE_IDS:
         try:
-            run = refresh_source(source_id, cfg)
+            run = refresh_source(source_id, cfg, auto_import=auto_import)
             runs.append(run)
         except Exception as exc:
             runs.append(
@@ -129,16 +152,107 @@ def refresh_all_sources(config: dict[str, Any] | None = None) -> dict[str, Any]:
     }
 
 
-def status(config: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
+def pre_daily_check(config: dict[str, Any] | None = None, *, today: date | None = None) -> dict[str, Any]:
     cfg = config or load_config()
-    return source_status(resolve_path(cfg, "archive_dir"), source_specs(cfg))
+    refresh_result = refresh_all_sources(cfg, auto_import=True)
+    sources = status(cfg, today=today)
+    blocking = []
+    warnings = []
+    for source_id, row in sources.items():
+        run_status = str(row.get("status") or "")
+        freshness = str(row.get("freshness_status") or "")
+        if run_status != "OK" or freshness in {"STALE", "UNKNOWN"}:
+            blocking.append(source_id)
+        elif freshness == "DUE_SOON":
+            warnings.append(source_id)
+    return {
+        "ready": not blocking,
+        "blocking_sources": blocking,
+        "warning_sources": warnings,
+        "refresh": refresh_result,
+        "sources": sources,
+    }
+
+
+def open_official_download_and_import(
+    source_id: str,
+    config: dict[str, Any] | None = None,
+    *,
+    downloads_dir: Path | str | None = None,
+    opener: Callable[[str], None] | None = None,
+    timeout_seconds: float = 90.0,
+    poll_seconds: float = 1.0,
+) -> dict[str, Any]:
+    if source_id not in IMPORT_FILE_SOURCE_IDS:
+        raise ValueError(f"official browser download is not supported for source: {source_id}")
+    profile = profile_for(source_id)
+    if profile is None:
+        raise ValueError(f"unsupported external source: {source_id}")
+    directory = Path(downloads_dir or "~/Downloads").expanduser()
+    before = {path.resolve() for path in _matching_import_files(profile, directory)}
+    url = OFFICIAL_BROWSER_URLS[source_id]
+    (opener or _open_url)(url)
+    deadline = time.time() + timeout_seconds
+    selected: Path | None = None
+    while time.time() <= deadline:
+        candidates = [
+            path for path in _matching_import_files(profile, directory)
+            if path.resolve() not in before and not path.name.endswith(".crdownload")
+        ]
+        if candidates:
+            selected = max(candidates, key=lambda path: path.stat().st_mtime)
+            break
+        time.sleep(poll_seconds)
+    if selected is None:
+        raise TimeoutError(f"no new official {source_id} import file appeared in {directory}")
+    result = refresh_source(source_id, config, import_file=str(selected))
+    result["downloaded_file"] = str(selected)
+    result["official_url"] = url
+    return result
+
+
+def _import_adapter(source_id: str, spec: Any, path: Path):
+    if source_id == "aaii_sentiment":
+        return AaiiSentimentImportAdapter(seed_path=spec.target_path, import_path=path)
+    if source_id == "naaim_exposure":
+        return NaaimExposureImportAdapter(import_path=path)
+    raise ValueError(f"--import-file is not supported for source: {source_id}")
+
+
+def _latest_import_for(source_id: str) -> Path | None:
+    profile = profile_for(source_id)
+    if profile is None:
+        return None
+    return latest_import_file(profile)
+
+
+def _matching_import_files(profile: Any, directory: Path) -> list[Path]:
+    out: list[Path] = []
+    for pattern in getattr(profile, "import_globs", ()):
+        name = Path(str(pattern)).name
+        out.extend(directory.glob(name))
+    return [path for path in out if path.is_file()]
+
+
+def _open_url(url: str) -> None:
+    subprocess.run(["open", url], check=True)
+
+
+def status(config: dict[str, Any] | None = None, *, today: date | None = None) -> dict[str, dict[str, Any]]:
+    cfg = config or load_config()
+    rows = source_status(resolve_path(cfg, "archive_dir"), source_specs(cfg))
+    return {source_id: enrich_source_status(row, today=today) for source_id, row in rows.items()}
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Refresh Hermes external data sources independently.")
     parser.add_argument("--source", choices=list(SOURCE_IDS), help="Refresh one source.")
     parser.add_argument("--import-file", help="Import an official downloaded source file for supported sources.")
+    parser.add_argument("--auto-import", action="store_true", help="After a supported source fetch fails, try the newest official file in the configured import locations.")
+    parser.add_argument("--open-official-download", action="store_true", help="Open the official browser download/page for a supported source, wait for a new file, then import it.")
+    parser.add_argument("--downloads-dir", default="~/Downloads", help="Directory to watch with --open-official-download.")
     parser.add_argument("--all", action="store_true", help="Refresh all registered sources.")
+    parser.add_argument("--pre-daily-check", action="store_true", help="Refresh all sources, auto-import official files when available, and print readiness.")
     parser.add_argument("--status", action="store_true", help="Print latest source-run status.")
     args = parser.parse_args(argv)
 
@@ -149,11 +263,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.status:
         print(json.dumps(status(), ensure_ascii=False, indent=2, sort_keys=True, default=str))
         return 0
+    if args.pre_daily_check:
+        print(json.dumps(pre_daily_check(), ensure_ascii=False, indent=2, sort_keys=True, default=str))
+        return 0
     if args.source:
-        print(json.dumps(refresh_source(args.source, import_file=args.import_file), ensure_ascii=False, indent=2, sort_keys=True, default=str))
+        if args.open_official_download:
+            print(json.dumps(open_official_download_and_import(args.source, downloads_dir=Path(args.downloads_dir).expanduser()), ensure_ascii=False, indent=2, sort_keys=True, default=str))
+            return 0
+        print(json.dumps(refresh_source(args.source, import_file=args.import_file, auto_import=args.auto_import), ensure_ascii=False, indent=2, sort_keys=True, default=str))
         return 0
     if args.all:
-        print(json.dumps(refresh_all_sources(), ensure_ascii=False, indent=2, sort_keys=True, default=str))
+        print(json.dumps(refresh_all_sources(auto_import=True), ensure_ascii=False, indent=2, sort_keys=True, default=str))
         return 0
     parser.print_help()
     return 2

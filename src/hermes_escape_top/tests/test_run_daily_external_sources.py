@@ -6,28 +6,47 @@ from hermes_escape_top.scripts import run_daily_package as rdp
 
 
 def test_refresh_external_sources_runs_registered_bundle_without_raising(monkeypatch):
-    calls = []
-
-    def fake_refresh(source_id: str) -> dict:
-        calls.append(source_id)
-        return {"source_id": source_id, "status": "OK", "latest_promoted_as_of": "2026-06-26"}
-
-    monkeypatch.setattr(rdp.refresh_external, "refresh_source", fake_refresh)
+    monkeypatch.setattr(
+        rdp.refresh_external,
+        "pre_daily_check",
+        lambda: {
+            "ready": True,
+            "blocking_sources": [],
+            "warning_sources": [],
+            "refresh": {
+                "runs": [
+                    {"source_id": source_id, "status": "OK", "latest_promoted_as_of": "2026-06-26"}
+                    for source_id in rdp.refresh_external.SOURCE_IDS
+                ]
+            },
+        },
+    )
 
     out = rdp.refresh_external_sources()
 
-    assert calls == list(rdp.refresh_external.SOURCE_IDS)
     assert [row["source_id"] for row in out] == list(rdp.refresh_external.SOURCE_IDS)
     assert all(row["status"] == "OK" for row in out)
 
 
 def test_refresh_external_sources_keeps_daily_alive_on_single_source_failure(monkeypatch):
-    def flaky(source_id: str) -> dict:
-        if source_id == "real_rate":
-            raise RuntimeError("fred timeout")
-        return {"source_id": source_id, "status": "OK"}
-
-    monkeypatch.setattr(rdp.refresh_external, "refresh_source", flaky)
+    monkeypatch.setattr(
+        rdp.refresh_external,
+        "pre_daily_check",
+        lambda: {
+            "ready": False,
+            "blocking_sources": ["real_rate"],
+            "warning_sources": [],
+            "refresh": {
+                "runs": [
+                    {"source_id": "dollar", "status": "OK"},
+                    {"source_id": "real_rate", "status": "ERROR", "error": "fred timeout"},
+                    {"source_id": "fred_net_liquidity", "status": "OK"},
+                    {"source_id": "naaim_exposure", "status": "OK"},
+                    {"source_id": "aaii_sentiment", "status": "OK"},
+                ]
+            },
+        },
+    )
 
     out = rdp.refresh_external_sources()
 

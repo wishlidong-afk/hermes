@@ -238,24 +238,24 @@ def refresh_external_sources() -> list[dict]:
     daily scoring run.
     """
     source_ids = tuple(refresh_external.SOURCE_IDS)
-    print(f"[M4-1a] Refreshing external source ledger sources ({', '.join(source_ids)})…")
-    runs: list[dict] = []
-    for source_id in source_ids:
-        try:
-            run = refresh_external.refresh_source(source_id)
-            runs.append(run)
-            print(
-                f"[M4-1a] {source_id} external refresh {run.get('status')} "
-                f"latest={run.get('latest_promoted_as_of') or run.get('latest_normalized_as_of')}"
-            )
-        except Exception as exc:
-            run = {
-                "source_id": source_id,
-                "status": "ERROR",
-                "error": f"{type(exc).__name__}: {exc}",
-            }
-            runs.append(run)
-            print(f"[M4-1a] WARNING: {source_id} external refresh failed ({exc!r}); keeping cached data.")
+    print(f"[M4-1a] Pre-daily external source check ({', '.join(source_ids)})…")
+    check = refresh_external.pre_daily_check()
+    runs = list((check.get("refresh") or {}).get("runs") or [])
+    for run in runs:
+        print(
+            f"[M4-1a] {run.get('source_id')} external refresh {run.get('status')} "
+            f"latest={run.get('latest_promoted_as_of') or run.get('latest_normalized_as_of')} "
+            f"fallback={run.get('fallback_import_file') or '-'}"
+        )
+    if not check.get("ready", False):
+        print(
+            "[M4-1a] WARNING: external sources not ready "
+            f"blocking={check.get('blocking_sources')}; scoring will use cached validated data."
+        )
+    elif check.get("warning_sources"):
+        print(f"[M4-1a] external sources due soon: {check.get('warning_sources')}")
+    else:
+        print("[M4-1a] external sources ready.")
     return runs
 
 

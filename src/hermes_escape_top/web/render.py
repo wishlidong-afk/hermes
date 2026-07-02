@@ -2437,6 +2437,15 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
             or (row or {}).get("error_type")
             or ("尚无 ledger run" if status == "MISSING" else "")
         )
+        freshness = str((row or {}).get("freshness_status") or "")
+        age = (row or {}).get("age_days")
+        next_action = str((row or {}).get("next_action") or "")
+        freshness_note = ""
+        if freshness:
+            freshness_note = freshness
+            if age is not None:
+                freshness_note += f" · {age}d"
+        note_parts = [part for part in (freshness_note, str(note or ""), next_action) if part]
         safe_id = _external_source_dom_id(source_id)
         rows.append(
             "<tr>"
@@ -2444,7 +2453,7 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
             f"<td>{_external_source_status_badge(status)}</td>"
             f"<td>{esc(str(latest)[:10])}</td>"
             f"<td><span class='subtle'>{esc(str(run_time))}</span></td>"
-            f"<td>{esc(note or '—')}</td>"
+            f"<td>{esc(' · '.join(note_parts) if note_parts else '—')}</td>"
             "<td>"
             f"<button class='btn-muted' style='padding:3px 9px;font-size:12px;min-height:26px' "
             f"onclick=\"refreshExternalSource('{safe_id}')\" id='external-source-{safe_id}-btn'>刷新</button>"
