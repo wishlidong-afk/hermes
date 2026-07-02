@@ -100,11 +100,28 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     )
     payload = {
         "as_of": "2026-06-17",
+        "input_hash": "abc123def456",
         "cache_status": {"hit": True},
         "data_quality": {"level": "HIGH", "overall_score": 1.0},
         "data_quality_breakdown": {"sources": []},
+        "external_source_status": {
+            "aaii_sentiment": {
+                "status": "OK",
+                "latest_promoted_as_of": "2026-06-17",
+                "official_issue_as_of": "2026-06-17",
+                "official_file_name": "sentiment.xls",
+                "official_file_sha256": "abcdefff12345678",
+            }
+        },
         "ibkr": {"source": "unavailable", "error": "Gateway offline"},
         "alpaca_daily_flow": {"as_of": "2026-06-17"},
+        "scores": {"MSTR": {"final_score": 81}},
+        "factor_scores": {"MSTR": [{"factor_id": "A1", "score": 4}]},
+        "sizing": {"MSTR": {"target_weight": 0.0}},
+        "decision_layers": {"MSTR": {"hard_valve_state": {"triggered": []}}},
+        "action_intents": [{"symbol": "MSTR", "action": "EXIT"}],
+        "risk_contributions": [{"symbol": "MSTR", "pct": 0.0}],
+        "stress_scenarios": [{"name": "QQQ -5%", "est_pnl_pct": -1.2}],
     }
     receipt = {
         "status": "OK",
@@ -122,7 +139,21 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     assert out["markdown"].exists()
     data = json.loads(out["json"].read_text(encoding="utf-8"))
     assert data["health"]["layers"]["position_reconciliation"]["level"] == "INFO"
-    assert "策略数据" in out["markdown"].read_text(encoding="utf-8")
+    dimensions = data["audit_dimensions"]
+    assert len(dimensions) == 20
+    assert {row["id"] for row in dimensions} >= {
+        "strategy_data_layer",
+        "position_reconciliation_layer",
+        "auxiliary_flows_layer",
+        "external_file_evidence",
+    }
+    evidence = next(row for row in dimensions if row["id"] == "external_file_evidence")
+    assert evidence["status"] == "PASS"
+    assert "aaii_sentiment:2026-06-17:abcdefff" in evidence["detail"]
+    markdown = out["markdown"].read_text(encoding="utf-8")
+    assert "策略数据" in markdown
+    assert "## 20 维自检" in markdown
+    assert "| external_file_evidence | PASS |" in markdown
 
 
 def test_receipt_write_failure_removes_prior_green_attestation(monkeypatch, tmp_path):

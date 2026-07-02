@@ -1343,6 +1343,7 @@ def _write_system_health_report(
         "run_receipt": receipt,
         "health": health,
     }
+    report["audit_dimensions"] = _build_system_health_audit_dimensions(payload, report)
     report_dir = _artifact_root() / "reports" / ("shadow" if shadow else "")
     report_dir.mkdir(parents=True, exist_ok=True)
     json_path = report_dir / f"system_health_{as_of}.json"
@@ -1354,9 +1355,173 @@ def _write_system_health_report(
     return {"json": json_path, "markdown": md_path}
 
 
+def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[str, Any]) -> list[Dict[str, str]]:
+    health = report.get("health") or {}
+    layers = health.get("layers") or {}
+    manifest = report.get("manifest_status") or {}
+    receipt = report.get("run_receipt") or {}
+    external_sources = payload.get("external_source_status") or {}
+    data_quality = payload.get("data_quality") or {}
+    sip_status = payload.get("alpaca_daily_flow_status") or {}
+    sip_flow = payload.get("alpaca_daily_flow") or {}
+    ibkr = payload.get("ibkr") or {}
+
+    def layer_status(name: str) -> str:
+        return _audit_status_from_level((layers.get(name) or {}).get("level"))
+
+    external_rows = [row for row in external_sources.values() if isinstance(row, dict)] if isinstance(external_sources, dict) else []
+    external_bad = [str(row.get("source_id") or "?") for row in external_rows if str(row.get("status") or "") != "OK"]
+    file_evidence = _external_file_evidence(external_sources)
+    receipt_status = str(receipt.get("status") or "")
+    dq_level = str(data_quality.get("level") or "")
+    stale_days = health.get("stale_trading_days")
+    manifest_status = str(manifest.get("status") or "")
+    ibkr_source = str(ibkr.get("source") or "")
+    sip_error = str(sip_status.get("status") or "")
+
+    return [
+        _audit_row(
+            "scored_payload_cache",
+            "评分 payload 缓存",
+            "PASS" if (payload.get("cache_status") or {}).get("hit") else "FAIL",
+            "cache_status.hit=true" if (payload.get("cache_status") or {}).get("hit") else "NO_CACHE",
+        ),
+        _audit_row(
+            "input_hash",
+            "输入哈希",
+            "PASS" if payload.get("input_hash") else "WARN",
+            str(payload.get("input_hash") or "missing")[:16],
+        ),
+        _audit_row(
+            "market_as_of",
+            "行情 as_of",
+            "FAIL" if isinstance(stale_days, int) and stale_days >= 3 else "WARN" if isinstance(stale_days, int) and stale_days >= 1 else "PASS",
+            f"as_of={report.get('as_of')} stale_trading_days={stale_days}",
+        ),
+        _audit_row(
+            "manifest_integrity",
+            "数据清单",
+            "PASS" if manifest_status == "OK" else "FAIL" if manifest_status == "DRIFT" else "WARN",
+            manifest_status or "missing",
+        ),
+        _audit_row(
+            "data_quality",
+            "数据质量",
+            "PASS" if dq_level == "HIGH" else "WARN" if dq_level == "MEDIUM" else "FAIL" if dq_level in {"LOW", "BLOCKED", "NO_CACHE"} else "INFO",
+            f"{dq_level or 'NA'} overall={data_quality.get('overall_score')}",
+        ),
+        _audit_row("strategy_data_layer", "策略数据层", layer_status("strategy_data"), _layer_detail(layers, "strategy_data")),
+        _audit_row(
+            "position_reconciliation_layer",
+            "持仓对账层",
+            layer_status("position_reconciliation"),
+            _layer_detail(layers, "position_reconciliation"),
+        ),
+        _audit_row("auxiliary_flows_layer", "辅助资金流层", layer_status("auxiliary_flows"), _layer_detail(layers, "auxiliary_flows")),
+        _audit_row(
+            "scheduled_receipt",
+            "官方 run 回执",
+            "PASS" if receipt_status == "OK" and receipt.get("ok") else "WARN" if receipt_status == "RUNNING" else "FAIL",
+            f"status={receipt_status or 'MISSING'} run_type={receipt.get('run_type')}",
+        ),
+        _audit_row(
+            "external_source_runs",
+            "外部源 runner",
+            "PASS" if external_rows and not external_bad else "WARN" if external_rows else "INFO",
+            "all OK" if external_rows and not external_bad else ", ".join(external_bad[:6]) or "no external_source_status",
+        ),
+        _audit_row(
+            "external_file_evidence",
+            "官方文件证据",
+            "PASS" if file_evidence else "INFO" if not external_rows else "WARN",
+            "; ".join(file_evidence) if file_evidence else "no AAII/NAAIM issue+sha evidence",
+        ),
+        _audit_row(
+            "external_precheck_readiness",
+            "外部源预检",
+            "PASS" if external_rows and not external_bad else "WARN" if external_rows else "INFO",
+            "latest ledger ready" if external_rows and not external_bad else "check latest external precheck log",
+        ),
+        _audit_row(
+            "ibkr_reconciliation",
+            "IBKR 对账",
+            layer_status("position_reconciliation"),
+            f"source={ibkr_source or 'missing'} age_seconds={health.get('ibkr_age_seconds')}",
+        ),
+        _audit_row(
+            "sip_flow",
+            "SIP 资金流",
+            "WARN" if sip_error in {"ERROR", "MISSING"} else "PASS" if sip_flow.get("as_of") else "INFO",
+            f"status={sip_error or 'OK'} as_of={sip_flow.get('as_of')}",
+        ),
+        _audit_row("scores_present", "标的评分", "PASS" if payload.get("scores") else "FAIL", f"count={len(payload.get('scores') or {})}"),
+        _audit_row(
+            "factor_scores_present",
+            "因子贡献",
+            "PASS" if payload.get("factor_scores") else "WARN",
+            f"symbols={len(payload.get('factor_scores') or {})}",
+        ),
+        _audit_row("sizing_present", "系统目标仓位", "PASS" if payload.get("sizing") else "WARN", f"symbols={len(payload.get('sizing') or {})}"),
+        _audit_row(
+            "hard_valve_evidence",
+            "硬阀门证据",
+            "PASS" if payload.get("decision_layers") else "WARN",
+            f"symbols={len(payload.get('decision_layers') or {})}",
+        ),
+        _audit_row(
+            "risk_contributions",
+            "风险贡献",
+            "PASS" if payload.get("risk_contributions") else "INFO",
+            f"rows={len(payload.get('risk_contributions') or [])}",
+        ),
+        _audit_row(
+            "stress_scenarios",
+            "压力情景",
+            "PASS" if payload.get("stress_scenarios") else "INFO",
+            f"rows={len(payload.get('stress_scenarios') or [])}",
+        ),
+    ]
+
+
+def _audit_row(row_id: str, label: str, status: str, detail: str) -> Dict[str, str]:
+    return {"id": row_id, "label": label, "status": status, "detail": str(detail or "")}
+
+
+def _audit_status_from_level(level: Any) -> str:
+    text = str(level or "OK")
+    if text == "CRITICAL":
+        return "FAIL"
+    if text == "DEGRADED":
+        return "WARN"
+    if text == "INFO":
+        return "INFO"
+    return "PASS"
+
+
+def _layer_detail(layers: Dict[str, Any], key: str) -> str:
+    layer = layers.get(key) or {}
+    checks = layer.get("checks") or []
+    return "; ".join(str(check.get("label") or "") for check in checks) or str(layer.get("level") or "OK")
+
+
+def _external_file_evidence(external_sources: Any) -> list[str]:
+    if not isinstance(external_sources, dict):
+        return []
+    evidence: list[str] = []
+    for source_id, row in sorted(external_sources.items()):
+        if not isinstance(row, dict):
+            continue
+        issue = row.get("official_issue_as_of")
+        sha = row.get("official_file_sha256")
+        if issue and sha:
+            evidence.append(f"{source_id}:{str(issue)[:10]}:{str(sha)[:8]}")
+    return evidence
+
+
 def _render_system_health_markdown(report: Dict[str, Any]) -> str:
     health = report.get("health") or {}
     layers = health.get("layers") or {}
+    dimensions = report.get("audit_dimensions") or []
     lines = [
         f"# Hermes System Health — {report.get('as_of')}",
         "",
@@ -1377,6 +1542,16 @@ def _render_system_health_markdown(report: Dict[str, Any]) -> str:
             for item in checks
         ) or "OK"
         lines.append(f"| {row.get('label', key)} | {row.get('level', 'OK')} | {check_text} |")
+    lines.append("")
+    lines.extend([
+        "## 20 维自检",
+        "",
+        "| ID | Status | Detail |",
+        "|---|---|---|",
+    ])
+    for row in dimensions:
+        detail = str(row.get("detail") or "").replace("|", "\\|")
+        lines.append(f"| {row.get('id')} | {row.get('status')} | {detail} |")
     lines.append("")
     return "\n".join(lines)
 
