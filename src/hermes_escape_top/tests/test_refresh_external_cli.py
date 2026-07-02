@@ -178,6 +178,31 @@ def test_refresh_external_status_prints_latest_ledger(monkeypatch, tmp_path, cap
     assert out["aaii_sentiment"]["status"] == "MISSING"
 
 
+def test_refresh_external_all_sources_keeps_going_on_single_failure(monkeypatch, tmp_path):
+    calls = []
+    cfg = _config(tmp_path)
+
+    def fake_refresh(source_id: str, config=None):
+        assert config is cfg
+        calls.append(source_id)
+        if source_id == "aaii_sentiment":
+            raise RuntimeError("blocked")
+        return {"source_id": source_id, "status": "OK"}
+
+    monkeypatch.setattr(refresh_external, "load_config", lambda: cfg)
+    monkeypatch.setattr(refresh_external, "refresh_source", fake_refresh)
+
+    result = refresh_external.refresh_all_sources()
+
+    assert calls == list(refresh_external.SOURCE_IDS)
+    assert result["ok"] is False
+    assert result["ok_count"] == len(refresh_external.SOURCE_IDS) - 1
+    assert result["error_count"] == 1
+    assert [row["source_id"] for row in result["runs"]] == list(refresh_external.SOURCE_IDS)
+    assert result["runs"][-1]["status"] == "ERROR"
+    assert "blocked" in result["runs"][-1]["error"]
+
+
 def test_refresh_external_cli_accepts_real_rate(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(refresh_external, "load_config", lambda: _config(tmp_path))
     monkeypatch.setattr(
@@ -224,3 +249,19 @@ def test_refresh_external_cli_accepts_aaii(monkeypatch, tmp_path, capsys):
     assert rc == 0
     assert out["source_id"] == "aaii_sentiment"
     assert out["status"] == "OK"
+
+
+def test_refresh_external_cli_accepts_all(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(refresh_external, "load_config", lambda: _config(tmp_path))
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda: {"ok": True, "ok_count": 5, "error_count": 0, "runs": []},
+    )
+
+    rc = refresh_external.main(["--all"])
+
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert out["ok"] is True
+    assert out["ok_count"] == 5

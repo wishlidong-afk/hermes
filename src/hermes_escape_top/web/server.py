@@ -55,6 +55,7 @@ from ..ibkr.live_check import run_live_check
 from ..ibkr.positions import write_demo_snapshot
 from ..core.safe_io import PipelineBusy, pipeline_lock
 from ..pipeline import _score_pipeline_locked
+from ..scripts.refresh_external import refresh_all_sources as refresh_all_external_sources
 from ..scripts.refresh_external import refresh_source as refresh_external_source
 from ..scripts.refresh_external import status as external_source_status
 from .health import compute_health
@@ -89,6 +90,7 @@ LOOPBACK_WRITE_ENDPOINTS = {
     "/api/refresh_score",
     "/api/refresh_positions",
     "/api/refresh_external_source",
+    "/api/refresh_external_sources",
     "/api/ibkr_live_check",
 }
 
@@ -877,6 +879,24 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                             "source_id": source_id,
                             "error": traceback.format_exc()[-2000:],
                         }
+                self._send(response_status, "application/json; charset=utf-8",
+                           json.dumps(payload, ensure_ascii=False, indent=2,
+                                      sort_keys=True, default=str).encode())
+                return
+
+            if parsed.path == "/api/refresh_external_sources":
+                response_status = 200
+                try:
+                    with pipeline_lock(blocking=False):
+                        payload = refresh_all_external_sources()
+                except PipelineBusy:
+                    payload = dict(_BUSY_PAYLOAD)
+                    response_status = 409
+                except Exception:
+                    payload = {
+                        "ok": False,
+                        "error": traceback.format_exc()[-2000:],
+                    }
                 self._send(response_status, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())

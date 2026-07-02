@@ -92,6 +92,32 @@ def refresh_source(source_id: str, config: dict[str, Any] | None = None) -> dict
     return run.to_dict()
 
 
+def refresh_all_sources(config: dict[str, Any] | None = None) -> dict[str, Any]:
+    cfg = config or load_config()
+    runs: list[dict[str, Any]] = []
+    for source_id in SOURCE_IDS:
+        try:
+            run = refresh_source(source_id, cfg)
+            runs.append(run)
+        except Exception as exc:
+            runs.append(
+                {
+                    "source_id": source_id,
+                    "status": "ERROR",
+                    "error_type": exc.__class__.__name__,
+                    "error": str(exc),
+                }
+            )
+    ok_count = sum(1 for run in runs if str(run.get("status")) == "OK")
+    error_count = len(runs) - ok_count
+    return {
+        "ok": error_count == 0,
+        "ok_count": ok_count,
+        "error_count": error_count,
+        "runs": runs,
+    }
+
+
 def status(config: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
     cfg = config or load_config()
     return source_status(resolve_path(cfg, "archive_dir"), source_specs(cfg))
@@ -100,6 +126,7 @@ def status(config: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Refresh Hermes external data sources independently.")
     parser.add_argument("--source", choices=list(SOURCE_IDS), help="Refresh one source.")
+    parser.add_argument("--all", action="store_true", help="Refresh all registered sources.")
     parser.add_argument("--status", action="store_true", help="Print latest source-run status.")
     args = parser.parse_args(argv)
 
@@ -108,6 +135,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.source:
         print(json.dumps(refresh_source(args.source), ensure_ascii=False, indent=2, sort_keys=True, default=str))
+        return 0
+    if args.all:
+        print(json.dumps(refresh_all_sources(), ensure_ascii=False, indent=2, sort_keys=True, default=str))
         return 0
     parser.print_help()
     return 2

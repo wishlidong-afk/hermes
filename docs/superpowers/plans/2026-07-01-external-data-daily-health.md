@@ -237,6 +237,29 @@ PY
 PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests -q
 ```
 
+---
+
+### Addendum: Refresh All External Sources
+
+**Files:**
+- Modify: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/refresh_external.py`
+- Modify: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/web/server.py`
+- Modify: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/web/render.py`
+- Tests: `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/tests/test_refresh_external_cli.py`, `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/tests/test_phase15_integration.py`, `/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/tests/test_dashboard_workbench.py`
+
+**Behavior:**
+- `refresh_external.refresh_all_sources()` runs all registered `SOURCE_IDS` in stable order: `dollar`, `real_rate`, `fred_net_liquidity`, `naaim_exposure`, `aaii_sentiment`.
+- Each source keeps its own runner/ledger/validation/promote semantics. One source exception is recorded as that source's `ERROR` result and does not stop the remaining sources.
+- 8766 exposes `/api/refresh_external_sources` under the same loopback-only and pipeline-lock rules as single-source refresh.
+- The external-source operations table adds a "刷新全部外部源" button. The response reports `ok_count`, `error_count`, and per-source statuses; partial failure still reloads the page so the ledger state is visible.
+
+**Verification:**
+
+```bash
+PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests/test_refresh_external_cli.py src/hermes_escape_top/tests/test_phase15_integration.py::Phase15IntegrationTest::test_external_source_refresh_all_endpoint_runs_bundle_once src/hermes_escape_top/tests/test_phase15_integration.py::Phase15IntegrationTest::test_external_source_refresh_all_returns_409_while_pipeline_lock_is_held src/hermes_escape_top/tests/test_dashboard_workbench.py::test_trust_zone_uses_external_source_ledger_status -q
+PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests -q
+```
+
 - [ ] **Step 3: Commit**
 
 ```bash

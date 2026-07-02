@@ -298,6 +298,40 @@ class Phase15IntegrationTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
+    def test_external_source_refresh_all_endpoint_runs_bundle_once(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = urllib.request.Request(
+                f"{base}/api/refresh_external_sources",
+                data=b"{}",
+                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},
+                method="POST",
+            )
+            expected = {
+                "ok": False,
+                "ok_count": 4,
+                "error_count": 1,
+                "runs": [{"source_id": "aaii_sentiment", "status": "FETCH_ERROR"}],
+            }
+            with mock.patch(
+                "hermes_escape_top.web.server.refresh_all_external_sources",
+                return_value=expected,
+            ) as refresh:
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            refresh.assert_called_once_with()
+            self.assertFalse(payload["ok"])
+            self.assertEqual(payload["ok_count"], 4)
+            self.assertEqual(payload["error_count"], 1)
+            self.assertEqual(payload["runs"][0]["source_id"], "aaii_sentiment")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_external_source_refresh_returns_409_while_pipeline_lock_is_held(self) -> None:
         server = create_server("127.0.0.1", 0, "2026-05-29")
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -313,6 +347,31 @@ class Phase15IntegrationTest(unittest.TestCase):
                 "hermes_escape_top.web.server.pipeline_lock",
                 side_effect=PipelineBusy("pipeline busy"),
             ), mock.patch("hermes_escape_top.web.server.refresh_external_source") as refresh:
+                with self.assertRaises(urllib.error.HTTPError) as ctx:
+                    urllib.request.urlopen(request, timeout=10)
+            self.assertEqual(ctx.exception.code, 409)
+            self.assertTrue(json.loads(ctx.exception.read().decode("utf-8"))["busy"])
+            refresh.assert_not_called()
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_external_source_refresh_all_returns_409_while_pipeline_lock_is_held(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_port}/api/refresh_external_sources",
+                data=b"{}",
+                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},
+                method="POST",
+            )
+            with mock.patch(
+                "hermes_escape_top.web.server.pipeline_lock",
+                side_effect=PipelineBusy("pipeline busy"),
+            ), mock.patch("hermes_escape_top.web.server.refresh_all_external_sources") as refresh:
                 with self.assertRaises(urllib.error.HTTPError) as ctx:
                     urllib.request.urlopen(request, timeout=10)
             self.assertEqual(ctx.exception.code, 409)

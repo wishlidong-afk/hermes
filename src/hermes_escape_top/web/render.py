@@ -2456,7 +2456,11 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
         "<div class='external-source-ops' style='margin-top:12px'>"
         "<div style='display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px'>"
         "<div><b>外部源运维</b> <span class='subtle'>ExternalSourceRunner：单源刷新、ledger 状态、最新入库日</span></div>"
+        "<div style='display:flex;gap:8px;align-items:center'>"
+        "<button class='btn-muted' style='padding:3px 9px;font-size:12px;min-height:26px' "
+        "onclick='refreshExternalSources()' id='external-sources-refresh-all-btn'>刷新全部外部源</button>"
         "<span class='subtle' id='external-source-status'></span>"
+        "</div>"
         "</div>"
         "<div class='table-scroll'>"
         "<table>"
@@ -2992,6 +2996,24 @@ def _render_scripts(as_of: str) -> str:
           if (st) st.textContent = sourceId + ' 刷新失败: ' + (d.message || d.error || d.status || 'unknown');
         }}
       }}).catch(function(e) {{ setBusy(btn, false); if (st) st.textContent = sourceId + ' 刷新失败: ' + e; }});
+  }};
+  window.refreshExternalSources = function() {{
+    var btn = document.getElementById('external-sources-refresh-all-btn');
+    var st = document.getElementById('external-source-status');
+    setBusy(btn, true);
+    if (st) st.textContent = '正在刷新全部外部源...';
+    postJson('/api/refresh_external_sources', {{}})
+      .then(function(r) {{ return r.json(); }}).then(function(d) {{
+        setBusy(btn, false);
+        var runs = d.runs || [];
+        var failed = runs.filter(function(row) {{ return row.status !== 'OK'; }})
+                         .map(function(row) {{ return row.source_id + ':' + row.status; }});
+        if (st) {{
+          st.textContent = '完成：OK ' + (d.ok_count || 0) + ' / 失败 ' + (d.error_count || 0) +
+            (failed.length ? (' · ' + failed.join(', ')) : '');
+        }}
+        setTimeout(function() {{ location.reload(); }}, 1100);
+      }}).catch(function(e) {{ setBusy(btn, false); if (st) st.textContent = '刷新全部外部源失败: ' + e; }});
   }};
   window.loadIbkrDemo = function() {{
     var btn = document.getElementById('ibkr-demo-btn');
