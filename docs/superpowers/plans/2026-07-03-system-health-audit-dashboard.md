@@ -64,6 +64,8 @@ Add tests that monkeypatch report roots to a temp reports directory:
 
 - exact `system_health_<as_of>.json` wins over newer mismatched reports;
 - newest report attaches with `stale=True` when exact is absent.
+- versioned live release fallback finds same-day reports left in a sibling
+  release package directory after a dashboard-only deploy.
 
 - [ ] **Step 2: Run tests to verify failure**
 

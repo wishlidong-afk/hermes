@@ -24,6 +24,9 @@ Expose the daily 20-dimension `system_health_<as_of>.json` report inside the
    - otherwise use the newest `reports/system_health_*.json`;
    - mark the attachment stale when the report `as_of` differs from the payload
      `as_of`.
+   - in versioned live releases, also search sibling release package report
+     directories so a dashboard deploy does not hide the daily report generated
+     earlier by the previous release.
 3. `render.py` renders only the report already attached to the payload.
 
 ## UI

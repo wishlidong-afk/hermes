@@ -590,6 +590,21 @@ def test_system_health_report_loader_attaches_newest_as_stale(monkeypatch, tmp_p
     assert payload["system_health_report"]["requested_as_of"] == "2026-06-04"
 
 
+def test_system_health_report_roots_include_sibling_versioned_releases(monkeypatch, tmp_path):
+    releases = tmp_path / "releases"
+    current = releases / "new_release"
+    old_report_dir = releases / "old_release" / "hermes_escape_top" / "reports"
+    _write_health_report(old_report_dir, "2026-06-04", generated_at="2026-07-03T07:00:00+08:00")
+    monkeypatch.setattr(server_mod, "BASE_DIR", current)
+    monkeypatch.setattr(server_mod, "PACKAGE_DIR", current / "hermes_escape_top")
+
+    payload = server_mod._attach_system_health_report({"as_of": "2026-06-04"})
+
+    assert payload["system_health_report"]["as_of"] == "2026-06-04"
+    assert payload["system_health_report"]["stale"] is False
+    assert "old_release" in payload["system_health_report"]["source_path"]
+
+
 def test_health_banner_links_each_degraded_check_to_runbook_summary():
     html = _render_health_banner({
         "level": "DEGRADED",

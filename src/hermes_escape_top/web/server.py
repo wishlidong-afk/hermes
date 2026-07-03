@@ -214,6 +214,8 @@ def _system_health_report_roots() -> list[Path]:
         BASE_DIR / "reports",
         BASE_DIR / "hermes_escape_top" / "reports",
     ])
+    if BASE_DIR.parent.name == "releases":
+        candidates.extend(BASE_DIR.parent.glob("*/hermes_escape_top/reports"))
     unique: list[Path] = []
     seen: set[str] = set()
     for path in candidates:
