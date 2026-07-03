@@ -550,6 +550,7 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
       </div>
       <div class="mini-note">run={esc(state.get('score_run_id', 'NA'))} · input_hash={esc(str(payload.get('input_hash', 'NA'))[:12])} · 主要异常：{esc(check_text)}</div>
       {_render_data_trust_zone(payload)}
+      {_render_system_health_audit(payload)}
       <details style="margin-top:10px">
         <summary>展开 Audit Detail / 数据源、质量扣分、manifest</summary>
         <div class="detail-body">
@@ -574,6 +575,80 @@ def _health_layer_metric(health: Dict[str, Any], layer: str) -> str:
     else:
         detail = "OK"
     return f"{_badge(level, _health_level_kind(level))} <span class='subtle'>{esc(detail)}</span>"
+
+
+def _render_system_health_audit(payload: Dict[str, Any]) -> str:
+    report = payload.get("system_health_report")
+    if not isinstance(report, dict):
+        return (
+            "<details class='work-card system-health-audit' style='margin:10px 0 0'>"
+            "<summary>20 维系统自检 / System Health Audit "
+            "<span class='subtle'>尚无 daily 报告</span></summary>"
+            "<div class='detail-body'><div class='mini-note'>等待下一次 daily 生成 "
+            "<code>reports/system_health_YYYY-MM-DD.json</code>。</div></div>"
+            "</details>"
+        )
+
+    dimensions = report.get("audit_dimensions") if isinstance(report.get("audit_dimensions"), list) else []
+    counts = {"PASS": 0, "WARN": 0, "FAIL": 0}
+    for row in dimensions:
+        if isinstance(row, dict):
+            status = str(row.get("status") or "UNKNOWN").upper()
+            if status in counts:
+                counts[status] += 1
+
+    report_as_of = str(report.get("as_of") or "NA")
+    page_as_of = str(payload.get("as_of") or "NA")
+    generated = str(report.get("generated_at") or "NA")
+    health = report.get("health") if isinstance(report.get("health"), dict) else {}
+    level = str(health.get("level") or "NA")
+    stale = bool(report.get("stale"))
+    stale_note = (
+        f" {_badge('STALE', 'warn')} <span class='subtle'>报告 as_of={esc(report_as_of)} · 页面 as_of={esc(page_as_of)}</span>"
+        if stale else ""
+    )
+    rows = []
+    for row in dimensions:
+        if not isinstance(row, dict):
+            continue
+        status = str(row.get("status") or "UNKNOWN").upper()
+        rows.append(
+            "<tr>"
+            f"<td>{_badge(status, _audit_status_kind(status))}</td>"
+            f"<td><b>{esc(str(row.get('label') or row.get('id') or '未命名维度'))}</b></td>"
+            f"<td>{esc(str(row.get('detail') or ''))}</td>"
+            "</tr>"
+        )
+    rows_html = "".join(rows) if rows else '<tr><td colspan="3">报告存在，但没有 audit_dimensions。</td></tr>'
+    return (
+        "<details class='work-card system-health-audit' style='margin:10px 0 0'>"
+        "<summary>20 维系统自检 / System Health Audit "
+        f"<span class='subtle'>health={esc(level)} · as_of={esc(report_as_of)}</span>{stale_note}</summary>"
+        "<div class='detail-body'>"
+        "<div class='status-line'>"
+        f"{_badge('PASS ' + str(counts['PASS']), 'ok')}"
+        f"{_badge('WARN ' + str(counts['WARN']), 'warn')}"
+        f"{_badge('FAIL ' + str(counts['FAIL']), 'danger' if counts['FAIL'] else 'ok')}"
+        f"<span class='subtle'>generated={esc(generated)}</span>"
+        "</div>"
+        "<div class='table-scroll' style='margin-top:10px'>"
+        "<table><thead><tr><th>状态</th><th>维度</th><th>证据</th></tr></thead>"
+        f"<tbody>{rows_html}</tbody></table>"
+        "</div>"
+        "</div>"
+        "</details>"
+    )
+
+
+def _audit_status_kind(status: str) -> str:
+    upper = str(status or "").upper()
+    if upper == "PASS":
+        return "ok"
+    if upper == "WARN":
+        return "warn"
+    if upper == "FAIL":
+        return "danger"
+    return "watch"
 
 
 def _health_level_kind(level: str) -> str:

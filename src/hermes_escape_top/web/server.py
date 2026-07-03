@@ -203,6 +203,77 @@ def _attach_external_source_status(payload: dict) -> dict:
     return payload
 
 
+def _system_health_report_roots() -> list[Path]:
+    """Candidate report directories for repo, live, and HERMES_DATA_DIR runs."""
+    candidates: list[Path] = []
+    override = os.environ.get("HERMES_DATA_DIR")
+    if override:
+        candidates.append(Path(override).expanduser() / "reports")
+    candidates.extend([
+        PACKAGE_DIR / "reports",
+        BASE_DIR / "reports",
+        BASE_DIR / "hermes_escape_top" / "reports",
+    ])
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for path in candidates:
+        key = str(path.expanduser())
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(path.expanduser())
+    return unique
+
+
+def _read_system_health_report(path: Path) -> dict | None:
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if not isinstance(report, dict):
+        return None
+    report = dict(report)
+    report["source_path"] = str(path)
+    return report
+
+
+def _attach_system_health_report(payload: dict) -> dict:
+    """Attach the daily 20-dimension health report for dashboard evidence.
+
+    This is read-only and intentionally does not recompute health. Exact as_of
+    evidence wins; otherwise the newest report is attached and marked stale.
+    """
+    requested = str(payload.get("as_of") or "")[:10]
+    if not requested:
+        return payload
+
+    exact_paths = []
+    all_paths = []
+    for root in _system_health_report_roots():
+        exact = root / f"system_health_{requested}.json"
+        if exact.exists():
+            exact_paths.append(exact)
+        if root.exists():
+            all_paths.extend(root.glob("system_health_*.json"))
+
+    chosen = None
+    if exact_paths:
+        chosen = max(exact_paths, key=lambda p: p.stat().st_mtime)
+    elif all_paths:
+        chosen = max(all_paths, key=lambda p: (p.name, p.stat().st_mtime))
+    if chosen is None:
+        return payload
+
+    report = _read_system_health_report(chosen)
+    if report is None:
+        return payload
+    report_as_of = str(report.get("as_of") or "")[:10]
+    report["requested_as_of"] = requested
+    report["stale"] = report_as_of != requested
+    payload["system_health_report"] = report
+    return payload
+
+
 def _latest_score_payload(as_of: str, records: list | None = None, prefer_preview: bool = False) -> dict | None:
     """Newest package score payload (or the one matching as_of). Operates on a
     pre-read record list when given (so the dashboard reads the audit once);
@@ -625,6 +696,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 payload = apply_ibkr_position_overlay(payload)
                 _attach_alpaca_daily_flow(payload)
                 _attach_external_source_status(payload)
+                _attach_system_health_report(payload)
                 payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of, records=audit_records)
                 payload["prev_valves"] = _prev_official_valves(audit_records, payload.get("as_of") or as_of)
                 payload["run_receipt"] = _read_run_receipt()

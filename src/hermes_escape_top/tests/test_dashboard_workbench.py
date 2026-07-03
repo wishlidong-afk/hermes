@@ -1,7 +1,10 @@
 """T20 decision-workbench smoke tests."""
 from __future__ import annotations
 
+import json
+
 from hermes_escape_top.web import render as render_mod
+from hermes_escape_top.web import server as server_mod
 from hermes_escape_top.web.render import _render_decision_workbench, _render_health_banner, _render_strategy_console
 
 
@@ -489,6 +492,102 @@ def test_daily_diff_panel_reads_latest_shadow_report(tmp_path, monkeypatch):
     assert "今日变化" in html
     assert "Daily diff 2026-05-29 -&gt; 2026-06-04" in html
     assert "score 49.7 -&gt; 66.2" in html
+
+
+def _system_health_report(as_of: str = "2026-06-04") -> dict:
+    return {
+        "schema_version": "hermes-system-health-v1",
+        "generated_at": "2026-07-03T07:12:00+08:00",
+        "as_of": as_of,
+        "health": {
+            "level": "OK",
+            "layers": {
+                "strategy_data": {"level": "OK"},
+                "position_reconciliation": {"level": "INFO"},
+                "auxiliary_flows": {"level": "OK"},
+            },
+        },
+        "audit_dimensions": [
+            {
+                "id": "scored_payload_cache",
+                "label": "评分 payload 缓存",
+                "status": "PASS",
+                "detail": "cache_status.hit=true source=scheduled_run_payload",
+            },
+            {
+                "id": "ibkr_snapshot",
+                "label": "IBKR 持仓对账",
+                "status": "WARN",
+                "detail": "stale but non-blocking",
+            },
+            {
+                "id": "manifest",
+                "label": "数据清单",
+                "status": "FAIL",
+                "detail": "manifest drift in fixture",
+            },
+        ],
+    }
+
+
+def test_system_health_section_renders_20_dimension_report():
+    payload = _payload()
+    payload["system_health_report"] = _system_health_report()
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    assert "20 维系统自检" in html
+    assert "System Health Audit" in html
+    assert "PASS 1" in html and "WARN 1" in html and "FAIL 1" in html
+    assert "评分 payload 缓存" in html
+    assert "source=scheduled_run_payload" in html
+    assert "IBKR 持仓对账" in html
+
+
+def test_system_health_section_marks_stale_report():
+    payload = _payload()
+    report = _system_health_report(as_of="2026-06-03")
+    report["stale"] = True
+    payload["system_health_report"] = report
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    assert "STALE" in html
+    assert "报告 as_of=2026-06-03" in html
+    assert "页面 as_of=2026-06-04" in html
+
+
+def _write_health_report(report_dir, as_of: str, *, generated_at: str) -> None:
+    report = _system_health_report(as_of)
+    report["generated_at"] = generated_at
+    report_dir.mkdir(parents=True, exist_ok=True)
+    (report_dir / f"system_health_{as_of}.json").write_text(
+        json.dumps(report, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def test_system_health_report_loader_prefers_exact_as_of(monkeypatch, tmp_path):
+    _write_health_report(tmp_path, "2026-06-03", generated_at="2026-07-03T08:00:00+08:00")
+    _write_health_report(tmp_path, "2026-06-04", generated_at="2026-07-03T07:00:00+08:00")
+    monkeypatch.setattr(server_mod, "_system_health_report_roots", lambda: [tmp_path], raising=False)
+
+    payload = server_mod._attach_system_health_report({"as_of": "2026-06-04"})
+
+    assert payload["system_health_report"]["as_of"] == "2026-06-04"
+    assert payload["system_health_report"]["stale"] is False
+
+
+def test_system_health_report_loader_attaches_newest_as_stale(monkeypatch, tmp_path):
+    _write_health_report(tmp_path, "2026-06-02", generated_at="2026-07-03T07:00:00+08:00")
+    _write_health_report(tmp_path, "2026-06-03", generated_at="2026-07-03T08:00:00+08:00")
+    monkeypatch.setattr(server_mod, "_system_health_report_roots", lambda: [tmp_path], raising=False)
+
+    payload = server_mod._attach_system_health_report({"as_of": "2026-06-04"})
+
+    assert payload["system_health_report"]["as_of"] == "2026-06-03"
+    assert payload["system_health_report"]["stale"] is True
+    assert payload["system_health_report"]["requested_as_of"] == "2026-06-04"
 
 
 def test_health_banner_links_each_degraded_check_to_runbook_summary():
