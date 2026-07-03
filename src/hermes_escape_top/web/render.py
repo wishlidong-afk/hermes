@@ -549,8 +549,10 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
         {_metric('Portfolio Risk', f"vol {_fmt_pct(risk.get('forecast_portfolio_vol'))} · {esc(regime.get('current', 'NA'))}")}
       </div>
       <div class="mini-note">run={esc(state.get('score_run_id', 'NA'))} · input_hash={esc(str(payload.get('input_hash', 'NA'))[:12])} · 主要异常：{esc(check_text)}</div>
+      {_render_external_precheck_summary(payload)}
       {_render_data_trust_zone(payload)}
       {_render_system_health_audit(payload)}
+      {_render_system_health_history(payload)}
       <details style="margin-top:10px">
         <summary>展开 Audit Detail / 数据源、质量扣分、manifest</summary>
         <div class="detail-body">
@@ -575,6 +577,80 @@ def _health_layer_metric(health: Dict[str, Any], layer: str) -> str:
     else:
         detail = "OK"
     return f"{_badge(level, _health_level_kind(level))} <span class='subtle'>{esc(detail)}</span>"
+
+
+def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
+    precheck = payload.get("external_precheck_status")
+    if not isinstance(precheck, dict):
+        return (
+            "<details class='work-card external-precheck-summary' style='margin:10px 0 0'>"
+            "<summary>外部源预检 / External Precheck "
+            "<span class='subtle'>尚无 precheck 结果</span></summary>"
+            "<div class='detail-body'><div class='mini-note'>等待 "
+            "<code>~/.hermes/logs/external/external_precheck_latest.json</code>。</div></div>"
+            "</details>"
+        )
+
+    ready = bool(precheck.get("ready"))
+    refresh = precheck.get("refresh") if isinstance(precheck.get("refresh"), dict) else {}
+    blocking = [str(item) for item in (precheck.get("blocking_sources") or [])]
+    warnings = [str(item) for item in (precheck.get("warning_sources") or [])]
+    sources = precheck.get("sources") if isinstance(precheck.get("sources"), dict) else {}
+    source_ids = list(EXTERNAL_SOURCE_ORDER)
+    source_ids.extend(sorted(str(name) for name in sources.keys() if str(name) not in EXTERNAL_SOURCE_ORDER))
+    rows = []
+    for source_id in source_ids:
+        row = sources.get(source_id) if isinstance(sources.get(source_id), dict) else None
+        if not row:
+            continue
+        status = str(row.get("status") or "UNKNOWN")
+        latest = str(row.get("latest_promoted_as_of") or "—")[:10]
+        finished = str(row.get("finished_at") or row.get("started_at") or "—")
+        label = str(row.get("label") or EXTERNAL_SOURCE_LABELS.get(source_id) or source_id)
+        freshness = str(row.get("freshness_status") or "")
+        age = row.get("age_days")
+        freshness_note = freshness
+        if freshness_note and age is not None:
+            freshness_note += f" · {age}d"
+        official_note = ""
+        if row.get("official_issue_as_of") or row.get("official_file_sha256"):
+            official_note = (
+                f"issue={str(row.get('official_issue_as_of') or '—')[:10]} "
+                f"sha={str(row.get('official_file_sha256') or '—')[:8]}"
+            )
+        failure_note = str(row.get("error_message") or row.get("error_type") or row.get("failure_kind") or "")
+        note = " · ".join(part for part in (freshness_note, official_note, failure_note) if part)
+        rows.append(
+            "<tr>"
+            f"<td><b>{esc(source_id)}</b><div class='subtle'>{esc(label)}</div></td>"
+            f"<td>{_external_source_status_badge(status)}</td>"
+            f"<td>{esc(latest)}</td>"
+            f"<td><span class='subtle'>{esc(finished)}</span></td>"
+            f"<td>{esc(note or '—')}</td>"
+            "</tr>"
+        )
+    rows_html = "".join(rows) if rows else '<tr><td colspan="5">precheck 文件存在，但没有 sources 明细。</td></tr>'
+    issue_text = []
+    if blocking:
+        issue_text.append("blocking=" + ",".join(blocking))
+    if warnings:
+        issue_text.append("warning=" + ",".join(warnings))
+    issue_html = f"<span class='subtle'>{esc(' · '.join(issue_text))}</span>" if issue_text else "<span class='subtle'>无 blocking/warning</span>"
+    return (
+        "<details class='work-card external-precheck-summary' style='margin:10px 0 0'>"
+        "<summary>外部源预检 / External Precheck "
+        f"{_badge('READY' if ready else 'NOT READY', 'ok' if ready else 'danger')} "
+        f"<span class='subtle'>ok={esc(str(refresh.get('ok_count', '—')))} error={esc(str(refresh.get('error_count', '—')))}</span> "
+        f"{issue_html}</summary>"
+        "<div class='detail-body'>"
+        "<div class='table-scroll'>"
+        "<table><thead><tr><th>源</th><th>precheck</th><th>最新数据日</th><th>最近预检</th><th>证据 / 问题</th></tr></thead>"
+        f"<tbody>{rows_html}</tbody></table>"
+        "</div>"
+        f"<div class='subtle' style='margin-top:7px'>source={esc(str(precheck.get('source_path') or '~/.hermes/logs/external/external_precheck_latest.json'))}</div>"
+        "</div>"
+        "</details>"
+    )
 
 
 def _render_system_health_audit(payload: Dict[str, Any]) -> str:
@@ -633,6 +709,47 @@ def _render_system_health_audit(payload: Dict[str, Any]) -> str:
         "</div>"
         "<div class='table-scroll' style='margin-top:10px'>"
         "<table><thead><tr><th>状态</th><th>维度</th><th>证据</th></tr></thead>"
+        f"<tbody>{rows_html}</tbody></table>"
+        "</div>"
+        "</div>"
+        "</details>"
+    )
+
+
+def _render_system_health_history(payload: Dict[str, Any]) -> str:
+    history = payload.get("system_health_history")
+    if not isinstance(history, list) or not history:
+        return ""
+    rows = []
+    for row in history[:7]:
+        if not isinstance(row, dict):
+            continue
+        counts = row.get("counts") if isinstance(row.get("counts"), dict) else {}
+        layers = row.get("layers") if isinstance(row.get("layers"), dict) else {}
+        layer_text = (
+            f"策略数据={layers.get('strategy_data', 'NA')} · "
+            f"持仓={layers.get('position_reconciliation', 'NA')} · "
+            f"资金流={layers.get('auxiliary_flows', 'NA')}"
+        )
+        rows.append(
+            "<tr>"
+            f"<td><b>{esc(str(row.get('as_of') or 'NA'))}</b></td>"
+            f"<td>{_badge(str(row.get('health_level') or 'NA'), _health_level_kind(str(row.get('health_level') or 'NA')))}</td>"
+            f"<td>{_badge('PASS ' + str(counts.get('PASS', 0)), 'ok')} "
+            f"{_badge('WARN ' + str(counts.get('WARN', 0)), 'warn')} "
+            f"{_badge('FAIL ' + str(counts.get('FAIL', 0)), 'danger' if counts.get('FAIL') else 'ok')}</td>"
+            f"<td>{esc(layer_text)}</td>"
+            f"<td><span class='subtle'>{esc(str(row.get('generated_at') or 'NA'))}</span></td>"
+            "</tr>"
+        )
+    rows_html = "".join(rows) if rows else '<tr><td colspan="5">暂无历史报告</td></tr>'
+    return (
+        "<details class='work-card system-health-history' style='margin:10px 0 0'>"
+        "<summary>最近 7 次系统健康 / Health History "
+        f"<span class='subtle'>{len(rows)} 条 daily 报告</span></summary>"
+        "<div class='detail-body'>"
+        "<div class='table-scroll'>"
+        "<table><thead><tr><th>as_of</th><th>health</th><th>20维统计</th><th>分层</th><th>生成时间</th></tr></thead>"
         f"<tbody>{rows_html}</tbody></table>"
         "</div>"
         "</div>"

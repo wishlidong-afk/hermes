@@ -203,6 +203,33 @@ def _attach_external_source_status(payload: dict) -> dict:
     return payload
 
 
+def _external_precheck_status_paths() -> list[Path]:
+    override = os.environ.get("HERMES_EXTERNAL_PRECHECK_STATUS")
+    candidates = []
+    if override:
+        candidates.append(Path(override).expanduser())
+    candidates.append(Path.home() / ".hermes" / "logs" / "external" / "external_precheck_latest.json")
+    return candidates
+
+
+def _attach_external_precheck_status(payload: dict) -> dict:
+    """Attach the latest launchd external-source precheck JSON. Read-only."""
+    for path in _external_precheck_status_paths():
+        if not path.exists():
+            continue
+        try:
+            status = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(status, dict):
+            continue
+        status = dict(status)
+        status["source_path"] = str(path)
+        payload["external_precheck_status"] = status
+        return payload
+    return payload
+
+
 def _system_health_report_roots() -> list[Path]:
     """Candidate report directories for repo, live, and HERMES_DATA_DIR runs."""
     candidates: list[Path] = []
@@ -273,6 +300,58 @@ def _attach_system_health_report(payload: dict) -> dict:
     report["requested_as_of"] = requested
     report["stale"] = report_as_of != requested
     payload["system_health_report"] = report
+    return payload
+
+
+def _system_health_history_row(report: dict, path: Path) -> dict:
+    dimensions = report.get("audit_dimensions") if isinstance(report.get("audit_dimensions"), list) else []
+    counts = {"PASS": 0, "WARN": 0, "FAIL": 0}
+    for row in dimensions:
+        if isinstance(row, dict):
+            status = str(row.get("status") or "UNKNOWN").upper()
+            if status in counts:
+                counts[status] += 1
+    health = report.get("health") if isinstance(report.get("health"), dict) else {}
+    layers = health.get("layers") if isinstance(health.get("layers"), dict) else {}
+    return {
+        "as_of": str(report.get("as_of") or "")[:10],
+        "generated_at": str(report.get("generated_at") or ""),
+        "health_level": str(health.get("level") or "NA"),
+        "counts": counts,
+        "layers": {
+            "strategy_data": str((layers.get("strategy_data") or {}).get("level") or "NA"),
+            "position_reconciliation": str((layers.get("position_reconciliation") or {}).get("level") or "NA"),
+            "auxiliary_flows": str((layers.get("auxiliary_flows") or {}).get("level") or "NA"),
+        },
+        "source_path": str(path),
+    }
+
+
+def _attach_system_health_history(payload: dict, limit: int = 7) -> dict:
+    """Attach recent daily health reports, deduped by as_of with newest evidence."""
+    by_as_of: dict[str, tuple[str, float, dict]] = {}
+    for root in _system_health_report_roots():
+        if not root.exists():
+            continue
+        for path in root.glob("system_health_*.json"):
+            report = _read_system_health_report(path)
+            if report is None:
+                continue
+            as_of = str(report.get("as_of") or "")[:10]
+            if not as_of:
+                continue
+            generated = str(report.get("generated_at") or "")
+            try:
+                mtime = path.stat().st_mtime
+            except OSError:
+                mtime = 0.0
+            row = _system_health_history_row(report, path)
+            key = (generated, mtime)
+            if as_of not in by_as_of or key > (by_as_of[as_of][0], by_as_of[as_of][1]):
+                by_as_of[as_of] = (generated, mtime, row)
+    history = [value[2] for as_of, value in sorted(by_as_of.items(), key=lambda item: item[0], reverse=True)]
+    if history:
+        payload["system_health_history"] = history[:limit]
     return payload
 
 
@@ -698,7 +777,9 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 payload = apply_ibkr_position_overlay(payload)
                 _attach_alpaca_daily_flow(payload)
                 _attach_external_source_status(payload)
+                _attach_external_precheck_status(payload)
                 _attach_system_health_report(payload)
+                _attach_system_health_history(payload)
                 payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of, records=audit_records)
                 payload["prev_valves"] = _prev_official_valves(audit_records, payload.get("as_of") or as_of)
                 payload["run_receipt"] = _read_run_receipt()

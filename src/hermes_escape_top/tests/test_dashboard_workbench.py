@@ -557,6 +557,75 @@ def test_system_health_section_marks_stale_report():
     assert "页面 as_of=2026-06-04" in html
 
 
+def test_external_precheck_summary_renders_latest_result():
+    payload = _payload()
+    payload["external_precheck_status"] = {
+        "ready": True,
+        "blocking_sources": [],
+        "warning_sources": ["dollar"],
+        "refresh": {"ok": True, "ok_count": 5, "error_count": 0},
+        "sources": {
+            "naaim_exposure": {
+                "label": "NAAIM Exposure",
+                "status": "OK",
+                "freshness_status": "OK",
+                "latest_promoted_as_of": "2026-07-01",
+                "finished_at": "2026-07-02T23:05:13+00:00",
+                "official_issue_as_of": "2026-07-01",
+                "official_file_sha256": "9296ac10697e3b8c6a3323af5c9c9663a76fe5ca9b7c5704474d4f0cec6fdcd9",
+            },
+            "dollar": {
+                "label": "DXY / Dollar",
+                "status": "OK",
+                "freshness_status": "DUE_SOON",
+                "latest_promoted_as_of": "2026-06-26",
+                "finished_at": "2026-07-02T23:05:07+00:00",
+                "age_days": 7,
+            },
+        },
+        "source_path": "/Users/liweishi/.hermes/logs/external/external_precheck_latest.json",
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    assert "外部源预检" in html
+    assert "External Precheck" in html
+    assert "READY" in html
+    assert "ok=5 error=0" in html
+    assert "warning=dollar" in html
+    assert "NAAIM Exposure" in html
+    assert "issue=2026-07-01 sha=9296ac10" in html
+    assert "DUE_SOON · 7d" in html
+
+
+def test_system_health_history_renders_recent_reports():
+    payload = _payload()
+    payload["system_health_history"] = [
+        {
+            "as_of": "2026-07-02",
+            "generated_at": "2026-07-03T08:44:09+08:00",
+            "health_level": "OK",
+            "counts": {"PASS": 18, "WARN": 2, "FAIL": 0},
+            "layers": {"strategy_data": "OK", "position_reconciliation": "INFO", "auxiliary_flows": "OK"},
+        },
+        {
+            "as_of": "2026-07-01",
+            "generated_at": "2026-07-02T07:12:00+08:00",
+            "health_level": "DEGRADED",
+            "counts": {"PASS": 16, "WARN": 3, "FAIL": 1},
+            "layers": {"strategy_data": "DEGRADED", "position_reconciliation": "INFO", "auxiliary_flows": "OK"},
+        },
+    ]
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    assert "最近 7 次系统健康" in html
+    assert "Health History" in html
+    assert "2026-07-02" in html and "2026-07-01" in html
+    assert "PASS 18" in html and "WARN 2" in html and "FAIL 0" in html
+    assert "策略数据=DEGRADED" in html
+
+
 def _write_health_report(report_dir, as_of: str, *, generated_at: str) -> None:
     report = _system_health_report(as_of)
     report["generated_at"] = generated_at
@@ -603,6 +672,45 @@ def test_system_health_report_roots_include_sibling_versioned_releases(monkeypat
     assert payload["system_health_report"]["as_of"] == "2026-06-04"
     assert payload["system_health_report"]["stale"] is False
     assert "old_release" in payload["system_health_report"]["source_path"]
+
+
+def test_external_precheck_loader_attaches_latest_json(monkeypatch, tmp_path):
+    status_path = tmp_path / "external_precheck_latest.json"
+    status_path.write_text(
+        json.dumps(
+            {
+                "ready": True,
+                "blocking_sources": [],
+                "warning_sources": [],
+                "refresh": {"ok": True, "ok_count": 5, "error_count": 0},
+                "sources": {"dollar": {"status": "OK", "latest_promoted_as_of": "2026-06-26"}},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(server_mod, "_external_precheck_status_paths", lambda: [status_path], raising=False)
+
+    payload = server_mod._attach_external_precheck_status({})
+
+    assert payload["external_precheck_status"]["ready"] is True
+    assert payload["external_precheck_status"]["source_path"] == str(status_path)
+
+
+def test_system_health_history_loader_deduplicates_latest_by_as_of(monkeypatch, tmp_path):
+    older = tmp_path / "older"
+    newer = tmp_path / "newer"
+    _write_health_report(older, "2026-07-02", generated_at="2026-07-03T07:11:27+08:00")
+    _write_health_report(newer, "2026-07-02", generated_at="2026-07-03T08:44:09+08:00")
+    _write_health_report(newer, "2026-07-01", generated_at="2026-07-02T07:12:00+08:00")
+    monkeypatch.setattr(server_mod, "_system_health_report_roots", lambda: [older, newer], raising=False)
+
+    payload = server_mod._attach_system_health_history({})
+
+    history = payload["system_health_history"]
+    assert [row["as_of"] for row in history] == ["2026-07-02", "2026-07-01"]
+    assert history[0]["generated_at"] == "2026-07-03T08:44:09+08:00"
+    assert history[0]["counts"]["PASS"] == 1
 
 
 def test_health_banner_links_each_degraded_check_to_runbook_summary():
