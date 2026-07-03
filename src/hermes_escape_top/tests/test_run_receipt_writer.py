@@ -156,6 +156,52 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     assert "| external_file_evidence | PASS |" in markdown
 
 
+def test_system_health_report_treats_scheduled_payload_as_scored_without_web_cache(monkeypatch, tmp_path):
+    monkeypatch.setenv("HERMES_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(rdp, "load_config", lambda: {"paths": {"archive_dir": "data/archive"}})
+    monkeypatch.setattr(
+        "hermes_escape_top.web.refresh.manifest_status",
+        lambda _config=None: {"status": "OK"},
+    )
+    payload = {
+        "as_of": "2026-07-02",
+        "input_hash": "scheduled-payload-hash",
+        "data_quality": {"level": "HIGH", "overall_score": 100},
+        "data_quality_breakdown": {"sources": []},
+        "external_source_status": {
+            "aaii_sentiment": {
+                "source_id": "aaii_sentiment",
+                "status": "OK",
+                "official_issue_as_of": "2026-07-02",
+                "official_file_sha256": "39bd37c2ffff",
+            }
+        },
+        "ibkr": {"source": "disabled"},
+        "alpaca_daily_flow": {"as_of": "2026-07-02"},
+        "scores": {"MSTR": {"final_score": 66.6}},
+        "factor_scores": {"MSTR": []},
+        "sizing": {"MSTR": {"target_weight": 0.0}},
+        "decision_layers": {"MSTR": {}},
+        "risk_contributions": [{"symbol": "MSTR"}],
+        "stress_scenarios": [{"name": "QQQ -5%"}],
+    }
+    receipt = {
+        "status": "OK",
+        "run_type": "scheduled",
+        "run_at": "2026-07-03T07:11:27+08:00",
+        "finished_at": "2026-07-03T07:11:27+08:00",
+        "ok": True,
+    }
+
+    out = rdp._write_system_health_report(payload, "2026-07-02", receipt)
+    data = json.loads(out["json"].read_text(encoding="utf-8"))
+
+    assert data["health"]["level"] == "OK"
+    scored = next(row for row in data["audit_dimensions"] if row["id"] == "scored_payload_cache")
+    assert scored["status"] == "PASS"
+    assert "scheduled_run_payload" in scored["detail"]
+
+
 def test_receipt_write_failure_removes_prior_green_attestation(monkeypatch, tmp_path):
     _patch(monkeypatch, tmp_path)
     receipt_path = tmp_path / "run_receipt.json"

@@ -1329,6 +1329,10 @@ def _write_system_health_report(
 
     config = load_config()
     report_payload = dict(payload)
+    report_payload.setdefault(
+        "cache_status",
+        {"hit": True, "source": "scheduled_run_payload"},
+    )
     report_payload["run_receipt"] = receipt
     manifest = manifest_status(config)
     health = compute_health(report_payload, manifest)
@@ -1343,7 +1347,7 @@ def _write_system_health_report(
         "run_receipt": receipt,
         "health": health,
     }
-    report["audit_dimensions"] = _build_system_health_audit_dimensions(payload, report)
+    report["audit_dimensions"] = _build_system_health_audit_dimensions(report_payload, report)
     report_dir = _artifact_root() / "reports" / ("shadow" if shadow else "")
     report_dir.mkdir(parents=True, exist_ok=True)
     json_path = report_dir / f"system_health_{as_of}.json"
@@ -1384,7 +1388,9 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
             "scored_payload_cache",
             "评分 payload 缓存",
             "PASS" if (payload.get("cache_status") or {}).get("hit") else "FAIL",
-            "cache_status.hit=true" if (payload.get("cache_status") or {}).get("hit") else "NO_CACHE",
+            f"cache_status.hit=true source={(payload.get('cache_status') or {}).get('source', 'web_cache')}"
+            if (payload.get("cache_status") or {}).get("hit")
+            else "NO_CACHE",
         ),
         _audit_row(
             "input_hash",
