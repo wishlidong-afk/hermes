@@ -829,6 +829,26 @@ def _artifact_root() -> Path:
     return Path(override).expanduser() if override else BASE_DIR
 
 
+def _system_health_report_dir(shadow: bool = False) -> Path:
+    """Report root for durable system-health artifacts.
+
+    In versioned live releases HERMES_DATA_DIR points at
+    ``<release>/hermes_escape_top`` for runtime data, while ``<release>/reports``
+    is a symlink to the shared reports directory. Keep system-health evidence in
+    that shared reports root so a dashboard-only deploy does not hide today's
+    health report inside the previous code release. Test/repo runs that re-root
+    HERMES_DATA_DIR to a standalone temp dir keep the existing ``tmp/reports``
+    behavior.
+    """
+    root = _artifact_root()
+    release_reports = BASE_DIR / "reports"
+    if root == BASE_DIR / "hermes_escape_top" and release_reports.exists():
+        report_dir = release_reports
+    else:
+        report_dir = root / "reports"
+    return report_dir / "shadow" if shadow else report_dir
+
+
 def write_artifacts(translated: Dict[str, Any], orders: Dict[str, Any],
                     as_of: str, shadow: bool = True) -> Dict[str, Path]:
     root = _artifact_root()
@@ -1348,7 +1368,7 @@ def _write_system_health_report(
         "health": health,
     }
     report["audit_dimensions"] = _build_system_health_audit_dimensions(report_payload, report)
-    report_dir = _artifact_root() / "reports" / ("shadow" if shadow else "")
+    report_dir = _system_health_report_dir(shadow=shadow)
     report_dir.mkdir(parents=True, exist_ok=True)
     json_path = report_dir / f"system_health_{as_of}.json"
     md_path = report_dir / f"system_health_{as_of}.md"

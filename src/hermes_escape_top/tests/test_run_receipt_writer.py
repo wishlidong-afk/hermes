@@ -156,6 +156,50 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     assert "| external_file_evidence | PASS |" in markdown
 
 
+def test_system_health_report_uses_shared_release_reports(monkeypatch, tmp_path):
+    release = tmp_path / "releases" / "abc123_20260703"
+    package_data = release / "hermes_escape_top"
+    shared_reports = release / "reports"
+    package_data.mkdir(parents=True)
+    shared_reports.mkdir(parents=True)
+    monkeypatch.setattr(rdp, "BASE_DIR", release)
+    monkeypatch.setenv("HERMES_DATA_DIR", str(package_data))
+    monkeypatch.setattr(rdp, "load_config", lambda: {"paths": {"archive_dir": "data/archive"}})
+    monkeypatch.setattr(
+        "hermes_escape_top.web.refresh.manifest_status",
+        lambda _config=None: {"status": "OK"},
+    )
+    payload = {
+        "as_of": "2026-07-02",
+        "input_hash": "release-hash",
+        "data_quality": {"level": "HIGH", "overall_score": 100},
+        "data_quality_breakdown": {"sources": []},
+        "external_source_status": {},
+        "ibkr": {"source": "disabled"},
+        "alpaca_daily_flow": {"as_of": "2026-07-02"},
+        "scores": {"MSTR": {"final_score": 66.6}},
+        "factor_scores": {"MSTR": []},
+        "sizing": {"MSTR": {"target_weight": 0.0}},
+        "decision_layers": {"MSTR": {}},
+        "risk_contributions": [{"symbol": "MSTR"}],
+        "stress_scenarios": [{"name": "QQQ -5%"}],
+    }
+    receipt = {
+        "status": "OK",
+        "run_type": "scheduled",
+        "run_at": "2026-07-03T07:11:27+08:00",
+        "finished_at": "2026-07-03T07:11:27+08:00",
+        "ok": True,
+    }
+
+    out = rdp._write_system_health_report(payload, "2026-07-02", receipt)
+
+    assert out["json"] == shared_reports / "system_health_2026-07-02.json"
+    assert out["markdown"] == shared_reports / "system_health_2026-07-02.md"
+    assert out["json"].exists()
+    assert not (package_data / "reports" / "system_health_2026-07-02.json").exists()
+
+
 def test_system_health_report_treats_scheduled_payload_as_scored_without_web_cache(monkeypatch, tmp_path):
     monkeypatch.setenv("HERMES_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(rdp, "load_config", lambda: {"paths": {"archive_dir": "data/archive"}})
