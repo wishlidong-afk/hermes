@@ -328,14 +328,18 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     assert "<details class='work-card data-trust-zone'" in html
     assert "cboe_equity_pcr" in html and "CBOE_DAILY_HTML" in html and "剩 5d" in html
     assert "aaii_sentiment" in html and "AAII" in html and "真实" in html
+    assert html.index("系统状态 + 数据质量") < html.index("区域 5 · 数据信任区") < html.index("今日操作台")
+    assert "页面底部系统运维详情" in html
+    for label in ("外部源预检", "20 维系统自检", "最近 7 次系统健康", "Audit Detail"):
+        assert html.index("穿透股票成交与流向参考") < html.index(label)
     assert html.count("需要处置") == 1
     assert "今日操作台" in html
     assert "DEFCON 路由" in html and "执行计划资金去向" in html
     assert "路由/执行口径不一致" in html and "DBMF" in html and "GLD" in html
     assert html.index("系统状态 + 数据质量") < html.index("今日操作台")
-    assert html.index("区域 5 · 数据信任区") < html.index("今日操作台")
     assert html.index("今日操作台") < html.index("为什么这么做")
     assert html.index("为什么这么做") < html.index("硬阀门雷达")
+    assert html.index("硬阀门雷达") < html.index("全量打分因子表") < html.index("展开点阵矩阵")
     assert html.index("硬阀门雷达") < html.index("当前持仓 + IBKR 对账")
     assert "MSTR EXIT" in html and "FNGU REDUCE" in html and "SOXL HOLD" in html
     assert "当前持仓 + IBKR 对账" in html
@@ -362,7 +366,7 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
 
 
 def test_factor_map_lists_all_scoring_inputs_grouped_by_module():
-    html = _render_decision_workbench(_payload())
+    html = render_mod._render_hard_valve_radar(_payload())
 
     assert "全量打分因子表" in html
     assert "Factor Map" in html

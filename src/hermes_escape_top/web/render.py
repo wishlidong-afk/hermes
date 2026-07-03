@@ -505,6 +505,7 @@ def render_dashboard(
     {_render_component_flow_section(payload)}
 
     {_render_secondary_details(payload, shadow_status, manifest_status, health)}
+    {_render_bottom_system_ops_details(payload, manifest_status)}
 
   </div>
   {_render_scripts(as_of)}
@@ -581,16 +582,7 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
         {_health_pill('Portfolio Risk / Regime', f"vol {_fmt_pct(risk.get('forecast_portfolio_vol'))} · {esc(regime.get('current', 'NA'))}", 'watch')}
       </div>
       <div class="mini-note">run={esc(state.get('score_run_id', 'NA'))} · input_hash={esc(str(payload.get('input_hash', 'NA'))[:12])} · 主要异常：{esc(check_text)}</div>
-      {_render_external_precheck_summary(payload)}
       {_render_data_trust_zone(payload)}
-      {_render_system_health_audit(payload)}
-      {_render_system_health_history(payload)}
-      <details style="margin-top:10px">
-        <summary>展开 Audit Detail / 数据源、质量扣分、manifest</summary>
-        <div class="detail-body">
-          {_render_quality_detail_body(payload, manifest_status)}
-        </div>
-      </details>
     </section>
     """
 
@@ -798,7 +790,14 @@ def _render_system_health_audit(payload: Dict[str, Any]) -> str:
 def _render_system_health_history(payload: Dict[str, Any]) -> str:
     history = payload.get("system_health_history")
     if not isinstance(history, list) or not history:
-        return ""
+        return (
+            "<details class='work-card system-health-history' style='margin:10px 0 0'>"
+            "<summary>最近 7 次系统健康 / Health History "
+            "<span class='subtle'>尚无历史报告</span></summary>"
+            "<div class='detail-body'><div class='mini-note'>等待 daily 生成 "
+            "<code>reports/system_health_YYYY-MM-DD.json</code> 后展示趋势。</div></div>"
+            "</details>"
+        )
     rows = []
     for row in history[:7]:
         if not isinstance(row, dict):
@@ -1018,6 +1017,7 @@ def _render_hard_valve_radar(payload: Dict[str, Any]) -> str:
       <h2>硬阀门雷达 + 点阵 / Hard Valve Radar</h2>
       <div class="mini-note" style="margin-bottom:8px">总览：{esc(overview)}。红=已触发，黄=待确认，橙=接近触发，灰=安全，空白=不适用。</div>
       {''.join(radar_rows)}
+      {_render_factor_map_panel(payload)}
       <details style="margin-top:10px">
         <summary>展开点阵矩阵 / Valve Matrix</summary>
         <div class="detail-body">
@@ -1060,6 +1060,25 @@ def _render_secondary_details(
           <h2>决策工作台细节 / Workbench Details</h2>
           {_render_decision_workbench(payload)}
         </section>
+      </div>
+    </details>
+    """
+
+
+def _render_bottom_system_ops_details(payload: Dict[str, Any], manifest_status: Dict[str, Any]) -> str:
+    return f"""
+    <details class="full-detail-block">
+      <summary>页面底部系统运维详情 / System Ops Details</summary>
+      <div class="detail-body">
+        {_render_external_precheck_summary(payload)}
+        {_render_system_health_audit(payload)}
+        {_render_system_health_history(payload)}
+        <details style="margin-top:10px">
+          <summary>展开 Audit Detail / 数据源、质量扣分、manifest</summary>
+          <div class="detail-body">
+            {_render_quality_detail_body(payload, manifest_status)}
+          </div>
+        </details>
       </div>
     </details>
     """
@@ -1356,7 +1375,6 @@ def _render_decision_workbench(payload: Dict[str, Any]) -> str:
         {_render_reentry_lock_panel(payload)}
         {_render_top_factor_panel(payload)}
       </div>
-      {_render_factor_map_panel(payload)}
       {_render_p3_visuals(payload)}
     </section>
     """
