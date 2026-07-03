@@ -96,7 +96,9 @@ class Phase15IntegrationTest(unittest.TestCase):
             with urllib.request.urlopen(f"{base}/", timeout=10) as response:
                 html = response.read().decode("utf-8")
                 self.assertIn("Posterior Ideal P/L", html)
-                self.assertIn("IBKR Live 验收", html)
+                self.assertNotIn("IBKR Live 验收", html)
+                self.assertIn("更新持仓", html)
+                self.assertIn("刷新全部外部源", html)
         finally:
             server.shutdown()
             server.server_close()

@@ -296,6 +296,7 @@ def test_workbench_renders_hard_valves_reentry_and_top_factors():
 def test_workbench_renders_p3_visual_blocks():
     html = _render_decision_workbench(_payload())
 
+    assert "风险与路由解释" in html
     assert "风险贡献条形图" in html
     assert "portfolio forecast vol" in html
     assert "四情景压力测试" in html
@@ -310,10 +311,19 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     html = render_mod.render_dashboard(_payload(), health={"level": "OK"}, manifest_status={"status": "OK"})
 
     assert "系统状态 + 数据质量" in html
+    assert "health-strip" in html
     assert "策略数据" in html and "持仓对账" in html and "辅助资金流" in html
+    assert html.count("health-pill") >= 7
+    assert "刷新全部外部源" in html
+    assert "IBKR Live 验收" not in html
+    assert "ibkr-live-btn" not in html
+    assert "runIbkrLiveCheck" not in html
     # 8765 workbench retired — its launch button must NOT be on the dashboard.
     assert "工作台 8765" not in html
     assert "127.0.0.1:8765" not in html
+    assert "M4 迁移控制台" not in html
+    assert "运行影子对比" not in html
+    assert "补基准并对比" not in html
     assert "区域 5 · 数据信任区" in html
     assert "<details class='work-card data-trust-zone'" in html
     assert "cboe_equity_pcr" in html and "CBOE_DAILY_HTML" in html and "剩 5d" in html
@@ -349,6 +359,22 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     assert "主动买入占优" not in html
     assert "+$1.20B" not in html
     assert "其他折叠详情" in html and "硬阀门全景" in html
+
+
+def test_factor_map_lists_all_scoring_inputs_grouped_by_module():
+    html = _render_decision_workbench(_payload())
+
+    assert "全量打分因子表" in html
+    assert "Factor Map" in html
+    assert "A 宏观/市场温度" in html
+    assert "B 标的过热/估值" in html
+    assert "C 结构破坏/技术确认" in html
+    assert "D 个股/资产自身风险" in html
+    assert "A5_NET_LIQUIDITY" in html
+    assert "B2_MA200_EXTENSION" in html
+    assert "C9_CHANDELIER_BREAK" in html
+    assert "D1_ASSET_MA200_BREAK" in html
+    assert "看什么" in html and "何时加分" in html
 
 
 def test_trust_zone_uses_external_source_ledger_status():

@@ -6,9 +6,22 @@ from html import escape
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
+from ..core.scoring.explain_registry import explain_factor
+from ..core.scoring.module_a import module_a_factors
+from ..core.scoring.module_b import module_b_factors
+from ..core.scoring.module_c import module_c_factors
+from ..core.scoring.module_d import module_d_factors
+
 
 TRADE_SYMBOLS = ["MSTR", "FNGU", "SOXL"]
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+FACTOR_MODULE_LABELS = {
+    "A": "A 宏观/市场温度",
+    "B": "B 标的过热/估值",
+    "C": "C 结构破坏/技术确认",
+    "D": "D 个股/资产自身风险",
+}
 
 TRUST_SOURCE_LABELS = {
     "aaii": "aaii_sentiment",
@@ -149,7 +162,6 @@ def render_dashboard(
     button:disabled {{ opacity: .55; cursor: default; }}
     .btn-primary {{ background: var(--blue); }}
     .btn-position {{ background: #0f766e; }}
-    .btn-live {{ background: var(--green); }}
     .btn-muted {{ background: #475569; }}
     .btn-mirror {{ background: #7c3aed; }}
     .status-line {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }}
@@ -323,6 +335,21 @@ def render_dashboard(
     .strategy-card .mini-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
     .position-table-wrap {{ overflow-x:auto; }}
     .position-summary-grid {{ display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }}
+    .health-strip {{ display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:7px; margin-bottom:8px; }}
+    .health-pill {{
+      border:1px solid #e5e7eb;
+      border-radius:7px;
+      background:#f8fafc;
+      padding:8px;
+      min-width:0;
+      border-left:4px solid #94a3b8;
+    }}
+    .health-pill.ok {{ border-left-color:#059669; background:#f0fdf4; }}
+    .health-pill.warn {{ border-left-color:#d97706; background:#fffbeb; }}
+    .health-pill.danger {{ border-left-color:#dc2626; background:#fef2f2; }}
+    .health-pill.watch {{ border-left-color:#2563eb; background:#eff6ff; }}
+    .health-pill .label {{ color:var(--muted); font-size:11px; margin-bottom:4px; }}
+    .health-pill .value {{ font-size:13px; font-weight:900; line-height:1.25; overflow-wrap:anywhere; }}
     .position-action {{ font-weight:900; }}
     .position-action.buy {{ color:#047857; }}
     .position-action.sell {{ color:#b91c1c; }}
@@ -367,6 +394,10 @@ def render_dashboard(
     .condition-step.pass {{ border-color:#86efac; background:#f0fdf4; }}
     .condition-step.fail {{ border-color:#fed7aa; background:#fff7ed; }}
     .condition-step.danger {{ border-color:#fecaca; background:#fef2f2; }}
+    .risk-routing-block {{ border:1px solid #e5e7eb; border-radius:8px; background:#fbfdff; padding:10px; margin-top:10px; }}
+    .risk-routing-grid {{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; }}
+    .factor-map details, details.factor-map {{ background:#fbfdff; }}
+    .factor-module-row td {{ background:#eef2ff; color:#1e3a8a; font-weight:900; }}
     .evidence-ladder {{ border:1px solid #dbe3ee; border-radius:8px; background:#f8fafc; padding:12px; }}
     .ladder-track {{ position:relative; height:18px; margin:24px 8px 18px; background:#e5e7eb; border-radius:999px; }}
     .ladder-band {{ position:absolute; top:0; bottom:0; border-radius:999px; opacity:.9; }}
@@ -421,7 +452,7 @@ def render_dashboard(
       .flow-grid {{ grid-template-columns: 1fr; }}
       .tape-flow-grid {{ grid-template-columns: 1fr; }}
       .workbench-grid {{ grid-template-columns: 1fr; }}
-      .strategy-card-grid, .strategy-metrics, .flow-heat-grid, .position-summary-grid {{ grid-template-columns: 1fr; }}
+      .strategy-card-grid, .strategy-metrics, .flow-heat-grid, .position-summary-grid, .health-strip, .risk-routing-grid {{ grid-template-columns: 1fr; }}
     }}
     @media (max-width: 720px) {{
       .shell {{ padding: 10px; }}
@@ -449,17 +480,16 @@ def render_dashboard(
         <div class="controls">
           <button class="btn-primary" onclick="refreshScore()" id="refresh-score-btn">更新策略数据</button>
           <button class="btn-position" onclick="refreshPositions()" id="refresh-positions-btn">更新持仓</button>
-          <button class="btn-live" onclick="runIbkrLiveCheck()" id="ibkr-live-btn">IBKR Live 验收</button>
+          <button class="btn-muted" onclick="refreshExternalSources()" id="external-sources-refresh-all-header-btn">刷新全部外部源</button>
           <button class="btn-muted" onclick="location.reload()">重新载入</button>
         </div>
         <div class="subtle" id="refresh-score-status" style="margin-top:8px;text-align:right"></div>
         <div class="subtle" id="refresh-positions-status" style="margin-top:4px;text-align:right"></div>
-        <div class="subtle" id="ibkr-live-status" style="margin-top:4px;text-align:right"></div>
+        <div class="subtle" id="external-source-header-status" style="margin-top:4px;text-align:right"></div>
       </div>
     </header>
 
     <div id="refresh-result" class="toolbar-output"></div>
-    <div id="ibkr-live-result" class="toolbar-output"></div>
 
     {_render_run_receipt_banner(payload)}
     {_render_preview_banner(payload)}
@@ -536,17 +566,19 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
         and item.get("layer", "strategy_data") == "strategy_data"
     ]
     check_text = "；".join(str(item.get("label")) for item in checks[:2]) if checks else "无"
+    external_text, external_kind = _external_precheck_metric(payload)
+    ibkr_text = esc(ibkr.get('source', 'disabled')) + (' / STALE' if ibkr.get('snapshot_stale') else '')
     return f"""
     <section>
       <h2>系统状态 + 数据质量 / System Health</h2>
-      <div class="position-summary-grid">
-        {_metric('策略数据', _health_layer_metric(health, 'strategy_data'))}
-        {_metric('持仓对账', _health_layer_metric(health, 'position_reconciliation'))}
-        {_metric('辅助资金流', _health_layer_metric(health, 'auxiliary_flows'))}
-        {_metric('Data', f"{esc(dq.get('level', 'NA'))} {_fmt_num(dq.get('overall_score'))}")}
-        {_metric('Manifest', esc(manifest_status.get('status', 'NA')))}
-        {_metric('IBKR', esc(ibkr.get('source', 'disabled')) + (' / STALE' if ibkr.get('snapshot_stale') else ''))}
-        {_metric('Portfolio Risk', f"vol {_fmt_pct(risk.get('forecast_portfolio_vol'))} · {esc(regime.get('current', 'NA'))}")}
+      <div class="health-strip">
+        {_health_pill('策略数据', _health_layer_metric(health, 'strategy_data'), _health_layer_kind(health, 'strategy_data'))}
+        {_health_pill('数据质量', f"{esc(dq.get('level', 'NA'))} {_fmt_num(dq.get('overall_score'))}", _quality_kind(dq.get('level')))}
+        {_health_pill('Manifest', esc(manifest_status.get('status', 'NA')), _manifest_kind(manifest_status))}
+        {_health_pill('外部源', external_text, external_kind)}
+        {_health_pill('辅助资金流', _health_layer_metric(health, 'auxiliary_flows'), _health_layer_kind(health, 'auxiliary_flows'))}
+        {_health_pill('持仓对账 / IBKR', f"{_health_layer_metric(health, 'position_reconciliation')} · {ibkr_text}", _health_layer_kind(health, 'position_reconciliation'))}
+        {_health_pill('Portfolio Risk / Regime', f"vol {_fmt_pct(risk.get('forecast_portfolio_vol'))} · {esc(regime.get('current', 'NA'))}", 'watch')}
       </div>
       <div class="mini-note">run={esc(state.get('score_run_id', 'NA'))} · input_hash={esc(str(payload.get('input_hash', 'NA'))[:12])} · 主要异常：{esc(check_text)}</div>
       {_render_external_precheck_summary(payload)}
@@ -577,6 +609,53 @@ def _health_layer_metric(health: Dict[str, Any], layer: str) -> str:
     else:
         detail = "OK"
     return f"{_badge(level, _health_level_kind(level))} <span class='subtle'>{esc(detail)}</span>"
+
+
+def _health_pill(label: str, value: str, kind: str = "") -> str:
+    kind = kind if kind in {"ok", "warn", "danger", "watch"} else "watch"
+    return (
+        f"<div class='health-pill {kind}'>"
+        f"<div class='label'>{esc(label)}</div>"
+        f"<div class='value'>{value}</div>"
+        "</div>"
+    )
+
+
+def _health_layer_kind(health: Dict[str, Any], layer: str) -> str:
+    layers = (health or {}).get("layers") or {}
+    row = layers.get(layer) or {}
+    level = str(row.get("level") or ((health or {}).get("level") if layer == "strategy_data" else "OK") or "OK")
+    return _health_level_kind(level)
+
+
+def _manifest_kind(manifest_status: Dict[str, Any]) -> str:
+    status = str((manifest_status or {}).get("status") or "UNKNOWN")
+    return {"OK": "ok", "DRIFT": "danger", "MISSING": "warn", "UNKNOWN": "watch"}.get(status, "watch")
+
+
+def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
+    precheck = payload.get("external_precheck_status")
+    if isinstance(precheck, dict):
+        ready = bool(precheck.get("ready"))
+        refresh = precheck.get("refresh") if isinstance(precheck.get("refresh"), dict) else {}
+        ok_count = refresh.get("ok_count")
+        error_count = refresh.get("error_count")
+        blocking = len(precheck.get("blocking_sources") or [])
+        warnings = len(precheck.get("warning_sources") or [])
+        if ok_count is not None or error_count is not None:
+            text = f"{'READY' if ready else 'BLOCK'} · ok={esc(ok_count or 0)} err={esc(error_count or 0)}"
+        else:
+            text = f"{'READY' if ready else 'BLOCK'} · block={blocking} warn={warnings}"
+        kind = "ok" if ready and not warnings else ("danger" if blocking else "warn")
+        return text, kind
+    external = payload.get("external_source_status") or {}
+    if isinstance(external, dict) and external:
+        ok = sum(1 for row in external.values() if isinstance(row, dict) and str(row.get("status")) == "OK")
+        err = sum(1 for row in external.values() if isinstance(row, dict) and str(row.get("status")) in {"ERROR", "FAILED"})
+        miss = sum(1 for row in external.values() if isinstance(row, dict) and str(row.get("status")) == "MISSING")
+        kind = "danger" if err else ("warn" if miss else "ok")
+        return f"OK {ok} / ERR {err} / MISS {miss}", kind
+    return "无 precheck", "watch"
 
 
 def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
@@ -981,7 +1060,6 @@ def _render_secondary_details(
           <h2>决策工作台细节 / Workbench Details</h2>
           {_render_decision_workbench(payload)}
         </section>
-        {_render_ops_panel(shadow_status, manifest_status)}
       </div>
     </details>
     """
@@ -1278,6 +1356,7 @@ def _render_decision_workbench(payload: Dict[str, Any]) -> str:
         {_render_reentry_lock_panel(payload)}
         {_render_top_factor_panel(payload)}
       </div>
+      {_render_factor_map_panel(payload)}
       {_render_p3_visuals(payload)}
     </section>
     """
@@ -1401,12 +1480,132 @@ def _render_top_factor_panel(payload: Dict[str, Any]) -> str:
     )
 
 
+def _render_factor_map_panel(payload: Dict[str, Any]) -> str:
+    observed = _observed_factor_rows(payload)
+    catalog = _factor_catalog(payload, observed)
+    table_rows: List[str] = []
+    for module in ("A", "B", "C", "D"):
+        module_rows = [row for row in catalog if row["module"] == module]
+        if not module_rows:
+            continue
+        table_rows.append(
+            "<tr class='factor-module-row'>"
+            f"<td colspan='6'>{esc(FACTOR_MODULE_LABELS.get(module, module))}</td>"
+            "</tr>"
+        )
+        for row in module_rows:
+            meta = row["meta"]
+            table_rows.append(
+                "<tr>"
+                f"<td>{esc(module)}</td>"
+                f"<td><b>{esc(row['factor_id'])}</b></td>"
+                f"<td>{_fmt_num(row.get('max_score'))}</td>"
+                f"<td>{esc(meta.get('plain_explain') or meta.get('professional_explain') or '—')}</td>"
+                f"<td>{esc(meta.get('professional_explain') or meta.get('plain_explain') or '—')}</td>"
+                f"<td>{_factor_current_score_text(row['factor_id'], observed)}<div class='subtle'>{esc(meta.get('data_hint') or '—')}</div></td>"
+                "</tr>"
+            )
+    empty_rows = "<tr><td colspan='6'>暂无因子定义。</td></tr>"
+    return (
+        "<details class='work-card factor-map' style='margin-top:10px'>"
+        "<summary>全量打分因子表 / Factor Map <span class='subtle'>按 A/B/C/D 分组，Top 5 之外的因子也在这里查</span></summary>"
+        "<div class='detail-body'>"
+        "<div class='table-scroll'>"
+        "<table>"
+        "<thead><tr><th>模块</th><th>因子</th><th>上限</th><th>看什么</th><th>何时加分</th><th>当前分 / 数据</th></tr></thead>"
+        f"<tbody>{''.join(table_rows) if table_rows else empty_rows}</tbody>"
+        "</table>"
+        "</div>"
+        "</div>"
+        "</details>"
+    )
+
+
+def _observed_factor_rows(payload: Dict[str, Any]) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    out: Dict[str, Dict[str, Dict[str, Any]]] = {}
+    for symbol, score in (payload.get("scores") or {}).items():
+        if not isinstance(score, dict):
+            continue
+        for module, rows in (score.get("factor_scores") or {}).items():
+            if not isinstance(rows, list):
+                continue
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                factor_id = str(row.get("factor_id") or "")
+                if not factor_id:
+                    continue
+                enriched = dict(row)
+                enriched.setdefault("module", str(module))
+                out.setdefault(factor_id, {})[str(symbol)] = enriched
+    return out
+
+
+def _factor_catalog(payload: Dict[str, Any], observed: Dict[str, Dict[str, Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    by_id: Dict[str, Dict[str, Any]] = {}
+    for definition in _factor_definitions_for_map():
+        factor_id = str(definition.factor_id)
+        if factor_id in by_id:
+            by_id[factor_id]["max_score"] = max(_float(by_id[factor_id].get("max_score"), 0.0), _float(definition.max_score, 0.0))
+            continue
+        by_id[factor_id] = {
+            "factor_id": factor_id,
+            "module": str(definition.module),
+            "max_score": definition.max_score,
+            "meta": explain_factor(factor_id, str(definition.module)),
+        }
+    for factor_id, by_symbol in observed.items():
+        sample = next(iter(by_symbol.values()), {})
+        module = str(sample.get("module") or factor_id[:1] or "")
+        meta = {
+            "professional_explain": sample.get("professional_explain") or explain_factor(factor_id, module).get("professional_explain", ""),
+            "plain_explain": sample.get("plain_explain") or explain_factor(factor_id, module).get("plain_explain", ""),
+            "data_hint": sample.get("data_hint") or explain_factor(factor_id, module).get("data_hint", ""),
+        }
+        by_id.setdefault(
+            factor_id,
+            {
+                "factor_id": factor_id,
+                "module": module,
+                "max_score": sample.get("max_score"),
+                "meta": meta,
+            },
+        )
+    order = {"A": 0, "B": 1, "C": 2, "D": 3}
+    return sorted(by_id.values(), key=lambda row: (order.get(str(row.get("module")), 9), str(row.get("factor_id"))))
+
+
+def _factor_definitions_for_map() -> List[Any]:
+    definitions: List[Any] = []
+    definitions.extend(module_a_factors())
+    for symbol in TRADE_SYMBOLS:
+        definitions.extend(module_b_factors(symbol))
+    definitions.extend(module_c_factors())
+    for symbol in TRADE_SYMBOLS:
+        definitions.extend(module_d_factors(symbol))
+    return definitions
+
+
+def _factor_current_score_text(factor_id: str, observed: Dict[str, Dict[str, Dict[str, Any]]]) -> str:
+    rows = observed.get(factor_id) or {}
+    parts = []
+    for symbol in TRADE_SYMBOLS:
+        row = rows.get(symbol)
+        if not row:
+            continue
+        parts.append(f"{symbol} {_fmt_num(row.get('score'))}/{_fmt_num(row.get('max_score'))}")
+    return esc(" · ".join(parts) if parts else "—")
+
+
 def _render_p3_visuals(payload: Dict[str, Any]) -> str:
     return f"""
-      <div class="workbench-grid" style="margin-top:10px">
-        {_render_risk_contribution_panel(payload)}
-        {_render_stress_scenario_panel(payload)}
-        {_render_defcon_chain_panel(payload)}
+      <div class="risk-routing-block">
+        <h3>风险与路由解释 <span class='subtle'>Risk contribution / stress / DEFCON</span></h3>
+        <div class="risk-routing-grid">
+          {_render_risk_contribution_panel(payload)}
+          {_render_stress_scenario_panel(payload)}
+          {_render_defcon_chain_panel(payload)}
+        </div>
       </div>
     """
 
@@ -1518,7 +1717,7 @@ def _render_defcon_chain_panel(payload: Dict[str, Any]) -> str:
             "</div>"
         )
     return (
-        "<div class='work-card' style='grid-column:1 / -1'>"
+        "<div class='work-card'>"
         "<h3>DEFCON 条件链 <span class='subtle'>routing_context</span></h3>"
         f"{body}"
         "</div>"
@@ -3024,43 +3223,7 @@ def _render_quality_section(payload: Dict[str, Any], manifest_status: Dict[str, 
     """
 
 
-def _render_ops_panel(shadow_status: Dict[str, Any], manifest_status: Dict[str, Any] | None = None) -> str:
-    manifest_status = manifest_status or {}
-    mode = shadow_status.get("run_daily_mode", "unknown")
-    latest = shadow_status.get("latest_baseline_date") or ""
-    dates = ", ".join((shadow_status.get("available_dates") or [])[:8])
-    return f"""
-    <section class="ops">
-      <details>
-        <summary>M4 迁移控制台 / 运维工具</summary>
-        <div class="detail-body">
-          <div class="facts" style="margin-bottom:10px">
-            {_metric('run_daily mode', esc(mode))}
-            {_metric('最新基准日', esc(latest or 'NA'))}
-            {_metric('可对比日期', esc(dates or 'NA'))}
-            {_metric('数据清单', esc(str(manifest_status.get('status', 'NA'))))}
-          </div>
-          <div class="controls" style="justify-content:flex-start;margin-bottom:10px">
-            <input id="shadow-date" type="date" value="{esc(latest)}" style="border:1px solid #cbd5e1;border-radius:6px;padding:7px 9px">
-            <button class="btn-muted" onclick="runShadow()">运行影子对比</button>
-            <button class="btn-muted" onclick="runBackfill()">补基准并对比</button>
-          </div>
-          <div class="controls" style="justify-content:flex-start;margin-bottom:10px">
-            <button class="btn-muted" onclick="refreshSoftData()" id="softdata-btn">更新慢软数据(FRED/AAII)</button>
-            <button class="btn-muted" onclick="loadIbkrDemo()" id="ibkr-demo-btn">加载 IBKR 演示快照</button>
-          </div>
-          <div id="ops-extra-status" class="subtle"></div>
-          <div id="ops-extra-result" class="toolbar-output"></div>
-          <div id="shadow-status" class="subtle"></div>
-          <div id="shadow-result" class="toolbar-output"></div>
-        </div>
-      </details>
-    </section>
-    """
-
-
 def _render_scripts(as_of: str) -> str:
-    as_of_js = json.dumps(str(as_of or ""))
     return f"""
   <script>
   function setBusy(btn, busy) {{
@@ -3164,42 +3327,6 @@ def _render_scripts(as_of: str) -> str:
       setBusy(btn, false);
     }});
   }};
-  window.runIbkrLiveCheck = function() {{
-    var btn = document.getElementById('ibkr-live-btn');
-    var st = document.getElementById('ibkr-live-status');
-    var out = document.getElementById('ibkr-live-result');
-    setBusy(btn, true);
-    st.textContent = '正在验收 IBKR live 连接...';
-    out.style.display = 'none';
-    postJson('/api/ibkr_live_check', {{as_of: {as_of_js}}}).then(function(r) {{ return r.json(); }}).then(function(d) {{
-      setBusy(btn, false);
-      st.textContent = d.ok ? 'LIVE_OK' : (d.status || 'LIVE_FAILED');
-      var lines = [];
-      lines.push('status=' + (d.status || 'unknown'));
-      lines.push('ok=' + !!d.ok);
-      if (d.preflight) {{
-        lines.push('source=' + d.preflight.source);
-        lines.push('account=' + d.preflight.account_id);
-        lines.push('net_liq=' + d.preflight.net_liq);
-        if (d.preflight.error) lines.push('error=' + d.preflight.error);
-      }}
-      if (d.ibkr) {{
-        lines.push('score_ibkr_source=' + d.ibkr.source);
-        lines.push('max_abs_delta=' + d.ibkr.max_abs_delta);
-      }}
-      if (d.report_paths) {{
-        lines.push('json_report=' + d.report_paths.json);
-        lines.push('markdown_report=' + d.report_paths.markdown);
-      }}
-      if (d.message) lines.push('message=' + d.message);
-      out.textContent = lines.join('\\n');
-      out.style.display = 'block';
-      if (d.ok) setTimeout(function() {{ location.reload(); }}, 900);
-    }}).catch(function(e) {{
-      setBusy(btn, false);
-      st.textContent = 'Live 验收失败: ' + e;
-    }});
-  }};
   window.refreshManifest = function() {{
     var btn = document.getElementById('manifest-refresh-btn');
     var st = document.getElementById('manifest-refresh-status');
@@ -3211,21 +3338,6 @@ def _render_scripts(as_of: str) -> str:
         if (st) st.textContent = d.ok ? ('已重冻结 ✓ frozen_at=' + (d.frozen_at || '')) : ('失败: ' + (d.error || d.status || 'unknown'));
         if (d.ok) setTimeout(function() {{ location.reload(); }}, 700);
       }}).catch(function(e) {{ setBusy(btn, false); if (st) st.textContent = '失败: ' + e; }});
-  }};
-  window.refreshSoftData = function() {{
-    var btn = document.getElementById('softdata-btn');
-    var st = document.getElementById('ops-extra-status');
-    var out = document.getElementById('ops-extra-result');
-    setBusy(btn, true);
-    st.textContent = '正在联网更新 FRED/AAII（可能较慢，AAII 可能被封）...';
-    out.style.display = 'none';
-    postJson('/api/refresh_soft_data', {{}})
-      .then(function(r) {{ return r.json(); }}).then(function(d) {{
-        setBusy(btn, false);
-        st.textContent = d.ok ? '软数据更新完成（至少一个源成功）' : '软数据更新：无源写入（见详情）';
-        out.textContent = JSON.stringify(d, null, 2);
-        out.style.display = 'block';
-      }}).catch(function(e) {{ setBusy(btn, false); st.textContent = '失败: ' + e; }});
   }};
   window.refreshExternalSource = function(sourceId) {{
     var btn = document.getElementById('external-source-' + sourceId + '-btn');
@@ -3246,8 +3358,10 @@ def _render_scripts(as_of: str) -> str:
       }}).catch(function(e) {{ setBusy(btn, false); if (st) st.textContent = sourceId + ' 刷新失败: ' + e; }});
   }};
   window.refreshExternalSources = function() {{
-    var btn = document.getElementById('external-sources-refresh-all-btn');
-    var st = document.getElementById('external-source-status');
+    var btn = document.getElementById('external-sources-refresh-all-header-btn') ||
+              document.getElementById('external-sources-refresh-all-btn');
+    var st = document.getElementById('external-source-header-status') ||
+             document.getElementById('external-source-status');
     setBusy(btn, true);
     if (st) st.textContent = '正在刷新全部外部源...';
     postJson('/api/refresh_external_sources', {{}})
@@ -3263,38 +3377,6 @@ def _render_scripts(as_of: str) -> str:
         setTimeout(function() {{ location.reload(); }}, 1100);
       }}).catch(function(e) {{ setBusy(btn, false); if (st) st.textContent = '刷新全部外部源失败: ' + e; }});
   }};
-  window.loadIbkrDemo = function() {{
-    var btn = document.getElementById('ibkr-demo-btn');
-    var st = document.getElementById('ops-extra-status');
-    var out = document.getElementById('ops-extra-result');
-    setBusy(btn, true);
-    st.textContent = '正在写入 IBKR 演示快照并重新评分...';
-    out.style.display = 'none';
-    postJson('/api/ibkr_demo_snapshot', {{}})
-      .then(function(r) {{ return r.json(); }}).then(function(d) {{
-        setBusy(btn, false);
-        st.textContent = d.ok ? (d.message || '演示快照已加载') : (d.message || ('未写入: ' + (d.reason || 'unknown')));
-        out.textContent = JSON.stringify(d, null, 2);
-        out.style.display = 'block';
-        if (d.ok) setTimeout(function() {{ location.reload(); }}, 900);
-      }}).catch(function(e) {{ setBusy(btn, false); st.textContent = '失败: ' + e; }});
-  }};
-  function m4Run(endpoint, label) {{
-    var date = document.getElementById('shadow-date').value || {as_of_js};
-    var st = document.getElementById('shadow-status');
-    var out = document.getElementById('shadow-result');
-    st.textContent = '正在运行 ' + label + '...';
-    out.style.display = 'none';
-    postJson(endpoint, {{as_of: date}}).then(function(r) {{ return r.json(); }}).then(function(d) {{
-      st.textContent = d.ok ? '完成' : '失败';
-      out.textContent = JSON.stringify(d, null, 2);
-      out.style.display = 'block';
-    }}).catch(function(e) {{
-      st.textContent = '失败: ' + e;
-    }});
-  }}
-  window.runShadow = function() {{ m4Run('/api/m4_shadow', '影子对比'); }};
-  window.runBackfill = function() {{ m4Run('/api/m4_backfill', '补基准并对比'); }};
   restoreRefreshStatus();
   </script>
     """

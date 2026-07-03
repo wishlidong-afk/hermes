@@ -23,7 +23,8 @@ class Phase14WebTest(unittest.TestCase):
         self.assertIn("Audit Detail", html)
         self.assertIn("Portfolio Risk", html)
         self.assertNotIn("Mirror Reference", html)
-        self.assertIn("IBKR Live 验收", html)
+        self.assertNotIn("IBKR Live 验收", html)
+        self.assertNotIn("runIbkrLiveCheck", html)
         self.assertIn("更新持仓", html)
         self.assertIn("ibkr.source === 'tws' && !ibkr.snapshot_stale", html)
         self.assertIn("持仓未更新：未连接 IBKR Live", html)
@@ -36,7 +37,7 @@ class Phase14WebTest(unittest.TestCase):
             payload = score_pipeline("2026-05-29")
         html = render_dashboard(payload)
         strategy_fn = html[html.index("window.refreshScore"):html.index("window.refreshPositions")]
-        positions_fn = html[html.index("window.refreshPositions"):html.index("window.runIbkrLiveCheck")]
+        positions_fn = html[html.index("window.refreshPositions"):html.index("window.refreshManifest")]
         self.assertIn("view=preview", strategy_fn)
         self.assertNotIn("view=preview", positions_fn)
         self.assertIn("no market refresh, no official rerun", positions_fn)
