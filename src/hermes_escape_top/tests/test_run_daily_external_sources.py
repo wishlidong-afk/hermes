@@ -104,3 +104,33 @@ def test_execute_daily_runs_external_sources_before_legacy_soft_refresh(monkeypa
     rdp._execute_daily(args=args, _lease=object(), _run_context={"step": "startup", "as_of": "2026-06-18"})
 
     assert calls[:4] == ["history", "heal", "external", "soft"]
+
+
+def test_execute_daily_attaches_external_source_status_to_returned_payload(monkeypatch):
+    monkeypatch.setattr(rdp, "refresh_history", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_heal_lagging_symbols", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "refresh_external_sources", lambda: [{"source_id": "dollar", "status": "OK"}])
+    monkeypatch.setattr(
+        rdp.refresh_external,
+        "status",
+        lambda *_args, **_kwargs: {"dollar": {"source_id": "dollar", "status": "OK"}},
+    )
+    monkeypatch.setattr(rdp, "refresh_soft_data", lambda: None)
+    monkeypatch.setattr(rdp, "_preflight_report", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_history_integrity_scan", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(rdp, "run_score_pipeline", lambda *_args, **_kwargs: {"as_of": "2026-06-18"})
+    monkeypatch.setattr(rdp, "translate", lambda _payload: {"orders_preview": {}})
+    monkeypatch.setattr(rdp, "write_artifacts", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_post_run_diff", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_refresh_next5_unlock", lambda: None)
+    args = SimpleNamespace(
+        live=False,
+        skip_refresh=False,
+        as_of="2026-06-18",
+        run_type="manual_rerun",
+        commit_state=False,
+    )
+
+    payload = rdp._execute_daily(args=args, _lease=object(), _run_context={"step": "startup", "as_of": "2026-06-18"})
+
+    assert payload["external_source_status"]["dollar"]["status"] == "OK"

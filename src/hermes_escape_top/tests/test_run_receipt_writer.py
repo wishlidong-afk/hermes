@@ -19,6 +19,14 @@ def _patch(monkeypatch, tmp_path):
     monkeypatch.setattr("hermes_escape_top.web.refresh.manifest_status", lambda c=None: {"status": "OK"})
 
 
+def test_state_path_uses_shared_root_for_versioned_release(monkeypatch, tmp_path):
+    release = tmp_path / "escape-top" / "releases" / "abc_20260703"
+    release.mkdir(parents=True)
+    monkeypatch.setattr(rdp, "BASE_DIR", release)
+
+    assert rdp._state_path() == tmp_path / "escape-top" / "state.json"
+
+
 def test_receipt_red_when_a_required_step_failed(monkeypatch, tmp_path):
     _patch(monkeypatch, tmp_path)
     rdp._write_run_receipt("2026-06-17", "scheduled", steps_ok=False, step_error="state commit failed: boom")
@@ -244,6 +252,50 @@ def test_system_health_report_treats_scheduled_payload_as_scored_without_web_cac
     scored = next(row for row in data["audit_dimensions"] if row["id"] == "scored_payload_cache")
     assert scored["status"] == "PASS"
     assert "scheduled_run_payload" in scored["detail"]
+
+
+def test_system_health_report_counts_nested_factor_scores(monkeypatch, tmp_path):
+    monkeypatch.setenv("HERMES_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(rdp, "load_config", lambda: {"paths": {"archive_dir": "data/archive"}})
+    monkeypatch.setattr(
+        "hermes_escape_top.web.refresh.manifest_status",
+        lambda _config=None: {"status": "OK"},
+    )
+    payload = {
+        "as_of": "2026-07-02",
+        "input_hash": "nested-factor-hash",
+        "data_quality": {"level": "HIGH", "overall_score": 100},
+        "data_quality_breakdown": {"sources": []},
+        "external_source_status": {
+            "dollar": {"source_id": "dollar", "status": "OK"},
+        },
+        "ibkr": {"source": "disabled"},
+        "alpaca_daily_flow": {"as_of": "2026-07-02"},
+        "scores": {
+            "MSTR": {
+                "final_score": 66.6,
+                "factor_scores": {"A": [{"factor_id": "A1", "score": 4, "max_score": 5}]},
+            }
+        },
+        "sizing": {"MSTR": {"target_weight": 0.0}},
+        "decision_layers": {"MSTR": {}},
+        "risk_contributions": [{"symbol": "MSTR"}],
+        "stress_scenarios": [{"name": "QQQ -5%"}],
+    }
+    receipt = {
+        "status": "OK",
+        "run_type": "scheduled",
+        "run_at": "2026-07-03T07:11:27+08:00",
+        "finished_at": "2026-07-03T07:11:27+08:00",
+        "ok": True,
+    }
+
+    out = rdp._write_system_health_report(payload, "2026-07-02", receipt)
+    data = json.loads(out["json"].read_text(encoding="utf-8"))
+
+    factor = next(row for row in data["audit_dimensions"] if row["id"] == "factor_scores_present")
+    assert factor["status"] == "PASS"
+    assert factor["detail"] == "symbols=1"
 
 
 def test_receipt_write_failure_removes_prior_green_attestation(monkeypatch, tmp_path):

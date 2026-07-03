@@ -642,18 +642,52 @@ def _build_reentry_plan(pkg_reentry: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _stable_runtime_root() -> Path:
+    if BASE_DIR.parent.name == "releases":
+        return BASE_DIR.parent.parent
+    return BASE_DIR
+
+
 def _state_path() -> Path:
+    return _stable_runtime_root() / "state.json"
+
+
+def _legacy_release_state_path() -> Path:
     return BASE_DIR / "state.json"
 
 
+def _normalize_state(data: Dict[str, Any]) -> Dict[str, Any]:
+    if isinstance(data.get("symbols"), dict):
+        data.setdefault("schema_version", "escape-top-state-v1")
+        return data
+    symbols = {
+        sym: data.get(sym)
+        for sym in TRADE_SYMBOLS
+        if isinstance(data.get(sym), dict)
+    }
+    if symbols:
+        return {
+            "schema_version": "escape-top-state-v1",
+            "updated_at": data.get("updated_at"),
+            "symbols": symbols,
+        }
+    data.setdefault("symbols", {})
+    data.setdefault("schema_version", "escape-top-state-v1")
+    return data
+
+
 def _load_state() -> Dict[str, Any]:
-    path = _state_path()
-    if path.exists():
+    paths = [_state_path()]
+    legacy = _legacy_release_state_path()
+    if legacy != paths[0]:
+        paths.append(legacy)
+    for path in paths:
+        if not path.exists():
+            continue
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             if isinstance(data, dict):
-                data.setdefault("symbols", {})
-                return data
+                return _normalize_state(data)
         except Exception:
             pass
     return {"schema_version": "escape-top-state-v1", "updated_at": None, "symbols": {}}
@@ -1379,6 +1413,23 @@ def _write_system_health_report(
     return {"json": json_path, "markdown": md_path}
 
 
+def _factor_score_symbol_count(payload: Dict[str, Any]) -> int:
+    top_level = payload.get("factor_scores")
+    if isinstance(top_level, dict) and top_level:
+        return len(top_level)
+    scores = payload.get("scores")
+    if not isinstance(scores, dict):
+        return 0
+    count = 0
+    for row in scores.values():
+        if not isinstance(row, dict):
+            continue
+        factors = row.get("factor_scores")
+        if isinstance(factors, dict) and any(bool(values) for values in factors.values()):
+            count += 1
+    return count
+
+
 def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[str, Any]) -> list[Dict[str, str]]:
     health = report.get("health") or {}
     layers = health.get("layers") or {}
@@ -1402,6 +1453,7 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
     manifest_status = str(manifest.get("status") or "")
     ibkr_source = str(ibkr.get("source") or "")
     sip_error = str(sip_status.get("status") or "")
+    factor_symbols = _factor_score_symbol_count(payload)
 
     return [
         _audit_row(
@@ -1484,8 +1536,8 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
         _audit_row(
             "factor_scores_present",
             "因子贡献",
-            "PASS" if payload.get("factor_scores") else "WARN",
-            f"symbols={len(payload.get('factor_scores') or {})}",
+            "PASS" if factor_symbols else "WARN",
+            f"symbols={factor_symbols}",
         ),
         _audit_row("sizing_present", "系统目标仓位", "PASS" if payload.get("sizing") else "WARN", f"symbols={len(payload.get('sizing') or {})}"),
         _audit_row(
@@ -1711,6 +1763,14 @@ def _execute_daily(
         run_type=args.run_type,
         _lease=_lease,
     )
+    _run_context["step"] = "external_source_status"
+    try:
+        external_source_status = refresh_external.status(load_config())
+        if external_source_status:
+            payload["external_source_status"] = external_source_status
+    except Exception as exc:
+        payload["external_source_status_error"] = repr(exc)
+        print(f"[M4-1a] WARNING: external source status unavailable ({exc!r}); continuing.")
     _run_context["step"] = "translate"
     translated = translate(payload)
     orders = translated.get("orders_preview", {})

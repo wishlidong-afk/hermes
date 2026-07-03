@@ -1628,10 +1628,37 @@ def _render_p3_visuals(payload: Dict[str, Any]) -> str:
     """
 
 
+def _portfolio_has_no_active_risk_legs(payload: Dict[str, Any]) -> bool:
+    block = payload.get("portfolio_risk") or {}
+    if not isinstance(block, dict) or not block:
+        return False
+    if str(block.get("binding_constraint") or "") == "NO_ACTIVE_LEGS":
+        return True
+    legs = block.get("legs_used")
+    if isinstance(legs, list) and not legs:
+        weights = block.get("target_weights") or {}
+        return (
+            isinstance(weights, dict)
+            and bool(weights)
+            and all(abs(_float(weight, 0.0)) <= 1e-9 for weight in weights.values())
+        )
+    return False
+
+
+def _no_active_risk_legs_note() -> str:
+    return (
+        "<div class='mini-note'>当前风险腿目标为 0；防守腿路由后风险尚未纳入该 ex-ante "
+        "风险视图，持仓执行以今日操作台和 DEFCON 路由为准。</div>"
+    )
+
+
 def _render_risk_contribution_panel(payload: Dict[str, Any]) -> str:
     block = payload.get("risk_contributions") or {}
     if not block:
-        body = "<div class='mini-note'>等待下一次日跑写入 risk_contributions。</div>"
+        if _portfolio_has_no_active_risk_legs(payload):
+            body = _no_active_risk_legs_note()
+        else:
+            body = "<div class='mini-note'>等待下一次日跑写入 risk_contributions。</div>"
     elif block.get("_error"):
         body = f"<div class='warning-box'>{esc(block.get('_error'))}</div>"
     else:
@@ -1664,7 +1691,10 @@ def _render_risk_contribution_panel(payload: Dict[str, Any]) -> str:
 def _render_stress_scenario_panel(payload: Dict[str, Any]) -> str:
     scenarios = payload.get("stress_scenarios") or []
     if not scenarios:
-        body = "<div class='mini-note'>等待下一次日跑写入 stress_scenarios。</div>"
+        if _portfolio_has_no_active_risk_legs(payload):
+            body = _no_active_risk_legs_note()
+        else:
+            body = "<div class='mini-note'>等待下一次日跑写入 stress_scenarios。</div>"
     else:
         cards = []
         for row in scenarios:

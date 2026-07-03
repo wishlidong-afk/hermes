@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 from hermes_escape_top.web import render as render_mod
 from hermes_escape_top.web import server as server_mod
@@ -656,14 +657,17 @@ def test_system_health_history_renders_recent_reports():
     assert "策略数据=DEGRADED" in html
 
 
-def _write_health_report(report_dir, as_of: str, *, generated_at: str) -> None:
+def _write_health_report(report_dir, as_of: str, *, generated_at: str, input_hash: str | None = "report-hash"):
     report = _system_health_report(as_of)
     report["generated_at"] = generated_at
+    report["input_hash"] = input_hash
     report_dir.mkdir(parents=True, exist_ok=True)
-    (report_dir / f"system_health_{as_of}.json").write_text(
+    path = report_dir / f"system_health_{as_of}.json"
+    path.write_text(
         json.dumps(report, ensure_ascii=False),
         encoding="utf-8",
     )
+    return path
 
 
 def test_system_health_report_loader_prefers_exact_as_of(monkeypatch, tmp_path):
@@ -675,6 +679,31 @@ def test_system_health_report_loader_prefers_exact_as_of(monkeypatch, tmp_path):
 
     assert payload["system_health_report"]["as_of"] == "2026-06-04"
     assert payload["system_health_report"]["stale"] is False
+
+
+def test_system_health_report_loader_prefers_matching_input_hash_over_newer_exact(monkeypatch, tmp_path):
+    matching = tmp_path / "matching"
+    newer_bad = tmp_path / "newer_bad"
+    good = _write_health_report(
+        matching,
+        "2026-07-02",
+        generated_at="2026-07-03T07:11:27+08:00",
+        input_hash="payload-hash",
+    )
+    bad = _write_health_report(
+        newer_bad,
+        "2026-07-02",
+        generated_at="2026-07-03T08:44:09+08:00",
+        input_hash=None,
+    )
+    os.utime(good, (1000, 1000))
+    os.utime(bad, (2000, 2000))
+    monkeypatch.setattr(server_mod, "_system_health_report_roots", lambda: [matching, newer_bad], raising=False)
+
+    payload = server_mod._attach_system_health_report({"as_of": "2026-07-02", "input_hash": "payload-hash"})
+
+    assert payload["system_health_report"]["input_hash"] == "payload-hash"
+    assert "matching" in payload["system_health_report"]["source_path"]
 
 
 def test_system_health_report_loader_attaches_newest_as_stale(monkeypatch, tmp_path):
@@ -756,6 +785,32 @@ def test_health_banner_links_each_degraded_check_to_runbook_summary():
     assert "#runbook-data" in html
     assert "Runbook: IBKR 只读连接失败" in html
     assert "Runbook: 数据缺失 / 过期" in html
+
+
+def test_risk_panels_explain_no_active_legs_instead_of_waiting():
+    payload = {
+        "portfolio_risk": {
+            "binding_constraint": "NO_ACTIVE_LEGS",
+            "legs_used": [],
+            "legs_reported": ["MSTR", "FNGU", "SOXL"],
+            "target_weights": {"MSTR": 0.0, "FNGU": 0.0, "SOXL": 0.0},
+            "explain": ["Excluded hard-valve legs from gross calculation: FNGU,MSTR,SOXL"],
+        },
+        "risk_contributions": {},
+        "stress_scenarios": [],
+        "routing_context": {
+            "defcon1_rule": "max A >= 12 and QQQ trend broken",
+            "qqq": {"close": 100, "ema20": 101, "ema50": 102, "ma200": 103},
+            "module_a": {"MSTR": 13},
+            "brkb_defense": {},
+        },
+    }
+
+    html = render_mod._render_p3_visuals(payload)
+
+    assert "当前风险腿目标为 0" in html
+    assert "防守腿路由后风险尚未纳入" in html
+    assert "等待下一次日跑" not in html
 
 
 def test_health_banner_ignores_auxiliary_info_checks():

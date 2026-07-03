@@ -266,6 +266,10 @@ def _read_system_health_report(path: Path) -> dict | None:
     return report
 
 
+def _report_matches_input_hash(report: dict, payload_hash: str) -> bool:
+    return str(report.get("input_hash") or "") == payload_hash
+
+
 def _attach_system_health_report(payload: dict) -> dict:
     """Attach the daily 20-dimension health report for dashboard evidence.
 
@@ -285,15 +289,25 @@ def _attach_system_health_report(payload: dict) -> dict:
         if root.exists():
             all_paths.extend(root.glob("system_health_*.json"))
 
-    chosen = None
+    payload_hash = str(payload.get("input_hash") or "")
+    report = None
     if exact_paths:
-        chosen = max(exact_paths, key=lambda p: p.stat().st_mtime)
-    elif all_paths:
+        if payload_hash:
+            matching = [
+                (path, candidate)
+                for path in exact_paths
+                if (candidate := _read_system_health_report(path)) is not None
+                and _report_matches_input_hash(candidate, payload_hash)
+            ]
+            if not matching:
+                return payload
+            _path, report = max(matching, key=lambda item: item[0].stat().st_mtime)
+        else:
+            chosen = max(exact_paths, key=lambda p: p.stat().st_mtime)
+            report = _read_system_health_report(chosen)
+    elif all_paths and not payload_hash:
         chosen = max(all_paths, key=lambda p: (p.name, p.stat().st_mtime))
-    if chosen is None:
-        return payload
-
-    report = _read_system_health_report(chosen)
+        report = _read_system_health_report(chosen)
     if report is None:
         return payload
     report_as_of = str(report.get("as_of") or "")[:10]
