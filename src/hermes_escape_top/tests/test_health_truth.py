@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 
 from hermes_escape_top.web.health import compute_health
+from hermes_escape_top.web.refresh import _completed_trading_days_after
 
 
 DAY = date(2026, 6, 18)
@@ -118,6 +119,38 @@ def test_stale_sip_as_of_degrades_without_failing_core_receipt():
     assert health["receipt_status"] == "OK"
     check = next(check for check in health["checks"] if "SIP 资金流陈旧" in check["label"])
     assert check["layer"] == "auxiliary_flows"
+
+
+def test_observed_us_market_holiday_does_not_count_as_stale_trading_day():
+    today = date(2026, 7, 4)
+    now = datetime(2026, 7, 4, 8, 0, tzinfo=timezone.utc)
+    payload = _payload()
+    payload["as_of"] = "2026-07-02"
+    payload["alpaca_daily_flow"]["as_of"] = "2026-07-02"
+    payload["run_receipt"].update({
+        "run_at": now.isoformat(),
+        "started_at": (now - timedelta(minutes=2)).isoformat(),
+        "finished_at": now.isoformat(),
+    })
+
+    health = compute_health(
+        payload,
+        {"status": "OK"},
+        today=today,
+        now=now,
+        ibkr_max_age_seconds=900,
+        receipt_timeout_seconds=7200,
+    )
+
+    assert health["level"] == "OK"
+    assert health["stale_trading_days"] == 0
+    assert not any("行情落后" in check["label"] for check in health["checks"])
+    assert not any("SIP 资金流陈旧" in check["label"] for check in health["checks"])
+
+
+def test_completed_trading_days_skip_good_friday_but_count_regular_session():
+    assert _completed_trading_days_after("2026-04-02", date(2026, 4, 4)) == 0
+    assert _completed_trading_days_after("2026-04-02", date(2026, 4, 7)) == 1
 
 
 def test_sip_refresh_error_degrades_without_failing_core_receipt():

@@ -5,6 +5,7 @@ import os
 import tempfile
 import time
 from datetime import date, datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
@@ -433,9 +434,9 @@ def _completed_trading_days_after(as_of: Optional[str], today: Optional[date] = 
     """Count expected completed US-market trading days strictly after ``as_of``
     and strictly before ``today``.
 
-    Weekday approximation (Mon-Fri, no holiday calendar). Holidays may slightly
-    over-report staleness, which is the safe direction — the whole point is to
-    stop hiding a real gap, not to silently pass it.
+    Uses NYSE regular full-day holidays. This avoids false DEGRADED banners on
+    US market holidays while still treating an actually missing completed
+    session as stale.
     """
     today = today or date.today()
     try:
@@ -445,10 +446,77 @@ def _completed_trading_days_after(as_of: Optional[str], today: Optional[date] = 
     count = 0
     cur = start + timedelta(days=1)
     while cur < today:
-        if cur.weekday() < 5:  # Mon-Fri
+        if _is_us_market_trading_day(cur):
             count += 1
         cur += timedelta(days=1)
     return count
+
+
+def _is_us_market_trading_day(day: date) -> bool:
+    return day.weekday() < 5 and day not in _us_market_holidays(day.year)
+
+
+@lru_cache(maxsize=32)
+def _us_market_holidays(year: int) -> frozenset[date]:
+    holidays: set[date] = {
+        _nth_weekday(year, 1, 0, 3),   # Martin Luther King Jr. Day
+        _nth_weekday(year, 2, 0, 3),   # Washington's Birthday
+        _easter_date(year) - timedelta(days=2),  # Good Friday
+        _last_weekday(year, 5, 0),     # Memorial Day
+        _observed_fixed_holiday(year, 7, 4),
+        _nth_weekday(year, 9, 0, 1),   # Labor Day
+        _nth_weekday(year, 11, 3, 4),  # Thanksgiving
+        _observed_fixed_holiday(year, 12, 25),
+    }
+    for observed in (
+        _observed_fixed_holiday(year, 1, 1),
+        _observed_fixed_holiday(year + 1, 1, 1),
+    ):
+        if observed.year == year:
+            holidays.add(observed)
+    if year >= 2022:
+        holidays.add(_observed_fixed_holiday(year, 6, 19))
+    return frozenset(holidays)
+
+
+def _observed_fixed_holiday(year: int, month: int, day: int) -> date:
+    raw = date(year, month, day)
+    if raw.weekday() == 5:
+        return raw - timedelta(days=1)
+    if raw.weekday() == 6:
+        return raw + timedelta(days=1)
+    return raw
+
+
+def _nth_weekday(year: int, month: int, weekday: int, n: int) -> date:
+    cur = date(year, month, 1)
+    offset = (weekday - cur.weekday()) % 7
+    return cur + timedelta(days=offset + 7 * (n - 1))
+
+
+def _last_weekday(year: int, month: int, weekday: int) -> date:
+    next_month = date(year + int(month == 12), 1 if month == 12 else month + 1, 1)
+    cur = next_month - timedelta(days=1)
+    return cur - timedelta(days=(cur.weekday() - weekday) % 7)
+
+
+def _easter_date(year: int) -> date:
+    # Anonymous Gregorian algorithm; sufficient for Good Friday market holiday.
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return date(year, month, day)
 
 
 def _history_is_fresh(as_of: Optional[str], max_trading_day_lag: int = 0) -> bool:
