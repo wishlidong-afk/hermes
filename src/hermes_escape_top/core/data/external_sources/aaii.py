@@ -103,7 +103,13 @@ class AaiiSentimentAdapter:
             )
         if not html:
             raise ValueError("AAII public endpoint returned empty response")
-        return {"url": self.url, "html": html}
+        return {
+            "url": self.url,
+            "source": "public_html",
+            "file_name": "sent_results.html",
+            "content_sha256": hashlib.sha256(html.encode("utf-8")).hexdigest(),
+            "html": html,
+        }
 
     def parse(self, raw: dict[str, Any]) -> pd.DataFrame:
         rows = parse_aaii_public_rows(str((raw or {}).get("html") or ""), today=self.today)

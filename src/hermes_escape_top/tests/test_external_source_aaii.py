@@ -88,7 +88,11 @@ def test_aaii_adapter_merges_public_rows_with_seed_history(tmp_path):
     assert latest["aaii_bull"] == 0.449
     assert latest["aaii_bear"] == 0.301
     assert round(float(latest["aaii_bull_bear_spread"]), 3) == 0.148
-    assert latest_source_run(tmp_path / "archive", "aaii_sentiment")["status"] == "OK"
+    ledger = latest_source_run(tmp_path / "archive", "aaii_sentiment")
+    assert ledger["status"] == "OK"
+    assert ledger["official_file_name"] == "sent_results.html"
+    assert ledger["official_file_sha256"]
+    assert ledger["official_issue_as_of"] == "2026-06-25"
 
 
 def test_aaii_adapter_records_fetch_error_on_challenge_page(tmp_path):
