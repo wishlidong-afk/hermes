@@ -860,11 +860,14 @@ def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
     if isinstance(precheck, dict):
         ready = bool(precheck.get("ready"))
         refresh = precheck.get("refresh") if isinstance(precheck.get("refresh"), dict) else {}
+        nonblocking_refresh_errors = len(precheck.get("nonblocking_refresh_error_sources") or [])
         ok_count = refresh.get("ok_count")
         error_count = refresh.get("error_count")
         blocking = len(precheck.get("blocking_sources") or [])
         warnings = len(precheck.get("warning_sources") or [])
-        if ok_count is not None or error_count is not None:
+        if ready and nonblocking_refresh_errors and not blocking:
+            text = f"READY · retry_error={nonblocking_refresh_errors}"
+        elif ok_count is not None or error_count is not None:
             text = f"{'READY' if ready else 'BLOCK'} · ok={esc(ok_count or 0)} err={esc(error_count or 0)}"
         else:
             text = f"{'READY' if ready else 'BLOCK'} · block={blocking} warn={warnings}"
@@ -898,6 +901,8 @@ def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
     refresh = precheck.get("refresh") if isinstance(precheck.get("refresh"), dict) else {}
     blocking = [str(item) for item in (precheck.get("blocking_sources") or [])]
     warnings = [str(item) for item in (precheck.get("warning_sources") or [])]
+    nonblocking_refresh_errors = [str(item) for item in (precheck.get("nonblocking_refresh_error_sources") or [])]
+    blocking_refresh_errors = [str(item) for item in (precheck.get("blocking_refresh_error_sources") or [])]
     sources = precheck.get("sources") if isinstance(precheck.get("sources"), dict) else {}
     source_ids = list(EXTERNAL_SOURCE_ORDER)
     source_ids.extend(sorted(str(name) for name in sources.keys() if str(name) not in EXTERNAL_SOURCE_ORDER))
@@ -938,20 +943,34 @@ def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
         issue_text.append("blocking=" + ",".join(blocking))
     if warnings:
         issue_text.append("warning=" + ",".join(warnings))
+    if nonblocking_refresh_errors:
+        issue_text.append("nonblocking=" + ",".join(nonblocking_refresh_errors))
+    if blocking_refresh_errors:
+        issue_text.append("refresh_blocking=" + ",".join(blocking_refresh_errors))
     issue_html = f"<span class='subtle'>{esc(' · '.join(issue_text))}</span>" if issue_text else "<span class='subtle'>无 blocking/warning</span>"
     badge_text = "READY" if ready else ("PRECHECK WARN" if daily_ledger_ok else "NOT READY")
     badge_kind = "ok" if ready else ("warn" if daily_ledger_ok else "danger")
+    retry_text = (
+        f"retry_error={len(nonblocking_refresh_errors)}"
+        if ready and nonblocking_refresh_errors and not blocking_refresh_errors
+        else f"error={refresh.get('error_count', '—')}"
+    )
     scope_note = (
         "<div class='mini-note'>正式 daily ledger OK，本预检异常不影响今日策略；"
         "下次 06:45/07:05 预检会再次尝试。</div>"
         if daily_ledger_ok and not ready
         else ""
     )
+    if ready and nonblocking_refresh_errors:
+        scope_note += (
+            "<div class='mini-note'>缓存可用；部分刷新尝试失败但未阻断策略，"
+            "通常是官方源暂时拦截或旧下载文件被拒绝。</div>"
+        )
     return (
         "<details class='work-card external-precheck-summary' style='margin:10px 0 0'>"
         "<summary>外部源预检 / External Precheck "
         f"{_badge(badge_text, badge_kind)} "
-        f"<span class='subtle'>ok={esc(str(refresh.get('ok_count', '—')))} error={esc(str(refresh.get('error_count', '—')))}</span> "
+        f"<span class='subtle'>ok={esc(str(refresh.get('ok_count', '—')))} {esc(retry_text)}</span> "
         f"{issue_html}</summary>"
         "<div class='detail-body'>"
         f"{scope_note}"

@@ -279,6 +279,43 @@ def test_refresh_external_pre_daily_check_marks_stale_sources_not_ready(monkeypa
     assert result["sources"]["dollar"]["next_action"] == "refresh dollar"
 
 
+def test_refresh_external_pre_daily_check_separates_nonblocking_refresh_errors(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda config=None, auto_import=True: {
+            "ok": False,
+            "ok_count": 4,
+            "error_count": 1,
+            "runs": [
+                {"source_id": "dollar", "status": "OK"},
+                {
+                    "source_id": "aaii_sentiment",
+                    "status": "PARSE_ERROR",
+                    "error_message": "stale official file",
+                },
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {"source_id": "dollar", "status": "OK", "freshness_status": "DUE_SOON"},
+            "aaii_sentiment": {"source_id": "aaii_sentiment", "status": "OK", "freshness_status": "OK"},
+        },
+    )
+
+    result = refresh_external.pre_daily_check(cfg, today=date(2026, 7, 4))
+
+    assert result["ready"] is True
+    assert result["blocking_sources"] == []
+    assert result["warning_sources"] == ["dollar"]
+    assert result["nonblocking_refresh_error_sources"] == ["aaii_sentiment"]
+    assert result["blocking_refresh_error_sources"] == []
+
+
 def test_refresh_external_source_auto_imports_latest_official_file_after_fetch_error(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
     import_path = tmp_path / "sentiment.xls"

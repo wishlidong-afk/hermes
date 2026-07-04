@@ -714,6 +714,44 @@ def test_external_precheck_summary_renders_latest_result():
     assert "DUE_SOON · 7d" in html
 
 
+def test_external_precheck_summary_labels_nonblocking_refresh_errors():
+    payload = _payload()
+    payload["external_precheck_status"] = {
+        "ready": True,
+        "blocking_sources": [],
+        "warning_sources": ["dollar"],
+        "nonblocking_refresh_error_sources": ["aaii_sentiment"],
+        "blocking_refresh_error_sources": [],
+        "refresh": {"ok": False, "ok_count": 4, "error_count": 1},
+        "sources": {
+            "aaii_sentiment": {
+                "label": "AAII Sentiment",
+                "status": "OK",
+                "freshness_status": "OK",
+                "latest_promoted_as_of": "2026-07-02",
+                "latest_attempt_status": "PARSE_ERROR",
+                "latest_attempt_error_message": "old import file",
+            },
+            "dollar": {
+                "label": "DXY / Dollar",
+                "status": "OK",
+                "freshness_status": "DUE_SOON",
+                "latest_promoted_as_of": "2026-06-26",
+                "age_days": 8,
+            },
+        },
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+    summary = html[html.index("外部源预检 / External Precheck"):html.index("20 维系统自检 / System Health Audit")]
+
+    assert "READY" in summary
+    assert "retry_error=1" in summary
+    assert "缓存可用" in summary
+    assert "nonblocking=aaii_sentiment" in summary
+    assert "ok=4 error=1" not in summary
+
+
 def test_external_precheck_summary_does_not_override_current_daily_ledger():
     payload = _payload()
     payload["external_source_status"] = {

@@ -158,6 +158,8 @@ def pre_daily_check(config: dict[str, Any] | None = None, *, today: date | None 
     sources = status(cfg, today=today)
     blocking = []
     warnings = []
+    nonblocking_refresh_errors = []
+    blocking_refresh_errors = []
     for source_id, row in sources.items():
         run_status = str(row.get("status") or "")
         freshness = str(row.get("freshness_status") or "")
@@ -165,10 +167,27 @@ def pre_daily_check(config: dict[str, Any] | None = None, *, today: date | None 
             blocking.append(source_id)
         elif freshness == "DUE_SOON":
             warnings.append(source_id)
+    for run in refresh_result.get("runs") or []:
+        if not isinstance(run, dict):
+            continue
+        source_id = str(run.get("source_id") or "")
+        if not source_id or str(run.get("status") or "") == "OK":
+            continue
+        row = sources.get(source_id) or {}
+        source_ok = str(row.get("status") or "") == "OK"
+        freshness = str(row.get("freshness_status") or "")
+        if source_ok and freshness not in {"STALE", "UNKNOWN"}:
+            nonblocking_refresh_errors.append(source_id)
+            continue
+        blocking_refresh_errors.append(source_id)
+        if source_id not in blocking:
+            blocking.append(source_id)
     return {
         "ready": not blocking,
         "blocking_sources": blocking,
         "warning_sources": warnings,
+        "nonblocking_refresh_error_sources": nonblocking_refresh_errors,
+        "blocking_refresh_error_sources": blocking_refresh_errors,
         "refresh": refresh_result,
         "sources": sources,
     }
