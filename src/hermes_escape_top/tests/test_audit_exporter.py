@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from datetime import datetime
 
 from hermes_escape_top.core.audit.exporter import (
     build_signal_entry,
@@ -81,6 +82,17 @@ class TestExportMarkdown(unittest.TestCase):
         md = export_markdown(_sample_audit())
         self.assertIn("**NORMAL**", md)
 
+    def test_default_generated_timestamp_is_timezone_aware_utc(self) -> None:
+        audit = dict(_sample_audit())
+        audit.pop("timestamp", None)
+
+        md = export_markdown(audit)
+        generated = next(line.removeprefix("Generated: ") for line in md.splitlines() if line.startswith("Generated: "))
+
+        parsed = datetime.fromisoformat(generated)
+        self.assertIsNotNone(parsed.tzinfo)
+        self.assertEqual(parsed.utcoffset().total_seconds(), 0)
+
 
 class TestSignalJournal(unittest.TestCase):
     def test_entry_has_required_fields(self) -> None:
@@ -102,6 +114,13 @@ class TestSignalJournal(unittest.TestCase):
         for line in lines:
             parsed = json.loads(line)
             self.assertIn("symbol", parsed)
+
+    def test_signal_entry_timestamp_is_timezone_aware_utc(self) -> None:
+        entry = build_signal_entry("2026-06-01", "MSTR", "EXIT", 80, 1.0, ["H-M1"], 0.0, "NORMAL")
+
+        parsed = datetime.fromisoformat(entry["timestamp"])
+        self.assertIsNotNone(parsed.tzinfo)
+        self.assertEqual(parsed.utcoffset().total_seconds(), 0)
 
 
 if __name__ == "__main__":

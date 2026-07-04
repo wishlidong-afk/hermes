@@ -11,7 +11,7 @@ Connects Pipeline (Phase 15) to WebUI (Phase 14).
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 
@@ -24,13 +24,17 @@ def export_json(audit: Dict[str, Any], path: Optional[str] = None) -> str:
     return output
 
 
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
 def export_markdown(audit: Dict[str, Any]) -> str:
     """Export audit dict to human-readable Markdown summary."""
     lines = []
     as_of = audit.get("as_of", "unknown")
     lines.append(f"# Hermes Daily Audit — {as_of}")
     lines.append("")
-    lines.append(f"Generated: {audit.get('timestamp', datetime.utcnow().isoformat())}")
+    lines.append(f"Generated: {audit.get('timestamp', _utc_now_iso())}")
     lines.append("")
 
     # Scores
@@ -126,7 +130,7 @@ def build_signal_entry(
         "hard_valve_hits": hard_valve_hits,
         "target_weight": round(target_weight, 6),
         "confidence_mode": confidence_mode,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": _utc_now_iso(),
     }
 
 
