@@ -416,6 +416,39 @@ def test_trust_health_section_explains_degraded_without_old_loud_banner():
     assert "运行降级 / DEGRADED" not in html
 
 
+def test_trust_health_external_chain_prefers_current_daily_ledger_over_stale_precheck():
+    payload = _payload()
+    payload["external_source_status"] = {
+        source: {
+            "source_id": source,
+            "status": "OK",
+            "latest_promoted_as_of": "2026-07-02",
+            "freshness_status": "OK",
+        }
+        for source in ("dollar", "real_rate", "fred_net_liquidity", "naaim_exposure", "aaii_sentiment")
+    }
+    payload["external_precheck_status"] = {
+        "ready": False,
+        "blocking_sources": ["fred_net_liquidity"],
+        "warning_sources": ["dollar"],
+        "refresh": {"ok": False, "ok_count": 4, "error_count": 1},
+        "sources": {
+            "fred_net_liquidity": {
+                "status": "FETCH_ERROR",
+                "latest_promoted_as_of": None,
+                "error_message": "404 Client Error",
+            }
+        },
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    trust_section = html[html.index("今日可信度与系统状态"):html.index("区域 5 · 数据信任区")]
+    assert "OK 5 / ERR 0 / MISS 0" in trust_section
+    assert "BLOCK · ok=4 err=1" not in trust_section
+    assert "DUE_SOON" not in trust_section
+
+
 def test_factor_map_lists_all_scoring_inputs_grouped_by_module():
     html = render_mod._render_hard_valve_radar(_payload())
 

@@ -839,6 +839,23 @@ def _manifest_kind(manifest_status: Dict[str, Any]) -> str:
 
 
 def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
+    external = payload.get("external_source_status") or {}
+    if isinstance(external, dict) and external:
+        ok = 0
+        err = 0
+        miss = 0
+        for row in external.values():
+            if not isinstance(row, dict):
+                continue
+            status = str(row.get("status") or "MISSING")
+            if status == "OK":
+                ok += 1
+            elif status == "MISSING":
+                miss += 1
+            else:
+                err += 1
+        kind = "danger" if err else ("warn" if miss else "ok")
+        return f"OK {ok} / ERR {err} / MISS {miss}", kind
     precheck = payload.get("external_precheck_status")
     if isinstance(precheck, dict):
         ready = bool(precheck.get("ready"))
@@ -853,13 +870,6 @@ def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
             text = f"{'READY' if ready else 'BLOCK'} · block={blocking} warn={warnings}"
         kind = "ok" if ready and not warnings else ("danger" if blocking else "warn")
         return text, kind
-    external = payload.get("external_source_status") or {}
-    if isinstance(external, dict) and external:
-        ok = sum(1 for row in external.values() if isinstance(row, dict) and str(row.get("status")) == "OK")
-        err = sum(1 for row in external.values() if isinstance(row, dict) and str(row.get("status")) in {"ERROR", "FAILED"})
-        miss = sum(1 for row in external.values() if isinstance(row, dict) and str(row.get("status")) == "MISSING")
-        kind = "danger" if err else ("warn" if miss else "ok")
-        return f"OK {ok} / ERR {err} / MISS {miss}", kind
     return "无 precheck", "watch"
 
 
