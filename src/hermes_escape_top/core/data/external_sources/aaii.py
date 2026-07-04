@@ -3,7 +3,11 @@ from __future__ import annotations
 import base64
 import hashlib
 import io
+import os
 import re
+import subprocess
+import sys
+import tempfile
 import urllib.request
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -156,6 +160,13 @@ class AaiiSentimentImportAdapter:
         if imported.empty:
             raise ValueError("AAII import file contained no usable sentiment rows")
         seed = _read_seed(Path(self.seed_path))
+        imported_latest = _latest_frame_date(imported)
+        seed_latest = _latest_frame_date(seed)
+        if imported_latest is not None and seed_latest is not None and imported_latest < seed_latest:
+            raise ValueError(
+                "AAII import file is older than current AAII seed: "
+                f"import latest {imported_latest.isoformat()}, seed latest {seed_latest.isoformat()}"
+            )
         out = pd.concat([seed, imported], ignore_index=True)
         out = _normalize_frame(out, self.percentile_window, self.min_periods)
         return out[_COLUMNS]
@@ -194,6 +205,15 @@ def _read_seed(path: Path) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame(columns=_COLUMNS)
     return pd.read_csv(path)
+
+
+def _latest_frame_date(frame: pd.DataFrame, column: str = "date") -> date | None:
+    if frame.empty or column not in frame:
+        return None
+    values = pd.to_datetime(frame[column], errors="coerce", format="mixed").dropna()
+    if values.empty:
+        return None
+    return values.max().date()
 
 
 def _valid_share_row(row: dict[str, Any]) -> bool:
@@ -257,11 +277,39 @@ def _read_aaii_import_table(content: bytes, file_name: str) -> pd.DataFrame:
         return pd.read_csv(io.BytesIO(content))
     try:
         return pd.read_excel(io.BytesIO(content), sheet_name="SENTIMENT", header=2)
-    except Exception as exc:
-        raise ValueError(
-            "AAII import could not be read as Excel; install an Excel engine in the runtime "
-            "or save the official AAII sentiment sheet as CSV and rerun --import-file"
-        ) from exc
+    except Exception:
+        try:
+            return _read_aaii_xls_with_helper(content, file_name)
+        except Exception as helper_exc:
+            raise ValueError(
+                "AAII import could not be read as Excel; install an Excel engine in the runtime "
+                "or save the official AAII sentiment sheet as CSV and rerun --import-file"
+            ) from helper_exc
+
+
+def _read_aaii_xls_with_helper(content: bytes, file_name: str) -> pd.DataFrame:
+    helper = os.environ.get("HERMES_AAII_XLS_HELPER_PYTHON") or "/usr/bin/python3"
+    if Path(helper).resolve() == Path(sys.executable).resolve():
+        raise RuntimeError("AAII XLS helper is the current interpreter without an Excel engine")
+    safe_name = Path(file_name or "sentiment.xls").name
+    code = (
+        "import pandas as pd, sys\n"
+        "frame = pd.read_excel(sys.argv[1], sheet_name='SENTIMENT', header=2)\n"
+        "frame.to_csv(sys.stdout, index=False)\n"
+    )
+    with tempfile.TemporaryDirectory(prefix="hermes-aaii-xls-") as tmp:
+        path = Path(tmp) / safe_name
+        path.write_bytes(content)
+        completed = subprocess.run(
+            [helper, "-c", code, str(path)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=45,
+        )
+    if not completed.stdout.strip():
+        raise ValueError("AAII XLS helper returned empty CSV")
+    return pd.read_csv(io.StringIO(completed.stdout))
 
 
 def _column(frame: pd.DataFrame, *aliases: str) -> str | None:

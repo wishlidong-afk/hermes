@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import date, timedelta
+from types import SimpleNamespace
 
 import pandas as pd
 
@@ -10,6 +12,7 @@ from hermes_escape_top.core.data.external_sources.aaii import (
     AaiiSentimentImportAdapter,
     parse_aaii_public_rows,
     aaii_sentiment_spec,
+    _read_aaii_import_table,
 )
 from hermes_escape_top.core.data.external_sources.ledger import latest_source_run
 from hermes_escape_top.core.data.external_sources.profiles import latest_import_file, profile_for
@@ -160,6 +163,70 @@ def test_aaii_import_adapter_promotes_official_file_through_ledger(tmp_path):
     assert ledger["official_file_name"] == "sentiment.csv"
     assert ledger["official_file_sha256"] == raw["content_sha256"]
     assert ledger["official_issue_as_of"] == "2026-07-02"
+
+
+def test_aaii_import_adapter_rejects_import_older_than_seed(tmp_path):
+    seed_path = tmp_path / "soft_history" / "aaii_sentiment.csv"
+    _seed_aaii(seed_path, end="2026-07-02", rows=80)
+    import_path = tmp_path / "sentiment.csv"
+    import_path.write_text(
+        "\n".join(
+            [
+                "Reported,Bullish,Neutral,Bearish,Bull-Bear",
+                "2026-06-25,44.9,25.0,30.1,14.8",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    adapter = AaiiSentimentImportAdapter(
+        seed_path=seed_path,
+        import_path=import_path,
+        percentile_window=10,
+        min_periods=1,
+    )
+
+    run = run_external_source_refresh(
+        aaii_sentiment_spec(target_path=seed_path, min_rows=60),
+        adapter,
+        tmp_path / "archive",
+    )
+
+    out = pd.read_csv(seed_path)
+    ledger = latest_source_run(tmp_path / "archive", "aaii_sentiment")
+    assert run.status == "PARSE_ERROR"
+    assert "older than current AAII seed" in str(run.error_message)
+    assert out.iloc[-1]["date"] == "2026-07-02"
+    assert ledger["status"] == "PARSE_ERROR"
+    assert ledger["official_file_name"] is None
+    assert ledger["official_file_sha256"] is None
+    assert ledger["official_issue_as_of"] is None
+
+
+def test_aaii_xls_import_uses_helper_when_excel_engine_missing(monkeypatch):
+    def missing_engine(*_args, **_kwargs):
+        raise ImportError("Missing optional dependency 'xlrd'")
+
+    calls = []
+
+    def fake_run(command, check, capture_output, text, timeout):
+        calls.append((command, check, capture_output, text, timeout))
+        return SimpleNamespace(
+            stdout="Reported,Bullish,Neutral,Bearish,Bull-Bear\n2026-07-02,38.2,28.0,33.8,4.4\n",
+            stderr="",
+        )
+
+    monkeypatch.setenv("HERMES_AAII_XLS_HELPER_PYTHON", "/usr/bin/helper-python")
+    monkeypatch.setattr(pd, "read_excel", missing_engine)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    frame = _read_aaii_import_table(b"fake xls bytes", "sentiment.xls")
+
+    assert calls
+    assert calls[0][0][:2] == ["/usr/bin/helper-python", "-c"]
+    assert calls[0][0][2].startswith("import pandas as pd, sys")
+    assert list(frame.columns) == ["Reported", "Bullish", "Neutral", "Bearish", "Bull-Bear"]
+    assert frame.iloc[0]["Reported"] == "2026-07-02"
 
 
 def test_aaii_latest_import_file_checks_hermes_external_imports(monkeypatch, tmp_path):

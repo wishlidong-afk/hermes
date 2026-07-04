@@ -44,11 +44,18 @@ def latest_source_run(archive_dir: Path, source_id: str) -> dict[str, Any] | Non
 
 
 def latest_successful_source_run(archive_dir: Path, source_id: str) -> dict[str, Any] | None:
-    latest = None
-    for row in iter_source_runs(archive_dir):
-        if row.get("source_id") == source_id and str(row.get("status") or "") == "OK":
-            latest = row
-    return latest
+    invalidated_inputs: set[str] = set()
+    for row in reversed(list(iter_source_runs(archive_dir))):
+        if row.get("source_id") != source_id:
+            continue
+        input_hash = str(row.get("input_hash") or "")
+        if str(row.get("status") or "") == "OK":
+            if input_hash and input_hash in invalidated_inputs:
+                continue
+            return row
+        if input_hash:
+            invalidated_inputs.add(input_hash)
+    return None
 
 
 def source_status(archive_dir: Path, specs: Iterable[Any]) -> dict[str, dict[str, Any]]:

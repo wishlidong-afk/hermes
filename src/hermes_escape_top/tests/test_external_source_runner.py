@@ -41,6 +41,22 @@ class ParseBoomAdapter:
         raise ValueError("bad html")
 
 
+class ValueAdapter:
+    def __init__(self, value: float) -> None:
+        self.value = value
+
+    def fetch_raw(self):
+        return {"rows": [{"date": "2026-06-30", "value": self.value}]}
+
+    def parse(self, raw):
+        return pd.DataFrame(raw["rows"])
+
+
+class SameRawParseBoomAdapter(ValueAdapter):
+    def parse(self, raw):
+        raise ValueError("same raw rejected by current parser")
+
+
 def test_success_writes_staging_promotes_target_and_records_ledger(tmp_path):
     target = tmp_path / "soft_history" / "dollar.csv"
     spec = ExternalSourceSpec(
@@ -163,3 +179,25 @@ def test_source_status_prefers_latest_success_when_latest_attempt_failed(tmp_pat
     assert status["dollar"]["latest_promoted_as_of"] == "2026-06-30"
     assert status["dollar"]["latest_attempt_status"] == "FETCH_ERROR"
     assert "network down" in status["dollar"]["latest_attempt_error_message"]
+
+
+def test_source_status_ignores_success_invalidated_by_later_same_input_failure(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+
+    good_run = run_external_source_refresh(spec, ValueAdapter(1.2), tmp_path / "archive")
+    invalidated_run = run_external_source_refresh(spec, ValueAdapter(2.4), tmp_path / "archive")
+    failed_rerun = run_external_source_refresh(spec, SameRawParseBoomAdapter(2.4), tmp_path / "archive")
+    status = source_status(tmp_path / "archive", [spec])
+
+    assert failed_rerun.status == "PARSE_ERROR"
+    assert failed_rerun.input_hash == invalidated_run.input_hash
+    assert status["dollar"]["status"] == "OK"
+    assert status["dollar"]["input_hash"] == good_run.input_hash
+    assert status["dollar"]["input_hash"] != invalidated_run.input_hash
+    assert status["dollar"]["latest_attempt_status"] == "PARSE_ERROR"
+    assert "same raw rejected" in status["dollar"]["latest_attempt_error_message"]
