@@ -39,14 +39,6 @@ def test_deploy_verify_is_manual_and_does_not_commit_state():
     assert command[-2:] == ["--run-type", "manual_rerun"]
 
 
-def test_daily_entry_refreshes_alpaca_flow_from_latest_completed_session():
-    module = _load_run_daily_module()
-
-    command = module.build_alpaca_flow_command()
-
-    assert command[-3:] == ["hermes_escape_top.core.data.alpaca_flow", "--as-of", "latest"]
-
-
 def test_daily_entry_honors_runtime_root_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     runtime = tmp_path / "escape-top-runtime"
     monkeypatch.setenv("HERMES_RUNTIME_ROOT", str(runtime))
@@ -126,18 +118,11 @@ def test_run_daily_entry_uses_current_release_runtime_and_data_root(tmp_path):
     assert payload["HERMES_DATA_DIR"] == str(package)
 
 
-def test_daily_entry_writes_auxiliary_alpaca_status_atomically(tmp_path):
-    module = _load_run_daily_module()
-    path = tmp_path / "archive" / "alpaca_daily_flow_status.json"
+def test_daily_entry_leaves_alpaca_flow_to_package_engine():
+    source = (REPO_ROOT / "ops" / "run_daily.py").read_text(encoding="utf-8")
 
-    record = module.write_alpaca_flow_status(
-        {"status": "ERROR", "error": "timeout"},
-        path=path,
-    )
-
-    assert record["status"] == "ERROR"
-    assert json.loads(path.read_text(encoding="utf-8"))["error"] == "timeout"
-    assert not list(path.parent.glob("*.tmp"))
+    assert "hermes_escape_top.core.data.alpaca_flow" not in source
+    assert "alpaca_daily_flow_status" not in source
 
 
 def test_verify_live_uses_non_official_entry_mode():

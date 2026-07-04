@@ -86,6 +86,7 @@ def test_scheduled_run_writes_system_health_report_after_ok_receipt(monkeypatch,
     captured = {}
 
     monkeypatch.setattr(rdp, "_execute_daily", lambda **_kwargs: {"as_of": "2026-06-17"})
+    monkeypatch.setattr(rdp, "_attach_alpaca_flow_for_health", lambda payload, _as_of: payload)
     monkeypatch.setattr(
         rdp,
         "_write_system_health_report",
@@ -99,6 +100,56 @@ def test_scheduled_run_writes_system_health_report_after_ok_receipt(monkeypatch,
     assert captured["as_of"] == "2026-06-17"
     assert captured["receipt"]["status"] == "OK"
     assert captured["shadow"] is False
+
+
+def test_scheduled_run_attaches_alpaca_flow_before_system_health_report(monkeypatch, tmp_path):
+    _patch(monkeypatch, tmp_path)
+    args = SimpleNamespace(live=True, run_type="scheduled", as_of="2026-06-17")
+    captured = {}
+
+    monkeypatch.setattr(rdp, "_execute_daily", lambda **_kwargs: {"as_of": "2026-06-17"})
+
+    def attach(payload, as_of):
+        payload["alpaca_daily_flow"] = {"as_of": as_of, "source": "ALPACA_SIP_1MIN"}
+        payload["alpaca_daily_flow_status"] = {"status": "OK", "as_of": as_of, "source": "ALPACA_SIP_1MIN"}
+        return payload
+
+    monkeypatch.setattr(rdp, "_attach_alpaca_flow_for_health", attach, raising=False)
+    monkeypatch.setattr(
+        rdp,
+        "_write_system_health_report",
+        lambda payload, as_of, receipt, shadow=False: captured.update(
+            {"payload": payload, "as_of": as_of, "receipt": receipt, "shadow": shadow}
+        ),
+    )
+
+    rdp._run_daily_with_receipt(args, _lease=object())
+
+    assert captured["payload"]["alpaca_daily_flow"]["as_of"] == "2026-06-17"
+    assert captured["payload"]["alpaca_daily_flow_status"]["status"] == "OK"
+
+
+def test_package_writes_auxiliary_alpaca_status_atomically(tmp_path):
+    path = tmp_path / "archive" / "alpaca_daily_flow_status.json"
+
+    record = rdp._write_alpaca_flow_status(
+        {"status": "ERROR", "error": "timeout"},
+        path=path,
+    )
+
+    assert record["status"] == "ERROR"
+    assert json.loads(path.read_text(encoding="utf-8"))["error"] == "timeout"
+    assert not list(path.parent.glob("*.tmp"))
+
+
+def test_alpaca_flow_attach_is_non_fatal_when_auxiliary_config_fails(monkeypatch):
+    monkeypatch.setattr(rdp, "load_config", lambda: {"paths": {}})
+    payload = {"as_of": "2026-06-17"}
+
+    result = rdp._attach_alpaca_flow_for_health(payload, "2026-06-17")
+
+    assert result["alpaca_daily_flow_status"]["status"] == "ERROR"
+    assert "archive_dir" in result["alpaca_daily_flow_status"]["error"]
 
 
 def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):

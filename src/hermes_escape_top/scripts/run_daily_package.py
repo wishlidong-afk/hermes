@@ -1244,6 +1244,90 @@ def _refreeze_manifest() -> None:
         print(f"[manifest] WARNING: re-freeze failed ({exc!r}); manifest may show DRIFT until manual refresh.")
 
 
+def _write_alpaca_flow_status(payload: Dict[str, Any], *, path: Path) -> Dict[str, Any]:
+    record = {
+        "status": str(payload.get("status") or "ERROR"),
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "as_of": payload.get("as_of"),
+        "source": payload.get("source"),
+        "cache_path": payload.get("cache_path"),
+        "symbols": payload.get("symbols"),
+        "error": payload.get("error"),
+    }
+    _atomic_write_json(path, record)
+    return record
+
+
+def _attach_alpaca_flow_for_health(payload: Dict[str, Any], as_of: str) -> Dict[str, Any]:
+    """Refresh auxiliary Alpaca SIP flow before writing the health report.
+
+    SIP flow is not a strategy input and must never fail the daily run, but the
+    health report should use the same fact set the dashboard will read later.
+    """
+    status_path: Optional[Path] = None
+    try:
+        config = load_config()
+        archive_dir = resolve_path(config, "archive_dir")
+        status_path = archive_dir / "alpaca_daily_flow_status.json"
+
+        from hermes_escape_top.core.data.alpaca_flow import refresh_daily_flow
+
+        flow = refresh_daily_flow(as_of, config)
+        payload["alpaca_daily_flow"] = flow
+        status = _write_alpaca_flow_status(
+            {
+                "status": "OK",
+                "as_of": flow.get("as_of"),
+                "source": flow.get("source"),
+                "cache_path": flow.get("cache_path"),
+                "symbols": len(flow.get("symbols") or {}),
+            },
+            path=status_path,
+        )
+        payload["alpaca_daily_flow_status"] = status
+        print(
+            "[alpaca-flow] "
+            + json.dumps(
+                {
+                    "ok": True,
+                    "as_of": flow.get("as_of"),
+                    "source": flow.get("source"),
+                    "cache_path": flow.get("cache_path"),
+                    "symbols": len(flow.get("symbols") or {}),
+                },
+                ensure_ascii=False,
+            )
+        )
+        return payload
+    except Exception as exc:
+        detail = str(exc)[-500:]
+        status_payload: Dict[str, Any] = {"status": "ERROR", "error": detail}
+        if status_path is not None:
+            try:
+                from hermes_escape_top.core.data.alpaca_flow import load_daily_flow_snapshot
+
+                cached = load_daily_flow_snapshot(status_path.parent, as_of)
+                if cached:
+                    payload["alpaca_daily_flow"] = cached
+                    status_payload.update({
+                        "as_of": cached.get("as_of"),
+                        "source": cached.get("source"),
+                        "cache_path": cached.get("cache_path"),
+                        "symbols": len(cached.get("symbols") or {}),
+                    })
+            except Exception:
+                pass
+            try:
+                payload["alpaca_daily_flow_status"] = _write_alpaca_flow_status(status_payload, path=status_path)
+            except Exception as status_exc:
+                payload["alpaca_daily_flow_status"] = status_payload
+                print(f"[alpaca-flow] WARNING: could not persist auxiliary status: {status_exc!r}")
+        else:
+            payload["alpaca_daily_flow_status"] = status_payload
+        print(f"[alpaca-flow] WARNING: refresh failed; keeping prior cache: {detail}")
+        return payload
+
+
 def _write_run_receipt(
     as_of: str,
     run_type: str,
@@ -1672,6 +1756,8 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
     try:
         payload = _execute_daily(args=args, _lease=_lease, _run_context=context)
         if scheduled:
+            context["step"] = "alpaca_flow"
+            payload = _attach_alpaca_flow_for_health(payload, context["as_of"])
             finished = _write_run_receipt(
                 context["as_of"],
                 args.run_type,
