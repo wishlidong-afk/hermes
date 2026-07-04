@@ -3165,7 +3165,8 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
                 f"issue={str((row or {}).get('official_issue_as_of') or '—')[:10]} "
                 f"sha={str((row or {}).get('official_file_sha256') or '—')[:8]}"
             )
-        note_parts = [part for part in (freshness_note, official_note, str(note or ""), next_action) if part]
+        publisher_note = str((row or {}).get("publisher_note") or "")
+        note_parts = [part for part in (freshness_note, official_note, publisher_note, str(note or ""), next_action) if part]
         safe_id = _external_source_dom_id(source_id)
         rows.append(
             "<tr>"

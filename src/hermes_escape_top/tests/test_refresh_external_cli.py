@@ -211,6 +211,26 @@ def test_refresh_external_status_adds_profile_and_freshness(monkeypatch, tmp_pat
     assert "--import-file" in out["aaii_sentiment"]["next_action"]
 
 
+def test_refresh_external_status_explains_due_soon_after_same_day_success(tmp_path):
+    cfg = _config(tmp_path)
+    append_source_run(
+        tmp_path / "archive",
+        {
+            "source_id": "dollar",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-06-26",
+            "finished_at": "2026-07-04T12:56:31+00:00",
+        },
+    )
+
+    out = refresh_external.status(cfg, today=date(2026, 7, 4))
+
+    assert out["dollar"]["freshness_status"] == "DUE_SOON"
+    assert out["dollar"]["publisher_status"] == "UNCHANGED_AFTER_REFRESH"
+    assert "wait for publisher update" in out["dollar"]["next_action"]
+    assert "run refresh_external --source dollar" not in out["dollar"]["next_action"]
+
+
 def test_refresh_external_all_sources_keeps_going_on_single_failure(monkeypatch, tmp_path):
     calls = []
     cfg = _config(tmp_path)

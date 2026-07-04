@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import glob
 from dataclasses import asdict, dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -109,6 +109,9 @@ def enrich_source_status(row: dict[str, Any], *, today: date | None = None) -> d
     out["age_days"] = age_days
     out["freshness_status"] = _freshness_status(age_days, profile)
     out["failure_kind"] = _failure_kind(row)
+    if _same_day_successful_check(out, today or date.today()) and out["freshness_status"] == "DUE_SOON":
+        out["publisher_status"] = "UNCHANGED_AFTER_REFRESH"
+        out["publisher_note"] = "official source checked today; publisher has not posted a newer observation"
     out["next_action"] = _next_action(out, profile)
     return out
 
@@ -157,10 +160,32 @@ def _failure_kind(row: dict[str, Any]) -> str:
     return "FETCH_OR_PARSE"
 
 
+def _same_day_successful_check(row: dict[str, Any], today: date) -> bool:
+    if str(row.get("status") or "") != "OK":
+        return False
+    checked = _date_from_timestamp(row.get("finished_at") or row.get("latest_finished_at"))
+    return checked == today
+
+
+def _date_from_timestamp(value: Any) -> date | None:
+    if not value:
+        return None
+    text = str(value)
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
+    except ValueError:
+        try:
+            return date.fromisoformat(text[:10])
+        except ValueError:
+            return None
+
+
 def _next_action(row: dict[str, Any], profile: ExternalSourceProfile) -> str:
     source_id = profile.source_id
     failure = str(row.get("failure_kind") or "")
     freshness = str(row.get("freshness_status") or "")
+    if str(row.get("publisher_status") or "") == "UNCHANGED_AFTER_REFRESH":
+        return f"official source checked today; wait for publisher update for {source_id}"
     if failure == "AUTH_REQUIRED" and profile.import_globs:
         if source_id == "aaii_sentiment":
             return "download official sentiment.xls, then run refresh_external --source aaii_sentiment --import-file PATH"

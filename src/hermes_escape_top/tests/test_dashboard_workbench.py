@@ -475,7 +475,8 @@ def test_trust_zone_uses_external_source_ledger_status():
             "latest_started_at": "2026-07-01T02:00:00+00:00",
             "freshness_status": "DUE_SOON",
             "age_days": 8,
-            "next_action": "watch next publication",
+            "publisher_note": "official source checked today; publisher has not posted a newer observation",
+            "next_action": "official source checked today; wait for publisher update for dollar",
             "message": "",
         },
         "real_rate": {
@@ -511,7 +512,8 @@ def test_trust_zone_uses_external_source_ledger_status():
     assert "2026-06-30" in html
     assert "ExternalSourceRunner · OK" in html
     assert "DUE_SOON · 8d" in html
-    assert "watch next publication" in html
+    assert "publisher has not posted a newer observation" in html
+    assert "wait for publisher update for dollar" in html
     assert "refreshExternalSource('dollar')" in html
     assert "real_rate" in html
     assert "ExternalSourceRunner · ERROR" in html
