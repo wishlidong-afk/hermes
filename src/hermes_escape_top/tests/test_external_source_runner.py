@@ -147,6 +147,24 @@ def test_parse_error_preserves_existing_target_and_records_raw_artifact(tmp_path
     assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "PARSE_ERROR"
 
 
+def test_stale_source_frame_preserves_newer_existing_target(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text("date,value\n2026-07-07,9.9\n", encoding="utf-8")
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+
+    run = run_external_source_refresh(spec, FakeAdapter(), tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert "older than existing target" in str(run.error_message)
+    assert target.read_text(encoding="utf-8") == "date,value\n2026-07-07,9.9\n"
+    assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "VALIDATION_ERROR"
+
+
 def test_source_status_reports_latest_run_and_promoted_date(tmp_path):
     target = tmp_path / "soft_history" / "dollar.csv"
     spec = ExternalSourceSpec(

@@ -97,6 +97,10 @@ def run_external_source_refresh(
         "rows": int(len(frame)),
         "latest_as_of": latest_frame_date(spec, frame),
     }
+    if validation_error is None:
+        validation_error = _stale_target_error(spec, frame)
+        validation_payload["status"] = "OK" if validation_error is None else "VALIDATION_ERROR"
+        validation_payload["error"] = validation_error
     validation_path.write_text(json.dumps(validation_payload, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
 
     if validation_error:
@@ -210,3 +214,18 @@ def _official_metadata(raw: Any, latest_as_of: str | None) -> dict[str, str | No
         "official_file_name": str(file_name) if file_name else None,
         "official_file_sha256": str(file_sha256) if file_sha256 else None,
     }
+
+
+def _stale_target_error(spec: ExternalSourceSpec, frame: pd.DataFrame) -> str | None:
+    target = Path(spec.target_path)
+    if not target.exists():
+        return None
+    try:
+        existing = pd.read_csv(target)
+    except Exception:
+        return None
+    incoming_latest = latest_frame_date(spec, frame)
+    existing_latest = latest_frame_date(spec, existing)
+    if incoming_latest and existing_latest and incoming_latest < existing_latest:
+        return f"source latest {incoming_latest} is older than existing target latest {existing_latest}"
+    return None
