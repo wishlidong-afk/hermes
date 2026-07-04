@@ -144,3 +144,22 @@ def test_source_status_reports_latest_run_and_promoted_date(tmp_path):
 
     assert status["dollar"]["status"] == "OK"
     assert status["dollar"]["latest_promoted_as_of"] == "2026-06-30"
+
+
+def test_source_status_prefers_latest_success_when_latest_attempt_failed(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+
+    run_external_source_refresh(spec, FakeAdapter(), tmp_path / "archive")
+    run_external_source_refresh(spec, FetchBoomAdapter(), tmp_path / "archive")
+    status = source_status(tmp_path / "archive", [spec])
+
+    assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "FETCH_ERROR"
+    assert status["dollar"]["status"] == "OK"
+    assert status["dollar"]["latest_promoted_as_of"] == "2026-06-30"
+    assert status["dollar"]["latest_attempt_status"] == "FETCH_ERROR"
+    assert "network down" in status["dollar"]["latest_attempt_error_message"]

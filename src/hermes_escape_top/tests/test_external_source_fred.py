@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import builtins
+import subprocess
+import urllib.request
+from types import SimpleNamespace
+
 import pandas as pd
 
+from hermes_escape_top.core.data.macro import fetch_fred_graph_csv
 from hermes_escape_top.core.data.external_sources.fred import (
     FredNetLiquidityAdapter,
     fred_net_liquidity_spec,
@@ -10,6 +16,79 @@ from hermes_escape_top.core.data.external_sources.fred import (
 )
 from hermes_escape_top.core.data.external_sources.ledger import latest_source_run
 from hermes_escape_top.core.data.external_sources.runner import run_external_source_refresh
+
+
+def test_fetch_fred_graph_csv_prefers_curl_and_does_not_require_requests(monkeypatch):
+    original_import = builtins.__import__
+
+    def import_without_requests(name, *args, **kwargs):
+        if name == "requests":
+            raise ModuleNotFoundError("No module named 'requests'")
+        return original_import(name, *args, **kwargs)
+
+    calls = []
+    urlopen_called = False
+
+    def fake_run(command, check, capture_output, text, timeout):
+        calls.append((command, check, capture_output, text, timeout))
+        return SimpleNamespace(
+            stdout="observation_date,WALCL\n2026-06-01,100.5\n2026-06-02,.\n2026-06-03,101.5\n",
+            stderr="",
+        )
+
+    def fail_urlopen(request, timeout=30):
+        nonlocal urlopen_called
+        urlopen_called = True
+        raise AssertionError("curl should be attempted before urllib")
+
+    monkeypatch.setattr(builtins, "__import__", import_without_requests)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(urllib.request, "urlopen", fail_urlopen)
+
+    series = fetch_fred_graph_csv("WALCL", start="2026-06-01", end="2026-06-03")
+
+    assert calls
+    command = calls[0][0]
+    assert command[:4] == ["curl", "--fail", "--location", "--silent"]
+    assert "id=WALCL" in command[-1]
+    assert "cosd=2026-06-01" in command[-1]
+    assert "coed=2026-06-03" in command[-1]
+    assert urlopen_called is False
+    assert series.index.astype(str).tolist() == ["2026-06-01", "2026-06-03"]
+    assert series.tolist() == [100.5, 101.5]
+
+
+def test_fetch_fred_graph_csv_falls_back_to_urllib_when_curl_fails(monkeypatch):
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b"observation_date,WALCL\n2026-06-01,100.5\n2026-06-02,101.5\n"
+
+    calls = []
+
+    def failing_run(command, check, capture_output, text, timeout):
+        calls.append((command, check, capture_output, text, timeout))
+        raise FileNotFoundError("curl")
+
+    def fake_urlopen(request, timeout=30):
+        calls.append((request.full_url, timeout))
+        return Response()
+
+    monkeypatch.setattr(subprocess, "run", failing_run)
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    series = fetch_fred_graph_csv("WALCL", start="2026-06-01")
+
+    assert calls
+    assert calls[0][0][:4] == ["curl", "--fail", "--location", "--silent"]
+    assert "id=WALCL" in calls[1][0]
+    assert series.index.astype(str).tolist() == ["2026-06-01", "2026-06-02"]
+    assert series.tolist() == [100.5, 101.5]
 
 
 def test_fred_percentile_adapter_promotes_existing_soft_history_shape(tmp_path):

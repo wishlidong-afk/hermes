@@ -165,17 +165,28 @@ class CboeIndicesSource:
 
 
 def fetch_fred_graph_csv(series_id: str, start: str = "2015-01-01", end: Optional[str] = None) -> pd.Series:
-    import requests
-
-    response = requests.get(
-        "https://fred.stlouisfed.org/graph/fredgraph.csv",
-        params={"id": series_id, "cosd": start, **({"coed": end} if end else {})},
-        timeout=30,
-    )
-    response.raise_for_status()
     from io import StringIO
+    import subprocess
+    from urllib.parse import urlencode
+    from urllib.request import Request, urlopen
 
-    frame = pd.read_csv(StringIO(response.text))
+    params = {"id": series_id, "cosd": start, **({"coed": end} if end else {})}
+    url = "https://fred.stlouisfed.org/graph/fredgraph.csv?" + urlencode(params)
+    try:
+        completed = subprocess.run(
+            ["curl", "--fail", "--location", "--silent", "--show-error", "--max-time", "45", url],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=50,
+        )
+        text = completed.stdout
+    except Exception:
+        request = Request(url, headers={"User-Agent": "Hermes escape-top external-source runner"})
+        with urlopen(request, timeout=30) as response:
+            text = response.read().decode("utf-8")
+
+    frame = pd.read_csv(StringIO(text))
     date_col = "observation_date" if "observation_date" in frame.columns else "DATE"
     value_col = series_id if series_id in frame.columns else frame.columns[-1]
     frame[date_col] = pd.to_datetime(frame[date_col], errors="coerce")

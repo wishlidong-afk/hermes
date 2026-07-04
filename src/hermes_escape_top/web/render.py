@@ -873,6 +873,14 @@ def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
     return "无 precheck", "watch"
 
 
+def _external_daily_ledger_all_ok(payload: Dict[str, Any]) -> bool:
+    external = payload.get("external_source_status")
+    if not isinstance(external, dict) or not external:
+        return False
+    rows = [row for row in external.values() if isinstance(row, dict)]
+    return bool(rows) and all(str(row.get("status") or "") == "OK" for row in rows)
+
+
 def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
     precheck = payload.get("external_precheck_status")
     if not isinstance(precheck, dict):
@@ -886,6 +894,7 @@ def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
         )
 
     ready = bool(precheck.get("ready"))
+    daily_ledger_ok = _external_daily_ledger_all_ok(payload)
     refresh = precheck.get("refresh") if isinstance(precheck.get("refresh"), dict) else {}
     blocking = [str(item) for item in (precheck.get("blocking_sources") or [])]
     warnings = [str(item) for item in (precheck.get("warning_sources") or [])]
@@ -930,13 +939,22 @@ def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
     if warnings:
         issue_text.append("warning=" + ",".join(warnings))
     issue_html = f"<span class='subtle'>{esc(' · '.join(issue_text))}</span>" if issue_text else "<span class='subtle'>无 blocking/warning</span>"
+    badge_text = "READY" if ready else ("PRECHECK WARN" if daily_ledger_ok else "NOT READY")
+    badge_kind = "ok" if ready else ("warn" if daily_ledger_ok else "danger")
+    scope_note = (
+        "<div class='mini-note'>正式 daily ledger OK，本预检异常不影响今日策略；"
+        "下次 06:45/07:05 预检会再次尝试。</div>"
+        if daily_ledger_ok and not ready
+        else ""
+    )
     return (
         "<details class='work-card external-precheck-summary' style='margin:10px 0 0'>"
         "<summary>外部源预检 / External Precheck "
-        f"{_badge('READY' if ready else 'NOT READY', 'ok' if ready else 'danger')} "
+        f"{_badge(badge_text, badge_kind)} "
         f"<span class='subtle'>ok={esc(str(refresh.get('ok_count', '—')))} error={esc(str(refresh.get('error_count', '—')))}</span> "
         f"{issue_html}</summary>"
         "<div class='detail-body'>"
+        f"{scope_note}"
         "<div class='table-scroll'>"
         "<table><thead><tr><th>源</th><th>precheck</th><th>最新数据日</th><th>最近预检</th><th>证据 / 问题</th></tr></thead>"
         f"<tbody>{rows_html}</tbody></table>"

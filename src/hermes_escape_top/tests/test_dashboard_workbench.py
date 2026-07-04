@@ -712,6 +712,41 @@ def test_external_precheck_summary_renders_latest_result():
     assert "DUE_SOON · 7d" in html
 
 
+def test_external_precheck_summary_does_not_override_current_daily_ledger():
+    payload = _payload()
+    payload["external_source_status"] = {
+        source: {
+            "source_id": source,
+            "status": "OK",
+            "latest_promoted_as_of": "2026-07-02",
+            "freshness_status": "OK",
+        }
+        for source in ("dollar", "real_rate", "fred_net_liquidity", "naaim_exposure", "aaii_sentiment")
+    }
+    payload["external_precheck_status"] = {
+        "ready": False,
+        "blocking_sources": ["fred_net_liquidity"],
+        "warning_sources": [],
+        "refresh": {"ok": False, "ok_count": 4, "error_count": 1},
+        "sources": {
+            "fred_net_liquidity": {
+                "label": "FRED Net Liquidity",
+                "status": "FETCH_ERROR",
+                "latest_promoted_as_of": None,
+                "error_message": "404 Client Error",
+            }
+        },
+        "source_path": "/Users/liweishi/.hermes/logs/external/external_precheck_latest.json",
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+    summary = html[html.index("外部源预检 / External Precheck"):html.index("20 维系统自检 / System Health Audit")]
+
+    assert "PRECHECK WARN" in summary
+    assert "正式 daily ledger OK，本预检异常不影响今日策略" in summary
+    assert "NOT READY" not in summary
+
+
 def test_system_health_history_renders_recent_reports():
     payload = _payload()
     payload["system_health_history"] = [

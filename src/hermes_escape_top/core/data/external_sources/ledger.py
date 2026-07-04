@@ -43,9 +43,27 @@ def latest_source_run(archive_dir: Path, source_id: str) -> dict[str, Any] | Non
     return latest
 
 
+def latest_successful_source_run(archive_dir: Path, source_id: str) -> dict[str, Any] | None:
+    latest = None
+    for row in iter_source_runs(archive_dir):
+        if row.get("source_id") == source_id and str(row.get("status") or "") == "OK":
+            latest = row
+    return latest
+
+
 def source_status(archive_dir: Path, specs: Iterable[Any]) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for spec in specs:
-        row = latest_source_run(archive_dir, spec.source_id)
-        out[spec.source_id] = row or {"source_id": spec.source_id, "status": "MISSING"}
+        latest = latest_source_run(archive_dir, spec.source_id)
+        latest_ok = latest_successful_source_run(archive_dir, spec.source_id)
+        if latest_ok is not None and latest is not None and str(latest.get("status") or "") != "OK":
+            row = dict(latest_ok)
+            row["latest_attempt_status"] = latest.get("status")
+            row["latest_attempt_started_at"] = latest.get("started_at")
+            row["latest_attempt_finished_at"] = latest.get("finished_at")
+            row["latest_attempt_error_type"] = latest.get("error_type")
+            row["latest_attempt_error_message"] = latest.get("error_message") or latest.get("error")
+        else:
+            row = latest or {"source_id": spec.source_id, "status": "MISSING"}
+        out[spec.source_id] = row
     return out
