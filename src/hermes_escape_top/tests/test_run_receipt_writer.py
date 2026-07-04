@@ -29,6 +29,59 @@ def test_state_path_uses_shared_root_for_versioned_release(monkeypatch, tmp_path
     assert rdp._state_path() == tmp_path / "escape-top" / "state.json"
 
 
+def test_state_load_falls_back_to_legacy_release_local_state(monkeypatch, tmp_path):
+    release = tmp_path / "escape-top" / "releases" / "abc_20260703"
+    release.mkdir(parents=True)
+    monkeypatch.setattr(rdp, "BASE_DIR", release)
+    (release / "state.json").write_text(
+        json.dumps({
+            "updated_at": "2026-07-01T00:00:00+00:00",
+            "MSTR": {"state": "COOLDOWN", "last_exit_date": "2026-06-30", "cooldown_days_left": 10},
+        }),
+        encoding="utf-8",
+    )
+
+    state = rdp._load_state()
+
+    assert state["schema_version"] == "escape-top-state-v1"
+    assert state["symbols"]["MSTR"]["state"] == "COOLDOWN"
+    assert state["symbols"]["MSTR"]["last_exit_date"] == "2026-06-30"
+
+
+def test_commit_state_migrates_legacy_release_state_to_shared_root(monkeypatch, tmp_path):
+    release = tmp_path / "escape-top" / "releases" / "abc_20260703"
+    release.mkdir(parents=True)
+    monkeypatch.setattr(rdp, "BASE_DIR", release)
+    (release / "state.json").write_text(
+        json.dumps({
+            "schema_version": "escape-top-state-v1",
+            "symbols": {
+                "MSTR": {"state": "COOLDOWN", "last_exit_date": "2026-06-30", "cooldown_days_left": 10},
+            },
+        }),
+        encoding="utf-8",
+    )
+    translated = {
+        "state_suggestions": {
+            "symbols": {
+                "MSTR": {
+                    "next_state": "COOLDOWN",
+                    "last_score": 77,
+                    "last_action": "EXIT",
+                    "cooldown_days_left": 8,
+                }
+            }
+        }
+    }
+
+    path = rdp.commit_state(translated, "2026-07-02")
+    state = json.loads(path.read_text(encoding="utf-8"))
+
+    assert path == tmp_path / "escape-top" / "state.json"
+    assert state["symbols"]["MSTR"]["last_exit_date"] == "2026-06-30"
+    assert state["symbols"]["MSTR"]["cooldown_days_left"] == 8
+
+
 def test_receipt_red_when_a_required_step_failed(monkeypatch, tmp_path):
     _patch(monkeypatch, tmp_path)
     rdp._write_run_receipt("2026-06-17", "scheduled", steps_ok=False, step_error="state commit failed: boom")
