@@ -311,10 +311,11 @@ def test_workbench_renders_p3_visual_blocks():
 def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     html = render_mod.render_dashboard(_payload(), health={"level": "OK"}, manifest_status={"status": "OK"})
 
-    assert "系统状态 + 数据质量" in html
+    assert "今日可信度与系统状态" in html
+    assert "Trust &amp; System Health" in html
     assert "health-strip" in html
-    assert "策略数据" in html and "持仓对账" in html and "辅助资金流" in html
-    assert html.count("health-pill") >= 7
+    assert "策略数据链" in html and "外部数据链" in html and "持仓/执行链" in html
+    assert html.count("health-pill") >= 3
     assert "刷新全部外部源" in html
     assert "IBKR Live 验收" not in html
     assert "ibkr-live-btn" not in html
@@ -329,7 +330,7 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     assert "<details class='work-card data-trust-zone'" in html
     assert "cboe_equity_pcr" in html and "CBOE_DAILY_HTML" in html and "剩 5d" in html
     assert "aaii_sentiment" in html and "AAII" in html and "真实" in html
-    assert html.index("系统状态 + 数据质量") < html.index("区域 5 · 数据信任区") < html.index("今日操作台")
+    assert html.index("今日可信度与系统状态") < html.index("区域 5 · 数据信任区") < html.index("今日操作台")
     assert "页面底部系统运维详情" in html
     for label in ("外部源预检", "20 维系统自检", "最近 7 次系统健康", "Audit Detail"):
         assert html.index("穿透股票成交与流向参考") < html.index(label)
@@ -337,7 +338,7 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     assert "今日操作台" in html
     assert "DEFCON 路由" in html and "执行计划资金去向" in html
     assert "路由/执行口径不一致" in html and "DBMF" in html and "GLD" in html
-    assert html.index("系统状态 + 数据质量") < html.index("今日操作台")
+    assert html.index("今日可信度与系统状态") < html.index("今日操作台")
     assert html.index("今日操作台") < html.index("为什么这么做")
     assert html.index("为什么这么做") < html.index("硬阀门雷达")
     assert html.index("硬阀门雷达") < html.index("全量打分因子表") < html.index("展开点阵矩阵")
@@ -364,6 +365,55 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
     assert "主动买入占优" not in html
     assert "+$1.20B" not in html
     assert "其他折叠详情" in html and "硬阀门全景" in html
+
+
+def test_trust_health_section_explains_degraded_without_old_loud_banner():
+    payload = _payload()
+    payload["run_receipt"] = {
+        "status": "OK",
+        "ok": True,
+        "run_at": "2026-07-04T07:11:29+08:00",
+        "as_of": "2026-07-02",
+    }
+    payload["state"] = {"score_run_id": 136}
+    payload["input_hash"] = "d9350b42d00bec781"
+    payload["system_health_report"] = {
+        "as_of": "2026-07-02",
+        "input_hash": "d9350b42d00bec781",
+        "health": {"level": "DEGRADED"},
+    }
+    health = {
+        "level": "DEGRADED",
+        "stale_trading_days": 1,
+        "layers": {
+            "strategy_data": {
+                "level": "DEGRADED",
+                "checks": [{"level": "DEGRADED", "label": "行情落后 1 个交易日", "detail": "as_of=2026-07-02"}],
+            },
+            "position_reconciliation": {
+                "level": "INFO",
+                "checks": [{"level": "INFO", "label": "IBKR 快照陈旧", "detail": "age=20h"}],
+            },
+            "auxiliary_flows": {"level": "OK", "checks": []},
+        },
+        "checks": [
+            {"level": "DEGRADED", "label": "行情落后 1 个交易日", "detail": "as_of=2026-07-02", "layer": "strategy_data"},
+            {"level": "INFO", "label": "IBKR 快照陈旧", "detail": "age=20h", "layer": "position_reconciliation"},
+        ],
+    }
+
+    html = render_mod.render_dashboard(payload, health=health, manifest_status={"status": "OK"})
+
+    assert "今日可信度与系统状态" in html
+    assert "策略可用" in html
+    assert "今日操作：REVIEW ONLY" in html
+    assert "策略链路正常；当前黄灯来自可解释的外部/日历/对账因素" in html
+    assert "HOLIDAY-LAG" in html
+    assert "IBKR 快照陈旧" in html
+    assert "阻断策略？否" in html
+    assert "阻断下单？需复核" in html
+    assert "Health 报告" in html and "hash 匹配" in html
+    assert "运行降级 / DEGRADED" not in html
 
 
 def test_factor_map_lists_all_scoring_inputs_grouped_by_module():

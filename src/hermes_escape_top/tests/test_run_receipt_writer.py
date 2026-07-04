@@ -5,11 +5,13 @@ commit_state, so a failed state commit could still show '自检全绿')."""
 from __future__ import annotations
 
 import json
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
 import pytest
 
 from hermes_escape_top.scripts import run_daily_package as rdp
+from hermes_escape_top.web import health as health_mod
 
 
 def _patch(monkeypatch, tmp_path):
@@ -214,6 +216,17 @@ def test_system_health_report_treats_scheduled_payload_as_scored_without_web_cac
     monkeypatch.setattr(
         "hermes_escape_top.web.refresh.manifest_status",
         lambda _config=None: {"status": "OK"},
+    )
+    real_compute_health = health_mod.compute_health
+    monkeypatch.setattr(
+        health_mod,
+        "compute_health",
+        lambda payload, manifest: real_compute_health(
+            payload,
+            manifest,
+            today=date(2026, 7, 3),
+            now=datetime(2026, 7, 3, 7, 20, tzinfo=timezone.utc),
+        ),
     )
     payload = {
         "as_of": "2026-07-02",
