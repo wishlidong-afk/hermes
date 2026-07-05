@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import time
@@ -26,6 +27,7 @@ from hermes_escape_top.core.data.external_sources import (
     run_external_source_refresh,
     source_status,
 )
+from hermes_escape_top.core.data.external_sources.ledger import iter_source_runs
 
 SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity", "naaim_exposure", "aaii_sentiment")
 IMPORT_FILE_SOURCE_IDS = ("naaim_exposure", "aaii_sentiment")
@@ -115,6 +117,11 @@ def refresh_source(
     if auto_import and not import_file and str(result.get("status")) != "OK":
         fallback = _latest_import_for(source_id)
         if fallback is not None:
+            skip_reason = _previous_import_failure_reason(source_id, fallback, resolve_path(cfg, "archive_dir"))
+            if skip_reason:
+                result["fallback_import_skipped"] = str(fallback)
+                result["fallback_import_skip_reason"] = skip_reason
+                return result
             fallback_run = run_external_source_refresh(
                 spec,
                 _import_adapter(source_id, spec, fallback),
@@ -243,6 +250,37 @@ def _latest_import_for(source_id: str) -> Path | None:
     if profile is None:
         return None
     return latest_import_file(profile)
+
+
+def _previous_import_failure_reason(source_id: str, path: Path, archive_dir: Path) -> str | None:
+    file_hash = _file_sha256(path)
+    if not file_hash:
+        return None
+    for row in iter_source_runs(archive_dir):
+        if row.get("source_id") != source_id or str(row.get("status") or "") == "OK":
+            continue
+        if _run_content_sha256(row) == file_hash:
+            return "previous failure for same official file hash"
+    return None
+
+
+def _file_sha256(path: Path) -> str | None:
+    try:
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def _run_content_sha256(row: dict[str, Any]) -> str | None:
+    raw_path = row.get("raw_path")
+    if not raw_path:
+        return None
+    try:
+        raw = json.loads(Path(str(raw_path)).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    value = raw.get("content_sha256") or raw.get("xlsx_sha256")
+    return str(value) if value else None
 
 
 def _matching_import_files(profile: Any, directory: Path) -> list[Path]:

@@ -752,6 +752,45 @@ def test_external_precheck_summary_labels_nonblocking_refresh_errors():
     assert "ok=4 error=1" not in summary
 
 
+def test_external_precheck_summary_explains_skipped_stale_import_file():
+    payload = _payload()
+    payload["external_precheck_status"] = {
+        "ready": True,
+        "blocking_sources": [],
+        "warning_sources": [],
+        "nonblocking_refresh_error_sources": ["aaii_sentiment"],
+        "blocking_refresh_error_sources": [],
+        "refresh": {
+            "ok": False,
+            "ok_count": 4,
+            "error_count": 1,
+            "runs": [
+                {
+                    "source_id": "aaii_sentiment",
+                    "status": "FETCH_ERROR",
+                    "fallback_import_skipped": "/Users/liweishi/.hermes/external_imports/sentiment.xls",
+                    "fallback_import_skip_reason": "previous failure for same official file hash",
+                }
+            ],
+        },
+        "sources": {
+            "aaii_sentiment": {
+                "label": "AAII Sentiment",
+                "status": "OK",
+                "freshness_status": "OK",
+                "latest_promoted_as_of": "2026-07-02",
+            },
+        },
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+    summary = html[html.index("外部源预检 / External Precheck"):html.index("20 维系统自检 / System Health Audit")]
+
+    assert "跳过旧下载文件" in summary
+    assert "sentiment.xls" in summary
+    assert "previous failure for same official file hash" in summary
+
+
 def test_external_precheck_summary_does_not_override_current_daily_ledger():
     payload = _payload()
     payload["external_source_status"] = {

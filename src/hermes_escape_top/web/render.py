@@ -903,6 +903,7 @@ def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
     warnings = [str(item) for item in (precheck.get("warning_sources") or [])]
     nonblocking_refresh_errors = [str(item) for item in (precheck.get("nonblocking_refresh_error_sources") or [])]
     blocking_refresh_errors = [str(item) for item in (precheck.get("blocking_refresh_error_sources") or [])]
+    skipped_imports = _external_precheck_skipped_imports(refresh)
     sources = precheck.get("sources") if isinstance(precheck.get("sources"), dict) else {}
     source_ids = list(EXTERNAL_SOURCE_ORDER)
     source_ids.extend(sorted(str(name) for name in sources.keys() if str(name) not in EXTERNAL_SOURCE_ORDER))
@@ -927,7 +928,8 @@ def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
                 f"sha={str(row.get('official_file_sha256') or '—')[:8]}"
             )
         failure_note = str(row.get("error_message") or row.get("error_type") or row.get("failure_kind") or "")
-        note = " · ".join(part for part in (freshness_note, official_note, failure_note) if part)
+        skip_note = skipped_imports.get(source_id, "")
+        note = " · ".join(part for part in (freshness_note, official_note, failure_note, skip_note) if part)
         rows.append(
             "<tr>"
             f"<td><b>{esc(source_id)}</b><div class='subtle'>{esc(label)}</div></td>"
@@ -982,6 +984,20 @@ def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
         "</div>"
         "</details>"
     )
+
+
+def _external_precheck_skipped_imports(refresh: Dict[str, Any]) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    for run in refresh.get("runs") or []:
+        if not isinstance(run, dict):
+            continue
+        source_id = str(run.get("source_id") or "")
+        skipped = str(run.get("fallback_import_skipped") or "")
+        if not source_id or not skipped:
+            continue
+        reason = str(run.get("fallback_import_skip_reason") or "previous failure")
+        out[source_id] = f"跳过旧下载文件 {Path(skipped).name}: {reason}"
+    return out
 
 
 def _render_system_health_audit(payload: Dict[str, Any]) -> str:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from datetime import date
 from types import SimpleNamespace
 
@@ -346,6 +347,47 @@ def test_refresh_external_source_auto_imports_latest_official_file_after_fetch_e
     assert result["latest_promoted_as_of"] == "2026-06-25"
     assert result["fallback_from_status"] == "FETCH_ERROR"
     assert result["fallback_import_file"] == str(import_path)
+
+
+def test_refresh_external_auto_import_skips_previously_failed_file_hash(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    import_path = tmp_path / "sentiment.xls"
+    content = b"stale official file"
+    import_path.write_bytes(content)
+    raw_path = tmp_path / "archive" / "external_sources" / "aaii_sentiment" / "failed" / "raw.json"
+    raw_path.parent.mkdir(parents=True)
+    raw_path.write_text(
+        json.dumps({"source": "manual_official_file", "content_sha256": hashlib.sha256(content).hexdigest()}) + "\n",
+        encoding="utf-8",
+    )
+    append_source_run(
+        tmp_path / "archive",
+        {
+            "source_id": "aaii_sentiment",
+            "status": "PARSE_ERROR",
+            "raw_path": str(raw_path),
+            "error_message": "AAII import file is older than current AAII seed",
+        },
+    )
+    calls = []
+
+    def fake_runner(spec, adapter, archive_dir):
+        calls.append(type(adapter).__name__)
+        return SimpleNamespace(to_dict=lambda: {
+            "source_id": spec.source_id,
+            "status": "FETCH_ERROR",
+            "error_message": "AAII public endpoint blocked",
+        })
+
+    monkeypatch.setattr(refresh_external, "run_external_source_refresh", fake_runner)
+    monkeypatch.setattr(refresh_external, "latest_import_file", lambda _profile: import_path)
+
+    result = refresh_external.refresh_source("aaii_sentiment", cfg, auto_import=True)
+
+    assert calls == ["AaiiSentimentAdapter"]
+    assert result["status"] == "FETCH_ERROR"
+    assert result["fallback_import_skipped"] == str(import_path)
+    assert result["fallback_import_skip_reason"] == "previous failure for same official file hash"
 
 
 def test_open_official_download_waits_for_new_file_and_imports(monkeypatch, tmp_path):
