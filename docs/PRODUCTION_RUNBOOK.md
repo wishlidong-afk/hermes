@@ -4,7 +4,7 @@
 
 ## 1. 正常运行（全自动）
 
-- **06:45 CST** `com.hermes.external-precheck` → `~/.hermes/bin/refresh_external_precheck.sh` → live `python -m hermes_escape_top.scripts.refresh_external --pre-daily-check`。它只刷新/验收 FRED/NAAIM/AAII 外部源 ledger 与 soft_history，不评分、不写官方 run；`ready=false` 时弹通知并返回非 0，日志在 `~/.hermes/logs/external/`。
+- **06:45 CST** `com.hermes.external-precheck` → `~/.hermes/bin/refresh_external_precheck.sh` → live `python -m hermes_escape_top.scripts.refresh_external --pre-daily-check`。它只刷新/验收 FRED/NAAIM/AAII 外部源 ledger 与 soft_history，不评分、不写官方 run；`ready=false` 时弹通知并返回非 0，日志与取证报告在 `~/.hermes/logs/external/`（`external_precheck_latest.{json,md}` 与 `external_precheck_<date>.{json,md}`）。
 - **每个自然日 07:10 CST** `com.hermes.daily`（launchd `StartCalendarInterval` 无 `Weekday` 过滤，包含周末/休市日）→ `~/.hermes/bin/run_daily.sh` → live `scripts/run_daily.py` → `python -m hermes_escape_top.scripts.run_daily_package --live --commit-state`。日志：`~/.hermes/logs/daily/daily_<date>.log`。Health 对 OK 回执的 26 小时阈值依赖这个日历日调度事实，与行情的交易日陈旧规则分开。
 - daily 的 M4-1a 会再跑一次 `refresh_external --pre-daily-check` 等价链路作为最后保险：FRED/NAAIM/AAII 全源刷新 → AAII/NAAIM 自动尝试最新官方下载文件导入 → source profile SLO 验收。失败不 abort official run，但会写 ledger 并在 8766 health 暴露；评分只使用已验证/已存在的缓存数据。
 - scheduled run 结束并写入 OK receipt 后，会落盘 `reports/system_health_<as_of>.json` 与 `.md`：这是运行健康审计快照，区分策略数据、持仓对账、辅助资金流三层；它不是交易指令，交易仍以 official dashboard/daily_report 为准。

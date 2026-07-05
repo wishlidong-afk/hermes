@@ -79,6 +79,18 @@ def test_external_precheck_launchagent_runs_before_daily():
     assert data["StandardErrorPath"].endswith("/logs/external_precheck.launchd.err.log")
 
 
+def test_external_precheck_writes_latest_and_dated_reports():
+    script = (REPO_ROOT / "ops" / "refresh_external_precheck.sh").read_text(encoding="utf-8")
+
+    assert 'DATE_STAMP="$(date +%F)"' in script
+    assert 'external_precheck_${DATE_STAMP}.json' in script
+    assert 'external_precheck_latest.json' in script
+    assert 'external_precheck_${DATE_STAMP}.md' in script
+    assert 'external_precheck_latest.md' in script
+    assert "# External Precheck" in script
+    assert "nonblocking_refresh_error_sources" in script
+
+
 def test_run_daily_entry_uses_current_release_runtime_and_data_root(tmp_path):
     home = tmp_path / "home"
     live = home / ".hermes" / "skills" / "investment" / "escape-top"
