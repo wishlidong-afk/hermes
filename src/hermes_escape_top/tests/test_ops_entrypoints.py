@@ -91,6 +91,49 @@ def test_external_precheck_writes_latest_and_dated_reports():
     assert "nonblocking_refresh_error_sources" in script
 
 
+def test_external_precheck_markdown_includes_top_level_source_status(tmp_path):
+    home = tmp_path / "home"
+    runtime = home / ".hermes" / "skills" / "investment" / "escape-top" / "current"
+    scripts = runtime / "hermes_escape_top" / "scripts"
+    scripts.mkdir(parents=True)
+    (runtime / "hermes_escape_top" / "__init__.py").write_text("", encoding="utf-8")
+    scripts.joinpath("__init__.py").write_text("", encoding="utf-8")
+    scripts.joinpath("refresh_external.py").write_text(
+        "import json\n"
+        "print(json.dumps({\n"
+        "    'ready': True,\n"
+        "    'blocking_sources': [],\n"
+        "    'warning_sources': ['dollar'],\n"
+        "    'nonblocking_refresh_error_sources': [],\n"
+        "    'blocking_refresh_error_sources': [],\n"
+        "    'refresh': {'ok': True, 'ok_count': 1, 'error_count': 0, 'runs': []},\n"
+        "    'sources': {\n"
+        "        'dollar': {\n"
+        "            'status': 'OK',\n"
+        "            'freshness_status': 'WARN',\n"
+        "            'latest_promoted_as_of': '2026-07-02',\n"
+        "            'next_action': 'run refresh_external --source dollar',\n"
+        "        }\n"
+        "    },\n"
+        "}))\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        ["bash", str(REPO_ROOT / "ops" / "refresh_external_precheck.sh")],
+        env={**os.environ, "HOME": str(home)},
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = home / ".hermes" / "logs" / "external" / "external_precheck_latest.md"
+    assert report.exists()
+    text = report.read_text(encoding="utf-8")
+    assert "| dollar | OK/WARN | 2026-07-02 | run refresh_external --source dollar |" in text
+
+
 def test_run_daily_entry_uses_current_release_runtime_and_data_root(tmp_path):
     home = tmp_path / "home"
     live = home / ".hermes" / "skills" / "investment" / "escape-top"

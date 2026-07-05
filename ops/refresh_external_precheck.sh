@@ -55,8 +55,13 @@ nonblocking_errors = payload.get("nonblocking_refresh_error_sources") or []
 blocking_errors = payload.get("blocking_refresh_error_sources") or []
 refresh = payload.get("refresh") or {}
 refresh_sources = refresh.get("sources") or {}
+refresh_runs = refresh.get("runs") or []
+refresh_runs_by_source = {
+    item.get("source_id"): item for item in refresh_runs if isinstance(item, dict) and item.get("source_id")
+}
 precheck = payload.get("precheck") or {}
 precheck_sources = precheck.get("sources") or {}
+top_sources = payload.get("sources") or {}
 
 
 def cell(value):
@@ -67,17 +72,33 @@ def cell(value):
 
 
 rows = []
-source_names = sorted(set(refresh_sources) | set(precheck_sources))
+source_names = sorted(set(top_sources) | set(refresh_sources) | set(precheck_sources) | set(refresh_runs_by_source))
 for name in source_names:
+    s = top_sources.get(name) or {}
     r = refresh_sources.get(name) or {}
+    r_run = refresh_runs_by_source.get(name) or {}
     p = precheck_sources.get(name) or {}
-    action = r.get("action") or p.get("action") or ""
-    status = r.get("status") or p.get("status") or ""
-    latest = p.get("latest_date") or r.get("latest_date") or r.get("promoted_latest_date") or ""
+    action = s.get("next_action") or r.get("action") or p.get("action") or ""
+    status = s.get("status") or r.get("status") or r_run.get("status") or p.get("status") or ""
+    freshness = s.get("freshness_status")
+    if freshness and freshness != status:
+        status = f"{status}/{freshness}" if status else freshness
+    latest = (
+        s.get("latest_promoted_as_of")
+        or s.get("official_issue_as_of")
+        or p.get("latest_date")
+        or r.get("latest_date")
+        or r.get("promoted_latest_date")
+        or r_run.get("latest_promoted_as_of")
+        or ""
+    )
     detail = (
-        r.get("fallback_import_skip_reason")
+        s.get("latest_attempt_error_message")
+        or s.get("error_message")
+        or r.get("fallback_import_skip_reason")
         or r.get("error")
         or p.get("error")
+        or r_run.get("error_message")
         or r.get("message")
         or ""
     )
