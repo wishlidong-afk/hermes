@@ -714,6 +714,40 @@ def test_external_precheck_summary_renders_latest_result():
     assert "DUE_SOON · 7d" in html
 
 
+def test_trust_health_embeds_morning_external_precheck_report():
+    payload = _payload()
+    payload["external_precheck_status"] = {
+        "ready": True,
+        "blocking_sources": [],
+        "warning_sources": ["dollar", "real_rate"],
+        "nonblocking_refresh_error_sources": ["aaii_sentiment"],
+        "blocking_refresh_error_sources": [],
+        "refresh": {"ok": False, "ok_count": 4, "error_count": 1},
+        "source_path": "/Users/liweishi/.hermes/logs/external/external_precheck_latest.json",
+        "markdown_path": "/Users/liweishi/.hermes/logs/external/external_precheck_latest.md",
+        "markdown_text": (
+            "# External Precheck 2026-07-05\n\n"
+            "- ready: `True`\n"
+            "- nonblocking_refresh_error_sources: `['aaii_sentiment']`\n\n"
+            "| Source | Status | Latest | Action | Detail |\n"
+            "|---|---:|---:|---|---|\n"
+            "| aaii_sentiment | OK | 2026-07-02 | run refresh_external --source aaii_sentiment | AAII public endpoint blocked |\n"
+        ),
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+    trust_section = html[html.index("今日可信度与系统状态"):html.index("区域 5 · 数据信任区")]
+
+    assert "晨间外部源取证" in trust_section
+    assert "ready=True" in trust_section
+    assert "warning=2" in trust_section
+    assert "retry_error=1" in trust_section
+    assert "缓存可用" in trust_section
+    assert "external_precheck_latest.md" in trust_section
+    assert "# External Precheck 2026-07-05" in trust_section
+    assert "AAII public endpoint blocked" in trust_section
+
+
 def test_external_precheck_summary_labels_nonblocking_refresh_errors():
     payload = _payload()
     payload["external_precheck_status"] = {
@@ -951,6 +985,24 @@ def test_external_precheck_loader_attaches_latest_json(monkeypatch, tmp_path):
 
     assert payload["external_precheck_status"]["ready"] is True
     assert payload["external_precheck_status"]["source_path"] == str(status_path)
+
+
+def test_external_precheck_loader_attaches_sibling_markdown(monkeypatch, tmp_path):
+    status_path = tmp_path / "external_precheck_latest.json"
+    markdown_path = tmp_path / "external_precheck_latest.md"
+    status_path.write_text(
+        json.dumps({"ready": True, "blocking_sources": [], "warning_sources": []}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    markdown_path.write_text("# External Precheck\n\n| Source | Status |\n|---|---|\n| dollar | OK |\n", encoding="utf-8")
+    monkeypatch.setattr(server_mod, "_external_precheck_status_paths", lambda: [status_path], raising=False)
+
+    payload = server_mod._attach_external_precheck_status({})
+
+    status = payload["external_precheck_status"]
+    assert status["source_path"] == str(status_path)
+    assert status["markdown_path"] == str(markdown_path)
+    assert "| dollar | OK |" in status["markdown_text"]
 
 
 def test_system_health_history_loader_deduplicates_latest_by_as_of(monkeypatch, tmp_path):

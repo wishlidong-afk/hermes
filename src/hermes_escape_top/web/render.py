@@ -393,6 +393,26 @@ def render_dashboard(
     }}
     .trust-evidence .label {{ color:var(--muted); font-size:11px; margin-bottom:4px; }}
     .trust-evidence .value {{ font-size:13px; font-weight:900; overflow-wrap:anywhere; }}
+    .precheck-evidence-card {{
+      border:1px solid #dbe3ee;
+      border-radius:8px;
+      background:#fbfdff;
+      padding:10px;
+      margin:0 0 10px;
+    }}
+    .precheck-evidence-head {{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap; }}
+    .precheck-report-raw summary {{ cursor:pointer; font-weight:850; margin-top:8px; }}
+    .precheck-report-raw pre {{
+      white-space:pre-wrap;
+      overflow:auto;
+      margin:8px 0 0;
+      padding:10px;
+      border-radius:7px;
+      background:#0f172a;
+      color:#e5e7eb;
+      font-size:11px;
+      line-height:1.45;
+    }}
     .position-action {{ font-weight:900; }}
     .position-action.buy {{ color:#047857; }}
     .position-action.sell {{ color:#b91c1c; }}
@@ -669,6 +689,7 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
         {_trust_evidence('SIP Flow', sip_text)}
       </div>
 
+      {_render_external_precheck_evidence_card(payload)}
       {_render_data_trust_zone(payload)}
     </section>
     """
@@ -874,6 +895,62 @@ def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
         kind = "ok" if ready and not warnings else ("danger" if blocking else "warn")
         return text, kind
     return "无 precheck", "watch"
+
+
+def _render_external_precheck_evidence_card(payload: Dict[str, Any]) -> str:
+    precheck = payload.get("external_precheck_status")
+    if not isinstance(precheck, dict):
+        return (
+            "<div class='precheck-evidence-card'>"
+            "<div class='precheck-evidence-head'>"
+            "<div><b>晨间外部源取证 / Morning Source Evidence</b>"
+            "<div class='mini-note'>尚无 <code>external_precheck_latest.{json,md}</code>；等待 06:45/07:05 预检或手动刷新。</div></div>"
+            f"{_badge('NO REPORT', 'watch')}"
+            "</div>"
+            "</div>"
+        )
+
+    ready = bool(precheck.get("ready"))
+    refresh = precheck.get("refresh") if isinstance(precheck.get("refresh"), dict) else {}
+    warnings = [str(item) for item in (precheck.get("warning_sources") or [])]
+    blocking = [str(item) for item in (precheck.get("blocking_sources") or [])]
+    nonblocking = [str(item) for item in (precheck.get("nonblocking_refresh_error_sources") or [])]
+    blocking_refresh = [str(item) for item in (precheck.get("blocking_refresh_error_sources") or [])]
+    kind = "danger" if blocking or blocking_refresh or not ready else ("warn" if warnings or nonblocking else "ok")
+    badge = "READY" if ready else "NOT READY"
+    source_path = str(precheck.get("markdown_path") or precheck.get("source_path") or "external_precheck_latest.json")
+    markdown = str(precheck.get("markdown_text") or "")
+    status_line = (
+        f"ready={ready} · warning={len(warnings)} · blocking={len(blocking)} "
+        f"· retry_error={len(nonblocking)} · refresh_blocking={len(blocking_refresh)}"
+    )
+    cache_note = (
+        "<div class='mini-note'>缓存可用：刷新尝试失败但未阻断策略；优先看 daily ledger 与数据信任区。</div>"
+        if ready and nonblocking and not blocking_refresh
+        else ""
+    )
+    raw = (
+        "<details class='precheck-report-raw'>"
+        "<summary>查看原始 Markdown 取证报告</summary>"
+        f"<pre>{esc(markdown)}</pre>"
+        "</details>"
+        if markdown
+        else "<div class='mini-note'>尚未挂载 Markdown 原文；可查看 JSON precheck source。</div>"
+    )
+    return (
+        "<div class='precheck-evidence-card'>"
+        "<div class='precheck-evidence-head'>"
+        "<div>"
+        f"<b>晨间外部源取证 / Morning Source Evidence</b> {_badge(badge, kind)}"
+        f"<div class='mini-note'>{esc(status_line)}</div>"
+        f"<div class='mini-note'>source={esc(source_path)}</div>"
+        "</div>"
+        f"<div class='subtle'>ok={esc(str(refresh.get('ok_count', '—')))} · err={esc(str(refresh.get('error_count', '—')))}</div>"
+        "</div>"
+        f"{cache_note}"
+        f"{raw}"
+        "</div>"
+    )
 
 
 def _external_daily_ledger_all_ok(payload: Dict[str, Any]) -> bool:

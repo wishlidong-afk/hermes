@@ -225,6 +225,15 @@ def _attach_external_precheck_status(payload: dict) -> dict:
             continue
         status = dict(status)
         status["source_path"] = str(path)
+        markdown_path = path.with_suffix(".md")
+        if markdown_path.exists():
+            try:
+                # Generated reports are small; cap anyway so a malformed file cannot
+                # bloat the dashboard payload.
+                status["markdown_text"] = markdown_path.read_text(encoding="utf-8")[:12000]
+                status["markdown_path"] = str(markdown_path)
+            except Exception:
+                pass
         payload["external_precheck_status"] = status
         return payload
     return payload
