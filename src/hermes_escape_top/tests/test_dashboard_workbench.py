@@ -746,6 +746,9 @@ def test_trust_health_embeds_morning_external_precheck_report():
     assert "external_precheck_latest.md" in trust_section
     assert "# External Precheck 2026-07-05" in trust_section
     assert "AAII public endpoint blocked" in trust_section
+    assert "重跑晨间预检" in trust_section
+    assert "rerunExternalPrecheck()" in html
+    assert "/api/rerun_external_precheck" in html
 
 
 def test_external_precheck_summary_labels_nonblocking_refresh_errors():
@@ -1003,6 +1006,79 @@ def test_external_precheck_loader_attaches_sibling_markdown(monkeypatch, tmp_pat
     assert status["source_path"] == str(status_path)
     assert status["markdown_path"] == str(markdown_path)
     assert "| dollar | OK |" in status["markdown_text"]
+
+
+def test_external_precheck_loader_marks_old_report_stale(monkeypatch, tmp_path):
+    status_path = tmp_path / "external_precheck_latest.json"
+    status_path.write_text(
+        json.dumps({"ready": True, "blocking_sources": [], "warning_sources": []}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    old = 946684800  # 2000-01-01T00:00:00Z
+    os.utime(status_path, (old, old))
+    monkeypatch.setattr(server_mod, "_external_precheck_status_paths", lambda: [status_path], raising=False)
+
+    payload = server_mod._attach_external_precheck_status({})
+
+    status = payload["external_precheck_status"]
+    assert status["stale"] is True
+    assert status["mtime_date"] == "2000-01-01"
+
+
+def test_trust_health_marks_stale_external_precheck_report():
+    payload = _payload()
+    payload["external_precheck_status"] = {
+        "ready": True,
+        "stale": True,
+        "mtime_date": "2026-07-04",
+        "blocking_sources": [],
+        "warning_sources": [],
+        "nonblocking_refresh_error_sources": [],
+        "blocking_refresh_error_sources": [],
+        "refresh": {"ok": True, "ok_count": 5, "error_count": 0},
+        "source_path": "/Users/liweishi/.hermes/logs/external/external_precheck_latest.json",
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+    trust_section = html[html.index("今日可信度与系统状态"):html.index("区域 5 · 数据信任区")]
+    precheck_card = trust_section[trust_section.index("晨间外部源取证"):]
+
+    assert "STALE REPORT" in precheck_card
+    assert "报告日期=2026-07-04" in precheck_card
+    assert "等待今日 06:45/07:05 预检" in precheck_card
+    assert ">READY<" not in precheck_card
+
+
+def test_trust_health_separates_precheck_stale_from_source_due_soon():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "dollar": {
+            "source_id": "dollar",
+            "status": "OK",
+            "freshness_status": "DUE_SOON",
+            "latest_promoted_as_of": "2026-06-26",
+        },
+        "real_rate": {
+            "source_id": "real_rate",
+            "status": "OK",
+            "freshness_status": "OK",
+            "latest_promoted_as_of": "2026-07-02",
+        },
+    }
+    payload["external_precheck_status"] = {
+        "ready": True,
+        "stale": True,
+        "mtime_date": "2026-07-04",
+        "blocking_sources": [],
+        "warning_sources": [],
+        "refresh": {"ok": True, "ok_count": 2, "error_count": 0},
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+    trust_section = html[html.index("今日可信度与系统状态"):html.index("区域 5 · 数据信任区")]
+
+    assert "预检报告：陈旧（2026-07-04）" in trust_section
+    assert "外部源数据 DUE_SOON：dollar" in trust_section
 
 
 def test_system_health_history_loader_deduplicates_latest_by_as_of(monkeypatch, tmp_path):

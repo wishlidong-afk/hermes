@@ -666,6 +666,7 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
             f"Portfolio Risk vol={_fmt_pct(risk.get('forecast_portfolio_vol'))} · regime={regime.get('current', 'NA')}",
         ])}
         {_trust_layer_card('外部数据链', external_text, external_kind, [
+            _external_precheck_freshness_text(payload),
             _external_official_evidence_text(payload),
             _external_due_text(payload),
             '数据信任区可展开逐源审计',
@@ -776,15 +777,26 @@ def _external_official_evidence_text(payload: Dict[str, Any]) -> str:
 def _external_due_text(payload: Dict[str, Any]) -> str:
     external = payload.get("external_source_status")
     if not isinstance(external, dict) or not external:
-        return "SLO：NA"
+        return "外部源数据 SLO：NA"
     due = [
         str(source_id)
         for source_id, row in external.items()
         if isinstance(row, dict) and str(row.get("freshness_status") or "") == "DUE_SOON"
     ]
     if due:
-        return "DUE_SOON：" + ", ".join(due[:3])
-    return "SLO：OK"
+        return "外部源数据 DUE_SOON：" + ", ".join(due[:3])
+    return "外部源数据 SLO：OK"
+
+
+def _external_precheck_freshness_text(payload: Dict[str, Any]) -> str:
+    precheck = payload.get("external_precheck_status")
+    if not isinstance(precheck, dict):
+        return "预检报告：未生成"
+    if precheck.get("stale"):
+        return f"预检报告：陈旧（{precheck.get('mtime_date') or 'NA'}）"
+    if precheck.get("mtime_date"):
+        return f"预检报告：今日（{precheck.get('mtime_date')}）"
+    return "预检报告：已挂载"
 
 
 def _trust_warning_rows(health: Dict[str, Any]) -> str:
@@ -905,24 +917,36 @@ def _render_external_precheck_evidence_card(payload: Dict[str, Any]) -> str:
             "<div class='precheck-evidence-head'>"
             "<div><b>晨间外部源取证 / Morning Source Evidence</b>"
             "<div class='mini-note'>尚无 <code>external_precheck_latest.{json,md}</code>；等待 06:45/07:05 预检或手动刷新。</div></div>"
-            f"{_badge('NO REPORT', 'watch')}"
+            "<div>"
+            f"{_badge('NO REPORT', 'watch')} "
+            "<button class='btn-muted' style='padding:3px 9px;font-size:12px;min-height:26px' "
+            "onclick='rerunExternalPrecheck()' id='external-precheck-rerun-btn'>重跑晨间预检</button>"
+            "<div class='subtle' id='external-precheck-rerun-status'></div>"
+            "</div>"
             "</div>"
             "</div>"
         )
 
     ready = bool(precheck.get("ready"))
+    stale = bool(precheck.get("stale"))
     refresh = precheck.get("refresh") if isinstance(precheck.get("refresh"), dict) else {}
     warnings = [str(item) for item in (precheck.get("warning_sources") or [])]
     blocking = [str(item) for item in (precheck.get("blocking_sources") or [])]
     nonblocking = [str(item) for item in (precheck.get("nonblocking_refresh_error_sources") or [])]
     blocking_refresh = [str(item) for item in (precheck.get("blocking_refresh_error_sources") or [])]
-    kind = "danger" if blocking or blocking_refresh or not ready else ("warn" if warnings or nonblocking else "ok")
-    badge = "READY" if ready else "NOT READY"
+    kind = "warn" if stale else ("danger" if blocking or blocking_refresh or not ready else ("warn" if warnings or nonblocking else "ok"))
+    badge = "STALE REPORT" if stale else ("READY" if ready else "NOT READY")
     source_path = str(precheck.get("markdown_path") or precheck.get("source_path") or "external_precheck_latest.json")
     markdown = str(precheck.get("markdown_text") or "")
+    report_date = str(precheck.get("mtime_date") or "NA")
     status_line = (
         f"ready={ready} · warning={len(warnings)} · blocking={len(blocking)} "
         f"· retry_error={len(nonblocking)} · refresh_blocking={len(blocking_refresh)}"
+    )
+    stale_note = (
+        f"<div class='mini-note'>报告日期={esc(report_date)}；等待今日 06:45/07:05 预检或手动重跑后再作为今日证据。</div>"
+        if stale
+        else ""
     )
     cache_note = (
         "<div class='mini-note'>缓存可用：刷新尝试失败但未阻断策略；优先看 daily ledger 与数据信任区。</div>"
@@ -945,8 +969,14 @@ def _render_external_precheck_evidence_card(payload: Dict[str, Any]) -> str:
         f"<div class='mini-note'>{esc(status_line)}</div>"
         f"<div class='mini-note'>source={esc(source_path)}</div>"
         "</div>"
+        "<div style='text-align:right'>"
         f"<div class='subtle'>ok={esc(str(refresh.get('ok_count', '—')))} · err={esc(str(refresh.get('error_count', '—')))}</div>"
+        "<button class='btn-muted' style='padding:3px 9px;font-size:12px;min-height:26px;margin-top:4px' "
+        "onclick='rerunExternalPrecheck()' id='external-precheck-rerun-btn'>重跑晨间预检</button>"
+        "<div class='subtle' id='external-precheck-rerun-status'></div>"
         "</div>"
+        "</div>"
+        f"{stale_note}"
         f"{cache_note}"
         f"{raw}"
         "</div>"
@@ -3778,6 +3808,26 @@ def _render_scripts(as_of: str) -> str:
         }}
         setTimeout(function() {{ location.reload(); }}, 1100);
       }}).catch(function(e) {{ setBusy(btn, false); if (st) st.textContent = '刷新全部外部源失败: ' + e; }});
+  }};
+  window.rerunExternalPrecheck = function() {{
+    var btn = document.getElementById('external-precheck-rerun-btn');
+    var st = document.getElementById('external-precheck-rerun-status');
+    setBusy(btn, true);
+    if (st) st.textContent = '正在重跑外部源预检...';
+    postJson('/api/rerun_external_precheck', {{}})
+      .then(function(r) {{ return r.json(); }}).then(function(d) {{
+        setBusy(btn, false);
+        var precheck = d.external_precheck_status || {{}};
+        if (st) {{
+          st.textContent = '预检完成：ready=' + (!!precheck.ready) +
+            ' · stale=' + (!!precheck.stale) +
+            ' · rc=' + (typeof d.returncode === 'number' ? d.returncode : 'NA');
+        }}
+        setTimeout(function() {{ location.reload(); }}, 900);
+      }}).catch(function(e) {{
+        setBusy(btn, false);
+        if (st) st.textContent = '重跑外部源预检失败: ' + e;
+      }});
   }};
   restoreRefreshStatus();
   </script>

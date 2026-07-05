@@ -82,6 +82,8 @@ def test_external_precheck_launchagent_runs_before_daily():
 def test_external_precheck_writes_latest_and_dated_reports():
     script = (REPO_ROOT / "ops" / "refresh_external_precheck.sh").read_text(encoding="utf-8")
 
+    assert "hermes_escape_top.scripts.pipeline_lock_exec" in script
+    assert "HERMES_EXTERNAL_PRECHECK_INNER" in script
     assert 'DATE_STAMP="$(date +%F)"' in script
     assert 'external_precheck_${DATE_STAMP}.json' in script
     assert 'external_precheck_latest.json' in script
@@ -121,7 +123,7 @@ def test_external_precheck_markdown_includes_top_level_source_status(tmp_path):
 
     result = subprocess.run(
         ["bash", str(REPO_ROOT / "ops" / "refresh_external_precheck.sh")],
-        env={**os.environ, "HOME": str(home)},
+        env={**os.environ, "HOME": str(home), "HERMES_EXTERNAL_PRECHECK_INNER": "1"},
         capture_output=True,
         text=True,
         timeout=30,

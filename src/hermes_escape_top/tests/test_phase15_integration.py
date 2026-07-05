@@ -384,6 +384,61 @@ class Phase15IntegrationTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
+    def test_external_precheck_rerun_endpoint_runs_precheck_only(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_port}/api/rerun_external_precheck",
+                data=b"{}",
+                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},
+                method="POST",
+            )
+            expected = {
+                "ok": True,
+                "returncode": 0,
+                "external_precheck_status": {"ready": True, "stale": False},
+            }
+            with mock.patch(
+                "hermes_escape_top.web.server.rerun_external_precheck",
+                return_value=expected,
+            ) as rerun:
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            rerun.assert_called_once_with()
+            self.assertTrue(payload["ok"])
+            self.assertTrue(payload["external_precheck_status"]["ready"])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_external_precheck_rerun_returns_409_while_pipeline_lock_is_held(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_port}/api/rerun_external_precheck",
+                data=b"{}",
+                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},
+                method="POST",
+            )
+            with mock.patch(
+                "hermes_escape_top.web.server.pipeline_lock",
+                side_effect=PipelineBusy("pipeline busy"),
+            ), mock.patch("hermes_escape_top.web.server.rerun_external_precheck") as rerun:
+                with self.assertRaises(urllib.error.HTTPError) as ctx:
+                    urllib.request.urlopen(request, timeout=10)
+            self.assertEqual(ctx.exception.code, 409)
+            self.assertTrue(json.loads(ctx.exception.read().decode("utf-8"))["busy"])
+            rerun.assert_not_called()
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_refresh_score_is_loopback_only_no_token_required(self) -> None:
         # The data-refresh endpoint (the '刷新策略数据' button) must work from a
         # loopback browser WITHOUT a token — token friction belongs only on the

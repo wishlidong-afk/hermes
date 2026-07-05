@@ -17,6 +17,7 @@ import os
 import subprocess
 import sys
 import traceback
+from datetime import date, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -91,6 +92,7 @@ LOOPBACK_WRITE_ENDPOINTS = {
     "/api/refresh_positions",
     "/api/refresh_external_source",
     "/api/refresh_external_sources",
+    "/api/rerun_external_precheck",
     "/api/ibkr_live_check",
 }
 
@@ -225,6 +227,14 @@ def _attach_external_precheck_status(payload: dict) -> dict:
             continue
         status = dict(status)
         status["source_path"] = str(path)
+        try:
+            mtime = datetime.fromtimestamp(path.stat().st_mtime)
+            mtime_date = mtime.date().isoformat()
+            status["mtime"] = mtime.isoformat(timespec="seconds")
+            status["mtime_date"] = mtime_date
+            status["stale"] = mtime_date != date.today().isoformat()
+        except Exception:
+            status["stale"] = True
         markdown_path = path.with_suffix(".md")
         if markdown_path.exists():
             try:
@@ -236,6 +246,53 @@ def _attach_external_precheck_status(payload: dict) -> dict:
                 pass
         payload["external_precheck_status"] = status
         return payload
+    return payload
+
+
+def _external_precheck_script_path() -> Path:
+    override = os.environ.get("HERMES_EXTERNAL_PRECHECK_SCRIPT")
+    candidates = []
+    if override:
+        candidates.append(Path(override).expanduser())
+    candidates.extend([
+        Path.home() / ".hermes" / "bin" / "refresh_external_precheck.sh",
+        BASE_DIR / "ops" / "refresh_external_precheck.sh",
+    ])
+    for path in candidates:
+        if path.exists():
+            return path
+    return candidates[0]
+
+
+def _tail_text(text: str, limit: int = 2000) -> str:
+    return (text or "")[-limit:]
+
+
+def rerun_external_precheck() -> dict:
+    """Run the launchd-equivalent external-source precheck entrypoint."""
+    script = _external_precheck_script_path()
+    if not script.exists():
+        return {
+            "ok": False,
+            "status": "SCRIPT_MISSING",
+            "script": str(script),
+            "error": "refresh_external_precheck.sh not found",
+        }
+    result = subprocess.run(
+        ["bash", str(script)],
+        capture_output=True,
+        text=True,
+        timeout=300,
+        env={**os.environ, "HERMES_EXTERNAL_PRECHECK_INNER": "1"},
+    )
+    payload: dict = {
+        "ok": result.returncode == 0,
+        "returncode": result.returncode,
+        "script": str(script),
+        "stdout_tail": _tail_text(result.stdout),
+        "stderr_tail": _tail_text(result.stderr),
+    }
+    _attach_external_precheck_status(payload)
     return payload
 
 
@@ -1067,6 +1124,24 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 try:
                     with pipeline_lock(blocking=False):
                         payload = refresh_all_external_sources()
+                except PipelineBusy:
+                    payload = dict(_BUSY_PAYLOAD)
+                    response_status = 409
+                except Exception:
+                    payload = {
+                        "ok": False,
+                        "error": traceback.format_exc()[-2000:],
+                    }
+                self._send(response_status, "application/json; charset=utf-8",
+                           json.dumps(payload, ensure_ascii=False, indent=2,
+                                      sort_keys=True, default=str).encode())
+                return
+
+            if parsed.path == "/api/rerun_external_precheck":
+                response_status = 200
+                try:
+                    with pipeline_lock(blocking=False):
+                        payload = rerun_external_precheck()
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD)
                     response_status = 409

@@ -29,6 +29,13 @@ TMP_JSON="$LOG_DIR/.external_precheck_${DATE_STAMP}.$$.json"
 TMP_MD="$LOG_DIR/.external_precheck_${DATE_STAMP}.$$.md"
 PY=/usr/bin/python3
 
+if [ "${HERMES_EXTERNAL_PRECHECK_INNER:-0}" != "1" ]; then
+  export HERMES_EXTERNAL_PRECHECK_INNER=1
+  exec "$PY" -m hermes_escape_top.scripts.pipeline_lock_exec \
+    --timeout "${HERMES_EXTERNAL_PRECHECK_LOCK_TIMEOUT:-600}" \
+    -- /bin/bash "$0" "$@"
+fi
+
 {
   echo "=== hermes external precheck start $(date '+%F %T %Z') ==="
   cd "$RUNTIME" || exit 1
