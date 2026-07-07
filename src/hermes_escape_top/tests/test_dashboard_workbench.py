@@ -416,6 +416,45 @@ def test_trust_health_section_explains_degraded_without_old_loud_banner():
     assert "运行降级 / DEGRADED" not in html
 
 
+def test_trust_health_section_summarizes_data_quality_penalties():
+    payload = _payload()
+    payload["data_quality"] = {
+        "level": "HIGH",
+        "overall_score": 97.0,
+        "completeness_score": 100.0,
+        "quality_score": 92.0,
+        "latency_score": 97.0,
+        "penalties": [
+            {
+                "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.soxl_pct_above_50dma",
+                "penalty": 2.0,
+                "reason": "proxy",
+            },
+            {
+                "field": "SOFT.btc_funding_basis,SOFT.btc_basis_pctl",
+                "penalty": 2.0,
+                "reason": "proxy",
+            },
+            {
+                "field": "SOFT.cboe_pcr,SOFT.equity_pcr",
+                "penalty": 3.0,
+                "reason": "latency",
+            },
+        ],
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    trust_section = html[html.index("今日可信度与系统状态"):html.index("区域 5 · 数据信任区")]
+    assert "数据质量扣分账本" in trust_section
+    assert "proxy × 2" in trust_section
+    assert "latency × 1" in trust_section
+    assert "component_breadth" in trust_section
+    assert "btc_funding_basis" in trust_section
+    assert "cboe_pcr" in trust_section
+    assert "影响：不阻断策略；降低置信度" in trust_section
+
+
 def test_trust_health_external_chain_prefers_current_daily_ledger_over_stale_precheck():
     payload = _payload()
     payload["external_source_status"] = {
@@ -535,6 +574,36 @@ def test_trust_zone_uses_external_source_ledger_status():
     assert "刷新全部外部源" in html
     assert "refreshExternalSources()" in html
     assert "external-source-real_rate-status" in html
+
+
+def test_external_source_controls_render_official_import_candidates():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "aaii_sentiment": {
+            "source_id": "aaii_sentiment",
+            "status": "FETCH_ERROR",
+            "error_message": "AAII public endpoint blocked; manual import required",
+        },
+    }
+    payload["external_import_candidates"] = [
+        {
+            "source_id": "aaii_sentiment",
+            "label": "AAII Sentiment",
+            "path": "/Users/liweishi/.hermes/external_imports/sentiment.xls",
+            "mtime": "2026-07-07T11:20:00",
+            "size_bytes": 12345,
+        }
+    ]
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    assert "官方文件候选" in html
+    assert "AAII Sentiment" in html
+    assert "sentiment.xls" in html
+    assert "2026-07-07T11:20:00" in html
+    assert "导入此文件" in html
+    assert "refreshExternalSourceImport(" in html
+    assert "/Users/liweishi/.hermes/external_imports/sentiment.xls" in html
 
 
 def test_missing_external_source_ledger_does_not_mark_existing_data_missing():
@@ -1025,6 +1094,27 @@ def test_external_precheck_loader_marks_old_report_stale(monkeypatch, tmp_path):
     assert status["mtime_date"] == "2000-01-01"
 
 
+def test_external_import_candidate_loader_attaches_latest_official_file(monkeypatch, tmp_path):
+    import_path = tmp_path / "sentiment.xls"
+    import_path.write_bytes(b"official-aaii-file")
+
+    class Profile:
+        label = "AAII Sentiment"
+
+    monkeypatch.setattr(server_mod, "IMPORT_FILE_SOURCE_IDS", ("aaii_sentiment",), raising=False)
+    monkeypatch.setattr(server_mod, "profile_for", lambda source_id: Profile(), raising=False)
+    monkeypatch.setattr(server_mod, "latest_import_file", lambda profile: import_path, raising=False)
+
+    payload = server_mod._attach_external_import_candidates({})
+
+    candidate = payload["external_import_candidates"][0]
+    assert candidate["source_id"] == "aaii_sentiment"
+    assert candidate["label"] == "AAII Sentiment"
+    assert candidate["path"] == str(import_path)
+    assert candidate["size_bytes"] == len(b"official-aaii-file")
+    assert "T" in candidate["mtime"]
+
+
 def test_trust_health_marks_stale_external_precheck_report():
     payload = _payload()
     payload["external_precheck_status"] = {
@@ -1079,6 +1169,8 @@ def test_trust_health_separates_precheck_stale_from_source_due_soon():
 
     assert "预检报告：陈旧（2026-07-04）" in trust_section
     assert "外部源数据 DUE_SOON：dollar" in trust_section
+    assert "到期前刷新" in trust_section
+    assert "refreshExternalSource('dollar')" in trust_section
 
 
 def test_system_health_history_loader_deduplicates_latest_by_as_of(monkeypatch, tmp_path):

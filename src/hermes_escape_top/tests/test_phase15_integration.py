@@ -150,6 +150,60 @@ class Phase15IntegrationTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
+    def test_api_score_and_health_status_attach_external_precheck_evidence(self) -> None:
+        base_payload = {
+            "as_of": "2026-05-29",
+            "cache_status": {"hit": True},
+            "data_quality": {"level": "HIGH", "overall_score": 97.0},
+            "data_quality_breakdown": {"sources": []},
+            "ibkr": {"source": "disabled"},
+        }
+
+        def attach_precheck(payload):
+            payload["external_precheck_status"] = {
+                "ready": True,
+                "mtime_date": "2026-05-29",
+                "warning_sources": ["real_rate"],
+                "source_path": "/tmp/external_precheck_latest.json",
+            }
+            return payload
+
+        def compute_health_probe(payload, manifest):
+            self.assertTrue(payload["external_precheck_status"]["ready"])
+            self.assertEqual(payload["external_precheck_status"]["warning_sources"], ["real_rate"])
+            return {"level": "OK", "checks": []}
+
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            with mock.patch("hermes_escape_top.web.server._latest_score_payload", return_value=base_payload), \
+                 mock.patch("hermes_escape_top.web.server.apply_ibkr_position_overlay", side_effect=lambda payload: dict(payload)), \
+                 mock.patch("hermes_escape_top.web.server._attach_alpaca_daily_flow", side_effect=lambda payload: payload), \
+                 mock.patch("hermes_escape_top.web.server._attach_external_source_status", side_effect=lambda payload: payload), \
+                 mock.patch("hermes_escape_top.web.server._attach_external_precheck_status", side_effect=attach_precheck) as attach:
+                with urllib.request.urlopen(f"{base}/api/score", timeout=10) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            self.assertTrue(payload["external_precheck_status"]["ready"])
+            attach.assert_called_once()
+
+            with mock.patch("hermes_escape_top.web.server._latest_score_payload", return_value=base_payload), \
+                 mock.patch("hermes_escape_top.web.server.apply_ibkr_position_overlay", side_effect=lambda payload: dict(payload)), \
+                 mock.patch("hermes_escape_top.web.server._attach_alpaca_daily_flow", side_effect=lambda payload: payload), \
+                 mock.patch("hermes_escape_top.web.server._attach_external_source_status", side_effect=lambda payload: payload), \
+                 mock.patch("hermes_escape_top.web.server._attach_external_precheck_status", side_effect=attach_precheck), \
+                 mock.patch("hermes_escape_top.web.server._read_run_receipt", return_value={}), \
+                 mock.patch("hermes_escape_top.web.server.manifest_status", return_value={"status": "OK"}), \
+                 mock.patch("hermes_escape_top.web.server.compute_health", side_effect=compute_health_probe):
+                with urllib.request.urlopen(f"{base}/api/health_status", timeout=10) as response:
+                    health = json.loads(response.read().decode("utf-8"))
+            self.assertEqual(health["level"], "OK")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_server_ibkr_live_endpoint(self) -> None:
         server = create_server("127.0.0.1", 0, "2026-05-29")
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -295,6 +349,35 @@ class Phase15IntegrationTest(unittest.TestCase):
             refresh.assert_called_once_with("dollar")
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["run"]["status"], "OK")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_external_source_refresh_endpoint_accepts_official_import_file(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = urllib.request.Request(
+                f"{base}/api/refresh_external_source",
+                data=b'{"source_id":"aaii_sentiment","import_file":"/Users/liweishi/.hermes/external_imports/sentiment.xls"}',
+                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},
+                method="POST",
+            )
+            with mock.patch(
+                "hermes_escape_top.web.server.refresh_external_source",
+                return_value={"source_id": "aaii_sentiment", "status": "OK", "promoted": True},
+            ) as refresh:
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            refresh.assert_called_once_with(
+                "aaii_sentiment",
+                import_file="/Users/liweishi/.hermes/external_imports/sentiment.xls",
+            )
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["run"]["source_id"], "aaii_sentiment")
         finally:
             server.shutdown()
             server.server_close()

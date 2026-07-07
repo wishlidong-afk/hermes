@@ -690,10 +690,110 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
         {_trust_evidence('SIP Flow', sip_text)}
       </div>
 
+      {_render_due_external_source_actions(payload)}
+      {_render_quality_penalty_summary(payload)}
       {_render_external_precheck_evidence_card(payload)}
       {_render_data_trust_zone(payload)}
     </section>
     """
+
+
+def _render_due_external_source_actions(payload: Dict[str, Any]) -> str:
+    external = payload.get("external_source_status")
+    if not isinstance(external, dict) or not external:
+        return ""
+    rows = []
+    for source_id, row in sorted(external.items(), key=lambda item: EXTERNAL_SOURCE_ORDER.index(item[0]) if item[0] in EXTERNAL_SOURCE_ORDER else 99):
+        if not isinstance(row, dict):
+            continue
+        freshness = str(row.get("freshness_status") or "")
+        status = str(row.get("status") or "MISSING")
+        needs_action = freshness in {"DUE_SOON", "STALE"} or status not in {"OK", "MISSING"}
+        if not needs_action:
+            continue
+        safe_id = _external_source_dom_id(source_id)
+        latest = row.get("latest_promoted_as_of") or row.get("latest_normalized_as_of") or "NA"
+        age = row.get("age_days")
+        age_text = f" · {age}d" if age is not None else ""
+        rows.append(
+            "<div class='trust-warning warn'>"
+            f"<b>{esc(str(source_id))}</b> — {esc(freshness or status)}{esc(age_text)}"
+            f"<div class='mini-note'>latest={esc(str(latest)[:10])} · {esc(str(row.get('next_action') or '到期前刷新，若发布方尚未更新则缓存继续可用。'))}</div>"
+            f"<button class='btn-muted' style='padding:3px 9px;font-size:12px;min-height:26px;margin-top:5px' "
+            f"onclick=\"refreshExternalSource('{safe_id}')\" id='external-source-quick-{safe_id}-btn'>到期前刷新</button>"
+            f" <span class='subtle' id='external-source-quick-{safe_id}-status'></span>"
+            "</div>"
+        )
+    if not rows:
+        return ""
+    return (
+        "<div class='precheck-evidence-card'>"
+        "<div class='precheck-evidence-head'>"
+        "<div><b>外部源到期前处置 / Source Actions</b>"
+        "<div class='mini-note'>只刷新对应 ledger/soft_history；不评分、不写官方 run。</div></div>"
+        f"{_badge(str(len(rows)) + ' 个待处置', 'warn')}"
+        "</div>"
+        "<div class='trust-warning-list' style='margin:8px 0 0'>"
+        f"{''.join(rows)}"
+        "</div>"
+        "</div>"
+    )
+
+
+def _render_quality_penalty_summary(payload: Dict[str, Any]) -> str:
+    dq = payload.get("data_quality") or {}
+    penalties = [p for p in (dq.get("penalties") or []) if isinstance(p, dict)]
+    if not penalties:
+        return (
+            "<div class='precheck-evidence-card'>"
+            "<div class='precheck-evidence-head'>"
+            "<div><b>数据质量扣分账本</b>"
+            "<div class='mini-note'>暂无数据质量惩罚；当前总分来自完整度、质量、延迟三项综合。</div></div>"
+            f"{_badge('CLEAN', 'ok')}"
+            "</div>"
+            "</div>"
+        )
+    counts: Dict[str, int] = {}
+    for item in penalties:
+        reason = str(item.get("reason") or "unknown")
+        counts[reason] = counts.get(reason, 0) + 1
+    count_text = " · ".join(f"{esc(reason)} × {count}" for reason, count in sorted(counts.items()))
+    rows = "".join(
+        "<tr>"
+        f"<td>{esc(str(item.get('reason') or 'unknown'))}</td>"
+        f"<td>{esc(_quality_penalty_field_summary(item.get('field')))}</td>"
+        f"<td>{_fmt_num(item.get('penalty'))}</td>"
+        "</tr>"
+        for item in penalties[:6]
+    )
+    more = len(penalties) - 6
+    more_note = f"<div class='mini-note'>另有 {more} 条扣分在底部 Audit Detail 展开查看。</div>" if more > 0 else ""
+    return (
+        "<div class='precheck-evidence-card'>"
+        "<div class='precheck-evidence-head'>"
+        "<div><b>数据质量扣分账本</b>"
+        f"<div class='mini-note'>{count_text or '无扣分'} · 影响：不阻断策略；降低置信度</div></div>"
+        f"{_badge(str(dq.get('level') or 'NA') + ' ' + _fmt_num(dq.get('overall_score')), _quality_kind(dq.get('level')))}"
+        "</div>"
+        "<div class='table-scroll' style='margin-top:8px'>"
+        "<table>"
+        "<thead><tr><th>类型</th><th>字段组</th><th>扣分</th></tr></thead>"
+        f"<tbody>{rows}</tbody>"
+        "</table>"
+        "</div>"
+        f"{more_note}"
+        "</div>"
+    )
+
+
+def _quality_penalty_field_summary(value: Any) -> str:
+    fields = [str(part).replace("SOFT.", "") for part in str(value or "").split(",") if str(part).strip()]
+    if not fields:
+        return "NA"
+    head = ", ".join(fields[:3])
+    if len(fields) > 3:
+        return f"{head} (+{len(fields) - 3})"
+    return head
 
 
 def _trust_layer_card(title: str, status_html: str, kind: str, notes: List[str]) -> str:
@@ -3340,6 +3440,7 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
         f"<tbody>{''.join(rows)}</tbody>"
         "</table>"
         "</div>"
+        f"{_render_external_import_candidates(payload)}"
         "<div class='subtle' style='margin-top:7px'>"
         "AAII/NAAIM 自动抓取失败时，只接受官方下载文件导入："
         "<code>PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source aaii_sentiment --import-file ~/.hermes/external_imports/sentiment.xls</code>"
@@ -3349,6 +3450,63 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
         "</div>"
         "</div>"
     )
+
+
+def _render_external_import_candidates(payload: Dict[str, Any]) -> str:
+    candidates = [row for row in (payload.get("external_import_candidates") or []) if isinstance(row, dict)]
+    if not candidates:
+        return ""
+    rows = []
+    for row in candidates:
+        source_id = str(row.get("source_id") or "")
+        path = str(row.get("path") or "")
+        if not source_id or not path:
+            continue
+        safe_id = _external_source_dom_id(source_id)
+        label = str(row.get("label") or EXTERNAL_SOURCE_LABELS.get(source_id, source_id))
+        rows.append(
+            "<tr>"
+            f"<td><b>{esc(label)}</b><div class='subtle'>{esc(source_id)}</div></td>"
+            f"<td>{esc(Path(path).name)}<div class='subtle'>{esc(path)}</div></td>"
+            f"<td>{esc(str(row.get('mtime') or 'NA'))}</td>"
+            f"<td>{esc(_fmt_file_size(row.get('size_bytes')))}</td>"
+            "<td>"
+            f"<button class='btn-muted' style='padding:3px 9px;font-size:12px;min-height:26px' "
+            f"onclick='refreshExternalSourceImport({_js_literal(source_id)}, {_js_literal(path)})' "
+            f"id='external-import-{safe_id}-btn'>导入此文件</button>"
+            f" <span class='subtle' id='external-import-{safe_id}-status'></span>"
+            "</td>"
+            "</tr>"
+        )
+    if not rows:
+        return ""
+    return (
+        "<div class='external-import-candidates' style='margin-top:10px'>"
+        "<div><b>官方文件候选</b> <span class='subtle'>只列出已下载文件；点击后仍由 ExternalSourceRunner 校验期号、字段和日期。</span></div>"
+        "<div class='table-scroll' style='margin-top:6px'>"
+        "<table>"
+        "<thead><tr><th>源</th><th>文件</th><th>mtime</th><th>大小</th><th>操作</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table>"
+        "</div>"
+        "</div>"
+    )
+
+
+def _fmt_file_size(value: Any) -> str:
+    try:
+        size = float(value)
+    except (TypeError, ValueError):
+        return "NA"
+    if size >= 1024 * 1024:
+        return f"{size / (1024 * 1024):.1f} MB"
+    if size >= 1024:
+        return f"{size / 1024:.1f} KB"
+    return f"{int(size)} B"
+
+
+def _js_literal(value: Any) -> str:
+    return json.dumps(str(value), ensure_ascii=False)
 
 
 def _external_source_dom_id(source_id: Any) -> str:
@@ -3772,8 +3930,10 @@ def _render_scripts(as_of: str) -> str:
       }}).catch(function(e) {{ setBusy(btn, false); if (st) st.textContent = '失败: ' + e; }});
   }};
   window.refreshExternalSource = function(sourceId) {{
-    var btn = document.getElementById('external-source-' + sourceId + '-btn');
-    var st = document.getElementById('external-source-' + sourceId + '-status') ||
+    var btn = document.getElementById('external-source-quick-' + sourceId + '-btn') ||
+              document.getElementById('external-source-' + sourceId + '-btn');
+    var st = document.getElementById('external-source-quick-' + sourceId + '-status') ||
+             document.getElementById('external-source-' + sourceId + '-status') ||
              document.getElementById('external-source-status');
     setBusy(btn, true);
     if (st) st.textContent = '正在刷新 ' + sourceId + ' 外部源...';
@@ -3788,6 +3948,24 @@ def _render_scripts(as_of: str) -> str:
           if (st) st.textContent = sourceId + ' 刷新失败: ' + (d.message || d.error || d.status || 'unknown');
         }}
       }}).catch(function(e) {{ setBusy(btn, false); if (st) st.textContent = sourceId + ' 刷新失败: ' + e; }});
+  }};
+  window.refreshExternalSourceImport = function(sourceId, importFile) {{
+    var btn = document.getElementById('external-import-' + sourceId + '-btn');
+    var st = document.getElementById('external-import-' + sourceId + '-status') ||
+             document.getElementById('external-source-status');
+    setBusy(btn, true);
+    if (st) st.textContent = '正在校验并导入 ' + sourceId + ' 官方文件...';
+    postJson('/api/refresh_external_source', {{source_id: sourceId, import_file: importFile}})
+      .then(function(r) {{ return r.json(); }}).then(function(d) {{
+        setBusy(btn, false);
+        if (d.ok) {{
+          var run = d.run || {{}};
+          if (st) st.textContent = sourceId + ' 官方文件导入完成 ✓ latest=' + (run.latest_promoted_as_of || run.latest_normalized_as_of || 'NA');
+          setTimeout(function() {{ location.reload(); }}, 900);
+        }} else {{
+          if (st) st.textContent = sourceId + ' 官方文件导入失败: ' + (d.message || d.error || d.status || 'unknown');
+        }}
+      }}).catch(function(e) {{ setBusy(btn, false); if (st) st.textContent = sourceId + ' 官方文件导入失败: ' + e; }});
   }};
   window.refreshExternalSources = function() {{
     var btn = document.getElementById('external-sources-refresh-all-header-btn') ||

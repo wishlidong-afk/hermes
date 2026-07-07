@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Callable, Dict, Iterable, Optional
 
 import pandas as pd
+from dateutil.easter import easter
 
 from ..config import load_config, resolve_path
 from ..core.data.store import safe_symbol
@@ -137,6 +138,9 @@ def _backfill_one(
     downloaded_frames: list[pd.DataFrame] = []
     reasons: list[str] = []
     for fetch_start, fetch_end in intervals:
+        if not existing.empty and not _interval_has_probable_trading_day(fetch_start, fetch_end):
+            reasons.append(f"{fetch_start}->{fetch_end or 'latest'} skipped no trading days")
+            continue
         try:
             chunk = _normalize_download(downloader(_yf_symbol(symbol), fetch_start, fetch_end),
                                         expected_symbol=_yf_symbol(symbol))
@@ -158,6 +162,62 @@ def _backfill_one(
         combined = combined[~combined.index.duplicated(keep="last")]
         _write_history(path, combined)
     return _result(symbol, path, combined, updated=not normalized.empty, source_symbol=_yf_symbol(symbol), reason="; ".join(reasons))
+
+
+def _interval_has_probable_trading_day(start: str, end: Optional[str]) -> bool:
+    if end is None:
+        return True
+    try:
+        start_ts = pd.Timestamp(start).normalize()
+        end_ts = pd.Timestamp(end).normalize()
+    except Exception:
+        return True
+    if start_ts >= end_ts:
+        return False
+    business_days = pd.bdate_range(start_ts, end_ts - pd.Timedelta(days=1))
+    if business_days.empty:
+        return False
+    holidays = _likely_nyse_full_holidays(business_days.min().date(), business_days.max().date())
+    return any(day.date() not in holidays for day in business_days)
+
+
+def _likely_nyse_full_holidays(start: date, end: date) -> set[date]:
+    out: set[date] = set()
+    for year in range(start.year - 1, end.year + 2):
+        out.add(_observed_weekday(date(year, 1, 1)))          # New Year's Day
+        out.add(_nth_weekday(year, 1, 0, 3))                  # MLK Day
+        out.add(_nth_weekday(year, 2, 0, 3))                  # Washington's Birthday
+        out.add(easter(year) - timedelta(days=2))             # Good Friday
+        out.add(_last_weekday(year, 5, 0))                    # Memorial Day
+        if year >= 2022:
+            out.add(_observed_weekday(date(year, 6, 19)))     # Juneteenth
+        out.add(_observed_weekday(date(year, 7, 4)))          # Independence Day
+        out.add(_nth_weekday(year, 9, 0, 1))                  # Labor Day
+        out.add(_nth_weekday(year, 11, 3, 4))                 # Thanksgiving
+        out.add(_observed_weekday(date(year, 12, 25)))        # Christmas
+    return {day for day in out if start <= day <= end}
+
+
+def _observed_weekday(day: date) -> date:
+    if day.weekday() == 5:
+        return day - timedelta(days=1)
+    if day.weekday() == 6:
+        return day + timedelta(days=1)
+    return day
+
+
+def _nth_weekday(year: int, month: int, weekday: int, n: int) -> date:
+    day = date(year, month, 1)
+    offset = (weekday - day.weekday()) % 7
+    return day + timedelta(days=offset + 7 * (n - 1))
+
+
+def _last_weekday(year: int, month: int, weekday: int) -> date:
+    if month == 12:
+        day = date(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        day = date(year, month + 1, 1) - timedelta(days=1)
+    return day - timedelta(days=(day.weekday() - weekday) % 7)
 
 
 def _sanity_check_download(symbol: str, existing: pd.DataFrame, new: pd.DataFrame) -> tuple[bool, str]:

@@ -93,6 +93,58 @@ def test_incomplete_overlap_bar_cannot_erase_cached_close(tmp_path):
     assert saved.loc[saved["date"] == "2026-06-18", "close"].item() == 30.82
 
 
+def test_backfill_skips_initial_holiday_gap_before_first_cached_bar(tmp_path):
+    path = tmp_path / "_VIX.csv"
+    path.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2018-01-02,14,15,13,14.0,14.0,0\n",
+        encoding="utf-8",
+    )
+    calls = []
+
+    def downloader(symbol, start, end):
+        calls.append((symbol, start, end))
+        return pd.DataFrame()
+
+    result = backfill(
+        ["^VIX"],
+        start="2018-01-01",
+        end="2018-01-02",
+        store_dir=tmp_path,
+        downloader=downloader,
+        repair_overlap_days=0,
+    )
+
+    assert calls == []
+    assert result["^VIX"].updated is False
+    assert "skipped no trading days" in result["^VIX"].reason
+
+
+def test_backfill_does_not_skip_federal_holidays_when_market_usually_opens(tmp_path):
+    path = tmp_path / "QQQ.csv"
+    path.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-11-12,700,701,699,700.0,700.0,100\n",
+        encoding="utf-8",
+    )
+    calls = []
+
+    def downloader(symbol, start, end):
+        calls.append((symbol, start, end))
+        return pd.DataFrame()
+
+    backfill(
+        ["QQQ"],
+        start="2026-11-11",
+        end="2026-11-12",
+        store_dir=tmp_path,
+        downloader=downloader,
+        repair_overlap_days=0,
+    )
+
+    assert calls == [("QQQ", "2026-11-11", "2026-11-12")]
+
+
 def test_vol_index_gets_wider_band_but_still_catches_cross_wiring():
     existing = _frame([15.4])
     ok, _ = _sanity_check_download("^VIX", existing, _frame([38.0], start="2026-06-02"))

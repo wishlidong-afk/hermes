@@ -57,6 +57,9 @@ from ..ibkr.positions import write_demo_snapshot
 from ..core.safe_io import PipelineBusy, pipeline_lock
 from ..pipeline import _score_pipeline_locked
 from ..scripts.refresh_external import refresh_all_sources as refresh_all_external_sources
+from ..scripts.refresh_external import IMPORT_FILE_SOURCE_IDS
+from ..scripts.refresh_external import latest_import_file
+from ..scripts.refresh_external import profile_for
 from ..scripts.refresh_external import refresh_source as refresh_external_source
 from ..scripts.refresh_external import status as external_source_status
 from .health import compute_health
@@ -202,6 +205,35 @@ def _attach_external_source_status(payload: dict) -> dict:
         payload["external_source_status"] = external_source_status(load_config())
     except Exception as exc:
         payload["external_source_status_error"] = str(exc)
+    return payload
+
+
+def _attach_external_import_candidates(payload: dict) -> dict:
+    """Attach newest official import files for AAII/NAAIM, without importing."""
+    candidates = []
+    for source_id in IMPORT_FILE_SOURCE_IDS:
+        profile = profile_for(source_id)
+        if profile is None:
+            continue
+        try:
+            path = latest_import_file(profile)
+        except Exception:
+            path = None
+        if path is None:
+            continue
+        try:
+            stat = path.stat()
+        except OSError:
+            continue
+        candidates.append({
+            "source_id": source_id,
+            "label": getattr(profile, "label", source_id),
+            "path": str(path),
+            "mtime": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds"),
+            "size_bytes": stat.st_size,
+        })
+    if candidates:
+        payload["external_import_candidates"] = candidates
     return payload
 
 
@@ -857,6 +889,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 payload = apply_ibkr_position_overlay(payload)
                 _attach_alpaca_daily_flow(payload)
                 _attach_external_source_status(payload)
+                _attach_external_import_candidates(payload)
                 _attach_external_precheck_status(payload)
                 _attach_system_health_report(payload)
                 _attach_system_health_history(payload)
@@ -885,6 +918,8 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                     payload = apply_ibkr_position_overlay(payload)
                     _attach_alpaca_daily_flow(payload)
                     _attach_external_source_status(payload)
+                    _attach_external_import_candidates(payload)
+                    _attach_external_precheck_status(payload)
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())
@@ -920,6 +955,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                     score = apply_ibkr_position_overlay(score)
                     _attach_alpaca_daily_flow(score)
                     _attach_external_source_status(score)
+                    _attach_external_precheck_status(score)
                     score["run_receipt"] = _read_run_receipt()
                     try:
                         manifest = manifest_status()
@@ -1093,6 +1129,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
 
             if parsed.path == "/api/refresh_external_source":
                 source_id = str(req.get("source_id") or req.get("source") or "").strip()
+                import_file = str(req.get("import_file") or "").strip()
                 response_status = 200
                 if not source_id:
                     payload = {"ok": False, "error": "source_id is required"}
@@ -1100,7 +1137,10 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 else:
                     try:
                         with pipeline_lock(blocking=False):
-                            run = refresh_external_source(source_id)
+                            if import_file:
+                                run = refresh_external_source(source_id, import_file=import_file)
+                            else:
+                                run = refresh_external_source(source_id)
                         payload = {"ok": run.get("status") == "OK", "run": run}
                     except PipelineBusy:
                         payload = dict(_BUSY_PAYLOAD, source_id=source_id)
