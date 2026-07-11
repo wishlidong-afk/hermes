@@ -1,6 +1,90 @@
 # Hermes 逃顶 + 镜像系统 - Agent 上下文
 
-> 维护于 2026-06-19（手工，依据代码；非脚本自动生成）。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准。
+<!-- HERMES_GOVERNANCE_SNAPSHOT_START -->
+```json
+{
+  "baseline": {
+    "effective_end": "2026-07-10",
+    "equity_timing": "next_open",
+    "git_commit": "517043c2659de4a5d6d263ffd9f6b15e0a1c2ed9"
+  },
+  "config_version": "escape-top-v3.0-greenfield",
+  "disabled_features": [
+    "data_cnn_fgi",
+    "data_concentration",
+    "data_cot_nq",
+    "data_credit_etf",
+    "data_financial_stress",
+    "data_gex",
+    "data_hy_oas",
+    "data_move",
+    "data_mstr_mnav",
+    "data_ndx_concentration",
+    "data_nfci",
+    "data_onchain_mstr",
+    "data_yield_curve",
+    "use_arm_then_fire",
+    "use_b6_mnav_valuation",
+    "use_close_confirmation",
+    "use_decision_stabilizer",
+    "use_hm2_buffer",
+    "use_indicator_cache",
+    "use_meta_label",
+    "use_portfolio_risk_budget",
+    "use_status_hysteresis"
+  ],
+  "enabled_features": [
+    "data_aaii",
+    "data_cboe_pcr",
+    "data_component_breadth",
+    "data_defensive_rotation",
+    "data_dollar",
+    "data_naaim",
+    "data_net_liquidity",
+    "data_real_rate",
+    "data_skew_vvix",
+    "use_full_confidence_spine",
+    "use_no_advice_state",
+    "use_partial_factor_eval",
+    "use_regime_multipliers",
+    "use_scored_missing_weight",
+    "use_soft_data_max_age",
+    "use_suspect_valve_guard"
+  ],
+  "ibkr_readonly": true,
+  "module_caps": {
+    "A": 20,
+    "B": 25,
+    "C": 35,
+    "D": 20
+  },
+  "reentry_tranches": [
+    0.3,
+    0.3,
+    0.4
+  ],
+  "routing_defcon1": {
+    "BOXX": 0.5,
+    "TREND": 0.3,
+    "extra_legs": {
+      "IAU": 0.2
+    },
+    "trend_symbol": "DBMF"
+  },
+  "schema_version": "hermes-governance-snapshot-v1",
+  "status_thresholds": {
+    "DEFENSIVE_EXIT": 70,
+    "EXIT": 75,
+    "REDUCE": 50,
+    "TRIM": 35,
+    "WATCH": 20
+  }
+}
+```
+<!-- HERMES_GOVERNANCE_SNAPSHOT_END -->
+
+
+> 由代码事实与治理检查生成于 2026-07-11。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准；`scripts/check_governance_consistency.py` 会阻止关键快照静默漂移。
 
 本文给新 agent 一个快速、可执行的项目地图：系统做什么、数据怎样进来、评分怎样变成策略、哪些 flag 已经部署、WebUI 两个端口各负责什么，以及当前性能基线在哪里。
 
@@ -30,7 +114,7 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 | `src/hermes_escape_top/config/config.json` | 生产配置 SSOT；A 轨单写者文件 |
 | `src/hermes_escape_top/web/` | WebUI/可视化与本批 8766 POST 鉴权 |
 | `src/hermes_escape_top/core/data/market.py` | 本批新增指标帧缓存，生产 flag 默认 OFF |
-| `src/hermes_escape_top/core/data/risk_signals.py` | 软数据源；FRED 单系列已改用 API `realtime_start` 作为 PIT `publish_date` |
+| `src/hermes_escape_top/core/data/risk_signals.py` | 软数据源；FRED observations use PIT-safe `date+1` publish dates，标准 observations API 的 `realtime_start` 不作为逐行历史发布时间 |
 | `scripts/backtest_flag_sweep.py` | 单 variant 全窗口回测；每次只跑一个进程 |
 | `scripts/flag_gate.py` | 读取 equity 曲线做旧版固定变体 OOS/DSR 诊断；授权已冻结，等待正式 IS→OOS PBO gate |
 | `scripts/formal_gate.py` | 读取已提交的实验 manifest，执行逐折 IS 选择→OOS PBO、CPCV、经验偏度/峰度 DSR；结果一次性落盘 |
@@ -61,8 +145,8 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 
 - `market_symbols` 含 `IAU`，金腿执行符号已经从 GLD 换为 IAU。
 - `component_proxies` 为 FNGU/SOXL 穿透股票资金流提供底层股票 CMF/MFI/AD slope。
-- FRED 单系列 backfill 在有 key 时使用 FRED API `realtime_start`，避免周频数据被误当成次日可见。
-- `fetch_fred_graph_csv` fallback 不含 `realtime_start`，只能保留旧 `date+1` 语义。
+- FRED observations use PIT-safe `date+1` publish dates；有 key 与 CSV fallback 走相同语义。
+- 标准 observations API 的 `realtime_start` 是查询 vintage 元数据，不足以证明每条历史观测的真实首次发布时间，因此不用于逐行 PIT 对齐。
 
 ---
 
@@ -93,9 +177,9 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 
 | 模块 | cap | 含义 |
 |---|---:|---|
-| A | 16 | 宏观、流动性、市场广度、情绪 |
+| A | 20 | 宏观、流动性、市场广度、情绪 |
 | B | 25 名义 / 21 当前可达 | 标的过热、估值、期权压力；B5 stub，MSTR B6 默认 OFF |
-| C | 20 | 趋势破坏、急跌、支撑破坏、分布压力 |
+| C | 35 | 趋势破坏、急跌、支撑破坏、分布压力 |
 | D | 20 | 标的自身、雷达、BTC/底层股票穿透风险 |
 
 `features.use_regime_multipliers=true` 时，`scorer.py` 会按 regime 调整模块权重。该 flag 默认 ON 是为了匹配 2026-06-10 前的无条件行为。
@@ -222,7 +306,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 | 端口 | 入口 | 用途 |
 |---|---|---|
-| 8766 | `web/server.py` + `web/render.py` | 唯一 UI：策略操作台、决策历史条、Evidence Strip、硬阀门雷达（新触发标"待明日确认"）、持仓对账（陈旧快照弱化）、数据信任区、refresh/golive/confirm 写端点 |
+| 8766 | `web/server.py` + `web/render.py` | 唯一 UI：策略操作台、决策历史条、Evidence Strip、硬阀门雷达、持仓对账、数据信任区、refresh/confirm 写端点；M4 与 IBKR demo 写入口永久返回 410 |
 | ~~8765~~ | ~~`web/workbench.py`~~ | 已退役；功能并入 8766 |
 
 运维：发布前 `scripts/predeploy_smoke.py`（FRED publish_date/源可用/决策行无 NA/manifest/软源回归）拦假数据；审计日志日运行轮转（`rotate_audit_log`，>100MB 归档 gz 后压缩主文件）。
@@ -239,19 +323,35 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 11. 当前性能基线
 
-> **STALE RESEARCH EVIDENCE：**以下 flag-sweep 产物不匹配当前代码/数据 fingerprint，且旧 gate 没有逐折 IS 选择。数字只作历史诊断，不得据此翻新 flag 或 routing。
+> **CURRENT EXECUTION EVIDENCE：**当前 baseline 绑定 commit `517043c`、cache v4、live 等效配置、history manifest、soft-history hash 与 `next_open` 执行口径。它是未来正式实验的对照基线，不是候选 PASS，也不授权翻闸。
+
+| 当前场景 | CAGR | MaxDD | Sharpe | 定位 |
+|---|---:|---:|---:|---|
+| **next_open** | **15.90%** | **-19.07%** | **1.069** | 当前 headline / formal-gate baseline equity |
+| legacy_close | 17.13% | -16.76% | 1.135 | 历史/理论上界 shadow |
+| next_close | 17.59% | -16.80% | 1.164 | 延迟一交易日敏感性 |
+| next_open + 25bps | 8.12% | -24.78% | 0.601 | 执行压力场景 |
+
+- 窗口：2018-01-01→2026-07-10，有效 2,141 个交易日。
+- 开盘覆盖：89.81% 观测、2,182 行显式建模、缺失 0。
+- `building/reports/flag_sweep/baseline.json` freshness=`FRESH`、mismatches=`[]`、`equity_timing=next_open`。
+- 完整证据与路径见 `docs/BASELINE_CURRENT.md`。
+
+### 历史参照（STALE）
+
+以下旧 flag-sweep/gate 产物不匹配当前代码、数据或执行口径，且旧 gate 没有逐折 IS 选择。数字只作历史诊断，不得据此翻新 flag 或 routing。
 
 历史 flag-sweep baseline 使用 `features.use_indicator_cache=true` 的回测配置，生产 config 仍 OFF。FRED 单系列 PIT 修正已进入代码。
 
 | 历史报告 | CAGR | MaxDD | Sharpe | OOS 后半区比例（非正式 PBO） | DSR 诊断 |
 |---|---:|---:|---:|---:|---:|
-| `building/reports/flag_sweep/baseline.json` | 16.97% | -13.58% | 1.215 | n/a | n/a |
+| pre-v4 flag-sweep baseline (historical record) | 16.97% | -13.58% | 1.215 | n/a | n/a |
 | `building/reports/flag_sweep/GATE_REPORT_cot_nq.md` baseline | 16.97% | -13.58% | 1.215 | 0.31 | 1.189 |
 | `building/reports/flag_sweep/GATE_REPORT.md` baseline | 16.97% | -13.58% | 1.215 | 0.31 | 1.179 |
 
-表中 16.97%、旧 17.38% / -13.77% / Sharpe 1.223 和更旧 15.84% capeff baseline 均只保留历史语境；当前 baseline 要等正式 gate 与成交时点模型完成后重建。
+表中 16.97%、旧 17.38% / -13.77% / Sharpe 1.223 和更旧 15.84% capeff baseline 均只保留历史语境；当前基线已经由上方 cache v4 / next-open 记录取代。
 
-成交时点方法层已于 2026-07-11 完成：`legacy_close` 保留为历史/理论上界，未来 baseline 以 `next_open` 为头条，另固定输出 `next_close` 和 next-open+25bps stress。正式实验产物协议已升为 cache v4，`variant_equity.json` 必须声明并承载 `equity_timing=next_open`；旧 v3/legacy 曲线不能进入 formal gate。旧 `Backtest_FULL_2018_2026.json` 的只读方法验收实现 legacy 指标/换手完全一致，但因源产物无当前 provenance，报告被锁为 `METHODOLOGY_ONLY`，不得当作当前基线。报告路径：`building/reports/execution_timing/EXECUTION_TIMING_SENSITIVITY.md`；完整方法说明：`docs/history/2026-07-11_execution_timing_sensitivity.md`。
+成交时点方法层已于 2026-07-11 完成：`legacy_close` 保留为历史/理论上界，当前 baseline 以 `next_open` 为头条，另固定输出 `next_close` 和 next-open+25bps stress。正式实验产物协议已升为 cache v4，`variant_equity.json` 必须声明并承载 `equity_timing=next_open`；旧 v3/legacy 曲线不能进入 formal gate。旧 `Backtest_FULL_2018_2026.json` 的只读方法验收实现 legacy 指标/换手完全一致，但因源产物无当前 provenance，报告被锁为 `METHODOLOGY_ONLY`，不得当作当前基线。报告路径：`building/reports/execution_timing/EXECUTION_TIMING_SENSITIVITY.md`；完整方法说明：`docs/history/2026-07-11_execution_timing_sensitivity.md`。
 
 指标帧缓存 byte-identical 证据：
 
@@ -264,7 +364,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 12. 测试与验证
 
-当前回归结果：743 passed（2026-07-11）。
+当前回归结果：最终提交前由全套 pytest 重新生成；不得把旧测试数当作健康证明。
 
 标准命令：
 
@@ -277,7 +377,7 @@ PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/
 | 文件 | 覆盖 |
 |---|---|
 | `test_market_indicator_cache.py` | flag OFF 不缓存；flag ON 跨 as_of 复用指标帧 |
-| `test_phase10_adapters.py` | FRED API `realtime_start` -> `publish_date`；source build_frame 不覆盖 PIT 日期 |
+| `test_phase10_adapters.py` | FRED API/CSV 均采用 `date+1` publish_date；source build_frame 不覆盖 PIT 日期 |
 | `test_phase15_integration.py` | 危险写端点 token 通过/拒绝；低风险 refresh 仅 loopback；busy 409 不调用第二个 writer |
 | `test_validation_harness.py` | 单配置 PBO 不再伪造 1.0；多配置向量仍可计算 |
 | `test_flag_sweep_cache.py` | gate/backtest 配置打开 `use_indicator_cache` |

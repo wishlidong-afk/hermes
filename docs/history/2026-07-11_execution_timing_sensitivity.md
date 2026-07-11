@@ -84,3 +84,11 @@ the current deployment state before interpreting any scenario delta.
 Residual limitations remain: no partial fills, intraday VWAP, bid/ask depth, taxes, or actual
 IBKR execution replay. Those are execution-quality extensions, not blockers for replacing the
 same-close assumption.
+
+## Step 4 Completion
+
+Step 4 completed against commit `517043c` and live data through 2026-07-10.
+The resulting source passed current provenance, legacy parity, and zero-missing-open checks.
+The formal-gate cache schema is now v4 and `baseline_equity.json` contains the
+next-open curve. Current headline metrics are 15.90% CAGR, -19.07% MaxDD, and
+1.069 Sharpe. See `docs/BASELINE_CURRENT.md` for the canonical record.

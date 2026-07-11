@@ -63,9 +63,11 @@ of four states:
 | `use_scored_missing_weight` | **ON** ✅ | live | Proportional score adjustment for missing fields (F5/F6) — gate-passed 2026-06-09 |
 | `use_partial_factor_eval` | **ON** ✅ | live | Score modules even when only partial factor data available (F4) — gate-passed 2026-06-09 |
 | `use_hm2_buffer` | OFF | gate-failed | Downgrade lone H-M2 (single -15% day) from EXIT to DEFENSIVE_EXIT — real path rejected |
-| `use_soft_data_max_age` | OFF | candidate | Treat over-age soft records as missing; `slo_only` no-op confirmed vs baseline: 17.3785% CAGR / -13.7734% MaxDD / Sharpe 1.222571 (`building/reports/flag_sweep/slo_only.json`, `slo_only_equity.json`) |
-| `use_full_confidence_spine` | OFF | candidate-gate-passed | Wire fragility/disagreement into confidence spine; 13-fold gate passed (`spine_only`), pending human flip |
+| `use_soft_data_max_age` | **ON** ✅ | live | Treat over-age soft records as missing; `slo_only` no-op and live staleness behavior verified; rollback sets the flag false |
+| `use_full_confidence_spine` | **ON** ✅ | live | Wire fragility/disagreement into confidence spine; historical 13-fold evidence passed and the human-approved flag is deployed |
 | `use_b6_mnav_valuation` | OFF | gate-failed | Consume `SOFT.MSTR_valuation_pctl` as B6 mNAV valuation heat; failed full in-system gate, stays OFF |
+| `use_no_advice_state` | **ON** ✅ | live | Emit an explicit no-advice state when required decision evidence is blocked instead of fabricating a normal recommendation |
+| `use_indicator_cache` | OFF | candidate | Cache indicator frames by symbol/history identity; OFF preserves the uncached scoring path |
 
 ---
 
@@ -95,7 +97,7 @@ These flags had zero code references and were removed from config.json:
 | F4 partial factor eval | Live | Live robustness under partial data | `building/reports/flag_sweep/SWEEP_SUMMARY.md`; no-op on clean history, robustness win | `features.use_partial_factor_eval=false` |
 | Regime multipliers | Live | Scoring module weights | `features.use_regime_multipliers=true`; default ON matches the unconditional pre-2026-06-10 behavior | `features.use_regime_multipliers=false` |
 | Routing combo: MSTR→BTC-USD + DEFCON1 GLD leg | Live | Routing | `src/hermes_escape_top/config/config.json` `_defcon3_note`; historical combo OOS bottom-half rate 0.31, OOS Δ+0.117, CAGR +1.90pp vs baseline; DEFCON1 GLD standalone +1.59pp | `routing.defcon3.MSTR="QQQ"`; restore DEFCON1 BOXX70/TREND30 and remove `extra_legs.GLD` |
-| Deployment baseline freeze | Historical reference (STALE) | Docs, validation provenance | `docs/history/BASELINE_2026_06_11.md` | Replace only after formal gate, execution-timing sensitivity, and current fingerprint all pass |
+| Deployment baseline freeze | Current reference | Docs, validation provenance | `docs/BASELINE_CURRENT.md`; cache v4 `baseline.json` is FRESH at commit `517043c`, `equity_timing=next_open`, 15.90% CAGR / -19.07% MaxDD / 1.069 Sharpe | Reference only; candidate flips still require a pre-registered formal gate and human approval |
 
 ### Rejected / parked
 
@@ -119,8 +121,7 @@ These flags had zero code references and were removed from config.json:
 
 | Experiment | State | Hypothesis | Required validation |
 |---|---|---|---|
-| `use_soft_data_max_age` | Candidate | Stale soft data should behave like missing data rather than fresh evidence | `building/reports/flag_sweep/slo_only.json` + `slo_only_equity.json`: no-op confirmed against `baseline.json` (same 17.3785% CAGR / -13.7734% MaxDD / Sharpe 1.222571; same manifest `0bd99464...`; commit `9953cea...`); next: live staleness simulation + health/UI evidence |
-| `use_full_confidence_spine` | Historical candidate evidence; live status separately governed by config | Real fragility/disagreement inputs should replace hard-coded zeros | `building/reports/flag_sweep/GATE_REPORT_spine_only.md`: historical median OOS objective 1.076 vs baseline 1.044 (Δ +0.032), OOS bottom-half rate 0.38, DSR 1.188; this record cannot authorize a new flip |
+| `use_indicator_cache` | Candidate | Reusing an indicator frame should reduce repeated score latency without changing payload semantics | OFF-path byte identity and a fresh performance measurement are required before any live flip |
 
 ---
 
@@ -152,4 +153,4 @@ config.json also records this.
 
 ---
 
-*Last updated: 2026-06-12 (Agent B final alpha gates: spine passed; mNAV rejected; alpha experiment ledger closed)*
+*Last updated: 2026-07-11 (defaults synchronized automatically against config; formal-gate evidence policy unchanged)*

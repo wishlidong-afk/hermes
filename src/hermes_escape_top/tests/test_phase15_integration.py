@@ -252,26 +252,28 @@ class Phase15IntegrationTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
-    def test_server_ibkr_demo_busy_returns_409_without_write(self) -> None:
+    def test_retired_m4_and_demo_write_endpoints_return_410(self) -> None:
         server = create_server("127.0.0.1", 0, "2026-05-29")
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            request = urllib.request.Request(
-                f"http://127.0.0.1:{server.server_port}/api/ibkr_demo_snapshot",
-                data=b"{}",
-                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},
-                method="POST",
-            )
-            with mock.patch(
-                "hermes_escape_top.web.server.pipeline_lock",
-                side_effect=PipelineBusy("pipeline busy"),
-            ), mock.patch("hermes_escape_top.web.server.write_demo_snapshot") as writer:
+            for path in (
+                "/api/m4_shadow",
+                "/api/m4_backfill",
+                "/api/m4_golive",
+                "/api/ibkr_demo_snapshot",
+            ):
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_port}{path}",
+                    data=b'{"confirmed":true,"force":true}',
+                    headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},
+                    method="POST",
+                )
                 with self.assertRaises(urllib.error.HTTPError) as ctx:
                     urllib.request.urlopen(request, timeout=10)
-            self.assertEqual(ctx.exception.code, 409)
-            self.assertTrue(json.loads(ctx.exception.read().decode("utf-8"))["busy"])
-            writer.assert_not_called()
+                self.assertEqual(ctx.exception.code, 410, path)
+                payload = json.loads(ctx.exception.read().decode("utf-8"))
+                self.assertTrue(payload["retired"])
         finally:
             server.shutdown()
             server.server_close()
@@ -570,78 +572,6 @@ class Phase15IntegrationTest(unittest.TestCase):
                 payload = json.loads(ctx.exception.read().decode("utf-8"))
             self.assertTrue(payload["busy"])
             self.assertEqual(payload["as_of"], "latest")
-        finally:
-            server.shutdown()
-            server.server_close()
-            thread.join(timeout=5)
-
-    def test_golive_still_requires_token_even_from_loopback(self) -> None:
-        # The dangerous endpoint stays token-gated: a loopback caller WITHOUT a
-        # token is rejected 403.
-        server = create_server("127.0.0.1", 0, "2026-05-29")
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        try:
-            base = f"http://127.0.0.1:{server.server_port}"
-            request = urllib.request.Request(
-                f"{base}/api/m4_golive",
-                data=b'{"confirmed":true}',
-                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},  # loopback, NO token
-                method="POST",
-            )
-            with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}):
-                with self.assertRaises(urllib.error.HTTPError) as ctx:
-                    urllib.request.urlopen(request, timeout=10)
-            self.assertEqual(ctx.exception.code, 403)
-        finally:
-            server.shutdown()
-            server.server_close()
-            thread.join(timeout=5)
-
-    def test_golive_busy_returns_409_without_rewriting_entry(self) -> None:
-        server = create_server("127.0.0.1", 0, "2026-05-29")
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        try:
-            request = urllib.request.Request(
-                f"http://127.0.0.1:{server.server_port}/api/m4_golive",
-                data=b'{"confirmed":true}',
-                headers=_auth_headers(),
-                method="POST",
-            )
-            with mock.patch.dict("os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}), mock.patch(
-                "hermes_escape_top.web.server.pipeline_lock",
-                side_effect=PipelineBusy("pipeline busy"),
-            ), mock.patch("hermes_escape_top.web.server._flip_to_package") as flip:
-                with self.assertRaises(urllib.error.HTTPError) as ctx:
-                    urllib.request.urlopen(request, timeout=10)
-            self.assertEqual(ctx.exception.code, 409)
-            self.assertTrue(json.loads(ctx.exception.read().decode("utf-8"))["busy"])
-            flip.assert_not_called()
-        finally:
-            server.shutdown()
-            server.server_close()
-            thread.join(timeout=5)
-
-    def test_m4_backfill_busy_returns_409(self) -> None:
-        server = create_server("127.0.0.1", 0, "2026-05-29")
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        try:
-            request = urllib.request.Request(
-                f"http://127.0.0.1:{server.server_port}/api/m4_backfill",
-                data=b'{"as_of":"2026-05-29"}',
-                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},
-                method="POST",
-            )
-            with mock.patch(
-                "hermes_escape_top.web.server._backfill_compare",
-                side_effect=PipelineBusy("pipeline busy"),
-            ):
-                with self.assertRaises(urllib.error.HTTPError) as ctx:
-                    urllib.request.urlopen(request, timeout=10)
-            self.assertEqual(ctx.exception.code, 409)
-            self.assertTrue(json.loads(ctx.exception.read().decode("utf-8"))["busy"])
         finally:
             server.shutdown()
             server.server_close()

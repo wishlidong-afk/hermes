@@ -6,6 +6,8 @@ from datetime import date
 from pathlib import Path
 from typing import Dict, Optional
 
+from ..data.jsonl import append_jsonl_records
+
 
 @dataclass(frozen=True)
 class SignalJournalEntry:
@@ -26,9 +28,7 @@ class SignalJournalEntry:
 
 def append_signal_journal(path: Path, entries: list[SignalJournalEntry]) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as fh:
-        for entry in entries:
-            fh.write(json.dumps(entry.to_dict(), ensure_ascii=False, sort_keys=True) + "\n")
+    append_jsonl_records(path, [entry.to_dict() for entry in entries])
     return path
 
 

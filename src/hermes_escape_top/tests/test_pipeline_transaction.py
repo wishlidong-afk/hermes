@@ -61,7 +61,6 @@ def test_private_locked_score_has_only_approved_production_callers():
         package / "ibkr" / "live_check.py",
         package / "scripts" / "run_daily_package.py",
         package / "web" / "refresh.py",
-        package / "web" / "server.py",
     }
     callers = set()
     for path in package.rglob("*.py"):

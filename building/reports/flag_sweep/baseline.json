@@ -1,50 +1,87 @@
 {
-  "variant": "baseline",
-  "cache_schema": "flag-sweep-cache-v2",
-  "cache_key": "84bac893333a7b3622e886c0ed034220d29b206575f25efa22bb63254a6ee77e",
-  "manifest_id": "52235bb4ae7988338d739304cfa4f26f59910b6fcce26756d7053e114dbc7dac",
-  "git_commit": "1567b566e1ea813739e95c4ca49f514ca177f91d",
-  "code_sha256": "f747a25deee7373fd0681316fc3bf6b6dd23e46a8e556b98914391554511a6f6",
-  "start": "2018-01-01",
-  "end": "2026-05-29",
+  "cache_key": "bced0221296b8f446c4408f784b1cbf5cab3403a2f0fb3e9789263a7fc5d3879",
+  "cache_schema": "flag-sweep-cache-v4",
+  "code_sha256": "a04ba61e041bf6ca9b5efffd3acc5acd854eb6062dc41a238f2e37ac2e654a07",
+  "config_sha256": "a7770b049c4b90bf88cd74fb1eab66841258921d40235f4cbce6f278828e90ea",
+  "effective_end": "2026-07-10",
+  "effective_start": "2018-01-02",
   "enable": [
     "costs"
   ],
-  "effective_start": "2018-01-02",
-  "effective_end": "2026-05-29",
-  "n_days": 2113,
-  "runtime_sec": 936.9,
-  "metrics": {
-    "cagr": 0.169732,
-    "max_drawdown": -0.135806,
-    "sharpe": 1.214767,
-    "sortino": 1.588871,
-    "final_value": 371700.376579
-  },
-  "benchmarks": {
-    "SPY": 0.131419,
-    "SPY_metrics": {
-      "final_value": 281459.988611,
-      "cagr": 0.131419,
-      "max_drawdown": -0.341047,
-      "max_drawdown_start": "2020-02-19",
-      "max_drawdown_end": "2020-03-23",
-      "sharpe": 0.736131,
-      "sortino": 0.897505,
-      "calmar": 0.38534,
-      "turnover": 0.0
+  "end": "2026-07-10",
+  "equity_timing": "next_open",
+  "execution_open_quality": {
+    "by_leg": {
+      "BOXX": {
+        "MODELED_PROXY_SWITCH": 1,
+        "OBSERVED": 2140
+      },
+      "BRK.B": {
+        "OBSERVED": 2141
+      },
+      "BTC-USD": {
+        "OBSERVED": 2141
+      },
+      "DBMF": {
+        "MODELED_PROXY_SWITCH": 1,
+        "MODELED_SYNTHETIC_MIDPOINT": 387,
+        "OBSERVED": 1753
+      },
+      "FNGU": {
+        "MODELED_SYNTHETIC_MIDPOINT": 1793,
+        "OBSERVED": 348
+      },
+      "IAU": {
+        "OBSERVED": 2141
+      },
+      "MSTR": {
+        "OBSERVED": 2141
+      },
+      "QQQ": {
+        "OBSERVED": 2141
+      },
+      "SOXL": {
+        "OBSERVED": 2141
+      },
+      "SOXX": {
+        "OBSERVED": 2141
+      }
     },
-    "QQQ": 0.201525,
-    "QQQ_metrics": {
-      "final_value": 465840.09841,
-      "cagr": 0.201525,
-      "max_drawdown": -0.364777,
-      "max_drawdown_start": "2021-11-19",
-      "max_drawdown_end": "2023-01-05",
-      "sharpe": 0.890581,
-      "sortino": 1.162942,
-      "calmar": 0.552461,
-      "turnover": 0.0
-    }
-  }
+    "counts": {
+      "MODELED_PROXY_SWITCH": 2,
+      "MODELED_SYNTHETIC_MIDPOINT": 2180,
+      "OBSERVED": 19228
+    },
+    "missing_rows": 0,
+    "modeled_rows": 2182,
+    "observed_rows": 19228,
+    "observed_share": 0.89808501,
+    "total_rows": 21410
+  },
+  "git_commit": "517043c2659de4a5d6d263ffd9f6b15e0a1c2ed9",
+  "legacy_close_metrics": {
+    "cagr": 0.171269,
+    "final_value": 382473.475264,
+    "max_drawdown": -0.167591,
+    "max_drawdown_end": "2019-10-09",
+    "max_drawdown_start": "2018-06-14",
+    "sharpe": 1.135009,
+    "sortino": 1.476873
+  },
+  "manifest_id": "38525f67be5d4beb6c353b8313551ae53c476f566a75a79ede8a9e590e73653c",
+  "metrics": {
+    "cagr": 0.159004,
+    "final_value": 350116.132505,
+    "max_drawdown": -0.190659,
+    "max_drawdown_end": "2019-10-08",
+    "max_drawdown_start": "2018-06-14",
+    "sharpe": 1.069482,
+    "sortino": 1.358219
+  },
+  "n_days": 2141,
+  "soft_history_sha256": "a30cf53c426656ca133f9dafe52cb4360984fafa919d1ecf3abf304fe4575e2f",
+  "start": "2018-01-01",
+  "turnover": 235.720287,
+  "variant": "baseline",
+  "worktree_clean": true
 }

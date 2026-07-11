@@ -5,6 +5,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict
 
+from .jsonl import append_jsonl_records
+
 
 @dataclass(frozen=True)
 class AuditRecord:
@@ -32,8 +34,7 @@ def write_audit_record(payload: Dict[str, Any], archive_dir: Path) -> Path:
         payload=payload,
     )
     path = archive_dir / "audit_log.jsonl"
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(record.to_dict(), ensure_ascii=False, sort_keys=True, default=str) + "\n")
+    append_jsonl_records(path, [record.to_dict()])
     return path
 
 

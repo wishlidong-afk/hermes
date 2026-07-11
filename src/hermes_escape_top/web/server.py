@@ -4,9 +4,7 @@ Endpoints:
   GET  /                   Dashboard
   GET  /api/score          Latest cached score JSON (read-only)
   POST /api/refresh_score  Recompute score JSON and update archive
-  GET  /api/shadow_status  M4 shadow log + latest shadow precheck
-  POST /api/m4_shadow      M4-2: run package engine in shadow mode
-  POST /api/m4_golive      M4-3: flip run_daily.py to package (human gate)
+  Legacy M4/demo write endpoints return HTTP 410 and cannot mutate live state.
   GET  /health             Healthcheck
 """
 from __future__ import annotations
@@ -54,9 +52,7 @@ from ..core.data.alpaca_flow import load_daily_flow_snapshot
 from ..core.data.run_transaction import pending_score_run_transaction
 from ..core.data.state_store import record_execution_confirmation
 from ..ibkr.live_check import run_live_check
-from ..ibkr.positions import write_demo_snapshot
 from ..core.safe_io import PipelineBusy, pipeline_lock
-from ..pipeline import _score_pipeline_locked
 from ..scripts.refresh_external import refresh_all_sources as refresh_all_external_sources
 from ..scripts.refresh_external import IMPORT_FILE_SOURCE_IDS
 from ..scripts.refresh_external import latest_import_file
@@ -79,7 +75,6 @@ from .render import render_dashboard
 # Dangerous writes that change production behavior or decision state: require a
 # loopback Host/Origin AND HERMES_CONFIRM_TOKEN.
 TOKEN_WRITE_ENDPOINTS = {
-    "/api/m4_golive",          # flips run_daily.py to the package engine
     "/api/confirm_execution",  # writes execution confirmations that feed reentry
 }
 # Low-risk data refresh / recompute (no order or money path — the system never
@@ -87,17 +82,20 @@ TOKEN_WRITE_ENDPOINTS = {
 # friction without security value: loopback already blocks remote/CSRF callers,
 # and the worst a local caller can do is refresh data.
 LOOPBACK_WRITE_ENDPOINTS = {
-    "/api/m4_shadow",
-    "/api/m4_backfill",
     "/api/refresh_manifest",
     "/api/refresh_soft_data",
-    "/api/ibkr_demo_snapshot",
     "/api/refresh_score",
     "/api/refresh_positions",
     "/api/refresh_external_source",
     "/api/refresh_external_sources",
     "/api/rerun_external_precheck",
     "/api/ibkr_live_check",
+}
+RETIRED_WRITE_ENDPOINTS = {
+    "/api/m4_shadow",
+    "/api/m4_backfill",
+    "/api/m4_golive",
+    "/api/ibkr_demo_snapshot",
 }
 
 # Returned with HTTP 409 when a write endpoint cannot take the pipeline lock.
@@ -989,6 +987,20 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             except Exception:
                 req = {}
 
+            if parsed.path in RETIRED_WRITE_ENDPOINTS:
+                payload = {
+                    "ok": False,
+                    "retired": True,
+                    "status": "GONE",
+                    "message": "legacy M4/demo write endpoint is permanently disabled",
+                }
+                self._send(
+                    410,
+                    "application/json; charset=utf-8",
+                    json.dumps(payload, ensure_ascii=False, sort_keys=True).encode(),
+                )
+                return
+
             if parsed.path in TOKEN_WRITE_ENDPOINTS:
                 try:
                     allowed, auth_status = _write_request_allowed(load_config(), req, self.headers)
@@ -1004,41 +1016,6 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                     self._send(403, "application/json; charset=utf-8",
                                _auth_failure_payload(auth_status, token_required=False))
                     return
-
-            if parsed.path == "/api/m4_shadow":
-                as_of = req.get("as_of", default_as_of)
-                result = _run_shadow(as_of)
-                self._send(409 if result.get("busy") else 200, "application/json; charset=utf-8",
-                           json.dumps(result, ensure_ascii=False, indent=2, default=str).encode())
-                return
-
-            if parsed.path == "/api/m4_backfill":
-                as_of = req.get("as_of", default_as_of)
-                response_status = 200
-                try:
-                    result = _backfill_compare(as_of)
-                except PipelineBusy:
-                    result = dict(_BUSY_PAYLOAD, as_of=as_of)
-                    response_status = 409
-                self._send(response_status, "application/json; charset=utf-8",
-                           json.dumps(result, ensure_ascii=False, indent=2, default=str).encode())
-                return
-
-            if parsed.path == "/api/m4_golive":
-                if req.get("confirmed") is not True:
-                    self._send(400, "application/json; charset=utf-8",
-                               b'{"ok":false,"message":"Must send confirmed:true"}')
-                    return
-                response_status = 200
-                try:
-                    with pipeline_lock(blocking=False):
-                        result = _flip_to_package()
-                except PipelineBusy:
-                    result = dict(_BUSY_PAYLOAD)
-                    response_status = 409
-                self._send(response_status, "application/json; charset=utf-8",
-                           json.dumps(result, ensure_ascii=False, default=str).encode())
-                return
 
             if parsed.path == "/api/refresh_manifest":
                 response_status = 200
@@ -1060,31 +1037,6 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                     from ..scripts.backfill_soft_data import refresh_all
                     with pipeline_lock(blocking=False):
                         payload = refresh_all(only=req.get("only"))
-                except PipelineBusy:
-                    payload = dict(_BUSY_PAYLOAD)
-                    response_status = 409
-                except Exception:
-                    payload = {"ok": False, "error": traceback.format_exc()[-2000:]}
-                self._send(response_status, "application/json; charset=utf-8",
-                           json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode())
-                return
-
-            if parsed.path == "/api/ibkr_demo_snapshot":
-                response_status = 200
-                try:
-                    with pipeline_lock(blocking=False) as lease:
-                        written = write_demo_snapshot(force=bool(req.get("force")))
-                        payload = dict(written)
-                        if written.get("ok"):
-                            # Re-score so the cached dashboard payload reflects demo positions.
-                            latest = _latest_score_payload("latest") or {}
-                            as_of = latest.get("as_of") or default_as_of
-                            try:
-                                rescored = _score_pipeline_locked(str(as_of)[:10], _lease=lease)
-                                payload["rescored_as_of"] = rescored.get("as_of")
-                                payload["ibkr_source"] = (rescored.get("ibkr") or {}).get("source")
-                            except Exception:
-                                payload["rescore_error"] = traceback.format_exc()[-1000:]
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD)
                     response_status = 409
