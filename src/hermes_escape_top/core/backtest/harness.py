@@ -34,6 +34,17 @@ def cpcv_splits(
     """
     from itertools import combinations
 
+    if n_obs < n_groups:
+        raise ValueError("n_obs must be >= n_groups")
+    if n_groups < 2:
+        raise ValueError("n_groups must be >= 2")
+    if n_test < 1 or n_test >= n_groups:
+        raise ValueError("n_test must be between 1 and n_groups - 1")
+    if label_horizon < 0:
+        raise ValueError("label_horizon must be >= 0")
+    if embargo_pct < 0:
+        raise ValueError("embargo_pct must be >= 0")
+
     group_size = n_obs // n_groups
     groups = []
     for g in range(n_groups):
@@ -54,9 +65,10 @@ def cpcv_splits(
                 purge_set.add(idx + offset)
 
         embargo_set = set()
-        test_max = int(test_idx.max())
-        for offset in range(1, embargo_size + 1):
-            embargo_set.add(test_max + offset)
+        for group_idx in test_combo:
+            group_end = int(groups[group_idx][-1])
+            for offset in range(1, embargo_size + 1):
+                embargo_set.add(group_end + offset)
 
         excluded = test_set | purge_set | embargo_set
         train_idx = np.array([i for i in range(n_obs) if i not in excluded])

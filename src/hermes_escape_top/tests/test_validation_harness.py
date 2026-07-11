@@ -45,6 +45,30 @@ class TestCpcvSplits(unittest.TestCase):
                         self.assertNotIn(neighbor, train,
                                          f"Purge failed: train contains {neighbor} near test {t}")
 
+    def test_embargo_applies_after_every_disjoint_test_block(self) -> None:
+        n_obs = 240
+        embargo_pct = 0.05
+        embargo = int(n_obs * embargo_pct)
+        splits = cpcv_splits(
+            n_obs,
+            n_groups=6,
+            n_test=2,
+            label_horizon=0,
+            embargo_pct=embargo_pct,
+        )
+
+        checked_disjoint = False
+        for train, test in splits:
+            breaks = np.flatnonzero(np.diff(test) > 1)
+            if not len(breaks):
+                continue
+            checked_disjoint = True
+            for position in breaks:
+                block_end = int(test[position])
+                embargoed = set(range(block_end + 1, min(n_obs, block_end + embargo + 1)))
+                self.assertFalse(embargoed & set(train))
+        self.assertTrue(checked_disjoint)
+
 
 class TestPbo(unittest.TestCase):
     def test_random_is_high_pbo(self) -> None:

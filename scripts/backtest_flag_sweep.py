@@ -31,7 +31,20 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 BACKTEST_START = "2018-01-01"
 BACKTEST_END = "2026-05-29"
 ENABLE = ["costs"]
-CACHE_SCHEMA = "flag-sweep-cache-v2"
+CACHE_SCHEMA = "flag-sweep-cache-v3"
+FRESHNESS_FIELDS = (
+    "variant",
+    "cache_schema",
+    "cache_key",
+    "manifest_id",
+    "git_commit",
+    "code_sha256",
+    "config_sha256",
+    "soft_history_sha256",
+    "start",
+    "end",
+    "enable",
+)
 
 # Recommended F8 euphoria-tail tightening (the documented backtest-gated flip).
 F8_NAAIM = {"score2_exposure": 90, "score2_pctl": 90, "score1_exposure": 80, "score1_pctl": 85}
@@ -117,6 +130,9 @@ def _code_hash() -> str:
         REPO_ROOT / "src" / "hermes_escape_top",
         REPO_ROOT / "scripts" / "backtest_flag_sweep.py",
         REPO_ROOT / "scripts" / "flag_gate.py",
+        REPO_ROOT / "scripts" / "formal_gate.py",
+        REPO_ROOT / "scripts" / "execution_timing_sensitivity.py",
+        REPO_ROOT / "scripts" / "build_current_baseline.py",
         REPO_ROOT / "src" / "pyproject.toml",
     ]
     digest = hashlib.sha256()
@@ -167,8 +183,15 @@ def _soft_history_hash(cfg: dict) -> str:
     return digest.hexdigest()
 
 
-def cache_key(variant: str, cfg: dict) -> str:
-    payload = {
+def _cache_identity(
+    variant: str,
+    cfg: dict,
+    *,
+    start: str = BACKTEST_START,
+    end: str = BACKTEST_END,
+    enable: list[str] | None = None,
+) -> dict[str, Any]:
+    return {
         "schema": CACHE_SCHEMA,
         "variant": variant,
         "git_commit": _git_commit(),
@@ -176,15 +199,61 @@ def cache_key(variant: str, cfg: dict) -> str:
         "config_sha256": _sha256_text(_stable_json(cfg)),
         "data_manifest_id": _data_manifest_id(cfg),
         "soft_history_sha256": _soft_history_hash(cfg),
-        "start": BACKTEST_START,
-        "end": BACKTEST_END,
-        "enable": ENABLE,
+        "start": str(start),
+        "end": str(end),
+        "enable": list(ENABLE if enable is None else enable),
         "limit": None,
     }
-    return _sha256_text(_stable_json(payload))
 
 
-def _cache_is_fresh(variant: str, key: str) -> bool:
+def cache_evidence(
+    variant: str,
+    cfg: dict,
+    *,
+    start: str = BACKTEST_START,
+    end: str = BACKTEST_END,
+    enable: list[str] | None = None,
+) -> dict[str, Any]:
+    identity = _cache_identity(variant, cfg, start=start, end=end, enable=enable)
+    return {
+        "variant": variant,
+        "cache_schema": CACHE_SCHEMA,
+        "cache_key": _sha256_text(_stable_json(identity)),
+        "manifest_id": identity["data_manifest_id"],
+        "git_commit": identity["git_commit"],
+        "code_sha256": identity["code_sha256"],
+        "config_sha256": identity["config_sha256"],
+        "soft_history_sha256": identity["soft_history_sha256"],
+        "start": identity["start"],
+        "end": identity["end"],
+        "enable": list(identity["enable"]),
+    }
+
+
+def cache_key(
+    variant: str,
+    cfg: dict,
+    *,
+    start: str = BACKTEST_START,
+    end: str = BACKTEST_END,
+    enable: list[str] | None = None,
+) -> str:
+    return str(cache_evidence(variant, cfg, start=start, end=end, enable=enable)["cache_key"])
+
+
+def assess_artifact_freshness(variant: str, cached: dict[str, Any], cfg: dict) -> dict[str, Any]:
+    expected = cache_evidence(variant, cfg)
+    mismatches = [field for field in FRESHNESS_FIELDS if cached.get(field) != expected.get(field)]
+    return {
+        "variant": variant,
+        "status": "FRESH" if not mismatches else "STALE",
+        "mismatches": mismatches,
+        "expected": expected,
+        "actual": {field: cached.get(field) for field in FRESHNESS_FIELDS},
+    }
+
+
+def _cache_is_fresh(variant: str, expected: dict[str, Any]) -> bool:
     metrics_path = OUT_DIR / f"{variant}.json"
     equity_path = OUT_DIR / f"{variant}_equity.json"
     if not metrics_path.exists() or not equity_path.exists():
@@ -193,7 +262,7 @@ def _cache_is_fresh(variant: str, key: str) -> bool:
         cached = json.loads(metrics_path.read_text())
     except Exception:
         return False
-    return cached.get("cache_key") == key and cached.get("cache_schema") == CACHE_SCHEMA
+    return all(cached.get(field) == expected.get(field) for field in FRESHNESS_FIELDS)
 
 
 def main() -> None:
@@ -205,8 +274,8 @@ def main() -> None:
     variant = args.variant
     cfg = build_config(variant)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    key = cache_key(variant, cfg)
-    if args.reuse_if_fresh and _cache_is_fresh(variant, key):
+    evidence = cache_evidence(variant, cfg)
+    if args.reuse_if_fresh and _cache_is_fresh(variant, evidence):
         path = OUT_DIR / f"{variant}.json"
         cached = json.loads(path.read_text())
         runtime = cached.get("runtime_sec")
@@ -221,15 +290,7 @@ def main() -> None:
     metrics = sim.get("metrics", {})
     benchmarks = report.benchmarks if isinstance(getattr(report, "benchmarks", None), dict) else {}
     out = {
-        "variant": variant,
-        "cache_schema": CACHE_SCHEMA,
-        "cache_key": key,
-        "manifest_id": report.data_manifest_id,
-        "git_commit": _git_commit(),
-        "code_sha256": _code_hash(),
-        "start": BACKTEST_START,
-        "end": BACKTEST_END,
-        "enable": ENABLE,
+        **evidence,
         "effective_start": report.effective_start,
         "effective_end": report.effective_end,
         "n_days": len(report.dates),

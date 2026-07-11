@@ -37,17 +37,33 @@ def test_cache_fresh_requires_schema_key_and_equity(tmp_path, monkeypatch) -> No
     mod = _load_module()
     monkeypatch.setattr(mod, "OUT_DIR", tmp_path)
     variant = "baseline"
-    key = "abc123"
-
-    (tmp_path / f"{variant}.json").write_text(json.dumps({
+    expected = {
+        "variant": variant,
         "cache_schema": mod.CACHE_SCHEMA,
-        "cache_key": key,
-    }))
-    assert mod._cache_is_fresh(variant, key) is False
+        "cache_key": "abc123",
+        "manifest_id": "manifest-a",
+        "git_commit": "commit-a",
+        "code_sha256": "code-a",
+        "config_sha256": "config-a",
+        "soft_history_sha256": "soft-a",
+        "start": mod.BACKTEST_START,
+        "end": mod.BACKTEST_END,
+        "enable": mod.ENABLE,
+    }
+
+    (tmp_path / f"{variant}.json").write_text(json.dumps(expected))
+    assert mod._cache_is_fresh(variant, expected) is False
 
     (tmp_path / f"{variant}_equity.json").write_text("{}")
-    assert mod._cache_is_fresh(variant, key) is True
-    assert mod._cache_is_fresh(variant, "different") is False
+    assert mod._cache_is_fresh(variant, expected) is True
+
+    stale = dict(expected, cache_key="different")
+    assert mod._cache_is_fresh(variant, stale) is False
+
+    missing_provenance = dict(expected)
+    missing_provenance.pop("soft_history_sha256")
+    (tmp_path / f"{variant}.json").write_text(json.dumps(missing_provenance))
+    assert mod._cache_is_fresh(variant, expected) is False
 
 
 def test_cache_key_changes_on_config_and_commit(monkeypatch) -> None:
@@ -70,3 +86,78 @@ def test_cache_key_changes_on_config_and_commit(monkeypatch) -> None:
     monkeypatch.setattr(mod, "_git_commit", lambda: "commit-a")
     monkeypatch.setattr(mod, "_soft_history_hash", lambda cfg: "soft-b")
     assert mod.cache_key("baseline", cfg) != baseline_key
+
+
+def test_cache_evidence_exposes_every_freshness_dimension(monkeypatch) -> None:
+    mod = _load_module()
+    monkeypatch.setattr(mod, "_data_manifest_id", lambda cfg: "manifest-a")
+    monkeypatch.setattr(mod, "_soft_history_hash", lambda cfg: "soft-a")
+    monkeypatch.setattr(mod, "_code_hash", lambda: "code-a")
+    monkeypatch.setattr(mod, "_git_commit", lambda: "commit-a")
+
+    cfg = mod.build_config("baseline")
+    evidence = mod.cache_evidence("baseline", cfg)
+
+    assert mod.CACHE_SCHEMA == "flag-sweep-cache-v3"
+    assert evidence["variant"] == "baseline"
+    assert evidence["manifest_id"] == "manifest-a"
+    assert evidence["soft_history_sha256"] == "soft-a"
+    assert evidence["code_sha256"] == "code-a"
+    assert evidence["git_commit"] == "commit-a"
+    assert evidence["config_sha256"]
+    assert evidence["cache_key"]
+    assert evidence["start"] == mod.BACKTEST_START
+    assert evidence["end"] == mod.BACKTEST_END
+    assert evidence["enable"] == mod.ENABLE
+
+
+def test_cache_evidence_accepts_an_explicit_current_window(monkeypatch) -> None:
+    mod = _load_module()
+    monkeypatch.setattr(mod, "_data_manifest_id", lambda cfg: "manifest-a")
+    monkeypatch.setattr(mod, "_soft_history_hash", lambda cfg: "soft-a")
+    monkeypatch.setattr(mod, "_code_hash", lambda: "code-a")
+    monkeypatch.setattr(mod, "_git_commit", lambda: "commit-a")
+    cfg = mod.build_config("baseline")
+
+    evidence = mod.cache_evidence(
+        "baseline",
+        cfg,
+        start="2018-01-01",
+        end="2026-07-10",
+        enable=["costs"],
+    )
+
+    assert evidence["start"] == "2018-01-01"
+    assert evidence["end"] == "2026-07-10"
+    assert evidence["enable"] == ["costs"]
+    assert evidence["cache_key"] != mod.cache_evidence("baseline", cfg)["cache_key"]
+
+
+def test_artifact_freshness_rejects_any_provenance_mismatch(monkeypatch) -> None:
+    mod = _load_module()
+    monkeypatch.setattr(mod, "_data_manifest_id", lambda cfg: "manifest-a")
+    monkeypatch.setattr(mod, "_soft_history_hash", lambda cfg: "soft-a")
+    monkeypatch.setattr(mod, "_code_hash", lambda: "code-a")
+    monkeypatch.setattr(mod, "_git_commit", lambda: "commit-a")
+
+    cfg = mod.build_config("baseline")
+    current = mod.cache_evidence("baseline", cfg)
+    assert mod.assess_artifact_freshness("baseline", current, cfg)["status"] == "FRESH"
+
+    for field in (
+        "cache_schema",
+        "cache_key",
+        "manifest_id",
+        "git_commit",
+        "code_sha256",
+        "config_sha256",
+        "soft_history_sha256",
+        "start",
+        "end",
+        "enable",
+    ):
+        stale = dict(current)
+        stale[field] = "different"
+        result = mod.assess_artifact_freshness("baseline", stale, cfg)
+        assert result["status"] == "STALE"
+        assert field in result["mismatches"]

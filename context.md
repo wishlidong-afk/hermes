@@ -32,7 +32,9 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 | `src/hermes_escape_top/core/data/market.py` | 本批新增指标帧缓存，生产 flag 默认 OFF |
 | `src/hermes_escape_top/core/data/risk_signals.py` | 软数据源；FRED 单系列已改用 API `realtime_start` 作为 PIT `publish_date` |
 | `scripts/backtest_flag_sweep.py` | 单 variant 全窗口回测；每次只跑一个进程 |
-| `scripts/flag_gate.py` | 读取 equity 曲线做 13 折 WF/PBO/DSR gate |
+| `scripts/flag_gate.py` | 读取 equity 曲线做旧版固定变体 OOS/DSR 诊断；授权已冻结，等待正式 IS→OOS PBO gate |
+| `scripts/formal_gate.py` | 读取已提交的实验 manifest，执行逐折 IS 选择→OOS PBO、CPCV、经验偏度/峰度 DSR；结果一次性落盘 |
+| `scripts/execution_timing_sensitivity.py` | 只读重定价逐日路由权重：legacy close / next open / next close / next-open+滑点；不重跑评分、不改生产 |
 | `docs/FLAG_REGISTRY.md` | flag 四态台账 |
 
 工作纪律：
@@ -237,15 +239,19 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 11. 当前性能基线
 
-本批重建后，flag-sweep baseline 使用 `features.use_indicator_cache=true` 的回测配置，生产 config 仍 OFF。FRED 单系列 PIT 修正已进入代码。
+> **STALE RESEARCH EVIDENCE：**以下 flag-sweep 产物不匹配当前代码/数据 fingerprint，且旧 gate 没有逐折 IS 选择。数字只作历史诊断，不得据此翻新 flag 或 routing。
 
-| 报告 | CAGR | MaxDD | Sharpe | 13 折 PBO | DSR |
+历史 flag-sweep baseline 使用 `features.use_indicator_cache=true` 的回测配置，生产 config 仍 OFF。FRED 单系列 PIT 修正已进入代码。
+
+| 历史报告 | CAGR | MaxDD | Sharpe | OOS 后半区比例（非正式 PBO） | DSR 诊断 |
 |---|---:|---:|---:|---:|---:|
 | `building/reports/flag_sweep/baseline.json` | 16.97% | -13.58% | 1.215 | n/a | n/a |
 | `building/reports/flag_sweep/GATE_REPORT_cot_nq.md` baseline | 16.97% | -13.58% | 1.215 | 0.31 | 1.189 |
 | `building/reports/flag_sweep/GATE_REPORT.md` baseline | 16.97% | -13.58% | 1.215 | 0.31 | 1.179 |
 
-旧 17.38% / -13.77% / Sharpe 1.223 属于 PIT 修正前的历史参照，不再作为未来优化 baseline。更旧 15.84% capeff baseline 只保留历史语境。
+表中 16.97%、旧 17.38% / -13.77% / Sharpe 1.223 和更旧 15.84% capeff baseline 均只保留历史语境；当前 baseline 要等正式 gate 与成交时点模型完成后重建。
+
+成交时点方法层已于 2026-07-11 完成：`legacy_close` 保留为历史/理论上界，未来 baseline 以 `next_open` 为头条，另固定输出 `next_close` 和 next-open+25bps stress。旧 `Backtest_FULL_2018_2026.json` 的只读方法验收实现 legacy 指标/换手完全一致，但因源产物无当前 provenance，报告被锁为 `METHODOLOGY_ONLY`，不得当作当前基线。报告路径：`building/reports/execution_timing/EXECUTION_TIMING_SENSITIVITY.md`；完整方法说明：`docs/history/2026-07-11_execution_timing_sensitivity.md`。
 
 指标帧缓存 byte-identical 证据：
 
@@ -258,7 +264,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 12. 测试与验证
 
-当前回归结果：562 passed（2026-06-19）。
+当前回归结果：739 passed（2026-07-11）。
 
 标准命令：
 
@@ -287,7 +293,7 @@ PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/
 | `use_b6_mnav_valuation` | OFF/rejected | full CAGR 改善但 OOS objective 和 MaxDD 未过 gate |
 | `use_decision_stabilizer` / `use_status_hysteresis` / `use_close_confirmation` | OFF/rejected | OOS 不优，部分增加 MaxDD |
 | `use_hm2_buffer` | OFF/rejected/parked | 单 H-M2 缓冲思路未部署 |
-| `data_cot_nq` | OFF/rejected | 新 baseline 下 cot_nq gate FAIL，OOS<=base 且 PBO>=0.5 |
+| `data_cot_nq` | OFF/rejected | 历史诊断中 OOS<=base 且 OOS 后半区比例>=0.5；旧结果不属于正式 PBO |
 
 ---
 

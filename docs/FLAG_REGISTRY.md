@@ -2,8 +2,10 @@
 
 All flags live in `config.json → features`. Default = **OFF** (`false`) unless marked ✅ below.
 
-A flag must pass the 13-fold walk-forward + PBO gate before being turned ON in production.
+A flag must pass the pre-registered formal IS-selection/OOS-PBO gate before being turned ON in production.
 Rollback = set the flag back to `false` (byte-identical behavior restored).
+
+> **Research evidence freeze (2026-07-10):** existing `GATE_REPORT*.md` PBO columns are fixed-variant OOS bottom-half rates, not formal PBO. They remain historical diagnostics for past decisions but cannot authorize any new flag or routing change. The replacement formal gate is implemented in `scripts/formal_gate.py`; authorization remains frozen until a pre-registered experiment produces fresh v3 artifacts and a one-shot formal result.
 
 This registry is also the experiment ledger. Every experiment should end in one
 of four states:
@@ -89,18 +91,18 @@ These flags had zero code references and were removed from config.json:
 |---|---|---|---|---|
 | A10 real rate + A11 dollar + A15 defensive rotation | Live | Data, A module scoring, thresholds | `docs/RISK_FACTORS_CALIBRATION_2026_06_08.md`; deployment fixed PBO 0.153846 | Set `data_real_rate`, `data_dollar`, `data_defensive_rotation` false and restore prior thresholds |
 | F3 suspect valve guard | Live | Data quality, hard valves | `building/reports/flag_sweep/GATE_REPORT.md`; risk reduction and live robustness | `features.use_suspect_valve_guard=false` |
-| F5/F6 scored missing weight | Live | Missing-data scoring semantics | `building/reports/flag_sweep/GATE_REPORT.md`; median OOS objective +0.062, PBO 0.31 | `features.use_scored_missing_weight=false` |
+| F5/F6 scored missing weight | Live | Missing-data scoring semantics | `building/reports/flag_sweep/GATE_REPORT.md`; historical median OOS objective +0.062, legacy OOS bottom-half rate 0.31 | `features.use_scored_missing_weight=false` |
 | F4 partial factor eval | Live | Live robustness under partial data | `building/reports/flag_sweep/SWEEP_SUMMARY.md`; no-op on clean history, robustness win | `features.use_partial_factor_eval=false` |
 | Regime multipliers | Live | Scoring module weights | `features.use_regime_multipliers=true`; default ON matches the unconditional pre-2026-06-10 behavior | `features.use_regime_multipliers=false` |
-| Routing combo: MSTR→BTC-USD + DEFCON1 GLD leg | Live | Routing | `src/hermes_escape_top/config/config.json` `_defcon3_note`; combo gate PBO 0.31, OOS Δ+0.117, CAGR +1.90pp vs baseline; DEFCON1 GLD standalone +1.59pp | `routing.defcon3.MSTR="QQQ"`; restore DEFCON1 BOXX70/TREND30 and remove `extra_legs.GLD` |
-| Deployment baseline freeze | Live reference | Docs, validation provenance | `docs/BASELINE_2026_06_11.md` | Regenerate from reports if source artifacts change |
+| Routing combo: MSTR→BTC-USD + DEFCON1 GLD leg | Live | Routing | `src/hermes_escape_top/config/config.json` `_defcon3_note`; historical combo OOS bottom-half rate 0.31, OOS Δ+0.117, CAGR +1.90pp vs baseline; DEFCON1 GLD standalone +1.59pp | `routing.defcon3.MSTR="QQQ"`; restore DEFCON1 BOXX70/TREND30 and remove `extra_legs.GLD` |
+| Deployment baseline freeze | Historical reference (STALE) | Docs, validation provenance | `docs/history/BASELINE_2026_06_11.md` | Replace only after formal gate, execution-timing sensitivity, and current fingerprint all pass |
 
 ### Rejected / parked
 
 | Experiment | State | Why it failed or parked | Evidence | Retry rule |
 |---|---|---|---|---|
 | `use_decision_stabilizer` | Rejected | Median OOS objective below baseline; full stabilizer worsened MaxDD by +1.18pp despite higher in-sample CAGR | `building/reports/flag_sweep/GATE_REPORT.md`; `building/reports/flag_sweep/SWEEP_SUMMARY.md` | Do not revive without a new mechanism and new prior |
-| `use_status_hysteresis` / hysteresis-only | Rejected | OOS objective below baseline and PBO >= 0.5 | `building/reports/flag_sweep/GATE_REPORT.md` | Do not re-test as a smoothing-only patch |
+| `use_status_hysteresis` / hysteresis-only | Rejected | Historical OOS objective below baseline and OOS bottom-half rate >= 0.5 | `building/reports/flag_sweep/GATE_REPORT.md` | Do not re-test as a smoothing-only patch |
 | `use_close_confirmation` | Rejected | Same confirmation-delay family as stabilizer; worsens tail-exit behavior | `building/reports/flag_sweep/GATE_REPORT.md`; config `_flag_review_calibration` | Only revisit inside a clean, leading-data-only arming design |
 | NAAIM/PCR tightening (`f8_tightened`) | Rejected | Worse on every full-system metric; standalone forward edge did not survive in-system | `building/reports/flag_sweep/SWEEP_SUMMARY.md` | Do not retune A2 thresholds in the saturated A module |
 | H-M2 buffer (`use_hm2_buffer`) | Rejected | Lone H-M2 cases typically confirmed next day; delaying full exit lost about 0.30pp CAGR | `review/HM2_BUFFER_RESULTS.md` | Keep code flag-gated OFF; no second parameter search |
@@ -108,9 +110,9 @@ These flags had zero code references and were removed from config.json:
 | MOVE + A19 + NAAIM batch-2 | Rejected | Added negative marginal value on top of A10/A11/A15; A module is cap-saturated | `docs/FACTOR_EXPLORATION_RESULTS_2026_06_08.md` | Do not add more A-module points without decoupling the cap/design |
 | CNN Fear & Greed (`data_cnn_fgi`) | Rejected for performance | Full coverage and correctly wired, but effect is within noise: CAGR -0.03pp, MaxDD flat | `building/reports/flag_sweep/CNN_RESULT.md` | May be kept as a non-decision data feed, not a performance flag |
 | Continuous sell fraction | Rejected for performance, accepted operationally | Gate was essentially neutral-to-slightly-worse; operational cliff-removal was human-approved separately | `building/reports/flag_sweep/GATE_REPORT_continuous_sell_fraction.md`; config `_sell_fraction_mode_note` | Do not sell as alpha; evaluate only as operator-experience logic |
-| On-chain MSTR exchange inflow pressure (`data_onchain_mstr`, `CM_EXCHANGE_INFLOW_PRESSURE`) | Rejected | T19 gate failed: full CAGR 17.38%, MaxDD -13.77%, Sharpe 1.223; median OOS objective tied baseline but did not strictly improve (Δ +0.000), PBO 0.00, DSR 1.197 | `building/reports/flag_sweep/GATE_REPORT_CM_EXCHANGE_INFLOW_PRESSURE.md`; `building/reports/flag_sweep/CM_EXCHANGE_INFLOW_PRESSURE.json` | Do not retune this signal; new on-chain work needs a new prior and a fresh one-shot gate |
-| On-chain MSTR exchange netflow pressure (`data_onchain_mstr`, `CM_EXCHANGE_NETFLOW_PRESSURE`) | Rejected | T19 gate failed: full CAGR 17.36%, MaxDD -13.77%, Sharpe 1.222; median OOS objective tied baseline but did not strictly improve (Δ +0.000), PBO 0.08, DSR 1.196 | `building/reports/flag_sweep/GATE_REPORT_CM_EXCHANGE_NETFLOW_PRESSURE.md`; `building/reports/flag_sweep/CM_EXCHANGE_NETFLOW_PRESSURE.json` | Do not retune this signal; new on-chain work needs a new prior and a fresh one-shot gate |
-| MSTR B6 mNAV valuation (`data_mstr_mnav` + `use_b6_mnav_valuation`, `mnav_b6`) | Rejected | Full CAGR improved to 17.86%, but T17/T19 full-system gate failed: median OOS objective below baseline (Δ -0.030) and MaxDD deepened to -14.40%; PBO 0.31, DSR 1.194 | `building/reports/flag_sweep/GATE_REPORT_mnav_b6.md`; `building/reports/flag_sweep/mnav_b6.json` | Keep the PIT mNAV source parked for diagnostics; do not turn on B6 valuation or retune this mapping without a new prior |
+| On-chain MSTR exchange inflow pressure (`data_onchain_mstr`, `CM_EXCHANGE_INFLOW_PRESSURE`) | Rejected | Historical T19 diagnostics: full CAGR 17.38%, MaxDD -13.77%, Sharpe 1.223; median OOS objective tied baseline (Δ +0.000), OOS bottom-half rate 0.00, DSR 1.197 | `building/reports/flag_sweep/GATE_REPORT_CM_EXCHANGE_INFLOW_PRESSURE.md`; `building/reports/flag_sweep/CM_EXCHANGE_INFLOW_PRESSURE.json` | Do not retune this signal; new on-chain work needs a new prior and a fresh formal gate |
+| On-chain MSTR exchange netflow pressure (`data_onchain_mstr`, `CM_EXCHANGE_NETFLOW_PRESSURE`) | Rejected | Historical T19 diagnostics: full CAGR 17.36%, MaxDD -13.77%, Sharpe 1.222; median OOS objective tied baseline (Δ +0.000), OOS bottom-half rate 0.08, DSR 1.196 | `building/reports/flag_sweep/GATE_REPORT_CM_EXCHANGE_NETFLOW_PRESSURE.md`; `building/reports/flag_sweep/CM_EXCHANGE_NETFLOW_PRESSURE.json` | Do not retune this signal; new on-chain work needs a new prior and a fresh formal gate |
+| MSTR B6 mNAV valuation (`data_mstr_mnav` + `use_b6_mnav_valuation`, `mnav_b6`) | Rejected | Historical diagnostics: CAGR 17.86%, median OOS objective below baseline (Δ -0.030), MaxDD -14.40%, OOS bottom-half rate 0.31, DSR 1.194 | `building/reports/flag_sweep/GATE_REPORT_mnav_b6.md`; `building/reports/flag_sweep/mnav_b6.json` | Keep the PIT mNAV source parked for diagnostics; do not turn on B6 valuation or retune this mapping without a new prior |
 | Arm-then-fire current design | Parked | Current arming inputs overlap additive scored factors, creating double-counting | `docs/FACTOR_EXPLORATION_RESULTS_2026_06_08.md` | Redesign as leading-data-only before one final gate |
 
 ### Candidate / next research
@@ -118,7 +120,7 @@ These flags had zero code references and were removed from config.json:
 | Experiment | State | Hypothesis | Required validation |
 |---|---|---|---|
 | `use_soft_data_max_age` | Candidate | Stale soft data should behave like missing data rather than fresh evidence | `building/reports/flag_sweep/slo_only.json` + `slo_only_equity.json`: no-op confirmed against `baseline.json` (same 17.3785% CAGR / -13.7734% MaxDD / Sharpe 1.222571; same manifest `0bd99464...`; commit `9953cea...`); next: live staleness simulation + health/UI evidence |
-| `use_full_confidence_spine` | Candidate-gate-passed | Real fragility/disagreement inputs should replace hard-coded zeros | `building/reports/flag_sweep/GATE_REPORT_spine_only.md`: 13-fold gate passed with median OOS objective 1.076 vs baseline 1.044 (Δ +0.032), PBO 0.38, DSR 1.188; full-window footprint remains 16.9649% CAGR / -13.5822% MaxDD / Sharpe 1.213529; next step is human approval before flipping ON |
+| `use_full_confidence_spine` | Historical candidate evidence; live status separately governed by config | Real fragility/disagreement inputs should replace hard-coded zeros | `building/reports/flag_sweep/GATE_REPORT_spine_only.md`: historical median OOS objective 1.076 vs baseline 1.044 (Δ +0.032), OOS bottom-half rate 0.38, DSR 1.188; this record cannot authorize a new flip |
 
 ---
 

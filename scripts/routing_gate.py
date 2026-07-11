@@ -1,7 +1,8 @@
-"""Walk-forward / PBO gate for routing-variant candidates.
+"""Legacy walk-forward diagnostics for routing-variant candidates.
 
 Reads equity curves from building/reports/routing_gate/ and applies the same
-13-fold walk-forward + PBO + DSR + MaxDD gate as flag_gate.py.
+13-fold fixed-variant OOS ranks, DSR, and MaxDD diagnostics. This script cannot
+authorize routing changes until the formal IS-selection/OOS-PBO gate replaces it.
 
 Usage:
     cd /path/to/hermes
@@ -19,16 +20,17 @@ import numpy as np
 import pandas as pd
 
 from hermes_escape_top.core.backtest.metrics import equity_metrics, compute_metrics
+from hermes_escape_top.core.backtest.gate_policy import LEGACY_RATE_LABEL, assess_legacy_gate
 from hermes_escape_top.core.backtest.validation import walk_forward_splits, deflated_sharpe
 from hermes_escape_top.scripts.calibrate_next3_v2 import (
     objective_from_metrics,
     rank_percentile,
-    pbo_from_rank_percentiles,
+    pbo_from_rank_percentiles as oos_bottom_half_rate,
 )
 
 DIR = Path("building/reports/routing_gate")
 BASELINE = "baseline"
-CANDIDATES = sys.argv[1:] or ["mstr_btc", "mstr_brkb", "defcon1_gld", "combo"]
+DEFAULT_CANDIDATES = ["mstr_btc", "mstr_brkb", "defcon1_gld", "combo"]
 MAXDD_TOLERANCE = 0.01
 
 
@@ -46,8 +48,10 @@ def fold_objective(equity: pd.Series, idx: np.ndarray) -> float:
     return objective_from_metrics(equity_metrics(sl).to_dict())
 
 
-def main() -> None:
-    variants = [BASELINE] + CANDIDATES
+def main(argv: List[str] | None = None) -> None:
+    requested = list(sys.argv[1:] if argv is None else argv)
+    candidates = requested or DEFAULT_CANDIDATES
+    variants = [BASELINE] + candidates
     equities = {v: load_equity(v) for v in variants if (DIR / f"{v}_equity.json").exists()}
     missing = [v for v in variants if v not in equities]
     if missing:
@@ -71,10 +75,18 @@ def main() -> None:
             oos_rank[v].append(rank_percentile(objs, i))
 
     lines: List[str] = []
-    lines.append("# Routing Gate — Walk-Forward OOS / PBO\n")
+    lines.append("# Legacy Routing-Gate Diagnostic — Authorization Frozen\n")
     lines.append(f"Folds: {len(folds)}  ·  baseline = `{BASELINE}`\n")
-    lines.append("| variant | full CAGR | full MaxDD | Sharpe | Calmar | median OOS obj | Δ vs base | PBO (OOS) | DSR | gate |")
-    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---|")
+    lines.append("> **EVIDENCE STATUS: UNVERIFIED.** Routing equity artifacts do not carry v3 provenance metadata.\n")
+    lines.append(
+        "> **AUTHORIZATION: FROZEN.** Fixed-variant OOS ranks and DSR are diagnostics only; "
+        "formal per-fold IS selection and OOS PBO are required before any routing change.\n"
+    )
+    lines.append(
+        f"| variant | full CAGR | full MaxDD | Sharpe | Calmar | median OOS obj | Δ vs base | "
+        f"{LEGACY_RATE_LABEL} | DSR (diagnostic) | legacy checks | authorization |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|")
     base_med = float(np.nanmedian(oos_obj[BASELINE]))
     base_dd = abs(float(full[BASELINE].get("max_drawdown") or 0.0))
 
@@ -85,26 +97,28 @@ def main() -> None:
         sharpe = float(m.get("sharpe") or 0.0)
         calmar = float(m.get("calmar") or 0.0)
         med = float(np.nanmedian(oos_obj[v]))
-        pbo = pbo_from_rank_percentiles(oos_rank[v])
+        bottom_half_rate = oos_bottom_half_rate(oos_rank[v])
         rets = equities[v].pct_change().dropna().values
         dsr = deflated_sharpe(rets, n_trials=len(variants), skew=0.0, kurt=3.0)
         if v == BASELINE:
-            gate = "—"
+            legacy_checks = "—"
+            authorization = "—"
             delta = ""
         else:
             beats = med > base_med
-            pbo_ok = pbo < 0.5
             dd_ok = dd <= base_dd + MAXDD_TOLERANCE
-            gate = "✅ PASS" if (beats and pbo_ok and dd_ok) else "❌ FAIL"
-            if not beats:
-                gate += " (OOS≤base)"
-            if not pbo_ok:
-                gate += " (PBO≥.5)"
-            if not dd_ok:
-                gate += f" (MaxDD +{(dd - base_dd)*100:.1f}pp)"
+            assessment = assess_legacy_gate(
+                beats_baseline=beats,
+                bottom_half_rate=bottom_half_rate,
+                drawdown_ok=dd_ok,
+                evidence_status="UNVERIFIED",
+            )
+            legacy_checks = assessment["legacy_checks"]
+            authorization = f"⛔ {assessment['authorization']} ({assessment['reason']})"
             delta = f"{med - base_med:+.3f}"
         lines.append(
-            f"| {v} | {cagr:.2%} | {-dd:.2%} | {sharpe:.3f} | {calmar:.3f} | {med:.3f} | {delta} | {pbo:.2f} | {dsr:.3f} | {gate} |"
+            f"| {v} | {cagr:.2%} | {-dd:.2%} | {sharpe:.3f} | {calmar:.3f} | {med:.3f} | "
+            f"{delta} | {bottom_half_rate:.2f} | {dsr:.3f} | {legacy_checks} | {authorization} |"
         )
 
     report = "\n".join(lines) + "\n"

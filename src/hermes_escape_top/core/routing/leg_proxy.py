@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Dict, Iterable, Optional
 
 import pandas as pd
@@ -49,6 +50,66 @@ def leg_price_series(
         prev_value = float(value)
         prev_source = source
     return pd.Series(out, index=dates, name=leg)
+
+
+def leg_price_frame(
+    leg: str,
+    as_of_range: Iterable[str] | pd.DatetimeIndex,
+    histories: Optional[Dict[str, pd.DataFrame]] = None,
+) -> pd.DataFrame:
+    """Return a normalized Open/Close frame with explicit open-price provenance.
+
+    Historical synthetic rows often store ``Open == Close`` and zero volume.
+    Treating that placeholder as an observed opening print would move the whole
+    daily return into the overnight segment.  For execution-timing research we
+    instead use the log midpoint and label it as modeled; production scoring
+    continues to consume the original history unchanged.
+    """
+
+    dates = pd.DatetimeIndex(pd.to_datetime(list(as_of_range))).sort_values()
+    if dates.empty:
+        return pd.DataFrame(columns=["Open", "Close", "source", "is_proxy", "open_quality"])
+    history_map = histories if histories is not None else _load_default_histories(leg)
+    closes = leg_price_series(leg, dates, history_map)
+    rows = []
+    previous_close: Optional[float] = None
+    previous_source: Optional[str] = None
+    for day in dates:
+        close = float(closes.loc[day])
+        source = _source_for_date(leg, day) if leg in PROXY_MAP else leg
+        source_row = _exact_row(history_map.get(source), day) if source != "trend_synth" else None
+        synthetic = source == "trend_synth" or _is_synthetic_row(source_row)
+        switched = previous_source is not None and source != previous_source
+        if switched:
+            open_value = close
+            quality = "MODELED_PROXY_SWITCH"
+        elif synthetic:
+            open_value = math.sqrt(previous_close * close) if previous_close and close > 0 else close
+            quality = "MODELED_SYNTHETIC_MIDPOINT"
+        elif source_row is None:
+            open_value = float("nan")
+            quality = "MISSING"
+        else:
+            source_open = _row_float(source_row, "Open")
+            source_close = _row_float(source_row, "Close")
+            if source_open is None or source_close is None or source_close <= 0:
+                open_value = float("nan")
+                quality = "MISSING"
+            else:
+                open_value = close * source_open / source_close
+                quality = "OBSERVED"
+        rows.append(
+            {
+                "Open": open_value,
+                "Close": close,
+                "source": source,
+                "is_proxy": bool(source != leg or synthetic),
+                "open_quality": quality,
+            }
+        )
+        previous_close = close
+        previous_source = source
+    return pd.DataFrame(rows, index=dates)
 
 
 def leg_proxy_metadata(leg: str, as_of_range: Iterable[str] | pd.DatetimeIndex) -> pd.DataFrame:
@@ -126,6 +187,33 @@ def _close_at_or_before(history: Optional[pd.DataFrame], day: pd.Timestamp) -> O
         return None
     value = float(frame["Close"].iloc[-1])
     return value if value == value else None
+
+
+def _exact_row(history: Optional[pd.DataFrame], day: pd.Timestamp) -> Optional[pd.Series]:
+    if history is None or history.empty or day not in history.index:
+        return None
+    row = history.loc[day]
+    return row.iloc[-1] if isinstance(row, pd.DataFrame) else row
+
+
+def _is_synthetic_row(row: Optional[pd.Series]) -> bool:
+    if row is None:
+        return False
+    marker = str(row.get("is_proxy", "")).strip().lower()
+    if marker in {"true", "1", "yes"}:
+        return True
+    volume = _row_float(row, "Volume")
+    values = [_row_float(row, field) for field in ["Open", "High", "Low", "Close"]]
+    return bool(
+        volume == 0.0
+        and all(value is not None for value in values)
+        and max(values) - min(values) <= 1e-12
+    )
+
+
+def _row_float(row: pd.Series, field: str) -> Optional[float]:
+    value = pd.to_numeric(pd.Series([row.get(field)]), errors="coerce").iloc[0]
+    return None if pd.isna(value) else float(value)
 
 
 def _load_default_histories(leg: str) -> Dict[str, pd.DataFrame]:
