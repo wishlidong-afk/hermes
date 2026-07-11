@@ -23,7 +23,7 @@ def _load_module():
 def _evidence() -> dict[str, object]:
     return {
         "variant": "baseline",
-        "cache_schema": "flag-sweep-cache-v3",
+        "cache_schema": "flag-sweep-cache-v4",
         "cache_key": "key",
         "manifest_id": "manifest-a",
         "git_commit": "commit-a",
@@ -33,6 +33,7 @@ def _evidence() -> dict[str, object]:
         "start": "2018-01-01",
         "end": "2026-07-10",
         "enable": ["costs"],
+        "equity_timing": "next_open",
     }
 
 

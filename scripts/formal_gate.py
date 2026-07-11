@@ -40,6 +40,8 @@ GATE_CODE_PATHS = (
     "scripts/backtest_flag_sweep.py",
     "scripts/flag_gate.py",
     "scripts/formal_gate.py",
+    "scripts/execution_timing_sensitivity.py",
+    "scripts/build_current_baseline.py",
 )
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:

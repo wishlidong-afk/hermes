@@ -49,6 +49,7 @@ def test_cache_fresh_requires_schema_key_and_equity(tmp_path, monkeypatch) -> No
         "start": mod.BACKTEST_START,
         "end": mod.BACKTEST_END,
         "enable": mod.ENABLE,
+        "equity_timing": "next_open",
     }
 
     (tmp_path / f"{variant}.json").write_text(json.dumps(expected))
@@ -98,7 +99,7 @@ def test_cache_evidence_exposes_every_freshness_dimension(monkeypatch) -> None:
     cfg = mod.build_config("baseline")
     evidence = mod.cache_evidence("baseline", cfg)
 
-    assert mod.CACHE_SCHEMA == "flag-sweep-cache-v3"
+    assert mod.CACHE_SCHEMA == "flag-sweep-cache-v4"
     assert evidence["variant"] == "baseline"
     assert evidence["manifest_id"] == "manifest-a"
     assert evidence["soft_history_sha256"] == "soft-a"
@@ -109,6 +110,7 @@ def test_cache_evidence_exposes_every_freshness_dimension(monkeypatch) -> None:
     assert evidence["start"] == mod.BACKTEST_START
     assert evidence["end"] == mod.BACKTEST_END
     assert evidence["enable"] == mod.ENABLE
+    assert evidence["equity_timing"] == "next_open"
 
 
 def test_cache_evidence_accepts_an_explicit_current_window(monkeypatch) -> None:
@@ -123,12 +125,12 @@ def test_cache_evidence_accepts_an_explicit_current_window(monkeypatch) -> None:
         "baseline",
         cfg,
         start="2018-01-01",
-        end="2026-07-10",
+        end="2026-07-09",
         enable=["costs"],
     )
 
     assert evidence["start"] == "2018-01-01"
-    assert evidence["end"] == "2026-07-10"
+    assert evidence["end"] == "2026-07-09"
     assert evidence["enable"] == ["costs"]
     assert evidence["cache_key"] != mod.cache_evidence("baseline", cfg)["cache_key"]
 
@@ -155,9 +157,27 @@ def test_artifact_freshness_rejects_any_provenance_mismatch(monkeypatch) -> None
         "start",
         "end",
         "enable",
+        "equity_timing",
     ):
         stale = dict(current)
         stale[field] = "different"
         result = mod.assess_artifact_freshness("baseline", stale, cfg)
         assert result["status"] == "STALE"
         assert field in result["mismatches"]
+
+
+def test_gate_equity_selector_uses_next_open_and_keeps_legacy_shadow() -> None:
+    mod = _load_module()
+    timing = {
+        "scenarios": [
+            {"scenario_id": "legacy_close", "metrics": {"cagr": 0.20}, "equity_curve": {"2026-01-01": 100.0}},
+            {"scenario_id": "next_open", "metrics": {"cagr": 0.15}, "equity_curve": {"2026-01-01": 99.0}},
+        ]
+    }
+
+    selected = mod.select_gate_equity(timing)
+
+    assert selected["equity_timing"] == "next_open"
+    assert selected["metrics"] == {"cagr": 0.15}
+    assert selected["equity_curve"] == {"2026-01-01": 99.0}
+    assert selected["legacy_close_metrics"] == {"cagr": 0.20}

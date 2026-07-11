@@ -22,16 +22,20 @@ from pathlib import Path
 from typing import Any
 
 from hermes_escape_top.config import load_config
+from hermes_escape_top.core.backtest.execution import execution_timing_sensitivity
 from hermes_escape_top.core.data.manifest import freeze_manifest
 from hermes_escape_top.core.data.store import LocalStore
-from hermes_escape_top.core.backtest.run_full import run_full_backtest
+from hermes_escape_top.core.backtest.run_full import _load_histories, run_full_backtest
+from hermes_escape_top.core.backtest.simulator import DayDecision
+from hermes_escape_top.core.routing.leg_proxy import leg_price_frame
 
 OUT_DIR = Path("building/reports/flag_sweep")
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BACKTEST_START = "2018-01-01"
-BACKTEST_END = "2026-05-29"
+BACKTEST_END = "2026-07-10"
 ENABLE = ["costs"]
-CACHE_SCHEMA = "flag-sweep-cache-v3"
+CACHE_SCHEMA = "flag-sweep-cache-v4"
+GATE_EQUITY_TIMING = "next_open"
 FRESHNESS_FIELDS = (
     "variant",
     "cache_schema",
@@ -44,6 +48,7 @@ FRESHNESS_FIELDS = (
     "start",
     "end",
     "enable",
+    "equity_timing",
 )
 
 # Recommended F8 euphoria-tail tightening (the documented backtest-gated flip).
@@ -202,6 +207,7 @@ def _cache_identity(
         "start": str(start),
         "end": str(end),
         "enable": list(ENABLE if enable is None else enable),
+        "equity_timing": GATE_EQUITY_TIMING,
         "limit": None,
     }
 
@@ -227,7 +233,46 @@ def cache_evidence(
         "start": identity["start"],
         "end": identity["end"],
         "enable": list(identity["enable"]),
+        "equity_timing": identity["equity_timing"],
     }
+
+
+def select_gate_equity(timing_artifact: dict[str, Any]) -> dict[str, Any]:
+    scenarios = {
+        str(row.get("scenario_id")): row
+        for row in timing_artifact.get("scenarios", [])
+        if isinstance(row, dict)
+    }
+    next_open = scenarios.get(GATE_EQUITY_TIMING)
+    legacy = scenarios.get("legacy_close")
+    if not next_open or not isinstance(next_open.get("equity_curve"), dict):
+        raise ValueError("execution timing artifact has no next_open equity curve")
+    if not legacy:
+        raise ValueError("execution timing artifact has no legacy_close shadow")
+    return {
+        "equity_timing": GATE_EQUITY_TIMING,
+        "metrics": dict(next_open.get("metrics", {})),
+        "equity_curve": dict(next_open["equity_curve"]),
+        "turnover": next_open.get("turnover"),
+        "legacy_close_metrics": dict(legacy.get("metrics", {})),
+        "legacy_close_equity_curve": dict(legacy.get("equity_curve", {})),
+    }
+
+
+def reprice_report_for_gate(report: Any, cfg: dict) -> dict[str, Any]:
+    decisions = [
+        DayDecision(str(row["date"]), {str(leg): float(weight) for leg, weight in row.get("route_leg_weights", {}).items()})
+        for row in report.rows
+    ]
+    dates = [item.date for item in decisions]
+    legs = sorted({leg for item in decisions for leg in item.target_weights})
+    store = LocalStore(cfg)
+    histories = _load_histories(store, cfg)
+    for leg in legs:
+        if leg not in histories:
+            histories[leg] = store.load_history(leg)
+    frames = {leg: leg_price_frame(leg, dates, histories) for leg in legs}
+    return execution_timing_sensitivity(decisions, frames, cfg)
 
 
 def cache_key(
@@ -285,9 +330,11 @@ def main() -> None:
 
     t = time.time()
     report = run_full_backtest(start=BACKTEST_START, end=BACKTEST_END, cfg=cfg, enable=set(ENABLE))
+    timing = reprice_report_for_gate(report, cfg)
+    selected = select_gate_equity(timing)
     dt = time.time() - t
     sim = report.simulation if isinstance(report.simulation, dict) else {}
-    metrics = sim.get("metrics", {})
+    metrics = selected["metrics"]
     benchmarks = report.benchmarks if isinstance(getattr(report, "benchmarks", None), dict) else {}
     out = {
         **evidence,
@@ -295,6 +342,7 @@ def main() -> None:
         "effective_end": report.effective_end,
         "n_days": len(report.dates),
         "runtime_sec": round(dt, 1),
+        "equity_timing": selected["equity_timing"],
         "metrics": {
             "cagr": metrics.get("cagr"),
             "max_drawdown": metrics.get("max_drawdown"),
@@ -302,15 +350,20 @@ def main() -> None:
             "sortino": metrics.get("sortino"),
             "final_value": metrics.get("final_value"),
         },
+        "legacy_close_metrics": selected["legacy_close_metrics"],
+        "execution_open_quality": timing.get("open_quality", {}),
         "benchmarks": benchmarks,
     }
     path = OUT_DIR / f"{variant}.json"
     path.write_text(json.dumps(out, indent=2, default=str))
     # Daily equity curve for fold-level walk-forward / PBO gating (separate file
     # to keep the metrics JSON small).
-    equity = sim.get("equity_curve", {})
+    equity = selected["equity_curve"]
     if equity:
         (OUT_DIR / f"{variant}_equity.json").write_text(json.dumps(equity, default=str))
+    legacy_equity = selected["legacy_close_equity_curve"]
+    if legacy_equity:
+        (OUT_DIR / f"{variant}_legacy_close_equity.json").write_text(json.dumps(legacy_equity, default=str))
     print(f"[{variant}] done in {dt/60:.1f}min → {path}")
     print(json.dumps(out["metrics"], indent=2, default=str))
 

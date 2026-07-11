@@ -34,6 +34,7 @@ PROVENANCE_FIELDS = (
     "start",
     "end",
     "worktree_clean",
+    "equity_timing",
 )
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -104,6 +105,43 @@ def compare_legacy_source(source: Mapping[str, Any], artifact: Mapping[str, Any]
     if not _same_number(source_simulation.get("turnover"), legacy.get("turnover")):
         mismatches.append("turnover")
     return {"status": "MATCH" if not mismatches else "MISMATCH", "mismatches": mismatches}
+
+
+def build_gate_baseline_artifacts(
+    source: Mapping[str, Any],
+    artifact: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, float], dict[str, float]]:
+    if artifact.get("evidence_status") != "CURRENT_EXECUTION_EVIDENCE":
+        raise ValueError("only CURRENT_EXECUTION_EVIDENCE may be exported as a gate baseline")
+    provenance = source.get("provenance")
+    if not isinstance(provenance, Mapping):
+        raise ValueError("current baseline source has no provenance")
+    scenarios = {
+        str(row.get("scenario_id")): row
+        for row in artifact.get("scenarios", [])
+        if isinstance(row, Mapping)
+    }
+    next_open = scenarios.get("next_open")
+    legacy = scenarios.get("legacy_close")
+    if not next_open or not legacy:
+        raise ValueError("execution timing artifact is missing next_open or legacy_close")
+    next_equity = {str(day): float(value) for day, value in next_open.get("equity_curve", {}).items()}
+    legacy_equity = {str(day): float(value) for day, value in legacy.get("equity_curve", {}).items()}
+    if not next_equity or not legacy_equity:
+        raise ValueError("execution timing artifact has an empty gate equity curve")
+    metrics = {
+        **dict(provenance),
+        "variant": "baseline",
+        "equity_timing": "next_open",
+        "effective_start": source.get("effective_start"),
+        "effective_end": source.get("effective_end"),
+        "n_days": len(source.get("dates", [])),
+        "metrics": dict(next_open.get("metrics", {})),
+        "turnover": next_open.get("turnover"),
+        "legacy_close_metrics": dict(legacy.get("metrics", {})),
+        "execution_open_quality": dict(artifact.get("open_quality", {})),
+    }
+    return metrics, next_equity, legacy_equity
 
 
 def render_report(artifact: Mapping[str, Any]) -> str:
@@ -199,6 +237,7 @@ def run(
     output_dir: Path = DEFAULT_OUTPUT_DIR,
     *,
     stress_slippage_bps: float = 25.0,
+    gate_artifacts_dir: Path | None = None,
 ) -> dict[str, Any]:
     source_path = backtest_path.resolve()
     source = json.loads(source_path.read_text(encoding="utf-8"))
@@ -256,6 +295,21 @@ def run(
     md_path = output_dir / "EXECUTION_TIMING_SENSITIVITY.md"
     json_path.write_text(json.dumps(artifact, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     md_path.write_text(render_report(artifact), encoding="utf-8")
+    if gate_artifacts_dir is not None:
+        metrics, next_equity, legacy_equity = build_gate_baseline_artifacts(source, artifact)
+        gate_artifacts_dir.mkdir(parents=True, exist_ok=True)
+        (gate_artifacts_dir / "baseline.json").write_text(
+            json.dumps(metrics, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        (gate_artifacts_dir / "baseline_equity.json").write_text(
+            json.dumps(next_equity, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        (gate_artifacts_dir / "baseline_legacy_close_equity.json").write_text(
+            json.dumps(legacy_equity, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
     print(f"Execution timing artifact: {json_path}")
     print(f"Execution timing report: {md_path}")
     print(f"Evidence status: {artifact['evidence_status']}")
@@ -297,8 +351,14 @@ def main() -> int:
     parser.add_argument("--backtest", type=Path, default=DEFAULT_BACKTEST)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--stress-slippage-bps", type=float, default=25.0)
+    parser.add_argument("--gate-artifacts-dir", type=Path, default=None)
     args = parser.parse_args()
-    run(args.backtest, args.output_dir, stress_slippage_bps=args.stress_slippage_bps)
+    run(
+        args.backtest,
+        args.output_dir,
+        stress_slippage_bps=args.stress_slippage_bps,
+        gate_artifacts_dir=args.gate_artifacts_dir,
+    )
     return 0
 
 

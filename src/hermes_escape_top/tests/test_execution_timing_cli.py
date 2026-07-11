@@ -28,6 +28,7 @@ def _current() -> dict[str, object]:
         "start": "2018-01-01",
         "end": "2026-05-29",
         "worktree_clean": True,
+        "equity_timing": "next_open",
     }
 
 
@@ -156,3 +157,39 @@ def test_legacy_parity_compares_source_metrics_and_turnover() -> None:
 
     assert matched == {"status": "MATCH", "mismatches": []}
     assert mismatched == {"status": "MISMATCH", "mismatches": ["sharpe"]}
+
+
+def test_gate_baseline_export_uses_next_open_curve_and_source_provenance() -> None:
+    mod = _load_module()
+    source = {
+        "provenance": {**_current(), "cache_schema": "flag-sweep-cache-v4", "cache_key": "key", "variant": "baseline"},
+        "effective_start": "2018-01-02",
+        "effective_end": "2026-07-10",
+        "dates": ["2018-01-02", "2026-07-10"],
+    }
+    artifact = {
+        "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
+        "open_quality": {"observed_share": 0.9, "modeled_rows": 2, "missing_rows": 0},
+        "scenarios": [
+            {
+                "scenario_id": "legacy_close",
+                "metrics": {"cagr": 0.17},
+                "equity_curve": {"2018-01-02": 100.0, "2026-07-10": 380.0},
+            },
+            {
+                "scenario_id": "next_open",
+                "metrics": {"cagr": 0.15},
+                "turnover": 10.0,
+                "equity_curve": {"2018-01-02": 100.0, "2026-07-10": 350.0},
+            },
+        ],
+    }
+
+    metrics, next_open_equity, legacy_equity = mod.build_gate_baseline_artifacts(source, artifact)
+
+    assert metrics["equity_timing"] == "next_open"
+    assert metrics["metrics"] == {"cagr": 0.15}
+    assert metrics["legacy_close_metrics"] == {"cagr": 0.17}
+    assert metrics["git_commit"] == "abc123"
+    assert next_open_equity["2026-07-10"] == 350.0
+    assert legacy_equity["2026-07-10"] == 380.0

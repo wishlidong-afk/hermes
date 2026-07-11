@@ -19,8 +19,8 @@ an authorization boundary, not a convenience file.
 The CLI rejects untracked or modified manifests and uncommitted gate/config
 code. Data and report directories may remain uncommitted because their hashes
 are carried as experiment evidence. The CLI also blocks if any metrics artifact
-is not cache v3 FRESH for the current commit, code, config, manifest,
-soft-history, and replay window. Manifest and code state are checked again
+is not cache v4 FRESH for the current commit, code, config, manifest,
+soft-history, replay window, and `equity_timing=next_open` convention. Manifest and code state are checked again
 immediately before the final result is committed.
 
 ## Manifest format

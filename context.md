@@ -251,7 +251,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 表中 16.97%、旧 17.38% / -13.77% / Sharpe 1.223 和更旧 15.84% capeff baseline 均只保留历史语境；当前 baseline 要等正式 gate 与成交时点模型完成后重建。
 
-成交时点方法层已于 2026-07-11 完成：`legacy_close` 保留为历史/理论上界，未来 baseline 以 `next_open` 为头条，另固定输出 `next_close` 和 next-open+25bps stress。旧 `Backtest_FULL_2018_2026.json` 的只读方法验收实现 legacy 指标/换手完全一致，但因源产物无当前 provenance，报告被锁为 `METHODOLOGY_ONLY`，不得当作当前基线。报告路径：`building/reports/execution_timing/EXECUTION_TIMING_SENSITIVITY.md`；完整方法说明：`docs/history/2026-07-11_execution_timing_sensitivity.md`。
+成交时点方法层已于 2026-07-11 完成：`legacy_close` 保留为历史/理论上界，未来 baseline 以 `next_open` 为头条，另固定输出 `next_close` 和 next-open+25bps stress。正式实验产物协议已升为 cache v4，`variant_equity.json` 必须声明并承载 `equity_timing=next_open`；旧 v3/legacy 曲线不能进入 formal gate。旧 `Backtest_FULL_2018_2026.json` 的只读方法验收实现 legacy 指标/换手完全一致，但因源产物无当前 provenance，报告被锁为 `METHODOLOGY_ONLY`，不得当作当前基线。报告路径：`building/reports/execution_timing/EXECUTION_TIMING_SENSITIVITY.md`；完整方法说明：`docs/history/2026-07-11_execution_timing_sensitivity.md`。
 
 指标帧缓存 byte-identical 证据：
 
@@ -264,7 +264,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 12. 测试与验证
 
-当前回归结果：741 passed（2026-07-11）。
+当前回归结果：743 passed（2026-07-11）。
 
 标准命令：
 
