@@ -115,6 +115,7 @@ These flags had zero code references and were removed from config.json:
 | On-chain MSTR exchange inflow pressure (`data_onchain_mstr`, `CM_EXCHANGE_INFLOW_PRESSURE`) | Rejected | Historical T19 diagnostics: full CAGR 17.38%, MaxDD -13.77%, Sharpe 1.223; median OOS objective tied baseline (Δ +0.000), OOS bottom-half rate 0.00, DSR 1.197 | `building/reports/flag_sweep/GATE_REPORT_CM_EXCHANGE_INFLOW_PRESSURE.md`; `building/reports/flag_sweep/CM_EXCHANGE_INFLOW_PRESSURE.json` | Do not retune this signal; new on-chain work needs a new prior and a fresh formal gate |
 | On-chain MSTR exchange netflow pressure (`data_onchain_mstr`, `CM_EXCHANGE_NETFLOW_PRESSURE`) | Rejected | Historical T19 diagnostics: full CAGR 17.36%, MaxDD -13.77%, Sharpe 1.222; median OOS objective tied baseline (Δ +0.000), OOS bottom-half rate 0.08, DSR 1.196 | `building/reports/flag_sweep/GATE_REPORT_CM_EXCHANGE_NETFLOW_PRESSURE.md`; `building/reports/flag_sweep/CM_EXCHANGE_NETFLOW_PRESSURE.json` | Do not retune this signal; new on-chain work needs a new prior and a fresh formal gate |
 | MSTR B6 mNAV valuation (`data_mstr_mnav` + `use_b6_mnav_valuation`, `mnav_b6`) | Rejected | Historical diagnostics: CAGR 17.86%, median OOS objective below baseline (Δ -0.030), MaxDD -14.40%, OOS bottom-half rate 0.31, DSR 1.194 | `building/reports/flag_sweep/GATE_REPORT_mnav_b6.md`; `building/reports/flag_sweep/mnav_b6.json` | Keep the PIT mNAV source parked for diagnostics; do not turn on B6 valuation or retune this mapping without a new prior |
+| Dollar soft-data SLO 6→14 days (`dollar-slo-14-v1`) | Rejected | One-shot formal gate found no next-open edge: WF and CPCV OOS Δ were both +0.000000. PBO 0.00, DSR 0.950058 and unchanged MaxDD passed, but strict OOS-improvement checks failed | `building/reports/formal_gate/dollar-slo-14-v1/result.json`; `building/reports/formal_gate/dollar-slo-14-v1/REPORT.md`; `docs/history/2026-07-11_dollar_slo_alignment_evidence.md` | Keep the production 6-day threshold. Do not retest this threshold; only a new upstream source or different mechanism with a new prior may open a new experiment |
 | Arm-then-fire current design | Parked | Current arming inputs overlap additive scored factors, creating double-counting | `docs/FACTOR_EXPLORATION_RESULTS_2026_06_08.md` | Redesign as leading-data-only before one final gate |
 
 ### Candidate / next research
@@ -153,4 +154,4 @@ config.json also records this.
 
 ---
 
-*Last updated: 2026-07-11 (defaults synchronized automatically against config; formal-gate evidence policy unchanged)*
+*Last updated: 2026-07-12 (dollar SLO 6→14 one-shot formal gate archived as Rejected / NO_FLIP)*
