@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -71,7 +71,12 @@ def test_refresh_positions_only_reads_ibkr_without_scoring_or_history(tmp_path):
 
 def _write_overlay(archive: Path, **fields) -> None:
     archive.mkdir(parents=True, exist_ok=True)
-    overlay = {"ibkr": {"source": "tws", "net_liq": 100.0}}
+    overlay = {"ibkr": {
+        "source": "tws",
+        "net_liq": 100.0,
+        "sync_time": datetime.now(timezone.utc).isoformat(),
+        "snapshot_stale": False,
+    }}
     overlay.update(fields)
     (archive / "ibkr_position_overlay.json").write_text(json.dumps(overlay), encoding="utf-8")
 
@@ -127,7 +132,12 @@ def test_overlay_refreshes_action_context_when_ibkr_state_changes(tmp_path):
         archive,
         as_of="2026-06-30",
         base_input_hash="h1",
-        ibkr={"source": "tws", "snapshot_stale": False},
+        ibkr={
+            "source": "tws",
+            "net_liq": 100000.0,
+            "sync_time": datetime.now(timezone.utc).isoformat(),
+            "snapshot_stale": False,
+        },
     )
     day = date(2026, 6, 30)
     snapshot = SymbolSnapshot(

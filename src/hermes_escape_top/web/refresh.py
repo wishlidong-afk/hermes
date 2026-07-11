@@ -114,9 +114,9 @@ def apply_ibkr_position_overlay(payload: Dict[str, Any], config: Optional[Dict[s
     try:
         overlay = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-        return payload
+        return refresh_action_context_for_display(payload, config=cfg)
     if str(overlay.get("as_of") or "")[:10] != str(payload.get("as_of") or "")[:10]:
-        return payload
+        return refresh_action_context_for_display(payload, config=cfg)
     base_hash = overlay.get("base_input_hash")
     payload_hash = payload.get("input_hash")
     # A scored payload carries an input_hash and the overlay must have been keyed
@@ -127,10 +127,10 @@ def apply_ibkr_position_overlay(payload: Dict[str, Any], config: Optional[Dict[s
     # stop. A payload without a hash (empty/fallback dashboard) keeps the lenient
     # path so a just-refreshed position layer still shows before the first run.
     if payload_hash and str(base_hash or "") != str(payload_hash):
-        return payload
+        return refresh_action_context_for_display(payload, config=cfg)
     ibkr = overlay.get("ibkr")
     if not isinstance(ibkr, dict):
-        return payload
+        return refresh_action_context_for_display(payload, config=cfg)
     merged = dict(payload)
     merged["ibkr"] = ibkr
     merged["ibkr_refresh_status"] = {
@@ -145,10 +145,16 @@ def apply_ibkr_position_overlay(payload: Dict[str, Any], config: Optional[Dict[s
         )
     except Exception:
         pass
-    return _refresh_action_context_after_overlay(merged)
+    return refresh_action_context_for_display(merged, config=cfg)
 
 
-def _refresh_action_context_after_overlay(payload: Dict[str, Any]) -> Dict[str, Any]:
+def refresh_action_context_for_display(
+    payload: Dict[str, Any],
+    *,
+    config: Optional[Dict[str, Any]] = None,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """Recompute only the advisory/execution display layer using current IBKR age."""
     snapshots_payload = payload.get("snapshots") or {}
     if not isinstance(snapshots_payload, dict) or not snapshots_payload:
         return payload
@@ -160,8 +166,17 @@ def _refresh_action_context_after_overlay(payload: Dict[str, Any]) -> Dict[str, 
         }
         if not snapshots:
             return payload
+        cfg = config or load_config()
+        max_age = float((cfg.get("ibkr") or {}).get("snapshot_max_age_seconds", 900))
         refreshed = dict(payload)
-        refreshed.update(build_action_context(refreshed, snapshots))
+        refreshed.update(
+            build_action_context(
+                refreshed,
+                snapshots,
+                now=now or datetime.now(timezone.utc),
+                ibkr_max_age_seconds=max_age,
+            )
+        )
         return refreshed
     except Exception:
         return payload

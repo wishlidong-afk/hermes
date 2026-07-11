@@ -2303,6 +2303,13 @@ def _render_today_ops(
     state = payload.get("state") or {}
     destinations = _execution_destination_totals(payload)
     dest_text = _format_destination_totals(destinations) or "无资金路由"
+    amounts_are_estimates = bool(ops.get("destinations_are_estimates"))
+    destination_label = "估算资金去向" if amounts_are_estimates else "执行计划资金去向"
+    amount_warning = (
+        "<div class='warning-box' style='margin-top:8px'><b>金额层未就绪：</b>"
+        "策略方向与目标权重仍有效；金额/股数仅为估算，等待新鲜 IBKR 对账后再生成差额动作。</div>"
+        if amounts_are_estimates else ""
+    )
     route_text = _dominant_route_text(payload)
     mismatch = _route_execution_mismatch(payload)
     reasons = ops.get("top_reasons") or []
@@ -2321,7 +2328,8 @@ def _render_today_ops(
           {headline_html}
           <div class="subtle">动作数 {esc(ops.get('action_count', 0))} · 数据 {esc(ops.get('data_quality', 'NA'))} {_fmt_num(ops.get('data_quality_score'))} · IBKR {esc(ops.get('ibkr_source', 'NA'))}{' · STALE' if ops.get('ibkr_stale') else ''}</div>
           <div style="margin-top:10px"><b>DEFCON 路由：</b>{route_text}</div>
-          <div style="margin-top:6px"><b>执行计划资金去向：</b>{dest_text}</div>
+          <div style="margin-top:6px"><b>{destination_label}：</b>{dest_text}</div>
+          {amount_warning}
           {mismatch}
           <details style="margin-top:10px">
             <summary>核心原因 / 失效前提</summary>
@@ -2419,6 +2427,16 @@ def _render_intent_card(symbol: str, payload: Dict[str, Any]) -> str:
     command_rows = _intent_trade_rows(symbol, payload)
     command_text = _plain_command(symbol, row, command_rows)
     status_note = _score_status_note(score, status)
+    execution_ready = bool(row.get("execution_ready"))
+    strategy_level = row.get("strategy_confidence_level", row.get("confidence_level", "NA"))
+    strategy_score = row.get("strategy_confidence_score", row.get("confidence_score"))
+    amount_level = row.get("execution_amount_confidence_level", "NA")
+    amount_score = row.get("execution_amount_confidence_score")
+    amount_note = (
+        "<div class='warning-box' style='margin-top:8px'>金额/股数仅为估算；"
+        "等待新鲜 IBKR 对账后生成差额动作。</div>"
+        if not execution_ready else ""
+    )
     table_rows = []
     for plan in command_rows:
         table_rows.append(
@@ -2443,7 +2461,10 @@ def _render_intent_card(symbol: str, payload: Dict[str, Any]) -> str:
         f"<tbody>{body_rows}</tbody>"
         "</table>"
         "</div>"
-        f"<div class='target'>交易方向按“当前 IBKR → 目标仓位”的差额计算 · 置信度 {esc(row.get('confidence_level', 'NA'))} {_fmt_num(row.get('confidence_score'))}</div>"
+        f"{amount_note}"
+        f"<div class='target'>策略置信度 {esc(strategy_level)} {_fmt_num(strategy_score)} · "
+        f"金额置信度 {esc(amount_level)} {_fmt_num(amount_score)}"
+        f"{' · 当前 IBKR → 目标仓位差额可用' if execution_ready else ' · 不作为下单清单'}</div>"
         "</div>"
     )
 
@@ -2488,6 +2509,7 @@ def _intent_trade_rows(symbol: str, payload: Dict[str, Any]) -> List[Dict[str, A
             "target_shares": intent.get("target_shares"),
         }]
     out = []
+    execution_ready = bool(intent.get("execution_ready"))
     for leg in legs:
         target_symbol = str(leg.get("symbol") or "")
         role = str(leg.get("role") or "risk")
@@ -2499,7 +2521,10 @@ def _intent_trade_rows(symbol: str, payload: Dict[str, Any]) -> List[Dict[str, A
         delta_shares = target_shares - current["shares"]
         delta_notional = target_notional - current["notional"]
         delta_weight = target_weight - current["weight"]
-        trade_label, trade_class = _trade_delta_label(delta_shares, delta_notional, delta_weight)
+        if execution_ready:
+            trade_label, trade_class = _trade_delta_label(delta_shares, delta_notional, delta_weight)
+        else:
+            trade_label, trade_class = "待 IBKR 刷新", "trade-hold"
         out.append({
             "symbol": target_symbol,
             "role": role,
@@ -2563,6 +2588,12 @@ def _trade_delta_label(delta_shares: float, delta_notional: float, delta_weight:
 
 
 def _plain_command(symbol: str, intent: Dict[str, Any], rows: List[Dict[str, Any]]) -> str:
+    if not bool(intent.get("execution_ready")):
+        target = "；".join(f"{row['symbol']} 目标 {_fmt_pct(row['target_weight'])}" for row in rows)
+        return (
+            f"策略目标：{target}。金额/股数仅为估算；"
+            "等待新鲜 IBKR 对账后生成差额动作。"
+        )
     active = [row for row in rows if row["trade_class"] != "trade-hold"]
     if not active:
         target = "；".join(
@@ -2905,16 +2936,18 @@ def _render_symbol_card(symbol: str, payload: Dict[str, Any]) -> str:
           <div class="warning-box" style="background:#f8fafc;border-color:#cbd5e1;color:#0f172a">
             <b>唯一处置指令：</b>{esc(_action_cn(intent.get('action')))}
             · 目标 {esc(target_summary['target'])}
-            · 金额 {esc(target_summary['notional'])}
-            · 股数 {esc(target_summary['shares'])}
-            · 置信度 {esc(intent.get('confidence_level', 'NA'))} {_fmt_num(intent.get('confidence_score'))}
+            · {'金额' if intent.get('amount_authoritative') else '估算金额'} {esc(target_summary['notional'])}
+            · {'股数' if intent.get('amount_authoritative') else '估算股数'} {esc(target_summary['shares'])}
+            · 策略置信 {esc(intent.get('strategy_confidence_level', intent.get('confidence_level', 'NA')))} {_fmt_num(intent.get('strategy_confidence_score', intent.get('confidence_score')))}
+            · 金额置信 {esc(intent.get('execution_amount_confidence_level', 'NA'))} {_fmt_num(intent.get('execution_amount_confidence_score'))}
           </div>
 
           <div class="facts">
             {_metric('建议处置', f"{status} / 卖出 {_fmt_pct(sell_fraction)}")}
             {_metric('风险温度', f"{_fmt_num(((layers.get('risk_temperature') or {}).get('score')))} · {esc(((layers.get('risk_temperature') or {}).get('status', 'NA')))}")}
             {_metric('硬阀门', f"{esc((layers.get('hard_valve_state') or {}).get('count', 0))} 个 · {esc(', '.join((layers.get('hard_valve_state') or {}).get('ids', []) or [])) or '未触发'}")}
-            {_metric('动作置信度', f"{esc((layers.get('action_confidence') or {}).get('level', 'NA'))} · {_fmt_num((layers.get('action_confidence') or {}).get('score'))}")}
+            {_metric('策略置信度', f"{esc((layers.get('strategy_confidence') or layers.get('action_confidence') or {}).get('level', 'NA'))} · {_fmt_num((layers.get('strategy_confidence') or layers.get('action_confidence') or {}).get('score'))}")}
+            {_metric('金额置信度', f"{esc((layers.get('execution_amount_confidence') or {}).get('level', 'NA'))} · {_fmt_num((layers.get('execution_amount_confidence') or {}).get('score'))}")}
             {_metric('实质缺项扣分', _confidence_missing_text(layers, 'scored'))}
             {_metric('占位缺项', _confidence_missing_text(layers, 'non_scoring'))}
             {_metric('理想仓位', f"{_fmt_pct(sizing.get('target_weight'))} · {_fmt_money(pnl.get('notional'))}")}
@@ -4564,11 +4597,11 @@ def _flow_kind(severity: str) -> str:
 
 
 def _confidence_missing_text(layers: Dict[str, Any], bucket: str) -> str:
-    confidence = (layers or {}).get("action_confidence") or {}
+    confidence = (layers or {}).get("strategy_confidence") or (layers or {}).get("action_confidence") or {}
     if bucket == "scored":
         weight = confidence.get("scored_missing_weight")
         fields = confidence.get("scored_missing_fields") or []
-        suffix = "影响动作置信"
+        suffix = "影响策略置信"
     else:
         weight = confidence.get("non_scoring_missing_weight")
         fields = confidence.get("non_scoring_missing_fields") or []

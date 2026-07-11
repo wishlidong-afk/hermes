@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Optional
 
 from ..data.base import SymbolSnapshot
@@ -8,13 +9,17 @@ from ..data.base import SymbolSnapshot
 def build_action_context(
     payload: Dict[str, Any],
     snapshots: Dict[str, SymbolSnapshot],
+    *,
+    now: Optional[datetime] = None,
+    ibkr_max_age_seconds: float = 900.0,
 ) -> Dict[str, Any]:
     """Build the user-facing action layer from score/sizing/routing data.
 
     This intentionally separates three concerns:
       - risk temperature: score/status
       - hard valve state: physical exit triggers
-      - action confidence: whether data quality is good enough to trust action
+      - strategy confidence: whether score inputs support the strategy conclusion
+      - execution amount confidence: whether IBKR supports dollar/share amounts
     """
     decision_layers: Dict[str, Dict[str, Any]] = {}
     action_intents: Dict[str, Dict[str, Any]] = {}
@@ -22,13 +27,18 @@ def build_action_context(
     quality = payload.get("data_quality") or {}
     quality_score = _float(quality.get("overall_score"), 0.0)
     ibkr = payload.get("ibkr") or {}
-    ibkr_stale = bool(ibkr.get("snapshot_stale")) or str(ibkr.get("source", "")).lower() not in {"tws", "disabled"}
+    amount_confidence = _execution_amount_confidence(
+        ibkr,
+        portfolio_value,
+        now=now,
+        max_age_seconds=ibkr_max_age_seconds,
+    )
 
     for symbol, score in sorted((payload.get("scores") or {}).items()):
         sizing = (payload.get("sizing") or {}).get(symbol, {})
         routing = (payload.get("routing") or {}).get(symbol, {})
         reentry = (payload.get("reentry") or {}).get(symbol, {})
-        layer = _decision_layer(symbol, score, quality_score, ibkr_stale)
+        layer = _decision_layer(symbol, score, quality_score, amount_confidence)
         intent = _action_intent(symbol, score, sizing, routing, reentry, snapshots, portfolio_value, layer)
         decision_layers[symbol] = layer
         action_intents[symbol] = intent
@@ -40,7 +50,12 @@ def build_action_context(
     }
 
 
-def _decision_layer(symbol: str, score: Dict[str, Any], quality_score: float, ibkr_stale: bool) -> Dict[str, Any]:
+def _decision_layer(
+    symbol: str,
+    score: Dict[str, Any],
+    quality_score: float,
+    amount_confidence: Dict[str, Any],
+) -> Dict[str, Any]:
     hard = list(score.get("hard_valve_hits") or [])
     missing_weight = _float(score.get("missing_weight"), 0.0)
     confidence_missing_weight = _float(score.get("confidence_missing_weight"), missing_weight)
@@ -55,9 +70,6 @@ def _decision_layer(symbol: str, score: Dict[str, Any], quality_score: float, ib
     if blind_spot:
         confidence_score = min(confidence_score, 50.0)
         reasons.append("blind spot: missing data weight is above threshold")
-    if ibkr_stale:
-        confidence_score = min(confidence_score, 70.0)
-        reasons.append("IBKR is snapshot/stale or unavailable")
     if confidence_score >= 85:
         level = "HIGH"
     elif confidence_score >= 70:
@@ -66,6 +78,17 @@ def _decision_layer(symbol: str, score: Dict[str, Any], quality_score: float, ib
         level = "LOW"
     else:
         level = "BLOCKED"
+    strategy_confidence = {
+        "score": round(confidence_score, 2),
+        "level": level,
+        "quality_score": round(quality_score, 2),
+        "scored_missing_weight": round(confidence_missing_weight, 2),
+        "total_missing_weight": round(missing_weight, 2),
+        "non_scoring_missing_weight": round(non_scoring_missing_weight, 2),
+        "scored_missing_fields": score.get("confidence_missing_fields") or [],
+        "non_scoring_missing_fields": score.get("non_scoring_missing_fields") or [],
+        "reasons": reasons or ["strategy data confidence acceptable for advisory use"],
+    }
     return {
         "symbol": symbol,
         "risk_temperature": {
@@ -79,17 +102,11 @@ def _decision_layer(symbol: str, score: Dict[str, Any], quality_score: float, ib
             "ids": hard,
             "candidates": score.get("valve_candidates") or [],
         },
-        "action_confidence": {
-            "score": round(confidence_score, 2),
-            "level": level,
-            "quality_score": round(quality_score, 2),
-            "scored_missing_weight": round(confidence_missing_weight, 2),
-            "total_missing_weight": round(missing_weight, 2),
-            "non_scoring_missing_weight": round(non_scoring_missing_weight, 2),
-            "scored_missing_fields": score.get("confidence_missing_fields") or [],
-            "non_scoring_missing_fields": score.get("non_scoring_missing_fields") or [],
-            "reasons": reasons or ["data confidence acceptable for advisory use"],
-        },
+        "strategy_confidence": strategy_confidence,
+        "execution_amount_confidence": dict(amount_confidence),
+        # Compatibility alias for older state/Web readers. New code must use the
+        # two explicit confidence fields above.
+        "action_confidence": strategy_confidence,
     }
 
 
@@ -140,7 +157,16 @@ def _action_intent(
         portfolio_value=portfolio_value,
         route_applies=route_applies,
         route_weight_items=route_weight_items,
+        amount_confidence=layer.get("execution_amount_confidence") or {},
     )
+    strategy_confidence = layer.get("strategy_confidence") or layer.get("action_confidence") or {}
+    amount_confidence = layer.get("execution_amount_confidence") or {}
+    execution_blockers = []
+    if not bool(amount_confidence.get("authoritative")):
+        execution_blockers.extend(amount_confidence.get("reasons") or [])
+    if str(strategy_confidence.get("level") or "") == "BLOCKED":
+        execution_blockers.append("strategy confidence is BLOCKED")
+    execution_ready = not execution_blockers
     return {
         "symbol": symbol,
         "status": status,
@@ -155,8 +181,17 @@ def _action_intent(
         "route_reason": routing.get("reason"),
         "top_reasons": reasons,
         "invalidation": invalidation,
-        "confidence_level": (layer.get("action_confidence") or {}).get("level"),
-        "confidence_score": (layer.get("action_confidence") or {}).get("score"),
+        "strategy_confidence_level": strategy_confidence.get("level"),
+        "strategy_confidence_score": strategy_confidence.get("score"),
+        "execution_amount_confidence_level": amount_confidence.get("level"),
+        "execution_amount_confidence_score": amount_confidence.get("score"),
+        "amount_status": amount_confidence.get("mode"),
+        "amount_authoritative": bool(amount_confidence.get("authoritative")),
+        "execution_ready": execution_ready,
+        "execution_blockers": execution_blockers,
+        # Compatibility aliases: these now mean strategy confidence only.
+        "confidence_level": strategy_confidence.get("level"),
+        "confidence_score": strategy_confidence.get("score"),
         "trade_plan": trade_plan,
     }
 
@@ -191,16 +226,20 @@ def _today_ops(action_intents: Dict[str, Dict[str, Any]], payload: Dict[str, Any
             break
     if not reasons:
         reasons = ["No sell/routing action is currently required."]
+    amount_status = _worst_amount_status(actionable)
     return {
         "requires_action": bool(actionable),
         "headline": "需要处置" if actionable else "无需主动处置",
         "action_count": len(actionable),
         "top_reasons": reasons[:3],
         "destinations": {k: round(v, 2) for k, v in sorted(destinations.items())},
+        "destinations_are_estimates": any(not bool(row.get("amount_authoritative")) for row in actionable),
+        "execution_ready": bool(actionable) and all(bool(row.get("execution_ready")) for row in actionable),
+        "execution_amount_status": amount_status,
         "data_quality": data_quality.get("level", "NA"),
         "data_quality_score": data_quality.get("overall_score"),
         "ibkr_source": ibkr.get("source", "disabled"),
-        "ibkr_stale": bool(ibkr.get("snapshot_stale")),
+        "ibkr_stale": amount_status not in {"LIVE", "NOT_APPLICABLE"},
         "note": "advisory only; no orders are placed",
     }
 
@@ -215,6 +254,7 @@ def _trade_plan(
     portfolio_value: float,
     route_applies: bool,
     route_weight_items: Iterable[tuple[str, float]] = (),
+    amount_confidence: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     legs = [_target_leg(symbol, risk_target_weight, snapshots, portfolio_value, "risk")]
     route_items = list(route_weight_items)
@@ -223,8 +263,11 @@ def _trade_plan(
     if route_applies:
         for leg_symbol, share in route_items:
             legs.append(_target_leg(leg_symbol, route_target_weight * share, snapshots, portfolio_value, "defense_route"))
+    amount_confidence = amount_confidence or {}
     return {
         "portfolio_value": round(portfolio_value, 2),
+        "amount_status": amount_confidence.get("mode"),
+        "amount_authoritative": bool(amount_confidence.get("authoritative")),
         "legs": legs,
         "total_target_weight": round(sum(_float(row.get("target_weight"), 0.0) for row in legs), 6),
         "total_target_notional": round(sum(_float(row.get("target_notional"), 0.0) for row in legs), 2),
@@ -311,6 +354,89 @@ def _price_for(symbol: str, snapshots: Dict[str, SymbolSnapshot]) -> Optional[fl
     if snap is None:
         return None
     return snap.get("close")
+
+
+def _execution_amount_confidence(
+    ibkr: Dict[str, Any],
+    portfolio_value: float,
+    *,
+    now: Optional[datetime],
+    max_age_seconds: float,
+) -> Dict[str, Any]:
+    source = str(ibkr.get("source") or "disabled").lower()
+    net_liq = _float(ibkr.get("net_liq"), 0.0)
+    age = _float_or_none(ibkr.get("snapshot_age_seconds"))
+    sync_time = _parse_timestamp(ibkr.get("sync_time"))
+    if now is not None:
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        if sync_time is not None:
+            age = max(0.0, (now.astimezone(timezone.utc) - sync_time).total_seconds())
+        else:
+            age = None
+    stale = bool(ibkr.get("snapshot_stale"))
+    if now is not None:
+        stale = age is None or age > max(0.0, float(max_age_seconds))
+
+    if source == "tws" and net_liq > 0 and not stale:
+        return {
+            "score": 100.0,
+            "level": "HIGH",
+            "mode": "LIVE",
+            "authoritative": True,
+            "ibkr_source": source,
+            "net_liq": round(net_liq, 2),
+            "snapshot_age_seconds": round(age, 2) if age is not None else None,
+            "reasons": ["fresh IBKR NetLiq and positions support dollar/share reconciliation"],
+        }
+    if source in {"tws", "snapshot"} and (net_liq > 0 or portfolio_value > 0):
+        return {
+            "score": 40.0 if source == "tws" else 35.0,
+            "level": "LOW",
+            "mode": "STALE_ESTIMATE",
+            "authoritative": False,
+            "ibkr_source": source,
+            "net_liq": round(net_liq, 2) if net_liq > 0 else None,
+            "snapshot_age_seconds": round(age, 2) if age is not None else None,
+            "reasons": ["IBKR positions or NetLiq are stale; dollar/share values are estimates"],
+        }
+    return {
+        "score": 0.0,
+        "level": "BLOCKED",
+        "mode": "MODEL_ESTIMATE",
+        "authoritative": False,
+        "ibkr_source": source,
+        "net_liq": round(net_liq, 2) if net_liq > 0 else None,
+        "snapshot_age_seconds": round(age, 2) if age is not None else None,
+        "reasons": ["fresh IBKR NetLiq/positions unavailable; model amounts are not an order list"],
+    }
+
+
+def _worst_amount_status(rows: Iterable[Dict[str, Any]]) -> str:
+    statuses = {str(row.get("amount_status") or "MODEL_ESTIMATE") for row in rows}
+    for status in ("MODEL_ESTIMATE", "STALE_ESTIMATE", "LIVE"):
+        if status in statuses:
+            return status
+    return "NOT_APPLICABLE"
+
+
+def _parse_timestamp(value: Any) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _float_or_none(value: Any) -> Optional[float]:
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _float(value: Any, default: float = 0.0) -> float:

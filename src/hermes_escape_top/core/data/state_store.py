@@ -358,7 +358,7 @@ def _insert_decisions(conn: sqlite3.Connection, score_run_id: int, payload: Dict
                 route.get("defcon"),
                 route.get("destination"),
                 _dumps(score.get("hard_valve_hits") or []),
-                (layer.get("action_confidence") or {}).get("level"),
+                (layer.get("strategy_confidence") or layer.get("action_confidence") or {}).get("level"),
                 intent.get("action"),
                 intent.get("target_symbol"),
                 _float(intent.get("target_notional")),
