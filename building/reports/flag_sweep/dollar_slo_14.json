@@ -1,0 +1,110 @@
+{
+  "variant": "dollar_slo_14",
+  "cache_schema": "flag-sweep-cache-v4",
+  "cache_key": "7e9b42525540b4af3a8cf13fcb1d4b65454a5828ace500cc1504dbcb7e3d33f7",
+  "manifest_id": "38525f67be5d4beb6c353b8313551ae53c476f566a75a79ede8a9e590e73653c",
+  "git_commit": "d14c6912facda2cbfc0e2332a5d39a840e37585e",
+  "code_sha256": "dd6509be752a78bc6b7bac162f5bbde15169ec50fdbe5518f7bbd321d95c2184",
+  "config_sha256": "f9cab1d7030470557a5d71a01d89fa3aa6c1e0e8b185c360bf73d63bee9e554c",
+  "soft_history_sha256": "a30cf53c426656ca133f9dafe52cb4360984fafa919d1ecf3abf304fe4575e2f",
+  "start": "2018-01-01",
+  "end": "2026-07-10",
+  "enable": [
+    "costs"
+  ],
+  "equity_timing": "next_open",
+  "effective_start": "2018-01-02",
+  "effective_end": "2026-07-10",
+  "n_days": 2141,
+  "runtime_sec": 915.7,
+  "metrics": {
+    "cagr": 0.159004,
+    "max_drawdown": -0.190659,
+    "sharpe": 1.069482,
+    "sortino": 1.358219,
+    "final_value": 350116.132505
+  },
+  "legacy_close_metrics": {
+    "final_value": 382479.259115,
+    "cagr": 0.171271,
+    "max_drawdown": -0.167591,
+    "max_drawdown_start": "2018-06-14",
+    "max_drawdown_end": "2019-10-09",
+    "sharpe": 1.135021,
+    "sortino": 1.476888
+  },
+  "execution_open_quality": {
+    "total_rows": 21410,
+    "observed_rows": 19228,
+    "modeled_rows": 2182,
+    "missing_rows": 0,
+    "observed_share": 0.89808501,
+    "counts": {
+      "MODELED_PROXY_SWITCH": 2,
+      "MODELED_SYNTHETIC_MIDPOINT": 2180,
+      "OBSERVED": 19228
+    },
+    "by_leg": {
+      "BOXX": {
+        "MODELED_PROXY_SWITCH": 1,
+        "OBSERVED": 2140
+      },
+      "BRK.B": {
+        "OBSERVED": 2141
+      },
+      "BTC-USD": {
+        "OBSERVED": 2141
+      },
+      "DBMF": {
+        "MODELED_PROXY_SWITCH": 1,
+        "MODELED_SYNTHETIC_MIDPOINT": 387,
+        "OBSERVED": 1753
+      },
+      "FNGU": {
+        "MODELED_SYNTHETIC_MIDPOINT": 1793,
+        "OBSERVED": 348
+      },
+      "IAU": {
+        "OBSERVED": 2141
+      },
+      "MSTR": {
+        "OBSERVED": 2141
+      },
+      "QQQ": {
+        "OBSERVED": 2141
+      },
+      "SOXL": {
+        "OBSERVED": 2141
+      },
+      "SOXX": {
+        "OBSERVED": 2141
+      }
+    }
+  },
+  "benchmarks": {
+    "SPY": 0.129324,
+    "SPY_metrics": {
+      "final_value": 280890.740435,
+      "cagr": 0.129324,
+      "max_drawdown": -0.341047,
+      "max_drawdown_start": "2020-02-19",
+      "max_drawdown_end": "2020-03-23",
+      "sharpe": 0.72775,
+      "sortino": 0.888597,
+      "calmar": 0.379197,
+      "turnover": 0.0
+    },
+    "QQQ": 0.196176,
+    "QQQ_metrics": {
+      "final_value": 457763.887072,
+      "cagr": 0.196176,
+      "max_drawdown": -0.364777,
+      "max_drawdown_start": "2021-11-19",
+      "max_drawdown_end": "2023-01-05",
+      "sharpe": 0.869346,
+      "sortino": 1.137578,
+      "calmar": 0.537797,
+      "turnover": 0.0
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schema": "hermes-formal-gate-v1",
+  "experiment_id": "dollar-slo-14-v1",
+  "created_at": "2026-07-12",
+  "hypothesis": "Allowing the calibrated dollar factor to remain available through 14 calendar days of publisher latency improves or preserves next-open OOS defensive performance without worsening drawdown beyond policy tolerance.",
+  "artifacts_dir": "building/reports/flag_sweep",
+  "baseline": "dollar_slo_6",
+  "target": "dollar_slo_14",
+  "candidates": [
+    "dollar_slo_14"
+  ],
+  "declared_trial_count": 2,
+  "walk_forward": {
+    "is_years": 2,
+    "oos_months": 6,
+    "step_months": 6,
+    "label_horizon": 20,
+    "embargo_pct": 0.02
+  },
+  "cpcv": {
+    "n_groups": 6,
+    "n_test": 2,
+    "label_horizon": 20,
+    "embargo_pct": 0.02
+  },
+  "thresholds": {
+    "pbo_max": 0.5,
+    "min_oos_delta": 0.0,
+    "maxdd_tolerance": 0.01,
+    "min_dsr": 0.0
+  }
+}

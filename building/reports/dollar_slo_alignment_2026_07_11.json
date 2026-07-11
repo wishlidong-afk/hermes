@@ -1,0 +1,183 @@
+{
+  "schema_version": "hermes-dollar-slo-alignment-evidence-v1",
+  "generated_on": "2026-07-11",
+  "baseline_source": "8a2709e",
+  "candidate_source": "d14c6912facda2cbfc0e2332a5d39a840e37585e",
+  "live_version": "4a0c20c_20260707_171720",
+  "deployed": false,
+  "slo_days": {
+    "baseline": {
+      "config": 6,
+      "external_profile": 10,
+      "risk_source": 14
+    },
+    "candidate": {
+      "config": 14,
+      "external_profile": 14,
+      "risk_source": 14
+    }
+  },
+  "upstream_evidence": {
+    "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DTWEXBGS",
+    "last_observation_date": "2026-07-02",
+    "last_observation_value": 120.6902,
+    "candidate_publish_date": "2026-07-03"
+  },
+  "ordinary_date_equivalence": {
+    "all_equal": true,
+    "comparison_scope": "normalized score payload plus six score-pipeline business artifacts",
+    "dates": {
+      "2022-06-30": {
+        "equal": true,
+        "input_hash": "34a543488b48c2208b144207a706dee969284d8bb63b1b855e32d0500c43ce74",
+        "status": {"FNGU": "EXIT", "MSTR": "EXIT", "SOXL": "EXIT"}
+      },
+      "2024-06-28": {
+        "equal": true,
+        "input_hash": "0a0e4677c5a896451c63d6c3de8582f9562fca5b841c5af61db82e5582ba213e",
+        "status": {"FNGU": "REDUCE", "MSTR": "REDUCE", "SOXL": "REDUCE"}
+      },
+      "2026-05-29": {
+        "equal": true,
+        "input_hash": "849acecfc9510304601b70ba7c30b05daae7a4dc4ff510ef63a61632590381d3",
+        "status": {"FNGU": "REDUCE", "MSTR": "EXIT", "SOXL": "REDUCE"}
+      },
+      "2026-07-09": {
+        "equal": true,
+        "input_hash": "e9ac4e09fb84695474393a52f6916969580e80ded49f657a30c3172ef73a77bb",
+        "status": {"FNGU": "REDUCE", "MSTR": "EXIT", "SOXL": "EXIT"}
+      }
+    }
+  },
+  "directed_replay": {
+    "as_of": "2026-07-10",
+    "input_hash": {
+      "baseline": "30f4370981f97b708a56f9040457c37ee1a662a9bb815bb62dd0fd8f86eb9473",
+      "candidate": "b89b4f5f014734749aba13aecb84b6d228680e79546d6302b7b1d5cea953e619"
+    },
+    "dollar": {
+      "latency_days": 7,
+      "baseline_available": false,
+      "baseline_reason": "stale: latency 7d > max_age 6d",
+      "candidate_available": true,
+      "candidate_value": 120.6902,
+      "candidate_percentile": 77.77777777777779,
+      "a11_score": {"baseline": 0.0, "candidate": 3.0}
+    },
+    "symbols": {
+      "FNGU": {
+        "status": {"baseline": "REDUCE", "candidate": "REDUCE"},
+        "module_a": {"baseline": 13.0, "candidate": 16.0},
+        "risk_score": {"baseline": 31.27065934065934, "candidate": 33.189157894736844},
+        "strategy_confidence": {"baseline": 88.6, "candidate": 92.6},
+        "target_weight": {"baseline": 0.137348, "candidate": 0.129787},
+        "route_defcon": {"baseline": "DEFCON1", "candidate": "DEFCON1"}
+      },
+      "MSTR": {
+        "status": {"baseline": "EXIT", "candidate": "EXIT"},
+        "module_a": {"baseline": 13.0, "candidate": 16.0},
+        "risk_score": {"baseline": 69.29923076923077, "candidate": 69.08010526315789},
+        "strategy_confidence": {"baseline": 88.6, "candidate": 92.6},
+        "target_weight": {"baseline": 0.15, "candidate": 0.15},
+        "route_defcon": {"baseline": "DEFCON1", "candidate": "DEFCON1"}
+      },
+      "SOXL": {
+        "status": {"baseline": "EXIT", "candidate": "EXIT"},
+        "module_a": {"baseline": 13.0, "candidate": 16.0},
+        "risk_score": {"baseline": 48.130549450549445, "candidate": 48.67452631578947},
+        "strategy_confidence": {"baseline": 88.6, "candidate": 92.6},
+        "target_weight": {"baseline": 0.3, "candidate": 0.3},
+        "route_defcon": {"baseline": "DEFCON1", "candidate": "DEFCON1"}
+      }
+    }
+  },
+  "baseline_freshness": {
+    "production_reference_status": "CURRENT_FOR_LIVE_6_DAY_POLICY",
+    "production_recorded_config_sha256": "a7770b049c4b90bf88cd74fb1eab66841258921d40235f4cbce6f278828e90ea",
+    "candidate_reference_status": "REJECTED_NOT_CURRENT",
+    "candidate_pre_gate_config_sha256": "b1eada03fe56348cc93a67c13d9585c1b8d0120378e78ad5e2e4b27476c04f72"
+  },
+  "formal_gate_artifacts": {
+    "source_commit": "d14c6912facda2cbfc0e2332a5d39a840e37585e",
+    "manifest_sha256": "d1c2564f83a096faad9f4369e5faebe07e68b7a8d6ebee265759ed1af7af7088",
+    "soft_history_sha256": "a30cf53c426656ca133f9dafe52cb4360984fafa919d1ecf3abf304fe4575e2f",
+    "code_sha256": "dd6509be752a78bc6b7bac162f5bbde15169ec50fdbe5518f7bbd321d95c2184",
+    "window": {
+      "start": "2018-01-01",
+      "effective_start": "2018-01-02",
+      "end": "2026-07-10",
+      "n_dates": 2141,
+      "equity_timing": "next_open"
+    },
+    "variants": {
+      "dollar_slo_6": {
+        "status": "FRESH",
+        "config_sha256": "35e3163d412e5ea1dc1f9353752b58d8dd6735a5fb60b3cbe7cf0ab3514c9ce9",
+        "metrics": {
+          "cagr": 0.159004,
+          "max_drawdown": -0.190659,
+          "sharpe": 1.069482,
+          "sortino": 1.358219,
+          "final_value": 350116.132505
+        }
+      },
+      "dollar_slo_14": {
+        "status": "FRESH",
+        "config_sha256": "f9cab1d7030470557a5d71a01d89fa3aa6c1e0e8b185c360bf73d63bee9e554c",
+        "metrics": {
+          "cagr": 0.159004,
+          "max_drawdown": -0.190659,
+          "sharpe": 1.069482,
+          "sortino": 1.358219,
+          "final_value": 350116.132505
+        }
+      }
+    },
+    "next_open_equity_sha256": {
+      "dollar_slo_6": "d35192e61e891612422aaa7476bec214488224165a3cec44d10573703d0dfbd0",
+      "dollar_slo_14": "d35192e61e891612422aaa7476bec214488224165a3cec44d10573703d0dfbd0"
+    }
+  },
+  "gate": {
+    "experiment_id": "dollar-slo-14-v1",
+    "status": "REJECTED",
+    "authorization": "NO_FLIP",
+    "reason": "Walk-forward and CPCV target OOS deltas were exactly 0.0, so the strict positive-improvement checks failed.",
+    "formal_gate_run": true,
+    "formal_gate_run_count": 1,
+    "deploy_allowed": false,
+    "declared_trials": 2,
+    "walk_forward": {
+      "folds": 14,
+      "pbo": 0.0,
+      "target_oos_delta": 0.0
+    },
+    "cpcv": {
+      "folds": 15,
+      "pbo": 0.0,
+      "target_oos_delta": 0.0
+    },
+    "deflated_sharpe": {
+      "value": 0.9500583941124657,
+      "n_trials": 2,
+      "skew": -0.35711498694932137,
+      "kurtosis": 6.805486352045058
+    },
+    "checks": {
+      "walk_forward_pbo": true,
+      "cpcv_pbo": true,
+      "walk_forward_oos_delta": false,
+      "cpcv_oos_delta": false,
+      "max_drawdown": true,
+      "deflated_sharpe": true
+    },
+    "result_path": "building/reports/formal_gate/dollar-slo-14-v1/result.json",
+    "report_path": "building/reports/formal_gate/dollar-slo-14-v1/REPORT.md"
+  },
+  "tests": {
+    "red": "5 failed, 24 passed",
+    "red_feature_off_guard": "1 failed",
+    "green_focused": "55 passed in 0.69s",
+    "full_suite": "773 passed, 2 warnings in 114.45s"
+  }
+}
