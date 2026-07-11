@@ -1,0 +1,111 @@
+{
+  "schema_version": "hermes-dollar-slo-alignment-evidence-v1",
+  "generated_on": "2026-07-11",
+  "baseline_source": "8a2709e",
+  "candidate_source": "e92ad5c",
+  "live_version": "4a0c20c_20260707_171720",
+  "deployed": false,
+  "slo_days": {
+    "baseline": {
+      "config": 6,
+      "external_profile": 10,
+      "risk_source": 14
+    },
+    "candidate": {
+      "config": 14,
+      "external_profile": 14,
+      "risk_source": 14
+    }
+  },
+  "upstream_evidence": {
+    "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DTWEXBGS",
+    "last_observation_date": "2026-07-02",
+    "last_observation_value": 120.6902,
+    "candidate_publish_date": "2026-07-03"
+  },
+  "ordinary_date_equivalence": {
+    "all_equal": true,
+    "comparison_scope": "normalized score payload plus six score-pipeline business artifacts",
+    "dates": {
+      "2022-06-30": {
+        "equal": true,
+        "input_hash": "34a543488b48c2208b144207a706dee969284d8bb63b1b855e32d0500c43ce74",
+        "status": {"FNGU": "EXIT", "MSTR": "EXIT", "SOXL": "EXIT"}
+      },
+      "2024-06-28": {
+        "equal": true,
+        "input_hash": "0a0e4677c5a896451c63d6c3de8582f9562fca5b841c5af61db82e5582ba213e",
+        "status": {"FNGU": "REDUCE", "MSTR": "REDUCE", "SOXL": "REDUCE"}
+      },
+      "2026-05-29": {
+        "equal": true,
+        "input_hash": "849acecfc9510304601b70ba7c30b05daae7a4dc4ff510ef63a61632590381d3",
+        "status": {"FNGU": "REDUCE", "MSTR": "EXIT", "SOXL": "REDUCE"}
+      },
+      "2026-07-09": {
+        "equal": true,
+        "input_hash": "e9ac4e09fb84695474393a52f6916969580e80ded49f657a30c3172ef73a77bb",
+        "status": {"FNGU": "REDUCE", "MSTR": "EXIT", "SOXL": "EXIT"}
+      }
+    }
+  },
+  "directed_replay": {
+    "as_of": "2026-07-10",
+    "input_hash": {
+      "baseline": "30f4370981f97b708a56f9040457c37ee1a662a9bb815bb62dd0fd8f86eb9473",
+      "candidate": "b89b4f5f014734749aba13aecb84b6d228680e79546d6302b7b1d5cea953e619"
+    },
+    "dollar": {
+      "latency_days": 7,
+      "baseline_available": false,
+      "baseline_reason": "stale: latency 7d > max_age 6d",
+      "candidate_available": true,
+      "candidate_value": 120.6902,
+      "candidate_percentile": 77.77777777777779,
+      "a11_score": {"baseline": 0.0, "candidate": 3.0}
+    },
+    "symbols": {
+      "FNGU": {
+        "status": {"baseline": "REDUCE", "candidate": "REDUCE"},
+        "module_a": {"baseline": 13.0, "candidate": 16.0},
+        "risk_score": {"baseline": 31.27065934065934, "candidate": 33.189157894736844},
+        "strategy_confidence": {"baseline": 88.6, "candidate": 92.6},
+        "target_weight": {"baseline": 0.137348, "candidate": 0.129787},
+        "route_defcon": {"baseline": "DEFCON1", "candidate": "DEFCON1"}
+      },
+      "MSTR": {
+        "status": {"baseline": "EXIT", "candidate": "EXIT"},
+        "module_a": {"baseline": 13.0, "candidate": 16.0},
+        "risk_score": {"baseline": 69.29923076923077, "candidate": 69.08010526315789},
+        "strategy_confidence": {"baseline": 88.6, "candidate": 92.6},
+        "target_weight": {"baseline": 0.15, "candidate": 0.15},
+        "route_defcon": {"baseline": "DEFCON1", "candidate": "DEFCON1"}
+      },
+      "SOXL": {
+        "status": {"baseline": "EXIT", "candidate": "EXIT"},
+        "module_a": {"baseline": 13.0, "candidate": 16.0},
+        "risk_score": {"baseline": 48.130549450549445, "candidate": 48.67452631578947},
+        "strategy_confidence": {"baseline": 88.6, "candidate": 92.6},
+        "target_weight": {"baseline": 0.3, "candidate": 0.3},
+        "route_defcon": {"baseline": "DEFCON1", "candidate": "DEFCON1"}
+      }
+    }
+  },
+  "baseline_freshness": {
+    "status": "STALE_CONFIG",
+    "recorded_config_sha256": "a7770b049c4b90bf88cd74fb1eab66841258921d40235f4cbce6f278828e90ea",
+    "candidate_config_sha256": "b1eada03fe56348cc93a67c13d9585c1b8d0120378e78ad5e2e4b27476c04f72"
+  },
+  "gate": {
+    "status": "FORMAL_GATE_REQUIRED",
+    "reason": "FNGU target_weight changed from 0.137348 to 0.129787",
+    "formal_gate_run": false,
+    "deploy_allowed": false
+  },
+  "tests": {
+    "red": "5 failed, 24 passed",
+    "red_feature_off_guard": "1 failed",
+    "green_focused": "30 passed",
+    "full_suite": "772 passed in 95.81s"
+  }
+}
