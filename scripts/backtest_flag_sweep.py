@@ -5,9 +5,8 @@ process OOM-kills). Usage:
 
     PYTHONPATH=src python3 scripts/backtest_flag_sweep.py <variant> [--reuse-if-fresh]
 
-Variants: baseline, scored_missing_weight, partial_factor_eval,
-decision_stabilizer, suspect_valve_guard, spine_only, mnav_b6,
-f8_tightened, all_on.
+Variants include the deployed baseline, gated feature variants, and explicit
+pre-registered comparison variants such as dollar_slo_6/dollar_slo_14.
 
 Results land in building/reports/flag_sweep/<variant>.json.
 """
@@ -94,6 +93,8 @@ def build_config(variant: str) -> dict:
         feats["use_full_confidence_spine"] = True
     elif variant == "slo_only":
         feats["use_soft_data_max_age"] = True
+    elif variant in {"dollar_slo_6", "dollar_slo_14"}:
+        cfg["soft_data_slo"]["max_age_days"]["dollar"] = int(variant.rsplit("_", 1)[1])
     elif variant == "spine_only":
         feats["use_full_confidence_spine"] = True
     elif variant == "mnav_b6":

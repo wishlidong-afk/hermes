@@ -33,6 +33,18 @@ def test_build_config_variants_are_distinct() -> None:
     assert stabilizer["features"]["use_decision_stabilizer"] is True
 
 
+def test_dollar_slo_gate_variants_pin_only_the_preregistered_threshold() -> None:
+    mod = _load_module()
+
+    six_days = mod.build_config("dollar_slo_6")
+    fourteen_days = mod.build_config("dollar_slo_14")
+
+    assert six_days["soft_data_slo"]["max_age_days"]["dollar"] == 6
+    assert fourteen_days["soft_data_slo"]["max_age_days"]["dollar"] == 14
+    six_days["soft_data_slo"]["max_age_days"]["dollar"] = 14
+    assert six_days == fourteen_days
+
+
 def test_cache_fresh_requires_schema_key_and_equity(tmp_path, monkeypatch) -> None:
     mod = _load_module()
     monkeypatch.setattr(mod, "OUT_DIR", tmp_path)
