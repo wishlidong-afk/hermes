@@ -30,6 +30,7 @@ VOLATILE_KEYS = {
     "updated_at",
     "written_at",
 }
+INTENTIONAL_METADATA_KEYS = {"persistence"}
 SEED_SUBDIRS = ("history", "soft_history")
 BUSINESS_ARTIFACTS = {
     "audit_log.jsonl",
@@ -61,7 +62,8 @@ def main() -> int:
         "scope_notes": [
             "Covers score_pipeline persistence only: four SQLite files, audit_log.jsonl, and signal_journal.jsonl.",
             "archive_soft_inputs/write_dated_snapshot is a separate command outside the score_pipeline transaction and is intentionally excluded.",
-            "Only timestamps, temporary data-root prefixes, and the audit row's timestamp-derived payload_hash are normalized; payload semantics remain strict.",
+            "Timestamps, temporary data-root prefixes, and the audit row's timestamp-derived payload_hash are normalized.",
+            "The recoverable transaction envelope is omitted because its random run_id is operational metadata; every business field and persisted row remains strict.",
         ],
         "dates": {},
     }
@@ -250,6 +252,7 @@ def _normalize(value: Any, data_root: Path) -> Any:
         return {
             key: "$TIME" if key in VOLATILE_KEYS else _normalize(item, data_root)
             for key, item in sorted(value.items())
+            if key not in INTENTIONAL_METADATA_KEYS
         }
     if isinstance(value, list):
         return [_normalize(item, data_root) for item in value]

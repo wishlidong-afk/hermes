@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from unittest import mock
 
+from hermes_escape_top.core.data.run_transaction import recover_incomplete_score_run, score_run_transaction
+from hermes_escape_top.core.safe_io import pipeline_lock
 from hermes_escape_top.pipeline import score_pipeline
 from hermes_escape_top.web.server import _attach_alpaca_daily_flow, _latest_score_payload
 from hermes_escape_top.web.render import render_dashboard, write_dashboard
@@ -79,6 +81,37 @@ class Phase14WebTest(unittest.TestCase):
         self.assertEqual(latest["as_of"], "2026-06-04")
         self.assertEqual(latest["ibkr"]["source"], "tws")
         self.assertEqual(exact["as_of"], "2026-05-29")
+
+    def test_latest_score_payload_hides_a_pending_transaction(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp) / "data" / "archive"
+            archive.mkdir(parents=True)
+            audit = archive / "audit_log.jsonl"
+            audit.write_text(json.dumps({"payload": {
+                "as_of": "2026-06-04",
+                "run_type": "scheduled",
+                "scores": {"MSTR": {"status": "HOLD"}},
+            }}) + "\n", encoding="utf-8")
+            with pipeline_lock(path=archive / ".pipeline.lock") as lease:
+                context = score_run_transaction(
+                    archive, [audit], metadata={"as_of": "2026-06-05"}, _lease=lease
+                )
+                transaction = context.__enter__()
+                with audit.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps({"payload": {
+                        "as_of": "2026-06-05",
+                        "run_type": "scheduled",
+                        "persistence": {"run_id": transaction.run_id},
+                        "scores": {"MSTR": {"status": "EXIT"}},
+                    }}) + "\n")
+
+                with mock.patch("hermes_escape_top.web.server.load_config", return_value={}), mock.patch(
+                    "hermes_escape_top.web.server.resolve_path", return_value=archive
+                ):
+                    latest = _latest_score_payload("latest")
+
+                self.assertEqual(latest["as_of"], "2026-06-04")
+                recover_incomplete_score_run(archive, _lease=lease)
 
     def test_alpaca_flow_attachment_never_uses_a_future_session(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

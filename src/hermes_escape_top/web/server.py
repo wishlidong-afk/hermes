@@ -51,6 +51,7 @@ RUN_DAILY_PKG = (
 
 from ..config import load_config, resolve_path
 from ..core.data.alpaca_flow import load_daily_flow_snapshot
+from ..core.data.run_transaction import pending_score_run_transaction
 from ..core.data.state_store import record_execution_confirmation
 from ..ibkr.live_check import run_live_check
 from ..ibkr.positions import write_demo_snapshot
@@ -149,6 +150,8 @@ def _read_audit_payloads(max_bytes: int = 64 * 1024 * 1024) -> list:
         path = resolve_path(load_config(), "archive_dir") / "audit_log.jsonl"
         if not path.exists():
             return []
+        pending = pending_score_run_transaction(path.parent)
+        pending_run_id = str((pending or {}).get("run_id") or "")
         out: list = []
         for raw in _tail_lines_newest_first(path, max_bytes):
             raw = raw.strip()
@@ -160,6 +163,9 @@ def _read_audit_payloads(max_bytes: int = 64 * 1024 * 1024) -> list:
                 continue
             pl = record.get("payload") if isinstance(record, dict) else None
             pl = pl if isinstance(pl, dict) else record
+            persistence_run_id = str(((pl or {}).get("persistence") or {}).get("run_id") or "")
+            if pending_run_id and persistence_run_id == pending_run_id:
+                continue
             if isinstance(pl, dict) and "scores" in pl:
                 out.append(pl)
         return out

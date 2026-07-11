@@ -14,6 +14,7 @@ from .config import CONFIG_PATH, load_config, resolve_path, trade_symbols
 from .core.data.base import Field, SymbolSnapshot
 from .core.data.flow import basket_flow, money_flow_metrics
 from .core.data.flow_store import write_flow_snapshot
+from .core.data.run_transaction import recover_incomplete_score_run, score_run_transaction
 from .core.data.market import MarketData
 from .core.data.audit import write_audit_record
 from .core.data.quality import analyze_missing_fields, quality_from_snapshots
@@ -44,6 +45,17 @@ from .mirror.store import write_mirror_snapshot
 from .core.scoring.scorer import score_symbol
 from .core.scoring.result import ScoreResult
 from .core.safe_io import assert_pipeline_lease, pipeline_lock
+
+
+PERSISTENCE_CHECKPOINTS = (
+    "reentry_state",
+    "mirror_reference",
+    "flow_reference",
+    "execution_confirmations",
+    "unified_state",
+    "audit_log",
+    "signal_journal",
+)
 
 
 def bootstrap() -> Dict[str, Any]:
@@ -160,6 +172,7 @@ def _score_pipeline_locked(
         _lease,
         path=resolve_path(config, "archive_dir") / ".pipeline.lock",
     )
+    recovery = recover_incomplete_score_run(resolve_path(config, "archive_dir"), _lease=_lease)
     store = LocalStore(config)
     market = MarketData(config=config, store=store)
     symbols = _snapshot_universe(config)
@@ -230,86 +243,110 @@ def _score_pipeline_locked(
         )
         for symbol, bundle in bundles.items()
     }
-    reentry_db = write_reentry_snapshot(reentry_db_path, str(as_of)[:10], reentry, reentry_states)
-    mirror = build_mirror_plan(snapshots, config, histories=histories, as_of=as_of)
-    mirror_db = write_mirror_snapshot(store.archive_dir / "mirror_reference.sqlite", str(as_of)[:10], mirror)
-    flow = _flow_payload(config, histories, as_of)
-    flow_db = write_flow_snapshot(store.archive_dir / "flow_reference.sqlite", flow)
-    flow["db_path"] = str(flow_db)
-    ibkr_payload = _ibkr_payload(config, sizing, routing) if include_ibkr else {
-        "source": "disabled",
-        "note": "IBKR disabled for offline replay/backtest.",
-    }
-    execution_sync = _execution_sync(config, state_db_path, reentry, ibkr_payload, as_of, include_ibkr)
-    execution_confirmations = execution_sync.get("latest_confirmations") or execution_confirmations
-    portfolio_value = _portfolio_value(config, ibkr_payload)
-    escape_pnl = escape_posterior_pnl(
-        {symbol: decision.to_dict() for symbol, decision in sizing.items()},
-        histories,
-        as_of,
-        portfolio_value=portfolio_value,
-    )
-    mirror_pnl = mirror_posterior_pnl(mirror, histories, as_of, portfolio_value=portfolio_value)
-    payload = {
-        "schema_version": "escape-top-greenfield-phase3-score-v1",
-        "as_of": as_of,
-        "run_type": str(run_type),
-        "run_ts": datetime.now(timezone.utc).isoformat(),
-        "config_version": config["version"],
-        "snapshots": {symbol: snap.to_dict() for symbol, snap in sorted(snapshots.items())},
-        "scores": {symbol: bundle.result.to_dict() for symbol, bundle in sorted(bundles.items())},
-        "regime": regime_meta,
-        "portfolio_risk": portfolio_risk.to_dict(),
-        "confidence_spine": sizing_extras.get("confidence_spine") or {},
-        "risk_contributions": sizing_extras.get("risk_contributions") or {},
-        "stress_scenarios": sizing_extras.get("stress_scenarios") or [],
-        "routing_context": _routing_context(bundles, snapshots, histories, config),
-        "sizing": {symbol: decision.to_dict() for symbol, decision in sorted(sizing.items())},
-        "routing": {symbol: decision.to_dict() for symbol, decision in sorted(routing.items())},
-        "reentry": {symbol: plan.to_dict() for symbol, plan in sorted(reentry.items())},
-        "reentry_state": {
-            "db_path": str(reentry_db),
-            "states": {symbol: state.to_dict() for symbol, state in sorted(reentry_states.items())},
-            "execution_confirmations": execution_confirmations,
+    artifacts = _score_persistence_artifacts(store, shadow)
+    with score_run_transaction(
+        store.archive_dir,
+        artifacts,
+        metadata={
+            "as_of": str(as_of)[:10],
+            "run_type": str(run_type),
+            "shadow": bool(shadow),
+            "include_ibkr": bool(include_ibkr),
+        },
+        _lease=_lease,
+    ) as persistence:
+        reentry_db = write_reentry_snapshot(reentry_db_path, str(as_of)[:10], reentry, reentry_states)
+        _persistence_checkpoint("reentry_state")
+        mirror = build_mirror_plan(snapshots, config, histories=histories, as_of=as_of)
+        mirror_db = write_mirror_snapshot(store.archive_dir / "mirror_reference.sqlite", str(as_of)[:10], mirror)
+        _persistence_checkpoint("mirror_reference")
+        flow = _flow_payload(config, histories, as_of)
+        flow_db = write_flow_snapshot(store.archive_dir / "flow_reference.sqlite", flow)
+        flow["db_path"] = str(flow_db)
+        _persistence_checkpoint("flow_reference")
+        ibkr_payload = _ibkr_payload(config, sizing, routing) if include_ibkr else {
+            "source": "disabled",
+            "note": "IBKR disabled for offline replay/backtest.",
+        }
+        execution_sync = _execution_sync(config, state_db_path, reentry, ibkr_payload, as_of, include_ibkr)
+        _persistence_checkpoint("execution_confirmations")
+        execution_confirmations = execution_sync.get("latest_confirmations") or execution_confirmations
+        portfolio_value = _portfolio_value(config, ibkr_payload)
+        escape_pnl = escape_posterior_pnl(
+            {symbol: decision.to_dict() for symbol, decision in sizing.items()},
+            histories,
+            as_of,
+            portfolio_value=portfolio_value,
+        )
+        mirror_pnl = mirror_posterior_pnl(mirror, histories, as_of, portfolio_value=portfolio_value)
+        payload = {
+            "schema_version": "escape-top-greenfield-phase3-score-v1",
+            "as_of": as_of,
+            "run_type": str(run_type),
+            "run_ts": datetime.now(timezone.utc).isoformat(),
+            "config_version": config["version"],
+            "persistence": {
+                "run_id": persistence.run_id,
+                "protocol": "recoverable-journal-v1",
+                "recovered_run_id": (recovery or {}).get("run_id"),
+            },
+            "snapshots": {symbol: snap.to_dict() for symbol, snap in sorted(snapshots.items())},
+            "scores": {symbol: bundle.result.to_dict() for symbol, bundle in sorted(bundles.items())},
+            "regime": regime_meta,
+            "portfolio_risk": portfolio_risk.to_dict(),
+            "confidence_spine": sizing_extras.get("confidence_spine") or {},
+            "risk_contributions": sizing_extras.get("risk_contributions") or {},
+            "stress_scenarios": sizing_extras.get("stress_scenarios") or [],
+            "routing_context": _routing_context(bundles, snapshots, histories, config),
+            "sizing": {symbol: decision.to_dict() for symbol, decision in sorted(sizing.items())},
+            "routing": {symbol: decision.to_dict() for symbol, decision in sorted(routing.items())},
+            "reentry": {symbol: plan.to_dict() for symbol, plan in sorted(reentry.items())},
+            "reentry_state": {
+                "db_path": str(reentry_db),
+                "states": {symbol: state.to_dict() for symbol, state in sorted(reentry_states.items())},
+                "execution_confirmations": execution_confirmations,
+                "execution_sync": execution_sync,
+            },
             "execution_sync": execution_sync,
-        },
-        "execution_sync": execution_sync,
-        "soft_data": soft_data,
-        "flow": flow,
-        "mirror": {
-            "db_path": str(mirror_db),
-            "decisions": {sleeve: decision.to_dict() for sleeve, decision in sorted(mirror.items())},
-        },
-        "posterior_pnl": {
-            "portfolio_value": portfolio_value,
-            "escape": {symbol: row.to_dict() for symbol, row in sorted(escape_pnl.items())},
-            "mirror": {sleeve: row.to_dict() for sleeve, row in sorted(mirror_pnl.items())},
-        },
-        "data_quality": quality_from_snapshots(snapshots.values()).to_dict(),
-        "ibkr": ibkr_payload,
-    }
-    payload["input_hash"] = stable_hash(payload["snapshots"])
-    payload["data_quality_breakdown"] = _quality_breakdown(payload, snapshots, flow)
-    payload.update(build_action_context(payload, snapshots))
-    payload["state"] = write_state_snapshot(state_db_path, payload, retention=config.get("state_retention"))
+            "soft_data": soft_data,
+            "flow": flow,
+            "mirror": {
+                "db_path": str(mirror_db),
+                "decisions": {sleeve: decision.to_dict() for sleeve, decision in sorted(mirror.items())},
+            },
+            "posterior_pnl": {
+                "portfolio_value": portfolio_value,
+                "escape": {symbol: row.to_dict() for symbol, row in sorted(escape_pnl.items())},
+                "mirror": {sleeve: row.to_dict() for sleeve, row in sorted(mirror_pnl.items())},
+            },
+            "data_quality": quality_from_snapshots(snapshots.values()).to_dict(),
+            "ibkr": ibkr_payload,
+        }
+        payload["input_hash"] = stable_hash(payload["snapshots"])
+        payload["data_quality_breakdown"] = _quality_breakdown(payload, snapshots, flow)
+        payload.update(build_action_context(payload, snapshots))
+        payload["state"] = write_state_snapshot(state_db_path, payload, retention=config.get("state_retention"))
+        _persistence_checkpoint("unified_state")
 
-    audit_path = write_audit_record(payload, _audit_write_dir(store, shadow))
-    signal_path = append_signal_journal(
-        signal_journal_write_path,
-        [
-            SignalJournalEntry(
-                as_of=str(as_of)[:10],
-                symbol=symbol,
-                status=bundle.result.status,
-                final_score=bundle.result.final_score,
-                hard_valves=bundle.result.hard_valve_hits,
-                regime=regime.value,
-            )
-            for symbol, bundle in sorted(bundles.items())
-        ],
-    )
-    payload["audit_log_path"] = str(audit_path)
-    payload["signal_journal_path"] = str(signal_path)
+        audit_path = write_audit_record(payload, _audit_write_dir(store, shadow))
+        _persistence_checkpoint("audit_log")
+        signal_path = append_signal_journal(
+            signal_journal_write_path,
+            [
+                SignalJournalEntry(
+                    as_of=str(as_of)[:10],
+                    symbol=symbol,
+                    status=bundle.result.status,
+                    final_score=bundle.result.final_score,
+                    hard_valves=bundle.result.hard_valve_hits,
+                    regime=regime.value,
+                )
+                for symbol, bundle in sorted(bundles.items())
+            ],
+        )
+        _persistence_checkpoint("signal_journal")
+        payload["audit_log_path"] = str(audit_path)
+        payload["signal_journal_path"] = str(signal_path)
 
     return payload
 
@@ -328,6 +365,23 @@ def _audit_write_dir(store: LocalStore, shadow: bool) -> Path:
     path = store.archive_dir.parent / "shadow" / "archive"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def _score_persistence_artifacts(store: LocalStore, shadow: bool) -> tuple[Path, ...]:
+    return (
+        store.archive_dir / "reentry_state.sqlite",
+        store.archive_dir / "mirror_reference.sqlite",
+        store.archive_dir / "flow_reference.sqlite",
+        store.archive_dir / "hermes_state.sqlite",
+        _audit_write_dir(store, shadow) / "audit_log.jsonl",
+        _signal_journal_write_path(store, shadow),
+    )
+
+
+def _persistence_checkpoint(name: str) -> None:
+    """Internal fault-injection seam; production execution is intentionally a no-op."""
+    if name not in PERSISTENCE_CHECKPOINTS:
+        raise ValueError(f"unknown persistence checkpoint: {name}")
 
 
 def _flow_payload(config: Dict[str, Any], histories: Dict[str, Any], as_of: str) -> Dict[str, Any]:

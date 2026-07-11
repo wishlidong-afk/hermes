@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 from pathlib import Path
 from unittest import mock
 
@@ -9,6 +10,16 @@ import pytest
 from hermes_escape_top import pipeline
 from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.safe_io import assert_pipeline_lease, pipeline_lock
+
+
+BUSINESS_ARTIFACTS = (
+    "audit_log.jsonl",
+    "flow_reference.sqlite",
+    "hermes_state.sqlite",
+    "mirror_reference.sqlite",
+    "reentry_state.sqlite",
+    "signal_journal.jsonl",
+)
 
 
 def test_public_score_pipeline_mints_active_lease():
@@ -63,9 +74,35 @@ def test_private_locked_score_has_only_approved_production_callers():
     assert callers == approved
 
 
+def test_each_cross_store_fault_restores_all_business_artifacts():
+    config = load_config()
+    archive = resolve_path(config, "archive_dir")
+    pipeline.score_pipeline("2026-05-29", include_ibkr=False)
+    before = _artifact_hashes(archive)
+
+    for fault_name in pipeline.PERSISTENCE_CHECKPOINTS:
+        def inject(checkpoint, expected=fault_name):
+            if checkpoint == expected:
+                raise RuntimeError(f"fault after {checkpoint}")
+
+        with mock.patch.object(pipeline, "_persistence_checkpoint", side_effect=inject):
+            with pytest.raises(RuntimeError, match=f"fault after {fault_name}"):
+                pipeline.score_pipeline("2026-05-29", include_ibkr=False)
+        assert _artifact_hashes(archive) == before, fault_name
+
+
 def _call_name(node):
     if isinstance(node, ast.Name):
         return node.id
     if isinstance(node, ast.Attribute):
         return node.attr
     return None
+
+
+def _artifact_hashes(archive: Path):
+    return {
+        name: hashlib.sha256((archive / name).read_bytes()).hexdigest()
+        if (archive / name).exists()
+        else None
+        for name in BUSINESS_ARTIFACTS
+    }
