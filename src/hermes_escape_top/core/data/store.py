@@ -123,8 +123,7 @@ def _quality_filter_history(symbol: str, frame: pd.DataFrame) -> pd.DataFrame:
         return frame
     close = pd.to_numeric(frame["Close"], errors="coerce")
     if symbol == "BTC-USD":
-        mask = ~((frame.index >= pd.Timestamp("2020-01-01")) & (close < 5_000))
-        return frame.loc[mask]
+        return frame.loc[close > 0]
     if symbol == "^VVIX":
         mask = (close >= 40) & (close <= 250)
         return frame.loc[mask]
