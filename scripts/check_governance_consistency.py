@@ -29,6 +29,7 @@ def parse_registry_defaults(markdown: str) -> dict[str, bool]:
 
 def governance_snapshot(config: dict[str, Any], baseline: dict[str, Any]) -> dict[str, Any]:
     features = config.get("features") or {}
+    dollar_slo, _ = dollar_slo_alignment(config)
     return {
         "schema_version": "hermes-governance-snapshot-v1",
         "config_version": config.get("version"),
@@ -39,12 +40,33 @@ def governance_snapshot(config: dict[str, Any], baseline: dict[str, Any]) -> dic
         "routing_defcon1": (config.get("routing") or {}).get("defcon1"),
         "reentry_tranches": (config.get("reentry") or {}).get("tranches"),
         "ibkr_readonly": (config.get("ibkr") or {}).get("readonly"),
+        "dollar_slo_max_age_days": dollar_slo,
         "baseline": {
             "git_commit": baseline.get("git_commit"),
             "equity_timing": baseline.get("equity_timing"),
             "effective_end": baseline.get("effective_end"),
         },
     }
+
+
+def dollar_slo_alignment(config: dict[str, Any]) -> tuple[dict[str, int], list[str]]:
+    from hermes_escape_top.core.data.external_sources.profiles import profile_for
+    from hermes_escape_top.core.data.risk_signals import _all_risk_sources
+
+    profile = profile_for("dollar")
+    risk_source = next(
+        (source for source in _all_risk_sources() if getattr(source, "name", "") == "dollar"),
+        None,
+    )
+    values = {
+        "config": int(((config.get("soft_data_slo") or {}).get("max_age_days") or {}).get("dollar", -1)),
+        "external_profile": int(profile.max_age_days) if profile is not None else -1,
+        "risk_source": int(risk_source.max_age_days) if risk_source is not None else -1,
+    }
+    if set(values.values()) == {14}:
+        return values, []
+    detail = ", ".join(f"{key}={value}" for key, value in values.items())
+    return values, [f"dollar max-age mismatch: {detail}"]
 
 
 def render_snapshot_block(snapshot: dict[str, Any]) -> str:
@@ -89,6 +111,13 @@ def check_repository(root: Path) -> dict[str, Any]:
     except Exception as exc:
         checks["config_invariants"] = "ERROR"
         errors.append(f"config invariants: {exc}")
+
+    _, dollar_slo_errors = dollar_slo_alignment(config)
+    if dollar_slo_errors:
+        checks["dollar_slo_alignment"] = "ERROR"
+        errors.extend(dollar_slo_errors)
+    else:
+        checks["dollar_slo_alignment"] = "OK"
 
     registry_defaults = parse_registry_defaults(registry_path.read_text(encoding="utf-8"))
     config_features = config.get("features") or {}

@@ -189,7 +189,7 @@ def test_refresh_external_status_adds_profile_and_freshness(monkeypatch, tmp_pat
         {
             "source_id": "dollar",
             "status": "OK",
-            "latest_promoted_as_of": "2026-06-18",
+            "latest_promoted_as_of": "2026-06-17",
         },
     )
     append_source_run(
@@ -204,8 +204,8 @@ def test_refresh_external_status_adds_profile_and_freshness(monkeypatch, tmp_pat
     out = refresh_external.status(cfg, today=date(2026, 7, 2))
 
     assert out["dollar"]["cadence"] == "weekly"
-    assert out["dollar"]["max_age_days"] == 10
-    assert out["dollar"]["age_days"] == 14
+    assert out["dollar"]["max_age_days"] == 14
+    assert out["dollar"]["age_days"] == 15
     assert out["dollar"]["freshness_status"] == "STALE"
     assert out["dollar"]["next_action"].startswith("run refresh_external")
     assert out["aaii_sentiment"]["failure_kind"] == "AUTH_REQUIRED"
@@ -219,7 +219,7 @@ def test_refresh_external_status_explains_due_soon_after_same_day_success(tmp_pa
         {
             "source_id": "dollar",
             "status": "OK",
-            "latest_promoted_as_of": "2026-06-26",
+            "latest_promoted_as_of": "2026-06-22",
             "finished_at": "2026-07-04T12:56:31+00:00",
         },
     )

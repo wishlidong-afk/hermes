@@ -365,14 +365,14 @@
     "rollback": "set features.use_soft_data_max_age=false"
   },
   "soft_data_slo": {
-    "_note": "T9: when features.use_soft_data_max_age is on, soft records whose latency_days (each source's own staleness measure, the same one data_quality consumes) exceeds max_age are degraded to missing so they flow through missing_weight instead of scoring with stale percentiles. Thresholds are long-weekend-safe (daily ~6 covers a holiday weekend; weekly 13 covers one skipped release). Default OFF; flip is an F4-class live-robustness gate (expected backtest no-op on complete history).",
+    "_note": "T9: when features.use_soft_data_max_age is on, soft records whose latency_days (each source's own staleness measure, the same one data_quality consumes) exceeds max_age are degraded to missing so they flow through missing_weight instead of scoring with stale percentiles. Thresholds are long-weekend-safe (daily ~6 covers a holiday weekend; slow-publishing weekly-like sources use 13-14 days). Default OFF; flip is an F4-class live-robustness gate (expected backtest no-op on complete history).",
     "default_max_age_days": 13,
     "max_age_days": {
       "net_liquidity": 6,
       "cboe_indices": 6,
       "cboe_pcr": 6,
       "real_rate": 6,
-      "dollar": 6,
+      "dollar": 14,
       "defensive_rotation": 6,
       "btc_funding_basis": 6
     }

@@ -33,6 +33,11 @@
     "use_portfolio_risk_budget",
     "use_status_hysteresis"
   ],
+  "dollar_slo_max_age_days": {
+    "config": 14,
+    "external_profile": 14,
+    "risk_source": 14
+  },
   "enabled_features": [
     "data_aaii",
     "data_cboe_pcr",
@@ -82,7 +87,6 @@
 }
 ```
 <!-- HERMES_GOVERNANCE_SNAPSHOT_END -->
-
 
 > 由代码事实与治理检查生成于 2026-07-11。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准；`scripts/check_governance_consistency.py` 会阻止关键快照静默漂移。
 

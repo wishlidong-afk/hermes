@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 
+from hermes_escape_top.config import load_config
 from hermes_escape_top.core.data.adapters import apply_soft_data_slo
 
 
@@ -50,3 +51,21 @@ def test_within_age_and_already_missing_records_untouched():
     assert records["naaim"]["data_available"] is True  # 7 <= default 13
     assert records["naaim"]["value"] == 0.93
     assert records["gex"]["reason"] == "flag off"  # already missing: left alone
+
+
+def test_deployed_dollar_slo_accepts_7_days_and_rejects_15_days():
+    config = load_config()
+    assert config["soft_data_slo"]["max_age_days"]["dollar"] == 14
+
+    seven_days = _records()
+    seven_days["dollar"]["latency_days"] = 7
+    accepted = apply_soft_data_slo(seven_days, config)["dollar"]
+    assert accepted["data_available"] is True
+    assert accepted["value"] == 0.42
+
+    fifteen_days = _records()
+    fifteen_days["dollar"]["latency_days"] = 15
+    rejected = apply_soft_data_slo(fifteen_days, config)["dollar"]
+    assert rejected["data_available"] is False
+    assert rejected["value"] is None
+    assert "stale: latency 15d > max_age 14d" in rejected["reason"]
