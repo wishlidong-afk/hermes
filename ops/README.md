@@ -34,3 +34,30 @@ manual audit is fresh, maintenance steps appear in the log, and no official
 receipt/state is written) — the one check that would have caught B at deploy time
 instead of at the next 07:10 without creating a second scheduled run. Wired as
 the final gate of `deploy_to_live.sh`.
+
+## morning_acceptance.py — 09:05 read-only acceptance
+
+Run from the repository after the 07:10 scheduled daily and the 09:00
+watchdog:
+
+```bash
+/usr/bin/python3 ops/morning_acceptance.py
+```
+
+It verifies the R6 release identity, today's single scheduled receipt and
+audit record, the six-artifact score transaction, the input-hash-bound health
+report, the 8766 health API, and the scheduled watchdog result. Reports are
+written atomically to:
+
+- `~/.hermes/logs/acceptance/morning_acceptance_<date>.json`
+- `~/.hermes/logs/acceptance/morning_acceptance_<date>.md`
+- matching `morning_acceptance_latest.*` aliases
+
+Exit `0` means PASS; exit `2` means one or more acceptance checks failed.
+Stale Dollar data remains a visible permitted WARN, and stale/unavailable IBKR
+remains a visible nonblocking INFO. Other strategy or auxiliary-flow
+degradation fails acceptance.
+
+This command is an observer, not a repair command. It never runs daily, scores,
+refreshes data, or connects to IBKR. On FAIL, inspect the cited evidence and
+follow the production runbook separately.
