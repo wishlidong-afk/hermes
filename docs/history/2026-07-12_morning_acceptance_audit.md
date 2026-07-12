@@ -87,3 +87,11 @@ At 09:05 CST:
   connect to IBKR, or repair live state.
 - A transaction failure after the new 07:10 run is a real release-acceptance
   failure and requires evidence review before any remediation.
+
+## Automation Evidence
+
+Codex heartbeat `hermes` (`Hermes 晨跑验收`) is ACTIVE on the current task at
+09:05 Asia/Shanghai every day. Its prompt runs the repository verifier and
+explicitly prohibits daily runs, market/external refreshes, IBKR access, and
+live repairs. A FAIL is returned to the task with its original evidence rather
+than triggering automatic remediation.
