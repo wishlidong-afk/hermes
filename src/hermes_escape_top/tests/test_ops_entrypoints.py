@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import importlib.util
 import os
+from datetime import date, datetime
 from pathlib import Path
 import plistlib
 import subprocess
@@ -21,6 +22,20 @@ def _load_run_daily_module():
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
+
+
+def _load_watchdog_module():
+    path = REPO_ROOT / "ops" / "hermes_watchdog.py"
+    spec = importlib.util.spec_from_file_location("hermes_ops_watchdog", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+def _write_audit(path: Path, *records: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(records) + "\n", encoding="utf-8")
 
 
 def test_scheduled_entry_commits_state_and_preserves_run_type():
@@ -77,6 +92,106 @@ def test_external_precheck_launchagent_runs_before_daily():
     ]
     assert data["StandardOutPath"].endswith("/logs/external_precheck.launchd.out.log")
     assert data["StandardErrorPath"].endswith("/logs/external_precheck.launchd.err.log")
+
+
+def test_watchdog_prefers_current_release_audit_over_shared_and_legacy(tmp_path):
+    module = _load_watchdog_module()
+    home = tmp_path / "home"
+    base = home / ".hermes" / "skills" / "investment" / "escape-top"
+    _write_audit(base / "hermes_escape_top/data/archive/audit_log.jsonl", '{"as_of":"2026-07-01"}')
+    _write_audit(base / "shared/hermes_escape_top/data/archive/audit_log.jsonl", '{"as_of":"2026-07-07"}')
+    current = base / "current/hermes_escape_top/data/archive/audit_log.jsonl"
+    _write_audit(current, '{"as_of":"2026-07-08"}')
+
+    assert module.resolve_audit_log(home) == current
+    assert module.latest_audit_as_of(home) == date(2026, 7, 8)
+
+
+def test_watchdog_falls_back_to_shared_then_legacy_audit(tmp_path):
+    module = _load_watchdog_module()
+    home = tmp_path / "home"
+    base = home / ".hermes" / "skills" / "investment" / "escape-top"
+    legacy = base / "hermes_escape_top/data/archive/audit_log.jsonl"
+    shared = base / "shared/hermes_escape_top/data/archive/audit_log.jsonl"
+    _write_audit(legacy, '{"as_of":"2026-07-01"}')
+    _write_audit(shared, '{"as_of":"2026-07-08"}')
+
+    assert module.resolve_audit_log(home) == shared
+    shared.unlink()
+    assert module.resolve_audit_log(home) == legacy
+
+
+def test_watchdog_skips_malformed_audit_tail_and_uses_last_valid_record(tmp_path):
+    module = _load_watchdog_module()
+    home = tmp_path / "home"
+    audit = home / ".hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/audit_log.jsonl"
+    audit.parent.mkdir(parents=True, exist_ok=True)
+    audit.write_text(
+        '{"as_of":"2026-07-07"}\n'
+        '{"payload":{"as_of":"2026-07-08"}}\n'
+        '{"payload":',
+        encoding="utf-8",
+    )
+
+    assert module.latest_audit_as_of(home) == date(2026, 7, 8)
+
+
+def test_watchdog_returns_none_when_audit_has_no_valid_as_of(tmp_path):
+    module = _load_watchdog_module()
+    home = tmp_path / "home"
+    audit = home / ".hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/audit_log.jsonl"
+    _write_audit(audit, "not-json", '{"status":"COMMITTED"}', '{"as_of":"bad-date"}')
+
+    assert module.latest_audit_as_of(home) is None
+
+
+def test_watchdog_reports_existing_but_invalid_audit_honestly(monkeypatch, tmp_path):
+    module = _load_watchdog_module()
+    audit = tmp_path / "audit_log.jsonl"
+    _write_audit(audit, "not-json")
+    notifications = []
+    logs = []
+    monkeypatch.setattr(module, "resolve_audit_log", lambda: audit)
+    monkeypatch.setattr(module, "latest_audit_as_of", lambda: None)
+    monkeypatch.setattr(module, "notify", lambda title, body: notifications.append((title, body)))
+    monkeypatch.setattr(module, "log", logs.append)
+
+    assert module.main() == 0
+    assert notifications == [("Hermes watchdog", "audit_log has no valid as_of records")]
+    assert logs == ["ALERT audit_log invalid"]
+
+
+def test_watchdog_calendar_does_not_expire_after_2028():
+    module = _load_watchdog_module()
+
+    assert not module.is_trading_day(date(2031, 6, 19))
+    assert not module.is_trading_day(date(2031, 7, 4))
+    assert module.is_trading_day(date(2031, 7, 3))
+    assert module.completed_trading_days_after(
+        date(2031, 7, 3),
+        datetime(2031, 7, 7, 21, 0, tzinfo=module.ET),
+    ) == 1
+
+
+def test_watchdog_does_not_observe_saturday_new_year_on_preceding_friday():
+    module = _load_watchdog_module()
+
+    assert module.is_trading_day(date(2027, 12, 31))
+    assert module.completed_trading_days_after(
+        date(2027, 12, 29),
+        datetime(2028, 1, 3, 21, 0, tzinfo=module.ET),
+    ) == 3
+
+
+def test_watchdog_session_completion_starts_at_1630_et():
+    module = _load_watchdog_module()
+
+    assert module.last_completed_session(
+        datetime(2031, 7, 7, 16, 29, tzinfo=module.ET)
+    ) == date(2031, 7, 3)
+    assert module.last_completed_session(
+        datetime(2031, 7, 7, 16, 30, tzinfo=module.ET)
+    ) == date(2031, 7, 7)
 
 
 def test_external_precheck_writes_latest_and_dated_reports():

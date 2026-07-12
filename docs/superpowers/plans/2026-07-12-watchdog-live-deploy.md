@@ -22,14 +22,16 @@
 **Files:**
 - Create: `ops/hermes_watchdog.py`
 - Modify: `src/hermes_escape_top/tests/test_ops_entrypoints.py`
+- Modify: `src/hermes_escape_top/web/refresh.py`
+- Modify: `src/hermes_escape_top/tests/test_health_truth.py`
 
 **Interfaces:**
 - Produces: `resolve_audit_log(home)`, `latest_audit_as_of(home)`, `is_trading_day(day)`, and `completed_trading_days_after(as_of, now_et)`.
 
-- [ ] Add failing tests proving active/shared/legacy path precedence, malformed-tail recovery, all-invalid behavior, and holidays beyond 2028.
-- [ ] Run the focused tests and confirm the new cases fail for the expected reasons.
-- [ ] Implement reverse valid-record scanning and algorithmic NYSE holidays with no package imports.
-- [ ] Run focused tests and `/usr/bin/python3 ops/hermes_watchdog.py --self-test` to green.
+- [x] Add failing tests proving active/shared/legacy path precedence, malformed-tail recovery, all-invalid behavior, and holidays beyond 2028.
+- [x] Run the focused tests and confirm the new cases fail for the expected reasons.
+- [x] Implement newest-valid-record recovery and algorithmic NYSE holidays with no package imports.
+- [x] Run focused tests and `/usr/bin/python3 ops/hermes_watchdog.py --self-test` to green.
 
 ### Task 2: Complete deployment transaction coverage
 
@@ -41,10 +43,10 @@
 - Consumes: repository `ops/hermes_watchdog.py`.
 - Produces: live `~/.hermes/bin/hermes_watchdog.py` covered by backup, sync, rollback, mode, and Git pathspec.
 
-- [ ] Add failing deployment tests for successful sync and rollback restoration of the watchdog.
-- [ ] Run focused deployment tests and confirm the rollback assertion fails before implementation.
-- [ ] Extend backup, rollback, R6/legacy sync, permissions, and Git pathspec narrowly.
-- [ ] Run deployment tests and Bash syntax checks to green.
+- [x] Add failing deployment tests for successful sync and rollback restoration of the watchdog.
+- [x] Run focused deployment tests and confirm the sync assertion fails before implementation.
+- [x] Extend backup, rollback, R6/legacy sync, permissions, and Git pathspec narrowly.
+- [x] Run deployment tests and Bash syntax checks to green.
 
 ### Task 3: Audit and repository verification
 
@@ -54,10 +56,10 @@
 **Interfaces:**
 - Produces: an external reviewer checklist tied to exact code and test evidence.
 
-- [ ] Run focused watchdog/deployment tests.
-- [ ] Run the full suite in the isolated worktree.
-- [ ] Write the audit handoff with scope, invariants, test output, deployment preconditions, and rollback procedure.
-- [ ] Run JSON/Markdown/diff hygiene checks and review the final changed-file list.
+- [x] Run focused watchdog/deployment tests.
+- [x] Run the full suite in the isolated worktree.
+- [x] Write the audit handoff with scope, invariants, test output, deployment preconditions, and rollback procedure.
+- [x] Run JSON/Markdown/diff hygiene checks and review the final changed-file list.
 - [ ] Commit and push only the watchdog, deployment, tests, and audit documents.
 
 ### Task 4: Integrate and deploy
@@ -73,4 +75,3 @@
 - [ ] Run the R6 deployment once with live config preserved.
 - [ ] Verify VERSION, 8766, official receipt/default-page state, watchdog self-test, active audit path, and `~/.hermes` commit.
 - [ ] Confirm no rollback occurred and report every warning verbatim.
-
