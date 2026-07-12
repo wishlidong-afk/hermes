@@ -10,6 +10,24 @@ import pandas as pd
 from hermes_escape_top.scripts import predeploy_smoke as smoke
 
 
+def _dollar_slo_config(max_age: int = 6, *, guard_enabled: bool = True):
+    return {
+        "features": {
+            "data_dollar": True,
+            "use_soft_data_max_age": guard_enabled,
+        },
+        "soft_data_slo": {"max_age_days": {"dollar": max_age}},
+    }
+
+
+def _dollar_stale_record(*, latency: int = 7, reason: str = "stale: latency 7d > max_age 6d"):
+    return {
+        "data_available": False,
+        "latency_days": latency,
+        "reason": reason,
+    }
+
+
 def _clean_payload():
     return {
         "as_of": "2026-06-12",
@@ -85,6 +103,93 @@ def test_source_regression_catches_always_on_source_going_dark():
     curr = {"soft_data": {"records": {"naaim": {"data_available": False, "reason": "no record as of date"}}}}
     _, ok, detail = smoke.check_no_source_regression(prev, curr)
     assert not ok and "naaim" in detail
+
+
+def test_policy_verified_slo_stale_is_warning_not_fatal():
+    config = _dollar_slo_config()
+    stale = _dollar_stale_record()
+    prev = {"soft_data": {"records": {"dollar": {"data_available": True}}}}
+    curr = {"soft_data": {"records": {"dollar": stale}}}
+
+    _, available_ok, available_detail = smoke.check_on_sources_available(config, curr)
+    _, regression_ok, regression_detail = smoke.check_no_source_regression(prev, curr, config)
+    warning_name, warning_ok, warning_detail = smoke.check_expected_slo_stale(config, curr)
+
+    assert available_ok, available_detail
+    assert regression_ok, regression_detail
+    assert warning_name == "policy-verified SLO stale"
+    assert not warning_ok
+    assert "dollar" in warning_detail
+
+
+def test_slo_stale_reason_must_match_config_and_payload_exactly():
+    config = _dollar_slo_config()
+    prev = {"soft_data": {"records": {"dollar": {"data_available": True}}}}
+    cases = [
+        _dollar_stale_record(reason="stale: latency 7d > max_age 5d"),
+        _dollar_stale_record(latency=8),
+        _dollar_stale_record(reason="upstream timeout"),
+    ]
+
+    for record in cases:
+        payload = {"soft_data": {"records": {"dollar": record}}}
+        _, ok, detail = smoke.check_on_sources_available(config, payload)
+        _, regression_ok, regression_detail = smoke.check_no_source_regression(prev, payload, config)
+        assert not ok
+        assert "dollar" in detail
+        assert not regression_ok
+        assert "dollar" in regression_detail
+
+
+def test_slo_stale_is_fatal_when_guard_is_disabled():
+    config = _dollar_slo_config(guard_enabled=False)
+    payload = {"soft_data": {"records": {"dollar": _dollar_stale_record()}}}
+
+    _, ok, detail = smoke.check_on_sources_available(config, payload)
+
+    assert not ok
+    assert "dollar" in detail
+
+
+def test_on_source_missing_from_payload_is_fatal():
+    config = _dollar_slo_config()
+
+    _, ok, detail = smoke.check_on_sources_available(
+        config,
+        {"soft_data": {"records": {}}},
+    )
+
+    assert not ok
+    assert "dollar: absent" in detail
+
+
+def test_run_smoke_surfaces_policy_verified_stale_as_nonfatal_warning(monkeypatch):
+    config = _dollar_slo_config()
+    prev = {
+        "as_of": "2026-07-09",
+        "soft_data": {"records": {"dollar": {"data_available": True}}},
+    }
+    curr = {
+        "as_of": "2026-07-10",
+        "soft_data": {"records": {"dollar": _dollar_stale_record()}},
+    }
+    monkeypatch.setattr(smoke, "_read_recent_official_payloads", lambda cfg, n=2: [prev, curr])
+    monkeypatch.setattr(smoke, "check_fred_publish_dates", lambda cfg: ("fred", True, "OK"))
+    monkeypatch.setattr(smoke, "check_always_on_daily_available", lambda payload: ("daily", True, "OK"))
+    monkeypatch.setattr(smoke, "check_no_na_in_evidence", lambda payload: ("evidence", True, "OK"))
+    monkeypatch.setattr(smoke, "check_manifest_not_drift", lambda cfg: ("manifest", True, "OK"))
+    monkeypatch.setattr(smoke, "check_no_unexplained_flip", lambda old, new: ("flip", True, "OK"))
+
+    result = smoke.run_smoke(config)
+
+    assert result["ok"]
+    warning = next(check for check in result["checks"] if check["name"] == "policy-verified SLO stale")
+    assert warning == {
+        "name": "policy-verified SLO stale",
+        "ok": False,
+        "fatal": False,
+        "detail": "dollar: stale: latency 7d > max_age 6d",
+    }
 
 
 def test_source_regression_ignores_steady_state_absent():

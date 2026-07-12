@@ -11,10 +11,11 @@ state.
 Checks (FATAL unless noted):
   1. FRED publish_date is per-row and not future-stamped -> the 2026-06-13
      realtime_start outage that zeroed A10 and broke backtest PIT.
-  2. Every flag-ON risk source is available, AND no soft source regressed
-     available->MISSING vs the previous official run — covering the always-on
-     sources too (naaim/aaii/cboe_pcr/net_liquidity/component_breadth), not just
-     the flag-gated risk ones -> the real_rate/A10 outage symptom.
+  2. Every flag-ON risk source is available, except a missing record whose SLO
+     expiry exactly matches config + payload evidence (WARN). Any other missing
+     record, and any available->MISSING regression vs the previous official run,
+     remains fatal — covering always-on sources too, not just flag-gated risk
+     sources -> the real_rate/A10 outage symptom.
   3. The rendered decision evidence carries no NA/undefined leak -> the
      2026-06-14 "A模块 NA" / "BRK.B NA" render bugs.
   4. Data manifest is not in DRIFT -> stale/corrupt-history guard.
@@ -32,6 +33,7 @@ import argparse
 import contextlib
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
@@ -51,6 +53,7 @@ FRED_SOFT_SOURCES = {
 _EXPECTED_OFF = {"gex", "valuation"}
 
 CheckResult = Tuple[str, bool, str]  # (name, ok, detail)
+_SLO_STALE_REASON = re.compile(r"^stale: latency (?P<latency>\d+)d > max_age (?P<max_age>\d+)d$")
 
 
 @contextlib.contextmanager
@@ -164,6 +167,7 @@ def check_on_sources_available(config: Dict[str, Any], payload: Dict[str, Any]) 
     feats = config.get("features", {}) or {}
     records = (payload.get("soft_data") or {}).get("records") or {}
     missing: List[str] = []
+    expected_stale: List[str] = []
     try:
         from ..core.data.risk_signals import _all_risk_sources
         for src in _all_risk_sources():
@@ -171,22 +175,70 @@ def check_on_sources_available(config: Dict[str, Any], payload: Dict[str, Any]) 
             name = getattr(src, "name", "")
             if not feats.get(flag, False) or name in _EXPECTED_OFF:
                 continue
-            rec = records.get(name) or {}
-            if rec and not rec.get("data_available", True):
-                missing.append(f"{name}: {rec.get('reason', 'MISSING')}")
+            rec = records.get(name)
+            if not isinstance(rec, dict) or not rec:
+                missing.append(f"{name}: absent")
+                continue
+            if not rec.get("data_available", False):
+                if _is_policy_verified_slo_stale(config, name, rec):
+                    expected_stale.append(f"{name}: {rec.get('reason')}")
+                else:
+                    missing.append(f"{name}: {rec.get('reason', 'MISSING')}")
     except Exception as exc:  # noqa: BLE001
         return ("ON soft sources available", False, f"check error: {exc!r}")
-    return ("ON soft sources available", not missing, "OK" if not missing else "; ".join(missing))
+    detail = "; ".join(missing) if missing else "OK"
+    if not missing and expected_stale:
+        detail = "policy-verified stale accepted: " + "; ".join(expected_stale)
+    return ("ON soft sources available", not missing, detail)
 
 
-def check_no_source_regression(prev: Optional[Dict[str, Any]], curr: Optional[Dict[str, Any]]) -> CheckResult:
+def _is_policy_verified_slo_stale(config: Dict[str, Any], name: str, record: Dict[str, Any]) -> bool:
+    features = config.get("features", {}) or {}
+    if not features.get("use_soft_data_max_age", False):
+        return False
+    match = _SLO_STALE_REASON.fullmatch(str(record.get("reason", "")))
+    if match is None:
+        return False
+    configured = ((config.get("soft_data_slo", {}) or {}).get("max_age_days", {}) or {}).get(name)
+    latency = record.get("latency_days")
+    try:
+        configured_value = float(configured)
+        latency_value = float(latency)
+    except (TypeError, ValueError):
+        return False
+    reason_latency = int(match.group("latency"))
+    reason_max_age = int(match.group("max_age"))
+    return (
+        latency_value == reason_latency
+        and configured_value == reason_max_age
+        and latency_value > configured_value
+    )
+
+
+def check_expected_slo_stale(config: Dict[str, Any], payload: Dict[str, Any]) -> CheckResult:
+    records = (payload.get("soft_data") or {}).get("records") or {}
+    stale = [
+        f"{name}: {record.get('reason')}"
+        for name, record in sorted(records.items())
+        if isinstance(record, dict) and _is_policy_verified_slo_stale(config, name, record)
+    ]
+    return ("policy-verified SLO stale", not stale, "OK" if not stale else "; ".join(stale))
+
+
+def check_no_source_regression(
+    prev: Optional[Dict[str, Any]],
+    curr: Optional[Dict[str, Any]],
+    config: Optional[Dict[str, Any]] = None,
+) -> CheckResult:
     """Flag any soft source that was available in the previous OFFICIAL run but is
     now MISSING — the real_rate-went-dark regression, across ALL sources. This
     closes check_on_sources_available's gap: it only iterated the flag-gated risk
     sources, so a regression in an always-on source (naaim / aaii / cboe_pcr /
     net_liquidity / component_breadth) would have slipped through. Only a true
     regression fails: steady-state-absent / feature-disabled sources and legitimate
-    weekly gaps were not available in prev either, so they are never flagged."""
+    weekly gaps were not available in prev either, so they are never flagged. A
+    newly stale source is nonfatal only when its reason, latency and configured SLO
+    pass `_is_policy_verified_slo_stale`."""
     if not prev or not curr:
         return ("no soft-source regression", True, "insufficient official history (skipped)")
     prev_recs = (prev.get("soft_data") or {}).get("records") or {}
@@ -201,6 +253,8 @@ def check_no_source_regression(prev: Optional[Dict[str, Any]], curr: Optional[Di
             continue
         crec = curr_recs.get(name) or {}
         if not crec.get("data_available", False):
+            if config is not None and _is_policy_verified_slo_stale(config, name, crec):
+                continue
             regressed.append(f"{name}: was available, now MISSING ({crec.get('reason', 'absent')})")
     return ("no soft-source regression", not regressed,
             "OK" if not regressed else "; ".join(regressed))
@@ -273,11 +327,14 @@ def run_smoke(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             check_fred_publish_dates(config),
             check_on_sources_available(config, curr),
             check_always_on_daily_available(curr),
-            check_no_source_regression(prev, curr),
+            check_no_source_regression(prev, curr, config),
             check_no_na_in_evidence(curr),
             check_manifest_not_drift(config),
         ]
-        warn: List[CheckResult] = [check_no_unexplained_flip(prev, curr)]
+        warn: List[CheckResult] = [
+            check_expected_slo_stale(config, curr),
+            check_no_unexplained_flip(prev, curr),
+        ]
 
         checks = ([{"name": n, "ok": ok, "fatal": True, "detail": d} for n, ok, d in fatal]
                   + [{"name": n, "ok": ok, "fatal": False, "detail": d} for n, ok, d in warn])

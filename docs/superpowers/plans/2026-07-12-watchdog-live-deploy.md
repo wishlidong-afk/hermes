@@ -62,7 +62,22 @@
 - [x] Run JSON/Markdown/diff hygiene checks and review the final changed-file list.
 - [ ] Commit and push only the watchdog, deployment, tests, and audit documents.
 
-### Task 4: Integrate and deploy
+### Task 4: Resolve policy-verified SLO stale smoke conflict
+
+**Files:**
+- Modify: `src/hermes_escape_top/scripts/predeploy_smoke.py`
+- Modify: `src/hermes_escape_top/tests/test_predeploy_smoke.py`
+
+**Interfaces:**
+- Produces: `_is_policy_verified_slo_stale(config, name, record)` and a nonfatal `policy-verified SLO stale` warning.
+
+- [x] Add RED tests for exact SLO agreement, mismatched reason/latency/config, disabled guard, regression handling, and warning severity.
+- [x] Implement strict policy verification and preserve fatal handling for every mismatch.
+- [x] Run the complete predeploy-smoke test file.
+- [x] Run candidate smoke against live read-only data and confirm PASS with one Dollar warning.
+- [x] Record the unavailable second reviewer; complete policy-matrix self-review and full-suite verification.
+
+### Task 5: Integrate and deploy
 
 **Files:**
 - Integrate the verified commit into `hermes-docs` without staging unrelated main-worktree files.
