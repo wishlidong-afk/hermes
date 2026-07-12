@@ -78,6 +78,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(repo / "ops/run_daily.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/serve_dashboard.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/refresh_external_precheck.sh", "#!/bin/sh\nexit 0\n", 0o755)
+    _write(repo / "ops/hermes_watchdog.py", "#!/usr/bin/env python3\nprint('new watchdog')\n", 0o644)
     _write(repo / "ops/launchagents/com.hermes.external-precheck.plist", "<plist><dict><key>new</key><true/></dict></plist>\n")
     _write(repo / "ops/run_daily.py", "print('new entry')\n", 0o755)
     _init_git(repo)
@@ -96,6 +97,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(bin_dir / "run_daily.sh", "#!/bin/sh\nexit 10\n", 0o750)
     _write(bin_dir / "serve_dashboard.sh", "#!/bin/sh\nexit 11\n", 0o740)
     _write(bin_dir / "refresh_external_precheck.sh", "#!/bin/sh\nexit 12\n", 0o730)
+    _write(bin_dir / "hermes_watchdog.py", "#!/usr/bin/env python3\nprint('old watchdog')\n", 0o640)
     _write(launchagents_dir / "com.hermes.external-precheck.plist", "<plist><dict><key>old</key><true/></dict></plist>\n")
     # Replicate the real ~/.hermes/.gitignore: it ignores bin/ and tests/, so the
     # allowlist entry scripts are untracked+ignored and the commit step must
@@ -180,6 +182,24 @@ def _run(fixture: dict[str, object], fail_at: str | None = None) -> subprocess.C
     )
 
 
+def _promote_fixture_to_existing_r6(fixture: dict[str, object]) -> Path:
+    live = Path(fixture["live"])
+    shared = live / "shared/hermes_escape_top"
+    _write(shared / "data/archive/.pipeline.lock", "", 0o644)
+    _write(shared / "data/soft_history/runtime.csv", "date,value\n2026-06-17,1\n", 0o600)
+    _write(shared / "config/config.json", "{}\n", 0o640)
+
+    old_release = live / "releases/old_release"
+    old_package = old_release / "hermes_escape_top"
+    _write(old_package / "core/keep.py", "VALUE = 'old release'\n", 0o640)
+    _write(old_package / "VERSION", "old-release\n", 0o644)
+    _write(old_release / "scripts/run_daily.py", "print('old release entry')\n", 0o700)
+    (old_package / "data").symlink_to(shared / "data", target_is_directory=True)
+    (old_package / "config").symlink_to(shared / "config", target_is_directory=True)
+    (live / "current").symlink_to(Path("releases/old_release"), target_is_directory=True)
+    return old_release
+
+
 def test_deploy_script_exposes_isolated_fixture_contract() -> None:
     script = DEPLOY_SCRIPT.read_text(encoding="utf-8")
     for marker in (
@@ -197,6 +217,7 @@ def test_deploy_script_exposes_isolated_fixture_contract() -> None:
         "DOUBLE FAILURE",
     ):
         assert marker in script
+    assert 'chmod +x "$BIN/hermes_watchdog.py" || return 1' in script
 
 
 @pytest.mark.parametrize(
@@ -220,6 +241,9 @@ def test_failure_injection_restores_paths_hashes_and_modes(
     assert "deploy OK" not in result.stdout + result.stderr
     assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
     assert not (deploy_fixture["package"] / "core/added.py").exists()
+    assert (Path(deploy_fixture["bin"]) / "hermes_watchdog.py").read_text(
+        encoding="utf-8"
+    ) == "#!/usr/bin/env python3\nprint('old watchdog')\n"
     events = Path(deploy_fixture["events"]).read_text(encoding="utf-8").splitlines()
     assert "restart-locked" not in events
     assert events[0:2] == ["guard", "stop"]
@@ -290,6 +314,7 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         "bin/run_daily.sh",
         "bin/serve_dashboard.sh",
         "bin/refresh_external_precheck.sh",
+        "bin/hermes_watchdog.py",
         "skills/investment/escape-top/current",
         f"{release_prefix}/data",
         f"{release_prefix}/hermes_escape_top/config",
@@ -309,6 +334,9 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
     assert (
         Path(deploy_fixture["launchagents"]) / "com.hermes.external-precheck.plist"
     ).read_text(encoding="utf-8") == "<plist><dict><key>new</key><true/></dict></plist>\n"
+    watchdog = Path(deploy_fixture["bin"]) / "hermes_watchdog.py"
+    assert watchdog.read_text(encoding="utf-8") == "#!/usr/bin/env python3\nprint('new watchdog')\n"
+    assert watchdog.stat().st_mode & stat.S_IXUSR
     assert "999" in runtime.read_text(encoding="utf-8")
     assert _snapshot(("repo-soft", Path(deploy_fixture["repo"]) / "src/hermes_escape_top/data/soft_history")) == {
         key: value
@@ -326,6 +354,40 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         "health-",
         "verify-",
     ]
+
+
+def test_existing_r6_success_switches_current_and_preserves_old_as_previous(
+    deploy_fixture: dict[str, object],
+) -> None:
+    old_release = _promote_fixture_to_existing_r6(deploy_fixture)
+
+    result = _run(deploy_fixture)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    live = Path(deploy_fixture["live"])
+    assert (live / "current").resolve() != old_release
+    assert (live / "previous").resolve() == old_release
+    watchdog = Path(deploy_fixture["bin"]) / "hermes_watchdog.py"
+    assert watchdog.read_text(encoding="utf-8") == "#!/usr/bin/env python3\nprint('new watchdog')\n"
+    assert watchdog.stat().st_mode & stat.S_IXUSR
+
+
+def test_existing_r6_failure_restores_current_shared_and_watchdog(
+    deploy_fixture: dict[str, object],
+) -> None:
+    old_release = _promote_fixture_to_existing_r6(deploy_fixture)
+    before = _snapshot(*deploy_fixture["roots"])
+
+    result = _run(deploy_fixture, "smoke")
+
+    assert result.returncode == 2
+    assert "ROLLBACK" in result.stderr
+    assert _snapshot(*deploy_fixture["roots"]) == before
+    live = Path(deploy_fixture["live"])
+    assert (live / "current").resolve() == old_release
+    watchdog = Path(deploy_fixture["bin"]) / "hermes_watchdog.py"
+    assert watchdog.read_text(encoding="utf-8") == "#!/usr/bin/env python3\nprint('old watchdog')\n"
+    assert stat.S_IMODE(watchdog.stat().st_mode) == 0o640
 
 
 def test_internal_locked_swap_rejects_missing_inherited_fd(

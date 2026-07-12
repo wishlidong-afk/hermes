@@ -483,10 +483,9 @@ def _us_market_holidays(year: int) -> frozenset[date]:
         _nth_weekday(year, 11, 3, 4),  # Thanksgiving
         _observed_fixed_holiday(year, 12, 25),
     }
-    for observed in (
-        _observed_fixed_holiday(year, 1, 1),
-        _observed_fixed_holiday(year + 1, 1, 1),
-    ):
+    # NYSE does not move a Saturday New Year's Day to the preceding Friday.
+    # Sunday New Year's Day is observed on Monday as usual.
+    for observed in (_observed_fixed_holiday(year, 1, 1),):
         if observed.year == year:
             holidays.add(observed)
     if year >= 2022:

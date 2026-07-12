@@ -153,6 +153,10 @@ def test_completed_trading_days_skip_good_friday_but_count_regular_session():
     assert _completed_trading_days_after("2026-04-02", date(2026, 4, 7)) == 1
 
 
+def test_completed_trading_days_keep_friday_open_before_saturday_new_year():
+    assert _completed_trading_days_after("2027-12-29", date(2028, 1, 4)) == 3
+
+
 def test_sip_refresh_error_degrades_without_failing_core_receipt():
     payload = _payload()
     payload.pop("alpaca_daily_flow")

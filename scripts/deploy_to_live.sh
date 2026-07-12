@@ -415,6 +415,7 @@ create_backup() {
   backup_entry "$BIN/run_daily.sh" run_daily.sh || return 1
   backup_entry "$BIN/serve_dashboard.sh" serve_dashboard.sh || return 1
   backup_entry "$BIN/refresh_external_precheck.sh" refresh_external_precheck.sh || return 1
+  backup_entry "$BIN/hermes_watchdog.py" hermes_watchdog.py || return 1
   backup_entry "$EXTERNAL_PRECHECK_LAUNCHAGENT" external_precheck_launchagent.plist || return 1
   backup_link_state "$CURRENT" current || return 1
   backup_link_state "$PREVIOUS" previous || return 1
@@ -446,6 +447,7 @@ rollback_locked() {
   restore_entry "$BIN/run_daily.sh" run_daily.sh || failed=1
   restore_entry "$BIN/serve_dashboard.sh" serve_dashboard.sh || failed=1
   restore_entry "$BIN/refresh_external_precheck.sh" refresh_external_precheck.sh || failed=1
+  restore_entry "$BIN/hermes_watchdog.py" hermes_watchdog.py || failed=1
   restore_entry "$EXTERNAL_PRECHECK_LAUNCHAGENT" external_precheck_launchagent.plist || failed=1
   restore_link_state "$CURRENT" current || failed=1
   restore_link_state "$PREVIOUS" previous || failed=1
@@ -486,6 +488,8 @@ sync_entries() {
   cp "$src" "$BIN/serve_dashboard.sh" || return 1
   src="$REPO/ops/refresh_external_precheck.sh"
   cp "$src" "$BIN/refresh_external_precheck.sh" || return 1
+  src="$REPO/ops/hermes_watchdog.py"
+  cp "$src" "$BIN/hermes_watchdog.py" || return 1
   src="$REPO/ops/launchagents/com.hermes.external-precheck.plist"
   cp "$src" "$EXTERNAL_PRECHECK_LAUNCHAGENT" || return 1
   src="$REPO/ops/run_daily.py"
@@ -494,6 +498,7 @@ sync_entries() {
   chmod +x "$BIN/run_daily.sh" "$BIN/serve_dashboard.sh" "$BIN/refresh_external_precheck.sh" \
     "$NEW_RELEASE/scripts/run_daily.py" "$LIVE/scripts/run_daily.py" \
     2>/dev/null || true
+  chmod +x "$BIN/hermes_watchdog.py" || return 1
   chmod 0644 "$EXTERNAL_PRECHECK_LAUNCHAGENT" 2>/dev/null || true
 }
 
@@ -565,6 +570,7 @@ sync_entries_legacy() {
     "run_daily.sh:$BIN/run_daily.sh" \
     "serve_dashboard.sh:$BIN/serve_dashboard.sh" \
     "refresh_external_precheck.sh:$BIN/refresh_external_precheck.sh" \
+    "hermes_watchdog.py:$BIN/hermes_watchdog.py" \
     "launchagents/com.hermes.external-precheck.plist:$EXTERNAL_PRECHECK_LAUNCHAGENT" \
     "run_daily.py:$LIVE/scripts/run_daily.py"; do
     src="$REPO/ops/${pair%%:*}"
@@ -573,6 +579,7 @@ sync_entries_legacy() {
   done
   chmod +x "$BIN/run_daily.sh" "$BIN/serve_dashboard.sh" "$BIN/refresh_external_precheck.sh" "$LIVE/scripts/run_daily.py" \
     2>/dev/null || true
+  chmod +x "$BIN/hermes_watchdog.py" || return 1
 }
 
 run_locked_swap() {
@@ -620,7 +627,8 @@ deploy_git_pathspecs() {
     'skills/investment/escape-top/scripts/run_daily.py' \
     'bin/run_daily.sh' \
     'bin/serve_dashboard.sh' \
-    'bin/refresh_external_precheck.sh'
+    'bin/refresh_external_precheck.sh' \
+    'bin/hermes_watchdog.py'
   [ -L "$PREVIOUS" ] && printf '%s\n' 'skills/investment/escape-top/previous'
 }
 
