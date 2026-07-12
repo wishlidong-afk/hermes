@@ -4,7 +4,7 @@
 > 基线：`hermes-docs @ 3e4c0fc`
 > 工作分支：`codex/watchdog-hardening`
 > 当前 live：`4a0c20c 20260707_171720`
-> 边界：测试期间未运行 daily、未刷新 IBKR、未改 live config、未部署
+> 边界：未运行 daily、未刷新 IBKR、未改 live config；首次部署 smoke 失败后已精确回滚
 
 ## 1. 结论
 
@@ -28,6 +28,8 @@
 | `src/hermes_escape_top/tests/test_deploy_to_live.py` | 成功同步、live Git 白名单和各故障点回滚测试 |
 | `src/hermes_escape_top/web/refresh.py` | 8766 health 同步周六元旦不补休规则 |
 | `src/hermes_escape_top/tests/test_health_truth.py` | health 交易日口径回归测试 |
+| `src/hermes_escape_top/scripts/predeploy_smoke.py` | 严格识别 policy-verified SLO stale，并降为非致命 warning |
+| `src/hermes_escape_top/tests/test_predeploy_smoke.py` | stale reason/config/latency/guard/severity 回归测试 |
 | `docs/superpowers/specs/2026-07-12-watchdog-live-deploy-design.md` | 已批准设计 |
 | `docs/superpowers/plans/2026-07-12-watchdog-live-deploy.md` | 分步实施与验证记录 |
 
@@ -101,13 +103,44 @@ bash -n scripts/deploy_to_live.sh: exit 0
 ### 汇总
 
 ```text
-focused watchdog/deploy/health: 49 passed in 4.59s
-full suite: 780 passed in 92.75s
+focused watchdog/deploy/health/smoke: 68 passed in 6.30s
+full suite: 785 passed in 103.19s
 ```
 
 最终全套无 warning。
 
-## 5. 独立 Reviewer 发现与处置
+## 5. 首次部署回滚与 Smoke 治理修正
+
+首次部署候选 `9adb4a5` 在 predeploy smoke 被阻断：
+
+```text
+dollar: stale: latency 7d > max_age 6d
+!! smoke gate FAIL — rolled back under pipeline lock
+```
+
+回滚后 live VERSION 仍为 `4a0c20c`、8766 为 200、Dollar SLO 仍为 6、新 release 已删除、`~/.hermes` 未产生部署提交。没有重试或绕过 smoke。
+
+根因是部署门与已确认的策略治理冲突：Dollar 14 天实验已正式 `REJECTED / NO_FLIP`，所以 7 天延迟按生产 6 天 SLO 变成 missing 是预期防御行为；旧 smoke 却把所有 flag-ON source missing 都视为代码发布失败。
+
+修正采用严格四重一致性：
+
+1. `features.use_soft_data_max_age=true`；
+2. config 存在该源 `max_age_days`；
+3. payload `latency_days` 与 reason 完全一致；
+4. reason 必须完整匹配 `stale: latency Nd > max_age Md` 且 `N > M`。
+
+四项全部满足时只降为 WARN；任何 mismatch、fetch/parse error、关闭 guard 或 always-on daily source missing 仍为 FATAL。真实 live 只读 smoke 结果：
+
+```text
+[smoke] as_of=2026-07-10 overall=PASS
+✓ ON soft sources available: policy-verified stale accepted: dollar
+✓ no soft-source regression: OK
+⚠ policy-verified SLO stale (warn): dollar: stale: latency 7d > max_age 6d
+```
+
+第二个独立 reviewer 因平台额度中断，没有产出结论，因此不计作外审证据。主线程随后补出并修复一个旧缺口：flag-ON source 的 record 整行 absent 原先会被跳过，现在明确 FATAL。最终依据是完整政策矩阵、真实 live smoke、68 个 focused 测试和 785 个全套测试；本文件保留给后续外部 reviewer 复核。
+
+## 6. 独立 Reviewer 发现与处置
 
 | 级别 | 发现 | 处置 |
 |---|---|---|
@@ -120,7 +153,7 @@ full suite: 780 passed in 92.75s
 
 reviewer 未发现 current/shared/legacy 顺序或 R6 backup/sync/rollback/pathspec 的结构性错误。以上 P1/P2/P3 均在部署前修复并重新跑完全套。
 
-## 6. 外审必核问题
+## 7. 外审必核问题
 
 1. `resolve_audit_log()` 是否严格按 current/shared/legacy 顺序，且路径不存在时不创建文件？
 2. malformed tail 是否只被忽略，而全无有效记录时是否仍返回 unknown？
@@ -130,8 +163,9 @@ reviewer 未发现 current/shared/legacy 顺序或 R6 backup/sync/rollback/paths
 6. 部署任一步失败时，旧 watchdog 内容和 mode 是否恢复？
 7. 本批是否零改动于策略、config、daily、IBKR、WebUI 和 live？
 8. 主工作树的大型 baseline、execution-timing 产物和其它未提交文件是否被排除？
+9. policy-verified stale 是否必须四重一致，且 warning 不会掩盖 always-on daily source outage？
 
-## 7. 部署门槛
+## 8. 部署门槛
 
 部署前必须同时满足：
 
