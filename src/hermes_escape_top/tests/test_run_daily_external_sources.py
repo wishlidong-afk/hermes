@@ -145,3 +145,41 @@ def test_execute_daily_attaches_external_source_status_to_returned_payload(monke
     payload = rdp._execute_daily(args=args, _lease=object(), _run_context={"step": "startup", "as_of": "2026-06-18"})
 
     assert payload["external_source_status"]["dollar"]["status"] == "OK"
+
+
+def test_live_daily_attaches_nonblocking_market_witness(monkeypatch):
+    monkeypatch.setattr(rdp, "refresh_history", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_heal_lagging_symbols", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "refresh_external_sources", lambda: [])
+    monkeypatch.setattr(rdp.refresh_external, "status", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(rdp, "refresh_soft_data", lambda: None)
+    monkeypatch.setattr(
+        rdp,
+        "refresh_market_witness_status",
+        lambda as_of: {"status": "WARN", "as_of": as_of, "summary": {"PRICE_MISMATCH": 1}},
+    )
+    monkeypatch.setattr(rdp, "_preflight_report", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_history_integrity_scan", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(rdp, "_refreeze_manifest", lambda: None)
+    monkeypatch.setattr(rdp, "run_score_pipeline", lambda *_args, **_kwargs: {"as_of": "2026-07-10"})
+    monkeypatch.setattr(rdp, "translate", lambda payload: {"orders_preview": {}, **payload})
+    monkeypatch.setattr(rdp, "write_artifacts", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_post_run_diff", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_refresh_next5_unlock", lambda: None)
+    monkeypatch.setattr("hermes_escape_top.core.data.audit.rotate_audit_log", lambda _path: None)
+    args = SimpleNamespace(
+        live=True,
+        skip_refresh=False,
+        as_of="2026-07-10",
+        run_type="scheduled",
+        commit_state=False,
+    )
+
+    payload = rdp._execute_daily(
+        args=args,
+        _lease=object(),
+        _run_context={"step": "startup", "as_of": "2026-07-10"},
+    )
+
+    assert payload["market_witness_status"]["status"] == "WARN"
+    assert payload["market_witness_status"]["summary"] == {"PRICE_MISMATCH": 1}

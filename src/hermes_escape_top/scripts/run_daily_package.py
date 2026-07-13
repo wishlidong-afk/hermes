@@ -93,6 +93,7 @@ sys.path.insert(0, str(PACKAGE_PARENT))
 
 from hermes_escape_top import pipeline
 from hermes_escape_top.config import load_config, resolve_path
+from hermes_escape_top.core.data.market_witness import refresh_market_witness
 from hermes_escape_top.core.data.store import LocalStore, safe_symbol
 from hermes_escape_top.core.safe_io import assert_pipeline_lease
 from hermes_escape_top.scripts.backfill_history import all_backfill_symbols, backfill, write_coverage_report
@@ -264,6 +265,16 @@ def refresh_external_sources() -> list[dict]:
 def refresh_soft_data() -> None:
     """Compatibility hook; every external soft-data writer is runner-owned."""
     print("[M4-1b] Legacy soft refresh skipped; ExternalSourceRunner owns all canonical feeds.")
+
+
+def refresh_market_witness_status(as_of: str) -> Dict[str, Any]:
+    """Compare canonical OHLCV against Alpaca without promoting witness data."""
+    result = refresh_market_witness(as_of, load_config())
+    print(
+        f"[M4-1w] Market witness {result.get('status')} "
+        f"as_of={result.get('as_of')} summary={result.get('summary')}"
+    )
+    return result
 
 
 # ── Step 2: run the package score pipeline ────────────────────────────────────
@@ -1389,6 +1400,7 @@ def _write_system_health_report(
             "timeliness": quality.get("latency_score"),
             "decision_input_coverage": coverage.get("coverage_score"),
         },
+        "market_witness_status": payload.get("market_witness_status"),
     }
     report["audit_dimensions"] = _build_system_health_audit_dimensions(report_payload, report)
     report_dir = _system_health_report_dir(shadow=shadow)
@@ -1444,6 +1456,7 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
     sip_error = str(sip_status.get("status") or "")
     factor_symbols = _factor_score_symbol_count(payload)
     coverage_score = (report.get("decision_input_coverage") or {}).get("coverage_score")
+    witness_status = (report.get("market_witness_status") or {}).get("status")
 
     return [
         _audit_row(
@@ -1476,7 +1489,8 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
             "data_quality",
             "数据质量",
             "PASS" if dq_level == "HIGH" else "WARN" if dq_level == "MEDIUM" else "FAIL" if dq_level in {"LOW", "BLOCKED", "NO_CACHE"} else "INFO",
-            f"{dq_level or 'NA'} overall={data_quality.get('overall_score')} decision_coverage={coverage_score}",
+            f"{dq_level or 'NA'} overall={data_quality.get('overall_score')} "
+            f"decision_coverage={coverage_score} market_witness={witness_status or 'NA'}",
         ),
         _audit_row("strategy_data_layer", "策略数据层", layer_status("strategy_data"), _layer_detail(layers, "strategy_data")),
         _audit_row(
@@ -1695,6 +1709,7 @@ def _execute_daily(
 ) -> Dict[str, Any]:
     shadow = not args.live
     refresh_end = args.as_of or date.today().isoformat()
+    market_witness_status: Dict[str, Any] | None = None
 
     if shadow:
         print(f"[M4-1] SHADOW mode — writing to data/shadow/ (production untouched)")
@@ -1727,6 +1742,19 @@ def _execute_daily(
     if args.as_of is None:
         print(f"[M4-1] Auto-selected latest available as_of={as_of}")
 
+    if not shadow and not args.skip_refresh:
+        _run_context["step"] = "market_witness"
+        try:
+            market_witness_status = refresh_market_witness_status(as_of)
+        except Exception as exc:
+            market_witness_status = {
+                "status": "ERROR",
+                "as_of": str(as_of),
+                "error_type": exc.__class__.__name__,
+                "error": str(exc),
+            }
+            print(f"[M4-1w] WARNING: market witness failed ({exc!r}); scoring remains canonical-only.")
+
     _run_context["step"] = "preflight"
     _preflight_report(shadow, as_of)
 
@@ -1755,6 +1783,8 @@ def _execute_daily(
         run_type=args.run_type,
         _lease=_lease,
     )
+    if market_witness_status is not None:
+        payload["market_witness_status"] = market_witness_status
     _run_context["step"] = "external_source_status"
     try:
         external_source_status = refresh_external.status(load_config())

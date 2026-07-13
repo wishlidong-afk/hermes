@@ -235,6 +235,11 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
         },
         "ibkr": {"source": "unavailable", "error": "Gateway offline"},
         "alpaca_daily_flow": {"as_of": "2026-06-17"},
+        "market_witness_status": {
+            "status": "OK",
+            "as_of": "2026-06-17",
+            "summary": {"MATCH": 3, "NO_WITNESS": 2},
+        },
         "scores": {
             "MSTR": {
                 "final_score": 81,
@@ -266,6 +271,7 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     data = json.loads(out["json"].read_text(encoding="utf-8"))
     assert data["health"]["layers"]["position_reconciliation"]["level"] == "INFO"
     assert data["decision_input_coverage"]["coverage_score"] == 96.0
+    assert data["market_witness_status"]["summary"]["MATCH"] == 3
     assert data["data_quality_dimensions"] == {
         "market_completeness": 100,
         "provenance": 100,

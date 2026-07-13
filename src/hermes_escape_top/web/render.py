@@ -690,6 +690,7 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
         {_trust_evidence('Manifest', str(manifest_status.get('status', 'NA')))}
         {_trust_evidence('External Run', external_text)}
         {_trust_evidence('SIP Flow', sip_text)}
+        {_trust_evidence('OHLCV 见证', _market_witness_evidence_text(payload))}
       </div>
 
       {_render_due_external_source_actions(payload)}
@@ -874,6 +875,24 @@ def _sip_evidence_text(payload: Dict[str, Any]) -> str:
     if isinstance(flow, dict) and flow.get("as_of"):
         return "OK " + str(flow.get("as_of"))
     return "无 SIP"
+
+
+def _market_witness_evidence_text(payload: Dict[str, Any]) -> str:
+    report = payload.get("system_health_report")
+    witness = report.get("market_witness_status") if isinstance(report, dict) else None
+    if not isinstance(witness, dict):
+        witness = payload.get("market_witness_status")
+    if not isinstance(witness, dict) or not witness:
+        return "无见证报告"
+    status = str(witness.get("status") or "NA")
+    summary = witness.get("summary") if isinstance(witness.get("summary"), dict) else {}
+    matched = int(summary.get("MATCH") or 0)
+    mismatches = sum(
+        int(summary.get(key) or 0)
+        for key in ("DATE_MISMATCH", "PRICE_MISMATCH", "VOLUME_MISMATCH")
+    )
+    text = f"{status} · MATCH {matched}"
+    return f"{text} · mismatch {mismatches}" if mismatches else text
 
 
 def _factor_symbol_count_text(payload: Dict[str, Any]) -> str:

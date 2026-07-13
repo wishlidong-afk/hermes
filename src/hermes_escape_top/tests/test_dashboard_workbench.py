@@ -690,6 +690,11 @@ def _system_health_report(as_of: str = "2026-06-04") -> dict:
             "timeliness": 96.0,
             "decision_input_coverage": 98.0,
         },
+        "market_witness_status": {
+            "status": "OK",
+            "as_of": as_of,
+            "summary": {"MATCH": 3, "NO_WITNESS": 2},
+        },
         "health": {
             "level": "OK",
             "layers": {
@@ -735,6 +740,8 @@ def test_system_health_section_renders_20_dimension_report():
     assert "IBKR 持仓对账" in html
     assert "决策输入覆盖" in html
     assert "98.0" in html
+    assert "OHLCV 见证" in html
+    assert "MATCH 3" in html
 
 
 def test_system_health_section_marks_stale_report():
