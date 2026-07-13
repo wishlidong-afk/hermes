@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import glob
 from dataclasses import asdict, dataclass, replace
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 
 @dataclass(frozen=True)
@@ -103,7 +104,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         feature_flag="data_aaii",
         decision_weight=2.0,
         automation_mode="browser_assisted",
-        pit_rule="issue_date",
+        pit_rule="official_publish_date_or_reported_plus_one_day",
         import_globs=(
             "~/.hermes/external_imports/sentiment*.xls",
             "~/.hermes/external_imports/sentiment*.xlsx",
@@ -313,12 +314,15 @@ def _date_from_timestamp(value: Any) -> date | None:
         return None
     text = str(value)
     try:
-        return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError:
         try:
             return date.fromisoformat(text[:10])
         except ValueError:
             return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(ZoneInfo("Asia/Shanghai")).date()
 
 
 def _next_action(row: dict[str, Any], profile: ExternalSourceProfile) -> str:

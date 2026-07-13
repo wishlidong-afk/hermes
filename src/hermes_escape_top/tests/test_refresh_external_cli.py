@@ -192,6 +192,7 @@ def test_refresh_external_status_prints_latest_ledger(monkeypatch, tmp_path, cap
 
 def test_refresh_external_status_adds_profile_and_freshness(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
+    monkeypatch.setattr(refresh_external, "pending_import_file", lambda *_args: None)
     append_source_run(
         tmp_path / "archive",
         {
@@ -220,6 +221,22 @@ def test_refresh_external_status_adds_profile_and_freshness(monkeypatch, tmp_pat
     assert "--import-file" in out["aaii_sentiment"]["next_action"]
 
 
+def test_status_marks_unconsumed_official_artifact_ready(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    staged = tmp_path / "sentiment.xls"
+    staged.write_bytes(b"new official issue")
+    monkeypatch.setattr(
+        refresh_external,
+        "pending_import_file",
+        lambda source_id, _archive: staged if source_id == "aaii_sentiment" else None,
+    )
+
+    out = refresh_external.status(cfg, today=date(2026, 7, 13))
+
+    assert out["aaii_sentiment"]["official_artifact_ready"] is True
+    assert out["aaii_sentiment"]["migration_status"] == "OFFICIAL_FILE_READY"
+
+
 def test_refresh_external_status_explains_due_soon_after_same_day_success(tmp_path):
     cfg = _config(tmp_path)
     append_source_run(
@@ -228,7 +245,7 @@ def test_refresh_external_status_explains_due_soon_after_same_day_success(tmp_pa
             "source_id": "dollar",
             "status": "OK",
             "latest_promoted_as_of": "2026-06-26",
-            "finished_at": "2026-07-04T12:56:31+00:00",
+            "finished_at": "2026-07-03T22:45:31+00:00",
         },
     )
 
@@ -304,7 +321,7 @@ def test_retry_needed_only_runs_failed_same_day_sources(monkeypatch, tmp_path):
     assert result["selected_sources"] == ["aaii_sentiment"]
 
 
-def test_daily_source_check_reuses_complete_same_day_precheck(monkeypatch, tmp_path):
+def test_daily_source_check_reuses_utc_ledger_row_from_same_shanghai_day(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
     monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("dollar",))
     monkeypatch.setattr(
@@ -316,7 +333,7 @@ def test_daily_source_check_reuses_complete_same_day_precheck(monkeypatch, tmp_p
                 "status": "OK",
                 "freshness_status": "OK",
                 "evidence_status": "MATCH",
-                "finished_at": "2026-07-13T06:45:00+08:00",
+                "finished_at": "2026-07-12T22:45:00+00:00",
             }
         },
     )
@@ -642,6 +659,46 @@ def test_refresh_external_auto_import_skips_previously_failed_file_hash(monkeypa
         "aaii_sentiment",
         tmp_path / "archive",
     ) is None
+
+
+def test_refresh_external_auto_import_does_not_reuse_successful_file_hash(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    import_path = tmp_path / "sentiment.xls"
+    content = b"already imported official file"
+    import_path.write_bytes(content)
+    raw_path = tmp_path / "archive" / "external_sources" / "aaii_sentiment" / "ok" / "raw.json"
+    raw_path.parent.mkdir(parents=True)
+    raw_path.write_text(
+        json.dumps({"source": "manual_official_file", "content_sha256": hashlib.sha256(content).hexdigest()}) + "\n",
+        encoding="utf-8",
+    )
+    append_source_run(
+        tmp_path / "archive",
+        {
+            "source_id": "aaii_sentiment",
+            "status": "OK",
+            "raw_path": str(raw_path),
+        },
+    )
+    calls = []
+
+    def fake_runner(spec, adapter, archive_dir):
+        calls.append(type(adapter).__name__)
+        return SimpleNamespace(to_dict=lambda: {
+            "source_id": spec.source_id,
+            "status": "FETCH_ERROR",
+            "error_message": "AAII public endpoint blocked",
+        })
+
+    monkeypatch.setattr(refresh_external, "run_external_source_refresh", fake_runner)
+    monkeypatch.setattr(refresh_external, "latest_import_file", lambda _profile: import_path)
+
+    result = refresh_external.refresh_source("aaii_sentiment", cfg, auto_import=True)
+
+    assert calls == ["AaiiSentimentAdapter"]
+    assert result["status"] == "FETCH_ERROR"
+    assert result["fallback_import_skipped"] == str(import_path)
+    assert result["fallback_import_skip_reason"] == "official file hash already processed"
 
 
 def test_open_official_download_waits_for_new_file_and_imports(monkeypatch, tmp_path):

@@ -96,6 +96,8 @@ def test_aaii_adapter_merges_public_rows_with_seed_history(tmp_path):
     assert ledger["official_file_name"] == "sent_results.html"
     assert ledger["official_file_sha256"]
     assert ledger["official_issue_as_of"] == "2026-06-25"
+    assert ledger["pit_rule"] == "official_publish_date_or_reported_plus_one_day"
+    assert ledger["source_url"] == "https://www.aaii.com/sentimentsurvey/sent_results"
 
 
 def test_aaii_adapter_records_fetch_error_on_challenge_page(tmp_path):

@@ -105,6 +105,34 @@ _BUSY_PAYLOAD = {
     "message": "另一个刷新或当日官方 run 正在写数据，本次已跳过以避免并发写坏。请几秒后重试。",
 }
 
+_LEGACY_SOFT_SOURCE_GROUPS = {
+    "fred": ("fred_net_liquidity",),
+    "fred_risk": ("dollar", "real_rate"),
+    "naaim": ("naaim_exposure",),
+    "aaii": ("aaii_sentiment",),
+    "cot": ("cot_nq",),
+}
+
+
+def _refresh_soft_data_via_external_runner(only: object = None) -> dict:
+    """Keep the legacy endpoint without exposing its direct CSV writers."""
+    selected = str(only or "").strip()
+    if not selected:
+        return refresh_all_external_sources()
+    source_ids = _LEGACY_SOFT_SOURCE_GROUPS.get(selected, (selected,))
+    runs = [
+        refresh_external_source(source_id, auto_import=True)
+        for source_id in source_ids
+    ]
+    ok_count = sum(1 for run in runs if str(run.get("status") or "") == "OK")
+    return {
+        "ok": ok_count == len(runs),
+        "ok_count": ok_count,
+        "error_count": len(runs) - ok_count,
+        "runs": runs,
+        "mode": "legacy_endpoint_via_external_runner",
+    }
+
 
 def _latest_precheck(as_of: str) -> dict | None:
     """Load latest daily_score_precheck without running score_pipeline."""
@@ -1043,9 +1071,8 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/refresh_soft_data":
                 response_status = 200
                 try:
-                    from ..scripts.backfill_soft_data import refresh_all
                     with pipeline_lock(blocking=False):
-                        payload = refresh_all(only=req.get("only"))
+                        payload = _refresh_soft_data_via_external_runner(req.get("only"))
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD)
                     response_status = 409

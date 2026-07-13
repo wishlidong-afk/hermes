@@ -178,6 +178,8 @@ def aaii_sentiment_spec(*, target_path: Path, min_rows: int = 52) -> ExternalSou
         target_path=target_path,
         required_columns=tuple(_COLUMNS),
         min_rows=min_rows,
+        pit_rule="official_publish_date_or_reported_plus_one_day",
+        source_url=AAII_SENT_RESULTS_URL,
     )
 
 

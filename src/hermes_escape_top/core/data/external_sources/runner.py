@@ -219,15 +219,18 @@ def _sha256(value: str) -> str:
 
 
 def _stable_raw_text(raw: Any) -> str:
-    def normalize(value: Any) -> Any:
+    volatile_keys = {"fetched_at", "retrieved_at"}
+
+    def normalize(value: Any, path: tuple[str, ...] = ()) -> Any:
         if isinstance(value, dict):
+            strip_volatile = not path or path[-1] == "metadata"
             return {
-                key: normalize(item)
+                key: normalize(item, path + (key,))
                 for key, item in value.items()
-                if key not in {"fetched_at", "retrieved_at"}
+                if not (strip_volatile and key in volatile_keys)
             }
         if isinstance(value, list):
-            return [normalize(item) for item in value]
+            return [normalize(item, path + ("[]",)) for item in value]
         return value
 
     return json.dumps(normalize(raw), ensure_ascii=False, sort_keys=True, default=str)

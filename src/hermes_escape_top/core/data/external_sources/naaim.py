@@ -111,6 +111,8 @@ def naaim_exposure_spec(*, target_path: Path, min_rows: int = 60) -> ExternalSou
         target_path=target_path,
         required_columns=("date", "publish_date", "naaim_exposure", "naaim_pctl", "is_proxy"),
         min_rows=min_rows,
+        pit_rule="issue_date_plus_one_day",
+        source_url=NAAIM_INDEX_URL,
     )
 
 

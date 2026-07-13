@@ -228,6 +228,35 @@ class Phase15IntegrationTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
+    def test_legacy_soft_refresh_endpoint_routes_through_external_runner(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_port}/api/refresh_soft_data",
+                data=b'{"only":"aaii"}',
+                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},
+                method="POST",
+            )
+            run = {"source_id": "aaii_sentiment", "status": "OK"}
+            with mock.patch(
+                "hermes_escape_top.scripts.backfill_soft_data.refresh_all",
+                side_effect=AssertionError("legacy writer must not be reachable"),
+            ), mock.patch(
+                "hermes_escape_top.web.server.refresh_external_source",
+                return_value=run,
+            ) as runner:
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["runs"], [run])
+            runner.assert_called_once_with("aaii_sentiment", auto_import=True)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_server_ibkr_live_busy_returns_409(self) -> None:
         server = create_server("127.0.0.1", 0, "2026-05-29")
         thread = threading.Thread(target=server.serve_forever, daemon=True)

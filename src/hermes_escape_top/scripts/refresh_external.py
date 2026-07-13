@@ -5,9 +5,10 @@ import hashlib
 import json
 import subprocess
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.data.external_sources import (
@@ -154,14 +155,24 @@ def refresh_source(
     if source_id not in factories:
         raise ValueError(f"unsupported external source: {source_id}")
     spec, adapter = factories[source_id](cfg)
+    archive_dir = resolve_path(cfg, "archive_dir")
     if import_file:
         adapter = _import_adapter(source_id, spec, Path(import_file).expanduser())
-    run = run_external_source_refresh(spec, adapter, resolve_path(cfg, "archive_dir"))
+    run = run_external_source_refresh(spec, adapter, archive_dir)
     result = run.to_dict()
     if auto_import and not import_file and str(result.get("status")) != "OK":
-        fallback = _latest_import_for(source_id)
+        latest_file = _latest_import_for(source_id)
+        fallback = pending_import_file(source_id, archive_dir)
+        if latest_file is not None and fallback is None:
+            skip_reason = (
+                _previous_import_failure_reason(source_id, latest_file, archive_dir)
+                or "official file hash already processed"
+            )
+            result["fallback_import_skipped"] = str(latest_file)
+            result["fallback_import_skip_reason"] = skip_reason
+            return result
         if fallback is not None:
-            skip_reason = _previous_import_failure_reason(source_id, fallback, resolve_path(cfg, "archive_dir"))
+            skip_reason = _previous_import_failure_reason(source_id, fallback, archive_dir)
             if skip_reason:
                 result["fallback_import_skipped"] = str(fallback)
                 result["fallback_import_skip_reason"] = skip_reason
@@ -169,7 +180,7 @@ def refresh_source(
             fallback_run = run_external_source_refresh(
                 spec,
                 _import_adapter(source_id, spec, fallback),
-                resolve_path(cfg, "archive_dir"),
+                archive_dir,
             ).to_dict()
             fallback_run["fallback_from_status"] = result.get("status")
             fallback_run["fallback_import_file"] = str(fallback)
@@ -369,9 +380,12 @@ def _source_checked_on(row: dict[str, Any]) -> date | None:
     if not value:
         return None
     try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except ValueError:
         return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(ZoneInfo("Asia/Shanghai")).date()
 
 
 def _attempt_status(row: dict[str, Any]) -> str:
@@ -529,8 +543,9 @@ def _open_url(url: str) -> None:
 
 def status(config: dict[str, Any] | None = None, *, today: date | None = None) -> dict[str, dict[str, Any]]:
     cfg = config or load_config()
+    archive_dir = resolve_path(cfg, "archive_dir")
     rows = source_status(
-        resolve_path(cfg, "archive_dir"),
+        archive_dir,
         source_specs(cfg),
         today=today,
     )
@@ -539,7 +554,10 @@ def status(config: dict[str, Any] | None = None, *, today: date | None = None) -
             row,
             today=today,
             profile=effective_source_profile(cfg, source_id),
-            official_artifact_ready=False,
+            official_artifact_ready=(
+                source_id in IMPORT_FILE_SOURCE_IDS
+                and pending_import_file(source_id, archive_dir) is not None
+            ),
         )
         for source_id, row in rows.items()
     }

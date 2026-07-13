@@ -63,6 +63,26 @@ class SameRawParseBoomAdapter(ValueAdapter):
         raise ValueError("same raw rejected by current parser")
 
 
+class RowTimestampAdapter:
+    def __init__(self, fetched_at: str) -> None:
+        self.fetched_at = fetched_at
+
+    def fetch_raw(self):
+        return {
+            "metadata": {"fetched_at": "transport-only"},
+            "rows": [
+                {
+                    "date": "2026-06-30",
+                    "value": 1.2,
+                    "fetched_at": self.fetched_at,
+                }
+            ],
+        }
+
+    def parse(self, raw):
+        return pd.DataFrame(raw["rows"])[["date", "value"]]
+
+
 def _ledger_record(source_id: str, status: str, when: str) -> dict:
     return {
         "source_id": source_id,
@@ -140,6 +160,28 @@ def test_success_writes_staging_promotes_target_and_records_ledger(tmp_path):
     assert run.raw_path and Path(run.raw_path).exists()
     assert run.normalized_path and Path(run.normalized_path).exists()
     assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "OK"
+
+
+def test_source_input_hash_keeps_row_level_fetched_at_business_field(tmp_path):
+    target = tmp_path / "soft_history" / "source.csv"
+    spec = ExternalSourceSpec(
+        source_id="source",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+
+    first = run_external_source_refresh(
+        spec,
+        RowTimestampAdapter("2026-07-13T01:00:00Z"),
+        tmp_path / "archive",
+    )
+    second = run_external_source_refresh(
+        spec,
+        RowTimestampAdapter("2026-07-13T02:00:00Z"),
+        tmp_path / "archive",
+    )
+
+    assert first.input_hash != second.input_hash
 
 
 def test_success_binds_canonical_hash_and_pit_evidence_to_ledger(tmp_path):
