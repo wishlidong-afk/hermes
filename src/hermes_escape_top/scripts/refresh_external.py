@@ -18,6 +18,7 @@ from hermes_escape_top.core.data.external_sources import (
     NaaimExposureAdapter,
     NaaimExposureImportAdapter,
     aaii_sentiment_spec,
+    effective_source_profile,
     fred_net_liquidity_spec,
     fred_percentile_spec,
     enrich_source_status,
@@ -352,7 +353,14 @@ def _open_url(url: str) -> None:
 def status(config: dict[str, Any] | None = None, *, today: date | None = None) -> dict[str, dict[str, Any]]:
     cfg = config or load_config()
     rows = source_status(resolve_path(cfg, "archive_dir"), source_specs(cfg))
-    return {source_id: enrich_source_status(row, today=today) for source_id, row in rows.items()}
+    return {
+        source_id: enrich_source_status(
+            row,
+            today=today,
+            profile=effective_source_profile(cfg, source_id),
+        )
+        for source_id, row in rows.items()
+    }
 
 
 def main(argv: list[str] | None = None) -> int:

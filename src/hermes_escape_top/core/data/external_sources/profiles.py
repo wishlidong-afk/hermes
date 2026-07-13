@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import glob
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -17,6 +17,12 @@ class ExternalSourceProfile:
     primary: str
     fallback: str
     import_globs: tuple[str, ...] = ()
+    feature_flag: str | None = None
+    decision_weight: float = 0.0
+    automation_mode: str = "api"
+    pit_rule: str = "observation_date"
+    migration_deadline: str | None = None
+    slo_key: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -33,6 +39,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         warn_age_days=8,
         primary="FRED DTWEXBGS API",
         fallback="rerun FRED external source",
+        feature_flag="data_dollar",
+        decision_weight=4.0,
+        pit_rule="observation_date_plus_one_day",
     ),
     "real_rate": ExternalSourceProfile(
         source_id="real_rate",
@@ -42,6 +51,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         warn_age_days=4,
         primary="FRED DFII10 API",
         fallback="rerun FRED external source",
+        feature_flag="data_real_rate",
+        decision_weight=4.0,
+        pit_rule="observation_date_plus_one_day",
     ),
     "fred_net_liquidity": ExternalSourceProfile(
         source_id="fred_net_liquidity",
@@ -51,6 +63,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         warn_age_days=4,
         primary="FRED WALCL/WTREGEN/RRP APIs",
         fallback="rerun FRED external source",
+        feature_flag="data_net_liquidity",
+        decision_weight=4.0,
+        pit_rule="observation_date_plus_one_day",
+        slo_key="net_liquidity",
     ),
     "naaim_exposure": ExternalSourceProfile(
         source_id="naaim_exposure",
@@ -60,6 +76,11 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         warn_age_days=10,
         primary="NAAIM official XLSX",
         fallback="official workbook import",
+        feature_flag="data_naaim",
+        decision_weight=2.0,
+        automation_mode="official_file",
+        pit_rule="issue_date_plus_one_day",
+        migration_deadline="2026-08-01",
         import_globs=(
             "~/.hermes/external_imports/*naaim*.xlsx",
             "~/.hermes/external_imports/*NAAIM*.xlsx",
@@ -77,6 +98,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         warn_age_days=10,
         primary="AAII official sentiment.xls",
         fallback="browser download + official file import",
+        feature_flag="data_aaii",
+        decision_weight=2.0,
+        automation_mode="browser_assisted",
+        pit_rule="issue_date",
         import_globs=(
             "~/.hermes/external_imports/sentiment*.xls",
             "~/.hermes/external_imports/sentiment*.xlsx",
@@ -93,9 +118,36 @@ def profile_for(source_id: str) -> ExternalSourceProfile | None:
     return PROFILES.get(str(source_id))
 
 
-def enrich_source_status(row: dict[str, Any], *, today: date | None = None) -> dict[str, Any]:
-    source_id = str(row.get("source_id") or "")
+def effective_source_profile(
+    config: dict[str, Any],
+    source_id: str,
+) -> ExternalSourceProfile | None:
+    """Return source metadata with its runtime SLO resolved from config."""
     profile = profile_for(source_id)
+    if profile is None:
+        return None
+    slo = (config or {}).get("soft_data_slo") or {}
+    per_source = slo.get("max_age_days") or {}
+    key = profile.slo_key or profile.source_id
+    configured = per_source.get(key, slo.get("default_max_age_days"))
+    if configured is None:
+        return profile
+    max_age = max(0, int(configured))
+    return replace(
+        profile,
+        max_age_days=max_age,
+        warn_age_days=max(0, max_age - 2),
+    )
+
+
+def enrich_source_status(
+    row: dict[str, Any],
+    *,
+    today: date | None = None,
+    profile: ExternalSourceProfile | None = None,
+) -> dict[str, Any]:
+    source_id = str(row.get("source_id") or "")
+    profile = profile or profile_for(source_id)
     out = dict(row)
     if profile is None:
         return out
@@ -109,7 +161,10 @@ def enrich_source_status(row: dict[str, Any], *, today: date | None = None) -> d
     out["age_days"] = age_days
     out["freshness_status"] = _freshness_status(age_days, profile)
     out["failure_kind"] = _failure_kind(row)
-    if _same_day_successful_check(out, today or date.today()) and out["freshness_status"] == "DUE_SOON":
+    if (
+        _same_day_successful_check(out, today or date.today())
+        and out["freshness_status"] in {"DUE_SOON", "STALE"}
+    ):
         out["publisher_status"] = "UNCHANGED_AFTER_REFRESH"
         out["publisher_note"] = "official source checked today; publisher has not posted a newer observation"
     out["next_action"] = _next_action(out, profile)

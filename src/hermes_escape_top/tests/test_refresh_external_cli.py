@@ -24,6 +24,14 @@ def _config(tmp_path):
             "data_naaim": True,
             "data_aaii": True,
         },
+        "soft_data_slo": {
+            "default_max_age_days": 13,
+            "max_age_days": {
+                "dollar": 6,
+                "real_rate": 6,
+                "net_liquidity": 6,
+            },
+        },
     }
 
 
@@ -204,7 +212,7 @@ def test_refresh_external_status_adds_profile_and_freshness(monkeypatch, tmp_pat
     out = refresh_external.status(cfg, today=date(2026, 7, 2))
 
     assert out["dollar"]["cadence"] == "weekly"
-    assert out["dollar"]["max_age_days"] == 10
+    assert out["dollar"]["max_age_days"] == 6
     assert out["dollar"]["age_days"] == 14
     assert out["dollar"]["freshness_status"] == "STALE"
     assert out["dollar"]["next_action"].startswith("run refresh_external")
@@ -226,7 +234,7 @@ def test_refresh_external_status_explains_due_soon_after_same_day_success(tmp_pa
 
     out = refresh_external.status(cfg, today=date(2026, 7, 4))
 
-    assert out["dollar"]["freshness_status"] == "DUE_SOON"
+    assert out["dollar"]["freshness_status"] == "STALE"
     assert out["dollar"]["publisher_status"] == "UNCHANGED_AFTER_REFRESH"
     assert "wait for publisher update" in out["dollar"]["next_action"]
     assert "run refresh_external --source dollar" not in out["dollar"]["next_action"]
