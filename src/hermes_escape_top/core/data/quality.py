@@ -91,6 +91,70 @@ def analyze_missing_fields(missing_fields: Iterable[str], raw_score: float, conf
     )
 
 
+def decision_input_coverage(scores: Dict[str, Any] | None) -> Dict[str, Any]:
+    """Summarize the scoring weight that was actually available per symbol.
+
+    ``confidence_missing_weight`` is the decision-bearing missing weight. It
+    excludes permanent, non-scoring placeholders so the metric describes the
+    live decision surface rather than dormant schema capacity.
+    """
+    rows = scores if isinstance(scores, dict) else {}
+    symbols: Dict[str, Dict[str, Any]] = {}
+    for symbol, row in sorted(rows.items()):
+        if not isinstance(row, dict):
+            continue
+        if "confidence_missing_weight" in row:
+            raw_missing = row.get("confidence_missing_weight")
+        else:
+            raw_missing = row.get("missing_weight", row.get("missing_score_weight", 0.0))
+        try:
+            missing = float(raw_missing or 0.0)
+        except (TypeError, ValueError):
+            missing = 100.0
+        missing = max(0.0, min(100.0, missing))
+        coverage = 100.0 - missing
+        symbols[str(symbol)] = {
+            "coverage_score": round(coverage, 2),
+            "missing_weight": round(missing, 2),
+            "blind_spot": bool(row.get("blind_spot")),
+        }
+
+    if not symbols:
+        return {
+            "status": "UNKNOWN",
+            "coverage_score": None,
+            "active_weight": 0.0,
+            "available_weight": 0.0,
+            "missing_weight": 0.0,
+            "symbol_count": 0,
+            "symbols": {},
+        }
+
+    active_weight = float(len(symbols) * 100)
+    missing_weight = sum(float(row["missing_weight"]) for row in symbols.values())
+    available_weight = active_weight - missing_weight
+    score = available_weight / active_weight * 100.0
+    return {
+        "status": _coverage_level(score),
+        "coverage_score": round(score, 2),
+        "active_weight": round(active_weight, 2),
+        "available_weight": round(available_weight, 2),
+        "missing_weight": round(missing_weight, 2),
+        "symbol_count": len(symbols),
+        "symbols": symbols,
+    }
+
+
+def _coverage_level(score: float) -> str:
+    if score >= 95.0:
+        return "HIGH"
+    if score >= 85.0:
+        return "MEDIUM"
+    if score >= 70.0:
+        return "LOW"
+    return "BLOCKED"
+
+
 def quality_from_snapshots(snapshots: Iterable[SymbolSnapshot]) -> DataQuality:
     penalties: List[Dict[str, Any]] = []
     critical_missing = []

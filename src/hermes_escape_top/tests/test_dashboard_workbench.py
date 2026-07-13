@@ -684,6 +684,12 @@ def _system_health_report(as_of: str = "2026-06-04") -> dict:
         "schema_version": "hermes-system-health-v1",
         "generated_at": "2026-07-03T07:12:00+08:00",
         "as_of": as_of,
+        "data_quality_dimensions": {
+            "market_completeness": 100.0,
+            "provenance": 97.0,
+            "timeliness": 96.0,
+            "decision_input_coverage": 98.0,
+        },
         "health": {
             "level": "OK",
             "layers": {
@@ -727,6 +733,8 @@ def test_system_health_section_renders_20_dimension_report():
     assert "评分 payload 缓存" in html
     assert "source=scheduled_run_payload" in html
     assert "IBKR 持仓对账" in html
+    assert "决策输入覆盖" in html
+    assert "98.0" in html
 
 
 def test_system_health_section_marks_stale_report():

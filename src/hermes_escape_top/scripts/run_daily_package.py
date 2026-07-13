@@ -1359,6 +1359,7 @@ def _write_system_health_report(
 ) -> Dict[str, Path]:
     from hermes_escape_top.web.health import compute_health
     from hermes_escape_top.web.refresh import manifest_status
+    from hermes_escape_top.core.data.quality import decision_input_coverage
 
     config = load_config()
     report_payload = dict(payload)
@@ -1369,6 +1370,8 @@ def _write_system_health_report(
     report_payload["run_receipt"] = receipt
     manifest = manifest_status(config)
     health = compute_health(report_payload, manifest)
+    coverage = decision_input_coverage(payload.get("scores"))
+    quality = payload.get("data_quality") if isinstance(payload.get("data_quality"), dict) else {}
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
     report = {
         "schema_version": "hermes-system-health-v1",
@@ -1379,6 +1382,13 @@ def _write_system_health_report(
         "manifest_status": manifest,
         "run_receipt": receipt,
         "health": health,
+        "decision_input_coverage": coverage,
+        "data_quality_dimensions": {
+            "market_completeness": quality.get("completeness_score"),
+            "provenance": quality.get("quality_score"),
+            "timeliness": quality.get("latency_score"),
+            "decision_input_coverage": coverage.get("coverage_score"),
+        },
     }
     report["audit_dimensions"] = _build_system_health_audit_dimensions(report_payload, report)
     report_dir = _system_health_report_dir(shadow=shadow)
@@ -1433,6 +1443,7 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
     ibkr_source = str(ibkr.get("source") or "")
     sip_error = str(sip_status.get("status") or "")
     factor_symbols = _factor_score_symbol_count(payload)
+    coverage_score = (report.get("decision_input_coverage") or {}).get("coverage_score")
 
     return [
         _audit_row(
@@ -1465,7 +1476,7 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
             "data_quality",
             "数据质量",
             "PASS" if dq_level == "HIGH" else "WARN" if dq_level == "MEDIUM" else "FAIL" if dq_level in {"LOW", "BLOCKED", "NO_CACHE"} else "INFO",
-            f"{dq_level or 'NA'} overall={data_quality.get('overall_score')}",
+            f"{dq_level or 'NA'} overall={data_quality.get('overall_score')} decision_coverage={coverage_score}",
         ),
         _audit_row("strategy_data_layer", "策略数据层", layer_status("strategy_data"), _layer_detail(layers, "strategy_data")),
         _audit_row(

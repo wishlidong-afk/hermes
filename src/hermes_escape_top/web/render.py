@@ -657,6 +657,8 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
         <div class="mini-note">{esc(summary_text)}</div>
       </div>
 
+      {_render_quality_dimensions(payload)}
+
       <div class="trust-layer-grid health-strip">
         {_trust_layer_card('策略数据链', _health_layer_metric(health, 'strategy_data'), _health_layer_kind(health, 'strategy_data'), [
             f"score_run={state.get('score_run_id', 'NA')}",
@@ -696,6 +698,28 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
       {_render_data_trust_zone(payload)}
     </section>
     """
+
+
+def _render_quality_dimensions(payload: Dict[str, Any]) -> str:
+    report = payload.get("system_health_report")
+    dimensions = report.get("data_quality_dimensions") if isinstance(report, dict) else None
+    if not isinstance(dimensions, dict):
+        dq = payload.get("data_quality") if isinstance(payload.get("data_quality"), dict) else {}
+        dimensions = {
+            "market_completeness": dq.get("completeness_score"),
+            "provenance": dq.get("quality_score"),
+            "timeliness": dq.get("latency_score"),
+            "decision_input_coverage": None,
+        }
+    return (
+        "<div class='trust-evidence-grid quality-dimensions'>"
+        + _trust_evidence("行情完整度", _fmt_num(dimensions.get("market_completeness")))
+        + _trust_evidence("来源真实性", _fmt_num(dimensions.get("provenance")))
+        + _trust_evidence("数据时效性", _fmt_num(dimensions.get("timeliness")))
+        + _trust_evidence("决策输入覆盖", _fmt_num(dimensions.get("decision_input_coverage")))
+        + "</div>"
+        + "<div class='mini-note'>决策输入覆盖按实际参与置信度计算的评分权重统计；不含永久非计分占位。</div>"
+    )
 
 
 def _render_due_external_source_actions(payload: Dict[str, Any]) -> str:
