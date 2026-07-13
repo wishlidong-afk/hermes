@@ -439,6 +439,50 @@ def test_daily_source_check_reuses_recent_0705_failed_retry(monkeypatch, tmp_pat
     assert result["refresh"]["error_count"] == 1
 
 
+def test_daily_source_check_ignores_inactive_sources_for_same_day_reuse(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("dollar", "occ_equity_pcr"))
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "active": True,
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "finished_at": "2026-07-12T23:05:00+00:00",
+            },
+            "occ_equity_pcr": {
+                "source_id": "occ_equity_pcr",
+                "status": "MISSING",
+                "active": False,
+                "freshness_status": "UNKNOWN",
+                "evidence_status": "NO_LEDGER",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "pre_daily_check",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("inactive source must not force a full refresh")
+        ),
+    )
+
+    result = refresh_external.daily_source_check(
+        cfg,
+        today=date(2026, 7, 13),
+        now=datetime(2026, 7, 12, 23, 10, tzinfo=timezone.utc),
+    )
+
+    assert result["ready"] is True
+    assert result["refresh"]["mode"] == "reuse_same_day"
+    assert result["refresh"]["ok_count"] == 1
+    assert result["refresh"]["error_count"] == 0
+
+
 def test_retry_needed_cli_runs_selective_precheck(monkeypatch, capsys):
     calls = []
     monkeypatch.setattr(

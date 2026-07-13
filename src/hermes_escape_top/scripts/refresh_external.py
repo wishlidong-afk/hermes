@@ -40,7 +40,10 @@ from hermes_escape_top.core.data.external_sources import (
     run_external_source_refresh,
     source_status,
 )
-from hermes_escape_top.core.data.external_sources.ledger import iter_source_runs
+from hermes_escape_top.core.data.external_sources.ledger import (
+    canonical_evidence_issue,
+    iter_source_runs,
+)
 from hermes_escape_top.core.data.external_sources.clock import (
     shanghai_today,
     timestamp_to_shanghai_date,
@@ -287,19 +290,23 @@ def daily_source_check(
     cfg = config or load_config()
     day = today or shanghai_today()
     sources = status(cfg, today=day)
-    if sources and all(_source_checked_on(row) == day for row in sources.values()):
+    active_rows = [
+        row for row in sources.values()
+        if row.get("active") is not False
+    ]
+    if sources and all(_source_checked_on(row) == day for row in active_rows):
         checked_at = now or datetime.now(timezone.utc)
         retry_rows = [
             row
-            for row in sources.values()
+            for row in active_rows
             if _source_needs_retry(row, day)
         ]
         if any(_daily_retry_is_due(row, checked_at) for row in retry_rows):
             return pre_daily_check(cfg, today=day, retry_only=True)
         refresh_result = {
             "ok": True,
-            "ok_count": sum(1 for row in sources.values() if _attempt_status(row) == "OK"),
-            "error_count": sum(1 for row in sources.values() if _attempt_status(row) != "OK"),
+            "ok_count": sum(1 for row in active_rows if _attempt_status(row) == "OK"),
+            "error_count": sum(1 for row in active_rows if _attempt_status(row) != "OK"),
             "runs": [_status_as_refresh_run(source_id, row) for source_id, row in sources.items()],
             "mode": "reuse_same_day",
             "selected_sources": [],
@@ -347,13 +354,8 @@ def _evaluate_readiness(
             continue
         run_status = str(row.get("status") or "")
         freshness = str(row.get("freshness_status") or "")
-        evidence = str(row.get("evidence_status") or "")
-        if evidence in {
-            "EVIDENCE_DRIFT",
-            "MISSING_CANONICAL",
-            "NO_LEDGER",
-            "UNBOUND_LEGACY",
-        }:
+        evidence = canonical_evidence_issue(row)
+        if evidence:
             blocking.append(source_id)
         elif run_status != "OK" or freshness == "UNKNOWN":
             blocking.append(source_id)

@@ -13,6 +13,16 @@ from .clock import shanghai_today, timestamp_to_shanghai_date
 
 
 LEDGER_NAME = "external_source_runs.jsonl"
+CANONICAL_EVIDENCE_OK_STATUSES = frozenset({"", "MATCH"})
+CANONICAL_EVIDENCE_CRITICAL_STATUSES = frozenset({"EVIDENCE_DRIFT", "MISSING_CANONICAL"})
+
+
+def canonical_evidence_issue(row: dict[str, Any]) -> str:
+    """Return the evidence problem for an active source, if any."""
+    if row.get("active") is False:
+        return ""
+    status = str(row.get("evidence_status") or "")
+    return "" if status in CANONICAL_EVIDENCE_OK_STATUSES else status
 
 
 def ledger_path(archive_dir: Path) -> Path:

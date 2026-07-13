@@ -290,6 +290,8 @@ class BtcMicroAdapter:
         unified["publish_date"] = pd.to_datetime(unified["publish_date"]).dt.date.astype(str)
         unified.attrs["btc_fetch_evidence"] = {
             "provider_row_count": int(len(funding) + len(dvol)),
+            "funding_provider_row_count": int(len(funding)),
+            "dvol_provider_row_count": int(len(dvol)),
             "no_new_data_expected": bool((raw or {}).get("no_new_data_expected")),
             "expected_through": (raw or {}).get("expected_through"),
             "last_real_date": (raw or {}).get("last_real_date"),
@@ -321,10 +323,10 @@ def btc_micro_spec(*, target_path: Path, min_rows: int = 1) -> ExternalSourceSpe
 def _validate_btc(frame: pd.DataFrame) -> str | None:
     fetch_evidence = frame.attrs.get("btc_fetch_evidence") or {}
     if (
-        int(fetch_evidence.get("provider_row_count") or 0) == 0
+        int(fetch_evidence.get("funding_provider_row_count") or 0) == 0
         and not bool(fetch_evidence.get("no_new_data_expected"))
     ):
-        return "BTC provider returned no new observations and canonical is not current through the conservative completion date"
+        return "BTC funding provider returned no new observations and canonical is not current through the conservative completion date"
     proxy = frame.get("is_proxy")
     if proxy is None:
         real = frame

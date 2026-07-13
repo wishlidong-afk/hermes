@@ -301,6 +301,37 @@ def test_btc_micro_empty_provider_response_does_not_recertify_seed(tmp_path):
     assert target.read_bytes() == before
 
 
+def test_btc_micro_dvol_only_response_does_not_certify_missing_funding(tmp_path):
+    module = _module()
+    target = tmp_path / "soft_history" / "btc_funding_basis.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "date,publish_date,btc_funding_8h_avg,btc_funding_pctl,"
+        "btc_basis_annual,btc_basis_pctl,is_proxy,funding_source\n"
+        "2026-07-09,2026-07-09,0.0002,,0.219,,False,deribit\n",
+        encoding="utf-8",
+    )
+    before = target.read_bytes()
+    adapter = module.BtcMicroAdapter(
+        seed_path=target,
+        fetch_bundle=lambda _seed: {
+            "funding_source": "none",
+            "funding": [],
+            "dvol": [{"date": "2026-07-10", "btc_dvol": 55.0}],
+        },
+    )
+
+    run = run_external_source_refresh(
+        module.btc_micro_spec(target_path=target, min_rows=1),
+        adapter,
+        tmp_path / "archive",
+    )
+
+    assert run.status == "VALIDATION_ERROR"
+    assert "funding provider returned no new observations" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
 def test_refresh_registry_exposes_all_migrated_sources(tmp_path):
     from hermes_escape_top.scripts import refresh_external
 

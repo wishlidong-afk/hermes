@@ -12,6 +12,10 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from ..core.data.external_sources.ledger import (
+    CANONICAL_EVIDENCE_CRITICAL_STATUSES,
+    canonical_evidence_issue,
+)
 from .refresh import _completed_trading_days_after
 
 # Sources that are off/unwired BY DESIGN — their absence is the steady-state
@@ -189,8 +193,18 @@ def compute_health(
         for source_id, row in external_sources.items():
             if not isinstance(row, dict):
                 continue
+            if row.get("active") is False:
+                continue
             status = str(row.get("status") or "")
             freshness = str(row.get("freshness_status") or "")
+            evidence = canonical_evidence_issue(row)
+            if evidence:
+                detail = f"{source_id}: {evidence} {row.get('evidence_detail') or ''}".strip()
+                if evidence in CANONICAL_EVIDENCE_CRITICAL_STATUSES:
+                    add("CRITICAL", "外部数据证据失配", detail[:160])
+                else:
+                    add("DEGRADED", "外部数据证据未绑定", detail[:160])
+                continue
             if status == "OK" and freshness == "STALE":
                 detail = (
                     f"{source_id}: age={row.get('age_days')}d "

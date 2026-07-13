@@ -193,6 +193,29 @@ def test_external_source_failure_degrades_with_reason():
     )
 
 
+def test_external_source_evidence_drift_is_critical_even_when_runner_status_is_ok():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "dollar": {
+            "source_id": "dollar",
+            "status": "OK",
+            "freshness_status": "OK",
+            "evidence_status": "EVIDENCE_DRIFT",
+            "evidence_detail": "canonical sha256 changed after promotion",
+        }
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "CRITICAL"
+    assert any(
+        check["label"] == "外部数据证据失配"
+        and "dollar" in check["detail"]
+        and "EVIDENCE_DRIFT" in check["detail"]
+        for check in health["checks"]
+    )
+
+
 def test_missing_external_source_ledger_degrades_but_not_critical():
     payload = _payload()
     payload["external_source_status"] = {

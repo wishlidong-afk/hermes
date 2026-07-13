@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import stat
+import tempfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
@@ -156,12 +159,31 @@ def write_market_witness(archive_dir: Path, payload: dict[str, Any]) -> dict[str
     exact = archive / f"market_witness_{as_of}.json"
     latest = archive / "market_witness_latest.json"
     for path in (exact, latest):
-        temp = path.with_name(f".{path.name}.tmp")
-        temp.write_text(encoded, encoding="utf-8")
-        temp.replace(path)
+        _atomic_write_text(path, encoded)
     out = dict(payload)
     out["cache_path"] = str(exact)
     return out
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else 0o644
+    fd, temp_name = tempfile.mkstemp(
+        dir=str(path.parent),
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+    )
+    temp = Path(temp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        temp.chmod(mode)
+        temp.replace(path)
+    except BaseException:
+        try:
+            temp.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def _load_local_bars(

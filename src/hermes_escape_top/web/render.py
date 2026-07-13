@@ -6,6 +6,7 @@ from html import escape
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
+from ..core.data.external_sources.ledger import canonical_evidence_issue
 from ..core.scoring.explain_registry import explain_factor
 from ..core.scoring.module_a import module_a_factors
 from ..core.scoring.module_b import module_b_factors
@@ -733,7 +734,8 @@ def _render_due_external_source_actions(payload: Dict[str, Any]) -> str:
             continue
         freshness = str(row.get("freshness_status") or "")
         status = str(row.get("status") or "MISSING")
-        needs_action = freshness in {"DUE_SOON", "STALE"} or status not in {"OK", "MISSING"}
+        evidence = canonical_evidence_issue(row)
+        needs_action = bool(evidence) or freshness in {"DUE_SOON", "STALE"} or status not in {"OK", "MISSING"}
         if not needs_action:
             continue
         safe_id = _external_source_dom_id(source_id)
@@ -742,8 +744,8 @@ def _render_due_external_source_actions(payload: Dict[str, Any]) -> str:
         age_text = f" · {age}d" if age is not None else ""
         rows.append(
             "<div class='trust-warning warn'>"
-            f"<b>{esc(str(source_id))}</b> — {esc(freshness or status)}{esc(age_text)}"
-            f"<div class='mini-note'>latest={esc(str(latest)[:10])} · {esc(str(row.get('next_action') or '到期前刷新，若发布方尚未更新则缓存继续可用。'))}</div>"
+            f"<b>{esc(str(source_id))}</b> — {esc(evidence or freshness or status)}{esc(age_text)}"
+            f"<div class='mini-note'>latest={esc(str(latest)[:10])} · {esc(str(row.get('evidence_detail') or row.get('next_action') or '到期前刷新，若发布方尚未更新则缓存继续可用。'))}</div>"
             f"<button class='btn-muted' style='padding:3px 9px;font-size:12px;min-height:26px;margin-top:5px' "
             f"onclick=\"refreshExternalSource('{safe_id}')\" id='external-source-quick-{safe_id}-btn'>到期前刷新</button>"
             f" <span class='subtle' id='external-source-quick-{safe_id}-status'></span>"
@@ -1020,18 +1022,26 @@ def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
         ok = 0
         err = 0
         miss = 0
+        evidence_errors = 0
         for row in external.values():
             if not isinstance(row, dict):
                 continue
+            if row.get("active") is False:
+                continue
             status = str(row.get("status") or "MISSING")
-            if status == "OK":
+            evidence = canonical_evidence_issue(row)
+            if evidence:
+                evidence_errors += 1
+                err += 1
+            elif status == "OK":
                 ok += 1
             elif status == "MISSING":
                 miss += 1
             else:
                 err += 1
         kind = "danger" if err else ("warn" if miss else "ok")
-        return f"OK {ok} / ERR {err} / MISS {miss}", kind
+        evidence_text = f" · EVIDENCE {evidence_errors}" if evidence_errors else ""
+        return f"OK {ok} / ERR {err} / MISS {miss}{evidence_text}", kind
     precheck = payload.get("external_precheck_status")
     if isinstance(precheck, dict):
         ready = bool(precheck.get("ready"))
@@ -1130,8 +1140,15 @@ def _external_daily_ledger_all_ok(payload: Dict[str, Any]) -> bool:
     external = payload.get("external_source_status")
     if not isinstance(external, dict) or not external:
         return False
-    rows = [row for row in external.values() if isinstance(row, dict)]
-    return bool(rows) and all(str(row.get("status") or "") == "OK" for row in rows)
+    rows = [
+        row
+        for row in external.values()
+        if isinstance(row, dict) and row.get("active") is not False
+    ]
+    return bool(rows) and all(
+        str(row.get("status") or "") == "OK" and not canonical_evidence_issue(row)
+        for row in rows
+    )
 
 
 def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
@@ -3484,13 +3501,17 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
                 f"sha={str((row or {}).get('official_file_sha256') or '—')[:8]}"
             )
         publisher_note = str((row or {}).get("publisher_note") or "")
-        note_parts = [part for part in (freshness_note, official_note, publisher_note, str(note or ""), next_action) if part]
+        evidence = canonical_evidence_issue(row or {})
+        evidence_note = ""
+        if evidence:
+            evidence_note = f"{evidence}: {(row or {}).get('evidence_detail') or 'canonical evidence not verified'}"
+        note_parts = [part for part in (freshness_note, official_note, evidence_note, publisher_note, str(note or ""), next_action) if part]
         safe_id = _external_source_dom_id(source_id)
         rows.append(
             "<tr>"
             f"<td><b>{esc(source_id)}</b><div class='subtle'>{esc(EXTERNAL_SOURCE_LABELS.get(source_id, 'External source'))}</div>"
             f"<div class='subtle'>{esc(_external_reliability_text(row or {}))}</div></td>"
-            f"<td>{_external_source_status_badge(status)} {_external_migration_badge((row or {}).get('migration_status'))}</td>"
+            f"<td>{_external_source_status_badge(evidence or status)} {_external_migration_badge((row or {}).get('migration_status'))}</td>"
             f"<td>{esc(str(latest)[:10])}</td>"
             f"<td><span class='subtle'>{esc(str(run_time))}</span></td>"
             f"<td>{esc(' · '.join(note_parts) if note_parts else '—')}</td>"
@@ -3598,7 +3619,7 @@ def _external_source_status_badge(status: str) -> str:
         kind = "ok"
     elif upper in {"MISSING", "UNKNOWN"}:
         kind = "watch"
-    elif upper in {"ERROR", "FAILED", "FAIL"}:
+    elif upper in {"ERROR", "FAILED", "FAIL", "EVIDENCE_DRIFT", "MISSING_CANONICAL"}:
         kind = "danger"
     else:
         kind = "warn"

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from pathlib import Path
+from threading import Barrier
 
 import pandas as pd
 
@@ -9,7 +12,10 @@ from hermes_escape_top.core.data.market_witness import (
     build_market_witness_payload,
     fetch_alpaca_daily_bars,
     refresh_market_witness,
+    write_market_witness,
 )
+from hermes_escape_top.core.safe_io import PipelineBusy
+from hermes_escape_top.scripts import check_market_witness as cli_mod
 
 
 def _local(close: float = 100.0, volume: float = 1_000.0) -> dict:
@@ -162,3 +168,45 @@ def test_market_witness_fetch_error_preserves_canonical_and_writes_evidence(tmp_
     assert payload["error_type"] == "TimeoutError"
     assert canonical.read_bytes() == before
     assert (archive / "market_witness_2026-07-10.json").exists()
+
+
+def test_market_witness_cli_returns_busy_without_calling_writer(monkeypatch, capsys) -> None:
+    called = []
+
+    @contextmanager
+    def busy_lock(**_kwargs):
+        raise PipelineBusy("pipeline busy")
+        yield
+
+    monkeypatch.setattr(cli_mod, "pipeline_lock", busy_lock, raising=False)
+    monkeypatch.setattr(cli_mod, "refresh_market_witness", lambda *_args, **_kwargs: called.append(True))
+    result = cli_mod.main(["--as-of", "2026-07-10", "--lock-timeout", "0"])
+
+    assert result == 75
+    assert called == []
+    assert json.loads(capsys.readouterr().out)["busy"] is True
+
+
+def test_market_witness_latest_write_uses_unique_atomic_temp_files(monkeypatch, tmp_path: Path) -> None:
+    barrier = Barrier(2)
+    original_replace = Path.replace
+
+    def synchronized_replace(path: Path, target: Path):
+        if Path(target).name == "market_witness_latest.json":
+            barrier.wait(timeout=5)
+        return original_replace(path, target)
+
+    monkeypatch.setattr(Path, "replace", synchronized_replace)
+    payloads = [
+        {"as_of": "2026-07-09", "status": "OK", "summary": {"MATCH": 1}},
+        {"as_of": "2026-07-10", "status": "WARN", "summary": {"PRICE_MISMATCH": 1}},
+    ]
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda payload: write_market_witness(tmp_path, payload), payloads))
+
+    assert {result["as_of"] for result in results} == {"2026-07-09", "2026-07-10"}
+    assert (tmp_path / "market_witness_2026-07-09.json").exists()
+    assert (tmp_path / "market_witness_2026-07-10.json").exists()
+    latest = json.loads((tmp_path / "market_witness_latest.json").read_text(encoding="utf-8"))
+    assert latest["as_of"] in {"2026-07-09", "2026-07-10"}

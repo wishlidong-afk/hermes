@@ -488,6 +488,36 @@ def test_trust_health_external_chain_prefers_current_daily_ledger_over_stale_pre
     assert "DUE_SOON" not in trust_section
 
 
+def test_trust_health_does_not_certify_runner_ok_when_canonical_evidence_drifted():
+    payload = _payload()
+    payload["external_source_status"] = {
+        source: {
+            "source_id": source,
+            "status": "OK",
+            "latest_promoted_as_of": "2026-07-02",
+            "freshness_status": "OK",
+            "evidence_status": "EVIDENCE_DRIFT" if source == "dollar" else "MATCH",
+            "evidence_detail": "canonical sha256 changed" if source == "dollar" else "canonical matches",
+        }
+        for source in ("dollar", "real_rate", "fred_net_liquidity", "naaim_exposure", "aaii_sentiment")
+    }
+    payload["external_precheck_status"] = {
+        "ready": False,
+        "blocking_sources": ["dollar"],
+        "warning_sources": [],
+        "refresh": {"ok": True, "ok_count": 5, "error_count": 0},
+        "sources": {},
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    trust_section = html[html.index("今日可信度与系统状态"):html.index("区域 5 · 数据信任区")]
+    assert "OK 4 / ERR 1 / MISS 0 · EVIDENCE 1" in trust_section
+    assert "正式 daily ledger OK" not in trust_section
+    assert "EVIDENCE_DRIFT" in html
+    assert 'badge danger">EVIDENCE_DRIFT' in html
+
+
 def test_factor_map_lists_all_scoring_inputs_grouped_by_module():
     html = render_mod._render_hard_valve_radar(_payload())
 

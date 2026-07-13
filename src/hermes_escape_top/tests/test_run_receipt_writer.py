@@ -297,6 +297,33 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     assert "| external_file_evidence | PASS |" in markdown
 
 
+def test_system_health_audit_fails_external_runner_when_canonical_evidence_drifted():
+    payload = {
+        "external_source_status": {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "freshness_status": "OK",
+                "evidence_status": "EVIDENCE_DRIFT",
+                "evidence_detail": "canonical sha256 changed after promotion",
+            }
+        }
+    }
+    report = {
+        "health": {"layers": {}},
+        "manifest_status": {},
+        "run_receipt": {},
+    }
+
+    dimensions = rdp._build_system_health_audit_dimensions(payload, report)
+
+    runner = next(row for row in dimensions if row["id"] == "external_source_runs")
+    readiness = next(row for row in dimensions if row["id"] == "external_precheck_readiness")
+    assert runner["status"] == "FAIL"
+    assert "dollar:EVIDENCE_DRIFT" in runner["detail"]
+    assert readiness["status"] == "FAIL"
+
+
 def test_system_health_report_uses_shared_release_reports(monkeypatch, tmp_path):
     release = tmp_path / "releases" / "abc123_20260703"
     package_data = release / "hermes_escape_top"

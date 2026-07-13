@@ -94,6 +94,10 @@ sys.path.insert(0, str(PACKAGE_PARENT))
 from hermes_escape_top import pipeline
 from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.data.market_witness import refresh_market_witness
+from hermes_escape_top.core.data.external_sources.ledger import (
+    CANONICAL_EVIDENCE_CRITICAL_STATUSES,
+    canonical_evidence_issue,
+)
 from hermes_escape_top.core.data.store import LocalStore, safe_symbol
 from hermes_escape_top.core.safe_io import assert_pipeline_lease
 from hermes_escape_top.scripts.backfill_history import all_backfill_symbols, backfill, write_coverage_report
@@ -1445,8 +1449,25 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
     def layer_status(name: str) -> str:
         return _audit_status_from_level((layers.get(name) or {}).get("level"))
 
-    external_rows = [row for row in external_sources.values() if isinstance(row, dict)] if isinstance(external_sources, dict) else []
-    external_bad = [str(row.get("source_id") or "?") for row in external_rows if str(row.get("status") or "") != "OK"]
+    external_rows = [
+        row
+        for row in external_sources.values()
+        if isinstance(row, dict) and row.get("active") is not False
+    ] if isinstance(external_sources, dict) else []
+    external_bad = [
+        str(row.get("source_id") or "?")
+        for row in external_rows
+        if str(row.get("status") or "") != "OK"
+    ]
+    external_evidence_bad = [
+        f"{row.get('source_id') or '?'}:{canonical_evidence_issue(row)}"
+        for row in external_rows
+        if canonical_evidence_issue(row)
+    ]
+    external_evidence_critical = any(
+        canonical_evidence_issue(row) in CANONICAL_EVIDENCE_CRITICAL_STATUSES
+        for row in external_rows
+    )
     file_evidence = _external_file_evidence(external_sources)
     receipt_status = str(receipt.get("status") or "")
     dq_level = str(data_quality.get("level") or "")
@@ -1509,8 +1530,10 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
         _audit_row(
             "external_source_runs",
             "外部源 runner",
-            "PASS" if external_rows and not external_bad else "WARN" if external_rows else "INFO",
-            "all OK" if external_rows and not external_bad else ", ".join(external_bad[:6]) or "no external_source_status",
+            "FAIL" if external_evidence_critical else "PASS" if external_rows and not external_bad and not external_evidence_bad else "WARN" if external_rows else "INFO",
+            "all OK"
+            if external_rows and not external_bad and not external_evidence_bad
+            else ", ".join((external_evidence_bad + external_bad)[:6]) or "no external_source_status",
         ),
         _audit_row(
             "external_file_evidence",
@@ -1521,8 +1544,10 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
         _audit_row(
             "external_precheck_readiness",
             "外部源预检",
-            "PASS" if external_rows and not external_bad else "WARN" if external_rows else "INFO",
-            "latest ledger ready" if external_rows and not external_bad else "check latest external precheck log",
+            "FAIL" if external_evidence_critical else "PASS" if external_rows and not external_bad and not external_evidence_bad else "WARN" if external_rows else "INFO",
+            "latest ledger ready"
+            if external_rows and not external_bad and not external_evidence_bad
+            else "check latest external precheck log",
         ),
         _audit_row(
             "ibkr_reconciliation",
