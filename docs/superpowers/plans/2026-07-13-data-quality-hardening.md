@@ -32,7 +32,7 @@
 - Produces: profile fields `feature_flag`, `decision_weight`, `automation_mode`, `pit_rule`, `migration_deadline`, `max_age_days`, `warn_age_days`
 - Invariant: effective `max_age_days` comes from `config.soft_data_slo`, never a second production constant.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```python
 def test_effective_profile_uses_config_slo_as_single_runtime_truth():
@@ -48,15 +48,15 @@ def test_naaim_profile_declares_subscription_migration_deadline():
     assert profile.migration_deadline == "2026-08-01"
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/python -m pytest src/hermes_escape_top/tests/test_external_source_profiles.py -q`
 
 Expected: missing effective policy interface/metadata assertions fail.
 
-- [ ] **Step 3: Implement the minimal immutable profile metadata plus config merge**
-- [ ] **Step 4: Route `refresh_external.status()` through effective profiles**
-- [ ] **Step 5: Verify focused tests GREEN**
+- [x] **Step 3: Implement the minimal immutable profile metadata plus config merge**
+- [x] **Step 4: Route `refresh_external.status()` through effective profiles**
+- [x] **Step 5: Verify focused tests GREEN**
 
 ---
 
@@ -73,7 +73,7 @@ Expected: missing effective policy interface/metadata assertions fail.
 - Produces status fields `evidence_status` and `evidence_detail`
 - `source_status(...)[source_id]["evidence_status"]` is `MATCH`, `MISSING_CANONICAL`, or `EVIDENCE_DRIFT`.
 
-- [ ] **Step 1: Write a failing drift test**
+- [x] **Step 1: Write a failing drift test**
 
 ```python
 def test_source_status_detects_canonical_bytes_changed_after_promotion(tmp_path):
@@ -83,11 +83,11 @@ def test_source_status_detects_canonical_bytes_changed_after_promotion(tmp_path)
     assert row["evidence_status"] == "EVIDENCE_DRIFT"
 ```
 
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Compute canonical hash after atomic promotion and persist it in the successful ledger row**
-- [ ] **Step 4: Compare the current canonical file against latest successful promotion in `source_status`**
-- [ ] **Step 5: Add a semantic-validator hook to `ExternalSourceSpec` and prove validation failure preserves canonical bytes**
-- [ ] **Step 6: Verify focused tests GREEN**
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Compute canonical hash after atomic promotion and persist it in the successful ledger row**
+- [x] **Step 4: Compare the current canonical file against latest successful promotion in `source_status`**
+- [x] **Step 5: Add a semantic-validator hook to `ExternalSourceSpec` and prove validation failure preserves canonical bytes**
+- [x] **Step 6: Verify focused tests GREEN**
 
 ---
 
@@ -107,7 +107,7 @@ def test_source_status_detects_canonical_bytes_changed_after_promotion(tmp_path)
 - Produces CLI `--retry-needed`
 - Daily helper consumes a same-day precheck artifact when present; it does not invoke FRED/AAII legacy writers.
 
-- [ ] **Step 1: Write failing orchestration tests**
+- [x] **Step 1: Write failing orchestration tests**
 
 ```python
 def test_legacy_refresh_does_not_invoke_runner_owned_fred_or_aaii(monkeypatch):
@@ -149,11 +149,11 @@ def test_retry_needed_only_runs_failed_or_unready_sources(monkeypatch):
     assert calls == ["aaii_sentiment"]
 ```
 
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Remove FRED and AAII from the legacy daily writer block**
-- [ ] **Step 4: Implement retry-needed selection from same-day ledger/canonical evidence**
-- [ ] **Step 5: Make 06:45 full refresh, 07:05 retry-needed, and daily reuse a recent valid precheck**
-- [ ] **Step 6: Verify focused orchestration tests and `bash -n` GREEN**
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Remove FRED and AAII from the legacy daily writer block**
+- [x] **Step 4: Implement retry-needed selection from same-day ledger/canonical evidence**
+- [x] **Step 5: Make 06:45 full refresh, 07:05 retry-needed, and daily reuse a recent valid precheck**
+- [x] **Step 6: Verify focused orchestration tests and `bash -n` GREEN**
 
 ---
 
@@ -171,7 +171,7 @@ def test_retry_needed_only_runs_failed_or_unready_sources(monkeypatch):
 - Produces adapters/specs for `cboe_equity_pcr`, `cot_nq`, `occ_equity_pcr`, and `btc_funding_basis`.
 - Adapters reuse existing fetch/parse functions but return normalized frames; only runner promotes canonical files.
 
-- [ ] **Step 1: Add failing adapter tests with injected fetch functions**
+- [x] **Step 1: Add failing adapter tests with injected fetch functions**
 
 ```python
 def test_cboe_adapter_rejects_ratio_that_disagrees_with_volumes(tmp_path):
@@ -181,11 +181,11 @@ def test_cboe_adapter_rejects_ratio_that_disagrees_with_volumes(tmp_path):
     assert target.read_bytes() == before
 ```
 
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Implement CBOE and COT adapters first, including semantic bounds and PIT publish dates**
-- [ ] **Step 4: Implement OCC and BTC micro adapters, preserving current schemas and provider annotations**
-- [ ] **Step 5: Register sources and remove their direct daily subprocess writers**
-- [ ] **Step 6: Verify each adapter and daily orchestration GREEN**
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Implement CBOE and COT adapters first, including semantic bounds and PIT publish dates**
+- [x] **Step 4: Implement OCC and BTC micro adapters, preserving current schemas and provider annotations**
+- [x] **Step 5: Register sources and remove their direct daily subprocess writers**
+- [x] **Step 6: Verify each adapter and daily orchestration GREEN**
 
 ---
 
@@ -204,7 +204,7 @@ def test_cboe_adapter_rejects_ratio_that_disagrees_with_volumes(tmp_path):
 - Output contains `coverage_pct`, `available_weight`, `active_weight`, and `missing_by_symbol`.
 - Existing `DataQuality.overall_score` remains unchanged.
 
-- [ ] **Step 1: Write failing weighted-coverage tests**
+- [x] **Step 1: Write failing weighted-coverage tests**
 
 ```python
 def test_decision_coverage_uses_actual_missing_weight_from_scores():
@@ -215,11 +215,11 @@ def test_decision_coverage_uses_actual_missing_weight_from_scores():
     assert result["coverage_pct"] == 98.0
 ```
 
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Implement report-only calculation from scored missing evidence**
-- [ ] **Step 4: Attach it to system-health evidence, not the scoring input hash**
-- [ ] **Step 5: Render market completeness, provenance, timeliness and decision coverage separately**
-- [ ] **Step 6: Verify focused report/render tests GREEN**
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Implement report-only calculation from scored missing evidence**
+- [x] **Step 4: Attach it to system-health evidence, not the scoring input hash**
+- [x] **Step 5: Render market completeness, provenance, timeliness and decision coverage separately**
+- [x] **Step 6: Verify focused report/render tests GREEN**
 
 ---
 
@@ -237,12 +237,12 @@ def test_decision_coverage_uses_actual_missing_weight_from_scores():
 - Produces: `refresh_market_witness(as_of, config) -> dict`, writing only `archive/market_witness_latest.json`.
 - Result statuses: `MATCH`, `DATE_MISMATCH`, `PRICE_MISMATCH`, `VOLUME_MISMATCH`, `NO_WITNESS`, `FETCH_ERROR`.
 
-- [ ] **Step 1: Write failing pure comparison tests for exact match, split-adjustment mismatch and unsupported symbol**
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Implement pure comparison with explicit tolerances and no promotion method**
-- [ ] **Step 4: Add Alpaca daily-bar adapter using existing secret loader; tests inject transport**
-- [ ] **Step 5: Run witness after canonical history refresh as a nonblocking auxiliary step**
-- [ ] **Step 6: Prove four-date score payload/input hashes are unchanged**
+- [x] **Step 1: Write failing pure comparison tests for exact match, split-adjustment mismatch and unsupported symbol**
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Implement pure comparison with explicit tolerances and no promotion method**
+- [x] **Step 4: Add Alpaca daily-bar adapter using existing secret loader; tests inject transport**
+- [x] **Step 5: Run witness after canonical history refresh as a nonblocking auxiliary step**
+- [x] **Step 6: Prove four-date score payload/input hashes are unchanged**
 
 ---
 
@@ -260,12 +260,12 @@ def test_decision_coverage_uses_actual_missing_weight_from_scores():
 - Produces reliability fields `success_rate_30d`, `success_rate_90d`, `consecutive_failures`, `last_success_at`, `migration_status`.
 - NAAIM becomes `MIGRATION_DUE`; AAII becomes `ACTION_REQUIRED` only when its expected issue is overdue and no official artifact is ready.
 
-- [ ] **Step 1: Write failing rolling reliability and migration-state tests**
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Aggregate ledger evidence without counting multiple same-day retries as independent publisher failures**
-- [ ] **Step 4: Add migration/action states and concise WebUI operations copy**
-- [ ] **Step 5: Document official-file drop workflow and credential/licensing boundary**
-- [ ] **Step 6: Verify focused tests GREEN**
+- [x] **Step 1: Write failing rolling reliability and migration-state tests**
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Aggregate ledger evidence without counting multiple same-day retries as independent publisher failures**
+- [x] **Step 4: Add migration/action states and concise WebUI operations copy**
+- [x] **Step 5: Document official-file drop workflow and credential/licensing boundary**
+- [x] **Step 6: Verify focused tests GREEN**
 
 ---
 
@@ -281,14 +281,14 @@ def test_decision_coverage_uses_actual_missing_weight_from_scores():
 **Interfaces:**
 - FRED raw evidence includes query `realtime_start`, `realtime_end`, retrieval time and `pit_rule`; normalized scoring schema stays unchanged.
 
-- [ ] **Step 1: Write failing FRED evidence metadata test**
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Add metadata without changing normalized CSV bytes**
-- [ ] **Step 4: Run all focused tests from Tasks 1-7**
-- [ ] **Step 5: Run full suite**
-- [ ] **Step 6: Run four-date byte-identical replay and persistence preservation tests**
-- [ ] **Step 7: Run read-only live canaries and `ops/morning_acceptance.py`; do not refresh live data during verification**
-- [ ] **Step 8: Self-review the full diff, document residual paid-provider and unsupported-index risks, then present deployment decision**
+- [x] **Step 1: Write failing FRED evidence metadata test**
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Add metadata without changing normalized CSV bytes**
+- [x] **Step 4: Run all focused tests from Tasks 1-7**
+- [x] **Step 5: Run full suite**
+- [x] **Step 6: Run four-date byte-identical replay and persistence preservation tests**
+- [x] **Step 7: Run read-only live canaries and `ops/morning_acceptance.py`; do not refresh live data during verification**
+- [x] **Step 8: Self-review the full diff, document residual paid-provider and unsupported-index risks, then present deployment decision**
 
 ## Self-Review
 

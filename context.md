@@ -160,7 +160,7 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 | `occ_equity_pcr` | `soft_history/occ_equity_pcr.csv` | OCC weekly report | 周五 week-ending、周六公开 | 当前 inactive，只做迁移/替代源证据 |
 | `btc_funding_basis` | `soft_history/btc_funding_basis.csv` | Deribit，OKX fallback | 交易所 UTC 时间戳归日 | 增量刷新不再把历史 real 行降成 proxy |
 | `naaim_exposure` | `soft_history/naaim_exposure.csv` | 官方 XLSX / official-file import | issue `+1d` | 2026-08-01 迁移截止；订阅/会话是人工责任 |
-| `aaii_sentiment` | `soft_history/aaii_sentiment.csv` | 官方文件 / browser-assisted import | 官方 issue date | Imperva/会员会话无法承诺纯无人值守，不得用未授权镜像冒充真值 |
+| `aaii_sentiment` | `soft_history/aaii_sentiment.csv` | 官方文件 / browser-assisted import | 官方 publish date；公共表无 publish 字段时按 reported `+1d` | Imperva/会员会话无法承诺纯无人值守，不得用未授权镜像冒充真值 |
 
 - 06:45 全量预检，07:05 只重试当日失败/证据未就绪的源，07:10 daily 优先复用当日完整 ledger，不连续重打限流源。
 - 所有外部软数据先写 raw/staging，通过 schema + semantic validation 后才原子晋升；成功 ledger 绑定 canonical SHA-256、最新日期、来源 URL 和 PIT 规则。
@@ -389,7 +389,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 12. 测试与验证
 
-当前回归结果：2026-07-13 数据质量候选分支全套 `841 passed / 0 failed`。此数只绑定当次候选 HEAD；后续任何改动必须重跑，不得把旧测试数当作健康证明。
+当前回归结果：2026-07-13 数据质量候选分支全套 `845 passed / 0 failed`。此数绑定候选代码节点 `692f175`；后续任何行为改动必须重跑，不得把旧测试数当作健康证明。
 
 标准命令：
 

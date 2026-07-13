@@ -1,6 +1,6 @@
 {
   "all_equal": true,
-  "baseline_source": "/private/tmp/hermes-data-quality-baseline.qWs8lv",
+  "baseline_source": "/private/tmp/hermes-data-quality-baseline.stcO6y",
   "candidate_source": "/Users/liweishi/Documents/github/hermes/.worktrees/data-quality-hardening",
   "dates": {
     "2022-06-30": {
@@ -9,7 +9,7 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "65af78793df44f4d210b6cb68cc29353bc5295bad49a917c84c7da2b462bd343",
+            "sha256": "8e1de82fe99d68dbe6ca3cab2c9ef98fb993f2305217b4c0fce613c7ac8eb3e2",
             "tables": {}
           },
           "flow_reference.sqlite": {
@@ -23,7 +23,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "a09cf98495a1a9fa5164bee3300ecf2fadd93b1c58566907133ba841f34bd51c",
+            "sha256": "c7b616076a29d32cd24635c7b8cbb4bd8ba99deae64e351dccf150e268ab3542",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -48,7 +48,7 @@
           "reentry_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "eb8dd90ac76d3269681477b8f157441ba3e7391571a04528a4a09fdfddf03a53",
+            "sha256": "8dc2efd106b059d41141eb9638051867f166488302a8cb6e2eedc5cbda330101",
             "tables": {
               "reentry_plans": 3,
               "reentry_state": 3
@@ -57,12 +57,12 @@
           "signal_journal.jsonl": {
             "jsonl_rows": 3,
             "missing": false,
-            "sha256": "9f77e199f47219958d8997ccedf8ff44d84bc54348ff5ce3074a4006825e5a6f",
+            "sha256": "47d57a7a1ed59a31e8e8fa5ca1bf3a29f28c3919a5e9e92608f8f5607603f887",
             "tables": {}
           }
         },
-        "input_hash": "ba4b2ce5e797ac3ea60477e85a7fd3fb6b4eb30a00a8291b87af5481fe314907",
-        "payload_sha256": "ea232a06676ddbcc87fc280ded5b77572bcda486b0c0c7f423c3a8bce836a159",
+        "input_hash": "34a543488b48c2208b144207a706dee969284d8bb63b1b855e32d0500c43ce74",
+        "payload_sha256": "49f96d2793392c162578371425b9073621febd524e8ebf28a1b97f01ed7205d9",
         "status": {
           "FNGU": "EXIT",
           "MSTR": "EXIT",
@@ -74,7 +74,7 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "65af78793df44f4d210b6cb68cc29353bc5295bad49a917c84c7da2b462bd343",
+            "sha256": "8e1de82fe99d68dbe6ca3cab2c9ef98fb993f2305217b4c0fce613c7ac8eb3e2",
             "tables": {}
           },
           "flow_reference.sqlite": {
@@ -88,7 +88,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "a09cf98495a1a9fa5164bee3300ecf2fadd93b1c58566907133ba841f34bd51c",
+            "sha256": "c7b616076a29d32cd24635c7b8cbb4bd8ba99deae64e351dccf150e268ab3542",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -113,7 +113,7 @@
           "reentry_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "eb8dd90ac76d3269681477b8f157441ba3e7391571a04528a4a09fdfddf03a53",
+            "sha256": "8dc2efd106b059d41141eb9638051867f166488302a8cb6e2eedc5cbda330101",
             "tables": {
               "reentry_plans": 3,
               "reentry_state": 3
@@ -122,12 +122,12 @@
           "signal_journal.jsonl": {
             "jsonl_rows": 3,
             "missing": false,
-            "sha256": "9f77e199f47219958d8997ccedf8ff44d84bc54348ff5ce3074a4006825e5a6f",
+            "sha256": "47d57a7a1ed59a31e8e8fa5ca1bf3a29f28c3919a5e9e92608f8f5607603f887",
             "tables": {}
           }
         },
-        "input_hash": "ba4b2ce5e797ac3ea60477e85a7fd3fb6b4eb30a00a8291b87af5481fe314907",
-        "payload_sha256": "ea232a06676ddbcc87fc280ded5b77572bcda486b0c0c7f423c3a8bce836a159",
+        "input_hash": "34a543488b48c2208b144207a706dee969284d8bb63b1b855e32d0500c43ce74",
+        "payload_sha256": "49f96d2793392c162578371425b9073621febd524e8ebf28a1b97f01ed7205d9",
         "status": {
           "FNGU": "EXIT",
           "MSTR": "EXIT",
@@ -143,7 +143,7 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "aa7499a97f91fe3e896f7e8d157368a475f6be819e733c5063d0e6ffc17b7cc8",
+            "sha256": "3e01e52e1fe3e487f7984eb5433ab703202aec15e8dda4f14a8d7d4cc173810d",
             "tables": {}
           },
           "flow_reference.sqlite": {
@@ -157,7 +157,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "c7e951cbe119e693a17dbc1f388dc1d917ae8582a8472b469b0b80f1040be738",
+            "sha256": "fa015c583b29abb17a65f3b07ddeb461ca14e0bfa229a691ab647d7aa0c6c0e2",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -182,7 +182,7 @@
           "reentry_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "3cd6fb469522819b158155e1ae7f5fa8ed03db1daf4a6a35f64248ebf6ff5b96",
+            "sha256": "8094087ede86da8b15d614ba254d102d4fe0400c65991fa83d495c78c7e1a6f4",
             "tables": {
               "reentry_plans": 3,
               "reentry_state": 3
@@ -191,12 +191,12 @@
           "signal_journal.jsonl": {
             "jsonl_rows": 3,
             "missing": false,
-            "sha256": "f6140c7bc84e00d268c3da5dcad8bc41b71b2c4686797f90fd4afdcbde79b695",
+            "sha256": "85f08db81b6515fc8741650b41cf1769c9fb8025d15c4a6fa9cb134cb6d70fa0",
             "tables": {}
           }
         },
-        "input_hash": "2427bef4d72b5f855be1e0a9806a0fa680ee18f68cbaa8cfacf1cc751f6c405c",
-        "payload_sha256": "0d48b5eeb31c0a2ac5be2822ed07aa41dcc7b08b7d99412c7e64c51b4b7e3a15",
+        "input_hash": "0a0e4677c5a896451c63d6c3de8582f9562fca5b841c5af61db82e5582ba213e",
+        "payload_sha256": "d622fbcbe099e4d38fccae3c850466f99b37b67e36650efb00acb3f9b393c5d2",
         "status": {
           "FNGU": "REDUCE",
           "MSTR": "REDUCE",
@@ -208,7 +208,7 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "aa7499a97f91fe3e896f7e8d157368a475f6be819e733c5063d0e6ffc17b7cc8",
+            "sha256": "3e01e52e1fe3e487f7984eb5433ab703202aec15e8dda4f14a8d7d4cc173810d",
             "tables": {}
           },
           "flow_reference.sqlite": {
@@ -222,7 +222,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "c7e951cbe119e693a17dbc1f388dc1d917ae8582a8472b469b0b80f1040be738",
+            "sha256": "fa015c583b29abb17a65f3b07ddeb461ca14e0bfa229a691ab647d7aa0c6c0e2",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -247,7 +247,7 @@
           "reentry_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "3cd6fb469522819b158155e1ae7f5fa8ed03db1daf4a6a35f64248ebf6ff5b96",
+            "sha256": "8094087ede86da8b15d614ba254d102d4fe0400c65991fa83d495c78c7e1a6f4",
             "tables": {
               "reentry_plans": 3,
               "reentry_state": 3
@@ -256,12 +256,12 @@
           "signal_journal.jsonl": {
             "jsonl_rows": 3,
             "missing": false,
-            "sha256": "f6140c7bc84e00d268c3da5dcad8bc41b71b2c4686797f90fd4afdcbde79b695",
+            "sha256": "85f08db81b6515fc8741650b41cf1769c9fb8025d15c4a6fa9cb134cb6d70fa0",
             "tables": {}
           }
         },
-        "input_hash": "2427bef4d72b5f855be1e0a9806a0fa680ee18f68cbaa8cfacf1cc751f6c405c",
-        "payload_sha256": "0d48b5eeb31c0a2ac5be2822ed07aa41dcc7b08b7d99412c7e64c51b4b7e3a15",
+        "input_hash": "0a0e4677c5a896451c63d6c3de8582f9562fca5b841c5af61db82e5582ba213e",
+        "payload_sha256": "d622fbcbe099e4d38fccae3c850466f99b37b67e36650efb00acb3f9b393c5d2",
         "status": {
           "FNGU": "REDUCE",
           "MSTR": "REDUCE",
@@ -277,7 +277,7 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "077e29b8c74eef728231245b21628c691234b31ec01ffa20413ec9c1d17f0566",
+            "sha256": "b25784c9d839a85f36171c3dc92eea15eca36ac1c7448ea4d3d9f52a76cc06fe",
             "tables": {}
           },
           "flow_reference.sqlite": {
@@ -291,7 +291,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "6b5dbbc8e7ab8715d649691157c8120eb3abe7a502741c3229aca043160a478f",
+            "sha256": "527de08a3b8f2b558faf7d93a355943e0903bd52e003da22ed07ee5116f56774",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -316,7 +316,7 @@
           "reentry_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "bcfd9719ee0346b161a41d4a93b96ed36e5c5e0c96399f23a410044e41444c21",
+            "sha256": "dff47ca7ffa6222a62d7de5dac5296a3619c08b0fd9d1c851a3cb5aa3a54298c",
             "tables": {
               "reentry_plans": 3,
               "reentry_state": 3
@@ -325,14 +325,14 @@
           "signal_journal.jsonl": {
             "jsonl_rows": 3,
             "missing": false,
-            "sha256": "f91ddc208a0ae6d04b7b6410eb685908d99f196e8acb9da471dae8494aeca847",
+            "sha256": "c5ad06fea2e9378d9f0cb4b60c07dc462d934885d85c6f8141722d220d19a478",
             "tables": {}
           }
         },
-        "input_hash": "a20b5a75d1f6d1239b27c225368bfe869ddff322e44cd06ac129c9f926982796",
-        "payload_sha256": "d0a986f5a6a901a630b2cb03fd8be86f82baaf4c6670bcae67cb8ba98e962b20",
+        "input_hash": "849acecfc9510304601b70ba7c30b05daae7a4dc4ff510ef63a61632590381d3",
+        "payload_sha256": "9da0faa0b89c1bc4db674a3f6ddd46f99dc3a67fb0ab2d9485b1e9132e77f487",
         "status": {
-          "FNGU": "WATCH",
+          "FNGU": "REDUCE",
           "MSTR": "EXIT",
           "SOXL": "REDUCE"
         }
@@ -342,7 +342,7 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "077e29b8c74eef728231245b21628c691234b31ec01ffa20413ec9c1d17f0566",
+            "sha256": "b25784c9d839a85f36171c3dc92eea15eca36ac1c7448ea4d3d9f52a76cc06fe",
             "tables": {}
           },
           "flow_reference.sqlite": {
@@ -356,7 +356,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "6b5dbbc8e7ab8715d649691157c8120eb3abe7a502741c3229aca043160a478f",
+            "sha256": "527de08a3b8f2b558faf7d93a355943e0903bd52e003da22ed07ee5116f56774",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -381,7 +381,7 @@
           "reentry_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "bcfd9719ee0346b161a41d4a93b96ed36e5c5e0c96399f23a410044e41444c21",
+            "sha256": "dff47ca7ffa6222a62d7de5dac5296a3619c08b0fd9d1c851a3cb5aa3a54298c",
             "tables": {
               "reentry_plans": 3,
               "reentry_state": 3
@@ -390,14 +390,14 @@
           "signal_journal.jsonl": {
             "jsonl_rows": 3,
             "missing": false,
-            "sha256": "f91ddc208a0ae6d04b7b6410eb685908d99f196e8acb9da471dae8494aeca847",
+            "sha256": "c5ad06fea2e9378d9f0cb4b60c07dc462d934885d85c6f8141722d220d19a478",
             "tables": {}
           }
         },
-        "input_hash": "a20b5a75d1f6d1239b27c225368bfe869ddff322e44cd06ac129c9f926982796",
-        "payload_sha256": "d0a986f5a6a901a630b2cb03fd8be86f82baaf4c6670bcae67cb8ba98e962b20",
+        "input_hash": "849acecfc9510304601b70ba7c30b05daae7a4dc4ff510ef63a61632590381d3",
+        "payload_sha256": "9da0faa0b89c1bc4db674a3f6ddd46f99dc3a67fb0ab2d9485b1e9132e77f487",
         "status": {
-          "FNGU": "WATCH",
+          "FNGU": "REDUCE",
           "MSTR": "EXIT",
           "SOXL": "REDUCE"
         }
@@ -411,13 +411,13 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "894daf3bd77aba69dd48eab45241d55682febe2515a76083bea920101c80026a",
+            "sha256": "1c4ede5f72b274a7d4410e325059c114278bb847b1512609367bca386a9b0df5",
             "tables": {}
           },
           "flow_reference.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "72b457194f76408a725be6f07441572acc23e48e8ec9fc862b2a69e7d61c9189",
+            "sha256": "dc5316ebfd20b503f6c2dbc620b1818e61bbe36b0315810c2ca74568101e4fb3",
             "tables": {
               "flow_snapshots": 5
             }
@@ -425,7 +425,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "553bc3a284e39772fb018aea9ab7f5c9594c56952d5a9c517e8399c789bd1f1f",
+            "sha256": "4c1426f3ae749bbabbd7ea0e806be00bb5cb521d5612fd3bfdd20e6807a74af3",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -442,7 +442,7 @@
           "mirror_reference.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "aec868747100a4710d535f3101cc56c1d6fe479a20260f2228d623d6dc325e22",
+            "sha256": "8e1fdb4734e337a368611799573cc045b0ace501f4c64d1d7e9d5bbec51eba23",
             "tables": {
               "mirror_snapshots": 3
             }
@@ -450,7 +450,7 @@
           "reentry_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "b5e94bf54b09d46412e69574c6635836c0c2807c450f8961d76f6a2bfa042683",
+            "sha256": "a2f76cbf22b36b60933a99378be0f6ff78bd477cd0064b9ebe41193dc9d7bc5b",
             "tables": {
               "reentry_plans": 3,
               "reentry_state": 3
@@ -459,12 +459,12 @@
           "signal_journal.jsonl": {
             "jsonl_rows": 3,
             "missing": false,
-            "sha256": "7831e4989e32b6b0586c1455923537e53d3963b59bc2bd63c85d2ad047bf3ee5",
+            "sha256": "0d36fc54e04365b682f876e0d0a0979b442052550eb9db0cb3f7655268c50163",
             "tables": {}
           }
         },
-        "input_hash": "10e4f93a76b23846fb703e8c78da531bc04372ce9b5f0f62fa7450ed8e5fd253",
-        "payload_sha256": "3c927737463a900f82d9362fb14811d51007762c5f21b758151be4694744bdfa",
+        "input_hash": "270dcfd304aa802384d437111f2509fdee93808a277cb7a19acc41041c1365f6",
+        "payload_sha256": "2a32f4a6e5d78887e43e7798af77701f0d6f10b85b147a9efcdadd9be8e61fa4",
         "status": {
           "FNGU": "REDUCE",
           "MSTR": "EXIT",
@@ -476,13 +476,13 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "894daf3bd77aba69dd48eab45241d55682febe2515a76083bea920101c80026a",
+            "sha256": "1c4ede5f72b274a7d4410e325059c114278bb847b1512609367bca386a9b0df5",
             "tables": {}
           },
           "flow_reference.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "72b457194f76408a725be6f07441572acc23e48e8ec9fc862b2a69e7d61c9189",
+            "sha256": "dc5316ebfd20b503f6c2dbc620b1818e61bbe36b0315810c2ca74568101e4fb3",
             "tables": {
               "flow_snapshots": 5
             }
@@ -490,7 +490,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "553bc3a284e39772fb018aea9ab7f5c9594c56952d5a9c517e8399c789bd1f1f",
+            "sha256": "4c1426f3ae749bbabbd7ea0e806be00bb5cb521d5612fd3bfdd20e6807a74af3",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -507,7 +507,7 @@
           "mirror_reference.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "aec868747100a4710d535f3101cc56c1d6fe479a20260f2228d623d6dc325e22",
+            "sha256": "8e1fdb4734e337a368611799573cc045b0ace501f4c64d1d7e9d5bbec51eba23",
             "tables": {
               "mirror_snapshots": 3
             }
@@ -515,7 +515,7 @@
           "reentry_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "b5e94bf54b09d46412e69574c6635836c0c2807c450f8961d76f6a2bfa042683",
+            "sha256": "a2f76cbf22b36b60933a99378be0f6ff78bd477cd0064b9ebe41193dc9d7bc5b",
             "tables": {
               "reentry_plans": 3,
               "reentry_state": 3
@@ -524,12 +524,12 @@
           "signal_journal.jsonl": {
             "jsonl_rows": 3,
             "missing": false,
-            "sha256": "7831e4989e32b6b0586c1455923537e53d3963b59bc2bd63c85d2ad047bf3ee5",
+            "sha256": "0d36fc54e04365b682f876e0d0a0979b442052550eb9db0cb3f7655268c50163",
             "tables": {}
           }
         },
-        "input_hash": "10e4f93a76b23846fb703e8c78da531bc04372ce9b5f0f62fa7450ed8e5fd253",
-        "payload_sha256": "3c927737463a900f82d9362fb14811d51007762c5f21b758151be4694744bdfa",
+        "input_hash": "270dcfd304aa802384d437111f2509fdee93808a277cb7a19acc41041c1365f6",
+        "payload_sha256": "2a32f4a6e5d78887e43e7798af77701f0d6f10b85b147a9efcdadd9be8e61fa4",
         "status": {
           "FNGU": "REDUCE",
           "MSTR": "EXIT",

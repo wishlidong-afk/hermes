@@ -31,6 +31,7 @@ Safety boundaries:
 | `05cd03d` | 30/90-day reliability and AAII/NAAIM migration states |
 | `b018a9c` | FRED query-vintage evidence and stable source input hash |
 | `42af440` | BTC validator separates historical proxy bounds from real exchange bounds |
+| `692f175` | Final self-review closes Shanghai-day, Web-writer, file-dedupe, raw-hash and PIT-evidence gaps |
 
 ## 3. Source Matrix
 
@@ -73,7 +74,9 @@ first-release data requires ALFRED vintages and a separate research gate.
 Reliability is reduced to one result per `Asia/Shanghai` calendar day. A 06:45
 failure followed by a 07:05 success counts as one successful day, not two
 samples. Retrieval timestamps are retained in raw evidence but removed from the
-stable content hash.
+stable content hash only at the transport root or inside an explicit `metadata`
+block. A row-level business field named `fetched_at` remains part of the source
+input hash.
 
 ## 5. Quality Reporting
 
@@ -131,17 +134,17 @@ candidate refresh commands against live during review.
 
 ## 7. Verification Evidence
 
-Candidate HEAD at final verification: `42af440` plus the documentation/report
-commit that contains this handoff.
+Candidate code node at final verification: `692f175` plus the
+documentation/report commit that contains this handoff.
 
 | Check | Result |
 |---|---|
-| Full pytest suite | `841 passed / 0 failed` in 93.05s |
-| Focused external/health/WebUI regression | `196 passed / 0 failed` |
+| Full pytest suite | `845 passed / 0 failed` in 94.25s |
+| Focused external/scheduler/health/WebUI regression | `189 passed / 0 failed` |
 | Static/governance | compileall, `git diff --check`, bash syntax and all four governance checks PASS |
 | Four-date behavior/persistence | `all_equal=true`; 2022-06-30, 2024-06-28, 2026-05-29, 2026-06-04 |
-| Morning acceptance | PASS on deployed `feab9c5`; scheduled receipt/audit, six-artifact transaction, 8766 and 09:00 watchdog valid |
-| Candidate external canary | isolated temp data root, `9/9 OK`, `ready=true`, no blocking sources |
+| Morning acceptance | 2026-07-13 18:41 CST PASS on deployed `feab9c5`; scheduled receipt/audit, six-artifact transaction, 8766 and 09:00 watchdog valid |
+| Candidate external canary | final `692f175`, isolated temp data root: `9/9 status OK`, `9/9 evidence MATCH`, `ready=true`, no blocking sources; Dollar policy WARN and real-rate DUE_SOON only |
 | Alpaca witness canary | 31 supported symbols `MATCH`; 8 unsupported index/crypto symbols explicit `NO_WITNESS`; overall OK |
 
 The first external canary intentionally exposed two real issues before this
@@ -161,6 +164,20 @@ final result:
 No candidate canary wrote live. The witness cache path was resolved under its
 temporary root, and no `market_witness*.json` appeared in live archive.
 
+The final self-review then found and closed five evidence-path gaps before the
+last full suite and equivalence replay:
+
+- 06:45 UTC ledger timestamps are converted to `Asia/Shanghai` before deciding
+  whether the 07:10 daily can reuse same-day evidence;
+- CLI and Web status now use the same unconsumed-official-file test;
+- `/api/refresh_soft_data` preserves its legacy request shape but routes every
+  write through `ExternalSourceRunner` rather than direct CSV writers;
+- an already processed AAII/NAAIM file hash cannot turn a new fetch failure
+  into a false successful fallback or inflate reliability;
+- AAII/NAAIM successful ledger rows carry explicit PIT and source URL evidence,
+  while stable raw hashing ignores only transport metadata, not same-named row
+  fields.
+
 ## 8. External Review Checklist
 
 1. Trace every scheduled external writer. Confirm production soft-history
@@ -172,8 +189,8 @@ temporary root, and no `market_witness*.json` appeared in live archive.
    `EVIDENCE_DRIFT` rather than OK.
 4. Create same-day failed and successful ledger attempts. Confirm reliability
    has one sample and ends in success.
-5. Reuse an already consumed AAII/NAAIM file. Confirm it is not returned as a
-   pending official artifact.
+5. Reuse an already consumed AAII/NAAIM file. Confirm it is neither returned as
+   a pending artifact nor reused by automatic fallback after a new fetch error.
 6. Inspect FRED raw JSON. Confirm query realtime and retrieval metadata exist,
    normalized CSV remains `date + 1 day`, and a second identical fetch with a
    different retrieval time has the same source input hash.
