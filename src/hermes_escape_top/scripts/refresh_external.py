@@ -31,6 +31,7 @@ from hermes_escape_top.core.data.external_sources.ledger import iter_source_runs
 
 SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity", "naaim_exposure", "aaii_sentiment")
 IMPORT_FILE_SOURCE_IDS = ("naaim_exposure", "aaii_sentiment")
+POLICY_WARN_ONLY_STALE_SOURCE_IDS = frozenset({"dollar"})
 OFFICIAL_BROWSER_URLS = {
     "aaii_sentiment": "https://www.aaii.com/files/surveys/sentiment.xls",
     "naaim_exposure": "https://www.naaim.org/programs/naaim-exposure-index/",
@@ -163,15 +164,37 @@ def pre_daily_check(config: dict[str, Any] | None = None, *, today: date | None 
     cfg = config or load_config()
     refresh_result = refresh_all_sources(cfg, auto_import=True)
     sources = status(cfg, today=today)
+    refresh_runs = {
+        str(run.get("source_id")): run
+        for run in refresh_result.get("runs") or []
+        if isinstance(run, dict) and run.get("source_id")
+    }
     blocking = []
     warnings = []
+    policy_warnings = []
     nonblocking_refresh_errors = []
     blocking_refresh_errors = []
     for source_id, row in sources.items():
         run_status = str(row.get("status") or "")
         freshness = str(row.get("freshness_status") or "")
-        if run_status != "OK" or freshness in {"STALE", "UNKNOWN"}:
+        if run_status != "OK" or freshness == "UNKNOWN":
             blocking.append(source_id)
+        elif freshness == "STALE":
+            if _is_policy_warn_only_stale(
+                cfg, source_id, row, refresh_runs.get(source_id) or {}
+            ):
+                row["publisher_status"] = "UNCHANGED_AFTER_REFRESH"
+                row["publisher_note"] = (
+                    "official source checked today; publisher has not posted a newer observation"
+                )
+                row["next_action"] = (
+                    f"official source checked today; wait for publisher update for {source_id}"
+                )
+                row["readiness_severity"] = "WARN"
+                warnings.append(source_id)
+                policy_warnings.append(source_id)
+            else:
+                blocking.append(source_id)
         elif freshness == "DUE_SOON":
             warnings.append(source_id)
     for run in refresh_result.get("runs") or []:
@@ -193,11 +216,42 @@ def pre_daily_check(config: dict[str, Any] | None = None, *, today: date | None 
         "ready": not blocking,
         "blocking_sources": blocking,
         "warning_sources": warnings,
+        "policy_warning_sources": policy_warnings,
         "nonblocking_refresh_error_sources": nonblocking_refresh_errors,
         "blocking_refresh_error_sources": blocking_refresh_errors,
         "refresh": refresh_result,
         "sources": sources,
     }
+
+
+def _is_policy_warn_only_stale(
+    config: dict[str, Any],
+    source_id: str,
+    row: dict[str, Any],
+    refresh_run: dict[str, Any],
+) -> bool:
+    if source_id not in POLICY_WARN_ONLY_STALE_SOURCE_IDS:
+        return False
+    features = config.get("features") or {}
+    if not features.get("use_soft_data_max_age", False):
+        return False
+    if not features.get(f"data_{source_id}", False):
+        return False
+    if str(row.get("status") or "") != "OK":
+        return False
+    if str(row.get("freshness_status") or "") != "STALE":
+        return False
+    if str(refresh_run.get("status") or "") != "OK":
+        return False
+    configured = (
+        ((config.get("soft_data_slo") or {}).get("max_age_days") or {}).get(source_id)
+    )
+    try:
+        age_days = int(row.get("age_days"))
+        max_age_days = int(configured)
+    except (TypeError, ValueError):
+        return False
+    return age_days > max_age_days
 
 
 def open_official_download_and_import(

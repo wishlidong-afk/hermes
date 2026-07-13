@@ -316,6 +316,77 @@ def test_unexpected_auxiliary_degradation_fails_acceptance(tmp_path):
     )["status"] == "FAIL"
 
 
+def test_duplicate_dollar_health_rows_are_one_visible_warning(tmp_path):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    path = home / ".hermes/skills/investment/escape-top/current/reports/system_health_2026-07-10.json"
+    health_report = json.loads(path.read_text(encoding="utf-8"))
+    external_dollar = {
+        "level": "DEGRADED",
+        "label": "外部数据源陈旧",
+        "detail": "dollar: age=11d official publisher has not posted a newer observation",
+        "layer": "strategy_data",
+    }
+    health_report["health"]["layers"]["strategy_data"]["checks"].append(
+        external_dollar
+    )
+    dashboard_health["layers"]["strategy_data"]["checks"].append(external_dollar)
+    _write_json(path, health_report)
+
+    report = module.collect_acceptance(
+        home=home,
+        now=now,
+        dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    assert report["status"] == "PASS"
+    assert next(
+        item for item in report["checks"] if item["id"] == "bound_health_report"
+    )["status"] == "WARN"
+    assert next(
+        item for item in report["checks"] if item["id"] == "dashboard_health"
+    )["status"] == "WARN"
+    assert report["summary"].count("dollar stale") == 1
+
+
+def test_duplicate_dollar_warning_does_not_hide_external_real_rate(tmp_path):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    path = home / ".hermes/skills/investment/escape-top/current/reports/system_health_2026-07-10.json"
+    health_report = json.loads(path.read_text(encoding="utf-8"))
+    rows = [
+        {
+            "level": "DEGRADED",
+            "label": "外部数据源陈旧",
+            "detail": "dollar: age=11d publisher lag",
+            "layer": "strategy_data",
+        },
+        {
+            "level": "DEGRADED",
+            "label": "外部数据源陈旧",
+            "detail": "real_rate: age=7d refresh required",
+            "layer": "strategy_data",
+        },
+    ]
+    health_report["health"]["layers"]["strategy_data"]["checks"].extend(rows)
+    dashboard_health["layers"]["strategy_data"]["checks"].extend(rows)
+    _write_json(path, health_report)
+
+    report = module.collect_acceptance(
+        home=home,
+        now=now,
+        dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    assert report["status"] == "FAIL"
+    assert "real_rate" in next(
+        item for item in report["checks"] if item["id"] == "bound_health_report"
+    )["detail"]
+    assert "real_rate" in next(
+        item for item in report["checks"] if item["id"] == "dashboard_health"
+    )["detail"]
+
+
 def test_dollar_warning_cannot_hide_a_second_stale_source(tmp_path):
     module = _load_module()
     home, now, dashboard_health = _acceptance_fixture(tmp_path)

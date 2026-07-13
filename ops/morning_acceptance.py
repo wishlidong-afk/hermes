@@ -388,11 +388,7 @@ def _health_policy(health: Mapping[str, Any]) -> Tuple[list[str], list[str]]:
         level = str(row.get("level") or "")
         detail = str(row.get("detail") or "")
         label = str(row.get("label") or "")
-        allowed_dollar = (
-            level == "DEGRADED"
-            and detail.strip().lower() == "dollar"
-            and ("soft" in label.lower() or "\u8f6f\u6570\u636e\u6e90\u8fc7\u671f" in label)
-        )
+        allowed_dollar = _is_dollar_only_strategy_warning(level, label, detail)
         if allowed_dollar:
             warnings.append("dollar stale (expected policy WARN)")
         elif level in {"DEGRADED", "CRITICAL"}:
@@ -425,6 +421,19 @@ def _health_policy(health: Mapping[str, Any]) -> Tuple[list[str], list[str]]:
                 f"auxiliary health: {row.get('label')} {row.get('detail') or ''}".strip()
             )
     return _unique(failures), _unique(warnings)
+
+
+def _is_dollar_only_strategy_warning(level: str, label: str, detail: str) -> bool:
+    if level != "DEGRADED":
+        return False
+    normalized_label = label.strip().lower()
+    normalized_detail = detail.strip().lower()
+    if normalized_detail == "dollar":
+        return "soft" in normalized_label or "\u8f6f\u6570\u636e\u6e90\u8fc7\u671f" in label
+    if normalized_label == "\u5916\u90e8\u6570\u636e\u6e90\u9648\u65e7":
+        source_id, separator, _ = normalized_detail.partition(":")
+        return bool(separator) and source_id.strip() == "dollar"
+    return False
 
 
 def _scheduled_rows_for_date(path: Path, target: date) -> Iterable[Dict[str, Any]]:

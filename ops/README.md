@@ -25,6 +25,20 @@ reviewer can see the *whole* execution path, not just the package.
 The Python package itself deploys via `scripts/deploy_to_live.sh`; these ops files
 change rarely and are synced/restored by hand from here when they do.
 
+## External precheck severity
+
+`com.hermes.external-precheck` runs at 06:45 and 07:05. A stale source normally
+keeps the precheck non-ready. Dollar is the sole narrow exception: when the
+current refresh attempt succeeded, `use_soft_data_max_age` and `data_dollar`
+are enabled, and its age exceeds the configured strategy SLO, it remains a
+visible policy WARN instead of generating a FAILED notification. The report
+says to wait for the publisher rather than retrying the already-successful
+refresh.
+
+Any Dollar fetch/parse failure, missing policy evidence, or stale second source
+remains blocking. This exception does not change scoring or the configured
+Dollar SLO.
+
 ## verify_live.sh — post-deploy end-to-end gate
 
 `predeploy_smoke` runs the *package* and checks data state; it does **not** run the

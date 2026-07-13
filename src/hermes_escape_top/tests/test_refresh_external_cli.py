@@ -280,6 +280,132 @@ def test_refresh_external_pre_daily_check_marks_stale_sources_not_ready(monkeypa
     assert result["sources"]["dollar"]["next_action"] == "refresh dollar"
 
 
+def test_refresh_external_pre_daily_check_warns_for_policy_stale_dollar(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    cfg["features"]["use_soft_data_max_age"] = True
+    cfg["soft_data_slo"] = {"max_age_days": {"dollar": 6}}
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda config=None, auto_import=True: {
+            "ok": True,
+            "ok_count": 1,
+            "error_count": 0,
+            "runs": [{"source_id": "dollar", "status": "OK"}],
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "freshness_status": "STALE",
+                "age_days": 11,
+                "latest_promoted_as_of": "2026-07-02",
+            },
+        },
+    )
+
+    result = refresh_external.pre_daily_check(cfg, today=date(2026, 7, 13))
+
+    assert result["ready"] is True
+    assert result["blocking_sources"] == []
+    assert result["warning_sources"] == ["dollar"]
+    assert result["policy_warning_sources"] == ["dollar"]
+    assert result["sources"]["dollar"]["publisher_status"] == "UNCHANGED_AFTER_REFRESH"
+    assert result["sources"]["dollar"]["next_action"] == (
+        "official source checked today; wait for publisher update for dollar"
+    )
+
+
+def test_policy_stale_dollar_does_not_hide_second_stale_source(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    cfg["features"]["use_soft_data_max_age"] = True
+    cfg["soft_data_slo"] = {"max_age_days": {"dollar": 6, "real_rate": 6}}
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda config=None, auto_import=True: {
+            "ok": True,
+            "ok_count": 2,
+            "error_count": 0,
+            "runs": [
+                {"source_id": "dollar", "status": "OK"},
+                {"source_id": "real_rate", "status": "OK"},
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "freshness_status": "STALE",
+                "age_days": 11,
+            },
+            "real_rate": {
+                "source_id": "real_rate",
+                "status": "OK",
+                "freshness_status": "STALE",
+                "age_days": 7,
+            },
+        },
+    )
+
+    result = refresh_external.pre_daily_check(cfg, today=date(2026, 7, 13))
+
+    assert result["ready"] is False
+    assert result["blocking_sources"] == ["real_rate"]
+    assert result["warning_sources"] == ["dollar"]
+    assert result["policy_warning_sources"] == ["dollar"]
+
+
+def test_policy_stale_dollar_refresh_error_remains_blocking(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    cfg["features"]["use_soft_data_max_age"] = True
+    cfg["soft_data_slo"] = {"max_age_days": {"dollar": 6}}
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda config=None, auto_import=True: {
+            "ok": False,
+            "ok_count": 0,
+            "error_count": 1,
+            "runs": [
+                {
+                    "source_id": "dollar",
+                    "status": "FETCH_ERROR",
+                    "error_message": "FRED unavailable",
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "freshness_status": "STALE",
+                "age_days": 11,
+            },
+        },
+    )
+
+    result = refresh_external.pre_daily_check(cfg, today=date(2026, 7, 13))
+
+    assert result["ready"] is False
+    assert result["blocking_sources"] == ["dollar"]
+    assert result["warning_sources"] == []
+    assert result["policy_warning_sources"] == []
+    assert result["blocking_refresh_error_sources"] == ["dollar"]
+
+
 def test_refresh_external_pre_daily_check_separates_nonblocking_refresh_errors(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
     monkeypatch.setattr(
