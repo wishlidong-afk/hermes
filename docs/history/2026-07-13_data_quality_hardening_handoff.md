@@ -13,7 +13,7 @@ Safety boundaries:
 - Fetch, parse, validation, and witness failures preserve canonical bytes.
 - Alpaca SIP OHLCV is a shadow witness only. It cannot promote history, enter
   score payloads, or change `input_hash`.
-- Parked/disabled research feeds do not lower production decision coverage.
+- Parked/disabled research feeds do not lower production score-confidence weight coverage.
 - No paid credentials, browser cookies, downloaded official files, or secrets
   are stored in git.
 - This branch has not written or refreshed live data during verification.
@@ -26,12 +26,13 @@ Safety boundaries:
 | `3f57b56` | Canonical SHA and source-ledger evidence binding |
 | `f04fd9e` | Single writer plus 06:45 full / 07:05 selective retry / daily reuse |
 | `4a31e73` | CBOE, CFTC COT, OCC and BTC micro adapters behind runner |
-| `43ac7c8` | Decision-input coverage and four-dimension quality reporting |
+| `43ac7c8` | Score-confidence weight coverage and four-dimension quality reporting |
 | `29e261a` | Alpaca SIP OHLCV shadow witness |
 | `05cd03d` | 30/90-day reliability and AAII/NAAIM migration states |
 | `b018a9c` | FRED query-vintage evidence and stable source input hash |
 | `42af440` | BTC validator separates historical proxy bounds from real exchange bounds |
 | `692f175` | Final self-review closes Shanghai-day, Web-writer, file-dedupe, raw-hash and PIT-evidence gaps |
+| `e65d8d3` | Independent-review remediation: evidence binding, rollback, retry, locking, full-frame validation and Shanghai clock |
 
 ## 3. Source Matrix
 
@@ -85,10 +86,12 @@ The dashboard and system-health report expose four independent dimensions:
 1. market completeness;
 2. provenance/real-data share;
 3. timeliness;
-4. active decision-input coverage.
+4. normalized score-confidence weight coverage (equal-weighted symbols, not a factor inventory).
 
-Decision coverage is computed from actual scored
+Score-confidence weight coverage is computed from actual scored
 `confidence_missing_weight`, not from a parallel hand-maintained factor list.
+Each symbol contributes a normalized 100-point surface and symbols are equally
+weighted. This is intentionally not an inventory or count of active factors.
 IBKR holdings and SIP flow remain auxiliary evidence and do not reduce strategy
 coverage.
 
@@ -134,17 +137,17 @@ candidate refresh commands against live during review.
 
 ## 7. Verification Evidence
 
-Candidate code node at final verification: `692f175` plus the
+Candidate code node at final verification: `e65d8d3` plus the
 documentation/report commit that contains this handoff.
 
 | Check | Result |
 |---|---|
-| Full pytest suite | `845 passed / 0 failed` in 94.25s |
-| Focused external/scheduler/health/WebUI regression | `189 passed / 0 failed` |
+| Full pytest suite | `868 passed / 0 failed` in 93.12s |
+| Focused external/scheduler/health/WebUI regression | `205 passed / 0 failed` in 20.68s |
 | Static/governance | compileall, `git diff --check`, bash syntax and all four governance checks PASS |
 | Four-date behavior/persistence | `all_equal=true`; 2022-06-30, 2024-06-28, 2026-05-29, 2026-06-04 |
-| Morning acceptance | 2026-07-13 18:41 CST PASS on deployed `feab9c5`; scheduled receipt/audit, six-artifact transaction, 8766 and 09:00 watchdog valid |
-| Candidate external canary | final `692f175`, isolated temp data root: `9/9 status OK`, `9/9 evidence MATCH`, `ready=true`, no blocking sources; Dollar policy WARN and real-rate DUE_SOON only |
+| Morning acceptance | 2026-07-13 19:43 CST PASS on deployed `feab9c5`; scheduled receipt/audit, six-artifact transaction, 8766 and 09:00 watchdog valid |
+| Candidate external canary | final `e65d8d3`, live-seeded isolated temp data root: `9/9 status OK`, `9/9 evidence MATCH`, `ready=true`, no blocking sources; Dollar policy WARN and real-rate DUE_SOON only |
 | Alpaca witness canary | 31 supported symbols `MATCH`; 8 unsupported index/crypto symbols explicit `NO_WITNESS`; overall OK |
 
 The first external canary intentionally exposed two real issues before this
@@ -178,6 +181,35 @@ last full suite and equivalence replay:
   while stable raw hashing ignores only transport metadata, not same-named row
   fields.
 
+An independent pre-merge review then found nine additional edge cases. The
+candidate now also:
+
+- reports legacy successful ledger rows without canonical SHA-256 as
+  `UNBOUND_LEGACY`, never `MATCH` by date alone;
+- restores the prior canonical bytes and mode if ledger commit fails after a
+  candidate promotion;
+- rejects BTC refreshes with zero provider rows unless the existing real seed
+  already covers the conservative expected date;
+- retries a failed 06:45 attempt when 07:05 was missed, while reusing a retry
+  completed within the last 15 minutes;
+- holds the shared pipeline lock inside every mutating `refresh_external` CLI
+  mode; `--status` remains read-only and Web lock contention maps to HTTP 409;
+- scans all official-file candidates, persists their SHA-256 on parse failure,
+  and deduplicates from ledger evidence even after staging raw files move;
+- validates every row in merged AAII and CBOE frames before canonical
+  promotion, including ranges, PIT dates, spread consistency and percentiles;
+- uses one `Asia/Shanghai` operating-day clock across status, reliability,
+  selective retry and weekly adapters;
+- labels the equal-weighted normalized metric as score-confidence weight
+  coverage, explicitly not factor-inventory coverage.
+
+The final real-network canary also showed that the legacy CFTC fetch helper
+prints progress to stdout. Because `refresh_external` stdout is the machine
+JSON contract consumed by the launchd report writer, the CLI now redirects all
+nested provider progress to stderr and emits exactly one JSON document on
+stdout. A regression test parses stdout while asserting the progress text is
+present only on stderr.
+
 ## 8. External Review Checklist
 
 1. Trace every scheduled external writer. Confirm production soft-history
@@ -196,7 +228,7 @@ last full suite and equivalence replay:
    different retrieval time has the same source input hash.
 7. Inject Alpaca mismatch/fetch error/unsupported index. Confirm only witness
    archive evidence changes and score payload/input hash does not.
-8. With empty scores, confirm decision coverage is `UNKNOWN`, not fabricated
+8. With empty scores, confirm score-confidence weight coverage is `UNKNOWN`, not fabricated
    100. With a missing weighted factor, confirm coverage falls by its actual
    confidence missing weight.
 9. Confirm 06:45 is full, 07:05 retry-only, and 07:10 reuses complete same-day
