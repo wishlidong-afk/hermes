@@ -33,6 +33,11 @@ class ExternalSourceRun:
     error_message: str | None = None
     input_hash: str | None = None
     output_hash: str | None = None
+    canonical_sha256: str | None = None
+    canonical_latest_as_of: str | None = None
+    fetched_at: str | None = None
+    pit_rule: str | None = None
+    source_url: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -125,6 +130,7 @@ def run_external_source_refresh(
 
     atomic_write_csv(frame, spec.target_path, index=False)
     latest_as_of = latest_frame_date(spec, frame)
+    canonical_sha256 = _sha256_file(spec.target_path)
     official = _official_metadata(raw, latest_as_of)
     return _record(
         archive_dir,
@@ -141,6 +147,11 @@ def run_external_source_refresh(
         official_issue_as_of=official["official_issue_as_of"],
         official_file_name=official["official_file_name"],
         official_file_sha256=official["official_file_sha256"],
+        canonical_sha256=canonical_sha256,
+        canonical_latest_as_of=latest_as_of,
+        fetched_at=started,
+        pit_rule=spec.pit_rule,
+        source_url=spec.source_url or _source_url(raw),
     )
 
 
@@ -162,6 +173,11 @@ def _record(
     error_message: str | None = None,
     input_hash: str | None = None,
     output_hash: str | None = None,
+    canonical_sha256: str | None = None,
+    canonical_latest_as_of: str | None = None,
+    fetched_at: str | None = None,
+    pit_rule: str | None = None,
+    source_url: str | None = None,
 ) -> ExternalSourceRun:
     run = ExternalSourceRun(
         run_id=run_id,
@@ -181,6 +197,11 @@ def _record(
         error_message=error_message,
         input_hash=input_hash,
         output_hash=output_hash,
+        canonical_sha256=canonical_sha256,
+        canonical_latest_as_of=canonical_latest_as_of,
+        fetched_at=fetched_at,
+        pit_rule=pit_rule,
+        source_url=source_url,
     )
     append_source_run(archive_dir, run.to_dict())
     return run
@@ -195,6 +216,20 @@ def _iso(now: datetime | None = None) -> str:
 
 def _sha256(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _source_url(raw: Any) -> str | None:
+    if not isinstance(raw, dict):
+        return None
+    for key in ("url", "index_url", "xlsx_url", "source_url"):
+        value = raw.get(key)
+        if value:
+            return str(value)
+    return None
 
 
 def _official_metadata(raw: Any, latest_as_of: str | None) -> dict[str, str | None]:

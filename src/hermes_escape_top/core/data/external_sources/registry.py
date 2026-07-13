@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Callable, Sequence
 
 import pandas as pd
 
@@ -14,6 +14,9 @@ class ExternalSourceSpec:
     date_column: str = "date"
     required_columns: Sequence[str] = ("date",)
     min_rows: int = 1
+    semantic_validator: Callable[[pd.DataFrame], str | None] | None = None
+    pit_rule: str | None = None
+    source_url: str | None = None
 
     def __post_init__(self) -> None:
         if not self.source_id:
@@ -38,6 +41,11 @@ def validate_normalized_frame(spec: ExternalSourceSpec, frame: pd.DataFrame) -> 
         return f"duplicate dates in {spec.date_column}"
     if not dates.is_monotonic_increasing:
         return f"dates are not monotonic increasing in {spec.date_column}"
+    if spec.semantic_validator is not None:
+        try:
+            return spec.semantic_validator(frame)
+        except Exception as exc:
+            return f"semantic validation failed: {exc}"
     return None
 
 

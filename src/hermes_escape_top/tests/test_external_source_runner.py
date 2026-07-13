@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
 
 import pandas as pd
 
@@ -72,6 +73,28 @@ def test_success_writes_staging_promotes_target_and_records_ledger(tmp_path):
     assert run.raw_path and Path(run.raw_path).exists()
     assert run.normalized_path and Path(run.normalized_path).exists()
     assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "OK"
+
+
+def test_success_binds_canonical_hash_and_pit_evidence_to_ledger(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+        pit_rule="observation_date_plus_one_day",
+        source_url="https://example.test/dollar",
+    )
+
+    run = run_external_source_refresh(spec, FakeAdapter(), tmp_path / "archive")
+    latest = latest_source_run(tmp_path / "archive", "dollar")
+
+    expected_hash = hashlib.sha256(target.read_bytes()).hexdigest()
+    assert run.canonical_sha256 == expected_hash
+    assert latest["canonical_sha256"] == expected_hash
+    assert latest["canonical_latest_as_of"] == "2026-06-30"
+    assert latest["fetched_at"]
+    assert latest["pit_rule"] == "observation_date_plus_one_day"
+    assert latest["source_url"] == "https://example.test/dollar"
 
 
 def test_success_without_official_file_evidence_does_not_invent_file_metadata(tmp_path):
@@ -178,6 +201,59 @@ def test_source_status_reports_latest_run_and_promoted_date(tmp_path):
 
     assert status["dollar"]["status"] == "OK"
     assert status["dollar"]["latest_promoted_as_of"] == "2026-06-30"
+    assert status["dollar"]["evidence_status"] == "MATCH"
+
+
+def test_source_status_detects_canonical_bytes_changed_after_promotion(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+    archive = tmp_path / "archive"
+    run_external_source_refresh(spec, FakeAdapter(), archive)
+
+    target.write_text("date,value\n2026-06-30,999\n", encoding="utf-8")
+    row = source_status(archive, [spec])["dollar"]
+
+    assert row["evidence_status"] == "EVIDENCE_DRIFT"
+    assert "sha256" in row["evidence_detail"]
+
+
+def test_source_status_reports_missing_canonical_after_promotion(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+    archive = tmp_path / "archive"
+    run_external_source_refresh(spec, FakeAdapter(), archive)
+    target.unlink()
+
+    row = source_status(archive, [spec])["dollar"]
+
+    assert row["evidence_status"] == "MISSING_CANONICAL"
+
+
+def test_semantic_validation_failure_preserves_existing_target(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text("date,value\n2026-06-29,1.0\n", encoding="utf-8")
+    before = target.read_bytes()
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+        semantic_validator=lambda frame: "value outside policy" if frame["value"].max() > 1 else None,
+    )
+
+    run = run_external_source_refresh(spec, FakeAdapter(), tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert run.error_message == "value outside policy"
+    assert target.read_bytes() == before
 
 
 def test_source_status_prefers_latest_success_when_latest_attempt_failed(tmp_path):
