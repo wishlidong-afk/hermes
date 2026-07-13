@@ -307,8 +307,16 @@ def btc_micro_spec(*, target_path: Path, min_rows: int = 1) -> ExternalSourceSpe
 
 
 def _validate_btc(frame: pd.DataFrame) -> str | None:
-    funding = pd.to_numeric(frame.get("btc_funding_8h_avg"), errors="coerce").dropna()
-    basis = pd.to_numeric(frame.get("btc_basis_annual"), errors="coerce").dropna()
+    proxy = frame.get("is_proxy")
+    if proxy is None:
+        real = frame
+    elif pd.api.types.is_bool_dtype(proxy):
+        real = frame.loc[~proxy.fillna(True)]
+    else:
+        is_proxy = proxy.astype(str).str.strip().str.lower().isin({"true", "1", "yes"})
+        real = frame.loc[~is_proxy]
+    funding = pd.to_numeric(real.get("btc_funding_8h_avg"), errors="coerce").dropna()
+    basis = pd.to_numeric(real.get("btc_basis_annual"), errors="coerce").dropna()
     if funding.empty or (funding.abs() > 0.1).any():
         return "BTC funding outside policy bounds"
     if basis.empty or (basis.abs() > 10.0).any():

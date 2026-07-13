@@ -164,6 +164,37 @@ def test_btc_micro_adapter_preserves_schema_and_real_provider(tmp_path):
     assert frame.iloc[-1]["funding_source"] == "deribit"
 
 
+def test_btc_micro_validator_applies_exchange_bounds_only_to_real_rows(tmp_path):
+    module = _module()
+    target = tmp_path / "soft_history" / "btc_funding_basis.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "date,publish_date,btc_funding_8h_avg,btc_funding_pctl,"
+        "btc_basis_annual,btc_basis_pctl,is_proxy,funding_source\n"
+        "2020-03-12,2020-03-12,-0.15,,-164.25,,True,proxy\n",
+        encoding="utf-8",
+    )
+    spec = module.btc_micro_spec(target_path=target, min_rows=1)
+    adapter = module.BtcMicroAdapter(
+        seed_path=target,
+        fetch_bundle=lambda _seed: {
+            "funding_source": "deribit",
+            "funding": [
+                {
+                    "date": "2026-07-10",
+                    "btc_funding_8h_avg": 0.0001,
+                    "btc_index_price": 100000.0,
+                }
+            ],
+            "dvol": [],
+        },
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "OK"
+
+
 def test_btc_micro_refresh_preserves_previously_verified_real_rows(tmp_path):
     module = _module()
     target = tmp_path / "soft_history" / "btc_funding_basis.csv"
