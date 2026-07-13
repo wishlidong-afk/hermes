@@ -9,7 +9,7 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "baf2b62816731fc4fee4ca8b6367747abedfc1bc4c785a2cfa5ae1fa266d5135",
+            "sha256": "8e1de82fe99d68dbe6ca3cab2c9ef98fb993f2305217b4c0fce613c7ac8eb3e2",
             "tables": {}
           },
           "flow_reference.sqlite": {
@@ -23,7 +23,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "2e814a77a82a207a16ed021d79cecf6d85c8319bfc6d4dffccd3d9d1d8111c01",
+            "sha256": "c7b616076a29d32cd24635c7b8cbb4bd8ba99deae64e351dccf150e268ab3542",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -61,8 +61,8 @@
             "tables": {}
           }
         },
-        "input_hash": "4c7be67bbbfc18af48584e606d12bd8935a81eed4071e7c9457abdb0bad6e52a",
-        "payload_sha256": "c72ca6443ceb425d873501a07781d4d476277aa4f455338ff76f4b587885938e",
+        "input_hash": "34a543488b48c2208b144207a706dee969284d8bb63b1b855e32d0500c43ce74",
+        "payload_sha256": "49f96d2793392c162578371425b9073621febd524e8ebf28a1b97f01ed7205d9",
         "status": {
           "FNGU": "EXIT",
           "MSTR": "EXIT",
@@ -74,7 +74,7 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "baf2b62816731fc4fee4ca8b6367747abedfc1bc4c785a2cfa5ae1fa266d5135",
+            "sha256": "8e1de82fe99d68dbe6ca3cab2c9ef98fb993f2305217b4c0fce613c7ac8eb3e2",
             "tables": {}
           },
           "flow_reference.sqlite": {
@@ -88,7 +88,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "2e814a77a82a207a16ed021d79cecf6d85c8319bfc6d4dffccd3d9d1d8111c01",
+            "sha256": "c7b616076a29d32cd24635c7b8cbb4bd8ba99deae64e351dccf150e268ab3542",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -126,8 +126,8 @@
             "tables": {}
           }
         },
-        "input_hash": "4c7be67bbbfc18af48584e606d12bd8935a81eed4071e7c9457abdb0bad6e52a",
-        "payload_sha256": "c72ca6443ceb425d873501a07781d4d476277aa4f455338ff76f4b587885938e",
+        "input_hash": "34a543488b48c2208b144207a706dee969284d8bb63b1b855e32d0500c43ce74",
+        "payload_sha256": "49f96d2793392c162578371425b9073621febd524e8ebf28a1b97f01ed7205d9",
         "status": {
           "FNGU": "EXIT",
           "MSTR": "EXIT",
@@ -143,7 +143,7 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "a874a56e332be0e36c592310e56267bb0184d2af89db20c9362fed9f206904f0",
+            "sha256": "3e01e52e1fe3e487f7984eb5433ab703202aec15e8dda4f14a8d7d4cc173810d",
             "tables": {}
           },
           "flow_reference.sqlite": {
@@ -157,7 +157,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "52606182d80c8060605fca6f4262585b2844d1315e1c6b2a2b42e8266dbcf478",
+            "sha256": "fa015c583b29abb17a65f3b07ddeb461ca14e0bfa229a691ab647d7aa0c6c0e2",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -195,8 +195,8 @@
             "tables": {}
           }
         },
-        "input_hash": "e8aa5feebc459ebe562dc2158b718de18c7fe3197c93602353e16f1812f3a474",
-        "payload_sha256": "7488cdc3881317b573116f0decc1cbe75c2bbd6eca3638251752cfda5550627b",
+        "input_hash": "0a0e4677c5a896451c63d6c3de8582f9562fca5b841c5af61db82e5582ba213e",
+        "payload_sha256": "d622fbcbe099e4d38fccae3c850466f99b37b67e36650efb00acb3f9b393c5d2",
         "status": {
           "FNGU": "REDUCE",
           "MSTR": "REDUCE",
@@ -208,7 +208,7 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "a874a56e332be0e36c592310e56267bb0184d2af89db20c9362fed9f206904f0",
+            "sha256": "3e01e52e1fe3e487f7984eb5433ab703202aec15e8dda4f14a8d7d4cc173810d",
             "tables": {}
           },
           "flow_reference.sqlite": {
@@ -222,7 +222,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "52606182d80c8060605fca6f4262585b2844d1315e1c6b2a2b42e8266dbcf478",
+            "sha256": "fa015c583b29abb17a65f3b07ddeb461ca14e0bfa229a691ab647d7aa0c6c0e2",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -260,8 +260,8 @@
             "tables": {}
           }
         },
-        "input_hash": "e8aa5feebc459ebe562dc2158b718de18c7fe3197c93602353e16f1812f3a474",
-        "payload_sha256": "7488cdc3881317b573116f0decc1cbe75c2bbd6eca3638251752cfda5550627b",
+        "input_hash": "0a0e4677c5a896451c63d6c3de8582f9562fca5b841c5af61db82e5582ba213e",
+        "payload_sha256": "d622fbcbe099e4d38fccae3c850466f99b37b67e36650efb00acb3f9b393c5d2",
         "status": {
           "FNGU": "REDUCE",
           "MSTR": "REDUCE",
@@ -277,7 +277,7 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "3c95190a4347ced7e63d867b511b63109e9c251927952e8158042f8548efa836",
+            "sha256": "b25784c9d839a85f36171c3dc92eea15eca36ac1c7448ea4d3d9f52a76cc06fe",
             "tables": {}
           },
           "flow_reference.sqlite": {
@@ -291,7 +291,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "1745934f589c34a54389c2ca6c7680175e3e479a61224ce22f27809d273ffbb9",
+            "sha256": "527de08a3b8f2b558faf7d93a355943e0903bd52e003da22ed07ee5116f56774",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -329,8 +329,8 @@
             "tables": {}
           }
         },
-        "input_hash": "d662e69b0232c569a6579c35dc1b732bd66490f2e6eaf3c52c90064441d36baf",
-        "payload_sha256": "542fef750bb93bc94f315758294b6a4d18428a5163a51d35e5b087c22dc60ba6",
+        "input_hash": "849acecfc9510304601b70ba7c30b05daae7a4dc4ff510ef63a61632590381d3",
+        "payload_sha256": "9da0faa0b89c1bc4db674a3f6ddd46f99dc3a67fb0ab2d9485b1e9132e77f487",
         "status": {
           "FNGU": "REDUCE",
           "MSTR": "EXIT",
@@ -342,7 +342,7 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "3c95190a4347ced7e63d867b511b63109e9c251927952e8158042f8548efa836",
+            "sha256": "b25784c9d839a85f36171c3dc92eea15eca36ac1c7448ea4d3d9f52a76cc06fe",
             "tables": {}
           },
           "flow_reference.sqlite": {
@@ -356,7 +356,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "1745934f589c34a54389c2ca6c7680175e3e479a61224ce22f27809d273ffbb9",
+            "sha256": "527de08a3b8f2b558faf7d93a355943e0903bd52e003da22ed07ee5116f56774",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -394,8 +394,8 @@
             "tables": {}
           }
         },
-        "input_hash": "d662e69b0232c569a6579c35dc1b732bd66490f2e6eaf3c52c90064441d36baf",
-        "payload_sha256": "542fef750bb93bc94f315758294b6a4d18428a5163a51d35e5b087c22dc60ba6",
+        "input_hash": "849acecfc9510304601b70ba7c30b05daae7a4dc4ff510ef63a61632590381d3",
+        "payload_sha256": "9da0faa0b89c1bc4db674a3f6ddd46f99dc3a67fb0ab2d9485b1e9132e77f487",
         "status": {
           "FNGU": "REDUCE",
           "MSTR": "EXIT",
@@ -411,13 +411,13 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "5ba03a1751e08437134fbefe32cb018fe1ea2a3ba7c8410edf68d61105508284",
+            "sha256": "1c4ede5f72b274a7d4410e325059c114278bb847b1512609367bca386a9b0df5",
             "tables": {}
           },
           "flow_reference.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "72b457194f76408a725be6f07441572acc23e48e8ec9fc862b2a69e7d61c9189",
+            "sha256": "dc5316ebfd20b503f6c2dbc620b1818e61bbe36b0315810c2ca74568101e4fb3",
             "tables": {
               "flow_snapshots": 5
             }
@@ -425,7 +425,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "1017c8e018f8fff6bf506e18e264fd6167c3fd0bc18ac4e5767082dc74551c68",
+            "sha256": "4c1426f3ae749bbabbd7ea0e806be00bb5cb521d5612fd3bfdd20e6807a74af3",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -442,7 +442,7 @@
           "mirror_reference.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "aec868747100a4710d535f3101cc56c1d6fe479a20260f2228d623d6dc325e22",
+            "sha256": "8e1fdb4734e337a368611799573cc045b0ace501f4c64d1d7e9d5bbec51eba23",
             "tables": {
               "mirror_snapshots": 3
             }
@@ -463,8 +463,8 @@
             "tables": {}
           }
         },
-        "input_hash": "392bf9594276e22c15563ee90177e056af2730782aa813e7913bd4f772907366",
-        "payload_sha256": "5e2cce1e8d87ab2f048b76ab09cd9f061a7ffc2aaa0c3e4b3eba27741fc1a8ec",
+        "input_hash": "270dcfd304aa802384d437111f2509fdee93808a277cb7a19acc41041c1365f6",
+        "payload_sha256": "2a32f4a6e5d78887e43e7798af77701f0d6f10b85b147a9efcdadd9be8e61fa4",
         "status": {
           "FNGU": "REDUCE",
           "MSTR": "EXIT",
@@ -476,13 +476,13 @@
           "audit_log.jsonl": {
             "jsonl_rows": 1,
             "missing": false,
-            "sha256": "5ba03a1751e08437134fbefe32cb018fe1ea2a3ba7c8410edf68d61105508284",
+            "sha256": "1c4ede5f72b274a7d4410e325059c114278bb847b1512609367bca386a9b0df5",
             "tables": {}
           },
           "flow_reference.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "72b457194f76408a725be6f07441572acc23e48e8ec9fc862b2a69e7d61c9189",
+            "sha256": "dc5316ebfd20b503f6c2dbc620b1818e61bbe36b0315810c2ca74568101e4fb3",
             "tables": {
               "flow_snapshots": 5
             }
@@ -490,7 +490,7 @@
           "hermes_state.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "1017c8e018f8fff6bf506e18e264fd6167c3fd0bc18ac4e5767082dc74551c68",
+            "sha256": "4c1426f3ae749bbabbd7ea0e806be00bb5cb521d5612fd3bfdd20e6807a74af3",
             "tables": {
               "calibration_logs": 6,
               "data_sources": 22,
@@ -507,7 +507,7 @@
           "mirror_reference.sqlite": {
             "jsonl_rows": 0,
             "missing": false,
-            "sha256": "aec868747100a4710d535f3101cc56c1d6fe479a20260f2228d623d6dc325e22",
+            "sha256": "8e1fdb4734e337a368611799573cc045b0ace501f4c64d1d7e9d5bbec51eba23",
             "tables": {
               "mirror_snapshots": 3
             }
@@ -528,8 +528,8 @@
             "tables": {}
           }
         },
-        "input_hash": "392bf9594276e22c15563ee90177e056af2730782aa813e7913bd4f772907366",
-        "payload_sha256": "5e2cce1e8d87ab2f048b76ab09cd9f061a7ffc2aaa0c3e4b3eba27741fc1a8ec",
+        "input_hash": "270dcfd304aa802384d437111f2509fdee93808a277cb7a19acc41041c1365f6",
+        "payload_sha256": "2a32f4a6e5d78887e43e7798af77701f0d6f10b85b147a9efcdadd9be8e61fa4",
         "status": {
           "FNGU": "REDUCE",
           "MSTR": "EXIT",

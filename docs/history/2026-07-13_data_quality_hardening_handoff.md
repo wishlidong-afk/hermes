@@ -137,17 +137,17 @@ candidate refresh commands against live during review.
 
 ## 7. Verification Evidence
 
-Candidate code node at final verification: `e65d8d3` plus the
+Candidate code node at final verification: `2f772b2` plus the
 documentation/report commit that contains this handoff.
 
 | Check | Result |
 |---|---|
-| Full pytest suite | `868 passed / 0 failed` in 93.12s |
-| Focused external/scheduler/health/WebUI regression | `205 passed / 0 failed` in 20.68s |
+| Full pytest suite | `875 passed / 0 failed` in 93.71s |
+| Focused external/scheduler/health/WebUI regression | `246 passed / 0 failed` in 20.69s |
 | Static/governance | compileall, `git diff --check`, bash syntax and all four governance checks PASS |
 | Four-date behavior/persistence | `all_equal=true`; 2022-06-30, 2024-06-28, 2026-05-29, 2026-06-04 |
-| Morning acceptance | 2026-07-13 19:43 CST PASS on deployed `feab9c5`; scheduled receipt/audit, six-artifact transaction, 8766 and 09:00 watchdog valid |
-| Candidate external canary | final `e65d8d3`, live-seeded isolated temp data root: `9/9 status OK`, `9/9 evidence MATCH`, `ready=true`, no blocking sources; Dollar policy WARN and real-rate DUE_SOON only |
+| Morning acceptance | 2026-07-13 20:29 CST PASS on deployed `feab9c5`; scheduled receipt/audit, six-artifact transaction, 8766 and 09:00 watchdog valid |
+| Candidate external canary | final `2f772b2`, live-seeded isolated root `/private/tmp/hermes-data-quality-final-canary.GnVn47`: `9/9 status OK`, `9/9 evidence MATCH`, `ready=true`, no blocking sources; Dollar policy WARN and real-rate DUE_SOON only |
 | Alpaca witness canary | 31 supported symbols `MATCH`; 8 unsupported index/crypto symbols explicit `NO_WITNESS`; overall OK |
 
 The first external canary intentionally exposed two real issues before this
@@ -210,6 +210,30 @@ nested provider progress to stderr and emits exactly one JSON document on
 stdout. A regression test parses stdout while asserting the progress text is
 present only on stderr.
 
+The first independent external review did not clear the candidate. Its three
+important findings and one actionable minor finding were reproduced before
+implementation and closed with focused regressions:
+
+- BTC funding and DVOL provider row counts are now certified independently. A
+  non-empty DVOL response can no longer conceal an empty funding response.
+- 07:10 same-day reuse considers active sources only. A disabled source with no
+  same-day ledger cannot force a second full provider refresh after a healthy
+  07:05 recovery.
+- `status=OK` no longer certifies canonical integrity by itself. Health, the
+  8766 trust panel and the 20-dimension report all inspect `evidence_status`.
+  `EVIDENCE_DRIFT` and `MISSING_CANONICAL` are red integrity failures;
+  `NO_LEDGER` and `UNBOUND_LEGACY` remain visible readiness degradations.
+- the standalone market-witness CLI now acquires the shared pipeline lock and
+  returns exit 75 when busy. Witness JSON writes use unique same-directory
+  temporary files, retain existing mode and atomically replace the target, so
+  concurrent manual invocations cannot collide on a fixed `.tmp` path.
+
+Legacy standalone backfill CLIs are not in the daily, watchdog or WebUI call
+graph and must not be used against live canonical files. Their parser/fetch
+helpers remain reusable by the controlled runner. An out-of-band legacy write
+is now surfaced as canonical evidence drift, but those research CLIs are not a
+second supported production promotion path.
+
 ## 8. External Review Checklist
 
 1. Trace every scheduled external writer. Confirm production soft-history
@@ -218,7 +242,8 @@ present only on stderr.
 2. Inject fetch, parse and validation failures. Confirm target SHA-256 is
    unchanged and ledger records the true failure.
 3. Modify a promoted canonical file. Confirm `source_status` reports
-   `EVIDENCE_DRIFT` rather than OK.
+   `EVIDENCE_DRIFT`, readiness blocks, health is not green, 8766 shows a red
+   evidence badge and the 20-dimension external-source row fails.
 4. Create same-day failed and successful ledger attempts. Confirm reliability
    has one sample and ends in success.
 5. Reuse an already consumed AAII/NAAIM file. Confirm it is neither returned as
