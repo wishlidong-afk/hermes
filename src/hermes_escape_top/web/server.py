@@ -356,7 +356,7 @@ def rerun_external_precheck() -> dict:
         capture_output=True,
         text=True,
         timeout=300,
-        env={**os.environ, "HERMES_EXTERNAL_PRECHECK_INNER": "1"},
+        env={**os.environ, "HERMES_EXTERNAL_PRECHECK_LOCK_TIMEOUT": "0"},
     )
     payload: dict = {
         "ok": result.returncode == 0,
@@ -365,6 +365,8 @@ def rerun_external_precheck() -> dict:
         "stdout_tail": _tail_text(result.stdout),
         "stderr_tail": _tail_text(result.stderr),
     }
+    if result.returncode == 75:
+        payload.update({"busy": True, "message": _BUSY_PAYLOAD["message"]})
     _attach_external_precheck_status(payload)
     return payload
 
@@ -1174,8 +1176,9 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/rerun_external_precheck":
                 response_status = 200
                 try:
-                    with pipeline_lock(blocking=False):
-                        payload = rerun_external_precheck()
+                    payload = rerun_external_precheck()
+                    if payload.get("busy"):
+                        response_status = 409
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD)
                     response_status = 409

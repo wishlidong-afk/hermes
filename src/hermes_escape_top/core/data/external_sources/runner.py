@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import stat
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -78,6 +81,7 @@ def run_external_source_refresh(
     try:
         frame = adapter.parse(raw)
     except Exception as exc:
+        official = _official_metadata(raw, None)
         return _record(
             archive_dir,
             spec,
@@ -88,6 +92,8 @@ def run_external_source_refresh(
             error_type=exc.__class__.__name__,
             error_message=str(exc),
             input_hash=input_hash,
+            official_file_name=official["official_file_name"],
+            official_file_sha256=official["official_file_sha256"],
         )
     if not isinstance(frame, pd.DataFrame):
         frame = pd.DataFrame(frame)
@@ -128,31 +134,41 @@ def run_external_source_refresh(
             official_file_sha256=official["official_file_sha256"],
         )
 
+    previous = _canonical_snapshot(spec.target_path)
     atomic_write_csv(frame, spec.target_path, index=False)
-    latest_as_of = latest_frame_date(spec, frame)
-    canonical_sha256 = _sha256_file(spec.target_path)
-    official = _official_metadata(raw, latest_as_of)
-    return _record(
-        archive_dir,
-        spec,
-        run_id,
-        started,
-        "OK",
-        raw_path=raw_path,
-        normalized_path=normalized_path,
-        validation_path=validation_path,
-        latest_promoted_as_of=latest_as_of,
-        input_hash=input_hash,
-        output_hash=output_hash,
-        official_issue_as_of=official["official_issue_as_of"],
-        official_file_name=official["official_file_name"],
-        official_file_sha256=official["official_file_sha256"],
-        canonical_sha256=canonical_sha256,
-        canonical_latest_as_of=latest_as_of,
-        fetched_at=started,
-        pit_rule=spec.pit_rule,
-        source_url=spec.source_url or _source_url(raw),
-    )
+    try:
+        latest_as_of = latest_frame_date(spec, frame)
+        canonical_sha256 = _sha256_file(spec.target_path)
+        official = _official_metadata(raw, latest_as_of)
+        return _record(
+            archive_dir,
+            spec,
+            run_id,
+            started,
+            "OK",
+            raw_path=raw_path,
+            normalized_path=normalized_path,
+            validation_path=validation_path,
+            latest_promoted_as_of=latest_as_of,
+            input_hash=input_hash,
+            output_hash=output_hash,
+            official_issue_as_of=official["official_issue_as_of"],
+            official_file_name=official["official_file_name"],
+            official_file_sha256=official["official_file_sha256"],
+            canonical_sha256=canonical_sha256,
+            canonical_latest_as_of=latest_as_of,
+            fetched_at=started,
+            pit_rule=spec.pit_rule,
+            source_url=spec.source_url or _source_url(raw),
+        )
+    except BaseException as exc:
+        try:
+            _restore_canonical(spec.target_path, previous)
+        except BaseException as rollback_exc:
+            raise RuntimeError(
+                f"external source promotion failed ({exc!r}) and canonical rollback failed"
+            ) from rollback_exc
+        raise
 
 
 def _record(
@@ -238,6 +254,37 @@ def _stable_raw_text(raw: Any) -> str:
 
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _canonical_snapshot(path: Path) -> tuple[bool, bytes, int | None]:
+    target = Path(path)
+    if not target.exists():
+        return False, b"", None
+    return True, target.read_bytes(), stat.S_IMODE(target.stat().st_mode)
+
+
+def _restore_canonical(
+    path: Path,
+    snapshot: tuple[bool, bytes, int | None],
+) -> None:
+    target = Path(path)
+    existed, content, mode = snapshot
+    if not existed:
+        target.unlink(missing_ok=True)
+        return
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{target.name}.rollback.", dir=target.parent)
+    temp = Path(temp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if mode is not None:
+            os.chmod(temp, mode)
+        os.replace(temp, target)
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 def _source_url(raw: Any) -> str | None:

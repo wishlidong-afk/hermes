@@ -717,9 +717,9 @@ def _render_quality_dimensions(payload: Dict[str, Any]) -> str:
         + _trust_evidence("行情完整度", _fmt_num(dimensions.get("market_completeness")))
         + _trust_evidence("来源真实性", _fmt_num(dimensions.get("provenance")))
         + _trust_evidence("数据时效性", _fmt_num(dimensions.get("timeliness")))
-        + _trust_evidence("决策输入覆盖", _fmt_num(dimensions.get("decision_input_coverage")))
+        + _trust_evidence("评分置信权重覆盖", _fmt_num(dimensions.get("decision_input_coverage")))
         + "</div>"
-        + "<div class='mini-note'>决策输入覆盖按实际参与置信度计算的评分权重统计；不含永久非计分占位。</div>"
+        + "<div class='mini-note'>每个标的按 100 分归一化后等权统计可用评分置信权重；不是因子数量覆盖率，也不含永久非计分占位。</div>"
     )
 
 

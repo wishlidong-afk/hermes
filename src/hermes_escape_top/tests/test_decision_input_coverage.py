@@ -20,6 +20,8 @@ def test_decision_input_coverage_uses_scored_missing_weight() -> None:
     assert coverage["active_weight"] == 200.0
     assert coverage["missing_weight"] == 4.0
     assert coverage["symbols"]["MSTR"]["coverage_score"] == 96.0
+    assert coverage["basis"] == "equal_weighted_symbols_normalized_100_score_surface"
+    assert coverage["factor_inventory"] is False
 
 
 def test_decision_input_coverage_falls_back_to_legacy_missing_weight() -> None:
@@ -39,5 +41,7 @@ def test_decision_input_coverage_is_unknown_without_scores() -> None:
         "available_weight": 0.0,
         "missing_weight": 0.0,
         "symbol_count": 0,
+        "basis": "equal_weighted_symbols_normalized_100_score_surface",
+        "factor_inventory": False,
         "symbols": {},
     }

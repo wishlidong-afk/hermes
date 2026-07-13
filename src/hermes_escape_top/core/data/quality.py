@@ -92,12 +92,13 @@ def analyze_missing_fields(missing_fields: Iterable[str], raw_score: float, conf
 
 
 def decision_input_coverage(scores: Dict[str, Any] | None) -> Dict[str, Any]:
-    """Summarize the scoring weight that was actually available per symbol.
+    """Summarize normalized score-confidence weight available per symbol.
 
     ``confidence_missing_weight`` is the decision-bearing missing weight. It
-    excludes permanent, non-scoring placeholders so the metric describes the
-    live decision surface rather than dormant schema capacity.
+    excludes permanent, non-scoring placeholders. Each symbol contributes a
+    normalized 100-point surface; this is not a count of active factors.
     """
+    basis = "equal_weighted_symbols_normalized_100_score_surface"
     rows = scores if isinstance(scores, dict) else {}
     symbols: Dict[str, Dict[str, Any]] = {}
     for symbol, row in sorted(rows.items()):
@@ -127,6 +128,8 @@ def decision_input_coverage(scores: Dict[str, Any] | None) -> Dict[str, Any]:
             "available_weight": 0.0,
             "missing_weight": 0.0,
             "symbol_count": 0,
+            "basis": basis,
+            "factor_inventory": False,
             "symbols": {},
         }
 
@@ -141,6 +144,8 @@ def decision_input_coverage(scores: Dict[str, Any] | None) -> Dict[str, Any]:
         "available_weight": round(available_weight, 2),
         "missing_weight": round(missing_weight, 2),
         "symbol_count": len(symbols),
+        "basis": basis,
+        "factor_inventory": False,
         "symbols": symbols,
     }
 

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import glob
 from dataclasses import asdict, dataclass, replace
-from datetime import date, datetime, timezone
+from datetime import date
 from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
+
+from .clock import shanghai_today, timestamp_to_shanghai_date
 
 
 @dataclass(frozen=True)
@@ -212,13 +213,14 @@ def enrich_source_status(
     out = dict(row)
     if profile is None:
         return out
+    day = today or shanghai_today()
     out.update(profile.to_dict())
     latest = str(
         row.get("latest_promoted_as_of")
         or row.get("latest_normalized_as_of")
         or ""
     )[:10]
-    age_days = _age_days(latest, today or date.today())
+    age_days = _age_days(latest, day)
     out["age_days"] = age_days
     out["freshness_status"] = _freshness_status(age_days, profile)
     out["failure_kind"] = _failure_kind(row)
@@ -226,10 +228,10 @@ def enrich_source_status(
     out["migration_status"] = _migration_status(
         out,
         profile,
-        today or date.today(),
+        day,
     )
     if (
-        _same_day_successful_check(out, today or date.today())
+        _same_day_successful_check(out, day)
         and out["freshness_status"] in {"DUE_SOON", "STALE"}
     ):
         out["publisher_status"] = "UNCHANGED_AFTER_REFRESH"
@@ -238,14 +240,21 @@ def enrich_source_status(
     return out
 
 
-def latest_import_file(profile: ExternalSourceProfile) -> Path | None:
+def import_files(profile: ExternalSourceProfile) -> list[Path]:
     matches: list[Path] = []
     for pattern in profile.import_globs:
         matches.extend(Path(path).expanduser() for path in glob.glob(str(Path(pattern).expanduser())))
-    matches = [path for path in matches if path.is_file()]
+    unique = {path.resolve(): path for path in matches if path.is_file()}
+    matches = list(unique.values())
+    matches.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    return matches
+
+
+def latest_import_file(profile: ExternalSourceProfile) -> Path | None:
+    matches = import_files(profile)
     if not matches:
         return None
-    return max(matches, key=lambda path: path.stat().st_mtime)
+    return matches[0]
 
 
 def _age_days(value: str, today: date) -> int | None:
@@ -310,19 +319,7 @@ def _migration_status(
 
 
 def _date_from_timestamp(value: Any) -> date | None:
-    if not value:
-        return None
-    text = str(value)
-    try:
-        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
-    except ValueError:
-        try:
-            return date.fromisoformat(text[:10])
-        except ValueError:
-            return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(ZoneInfo("Asia/Shanghai")).date()
+    return timestamp_to_shanghai_date(value)
 
 
 def _next_action(row: dict[str, Any], profile: ExternalSourceProfile) -> str:

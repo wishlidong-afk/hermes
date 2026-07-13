@@ -753,7 +753,9 @@ def test_system_health_section_renders_20_dimension_report():
     assert "评分 payload 缓存" in html
     assert "source=scheduled_run_payload" in html
     assert "IBKR 持仓对账" in html
-    assert "决策输入覆盖" in html
+    assert "评分置信权重覆盖" in html
+    assert "不是因子数量覆盖率" in html
+    assert "决策输入覆盖" not in html
     assert "98.0" in html
     assert "OHLCV 见证" in html
     assert "MATCH 3" in html

@@ -4,13 +4,15 @@ import argparse
 import hashlib
 import json
 import subprocess
+import sys
 import time
+from contextlib import redirect_stdout
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
-from zoneinfo import ZoneInfo
 
 from hermes_escape_top.config import load_config, resolve_path
+from hermes_escape_top.core.safe_io import PipelineBusy, pipeline_lock
 from hermes_escape_top.core.data.external_sources import (
     AaiiSentimentAdapter,
     AaiiSentimentImportAdapter,
@@ -30,6 +32,7 @@ from hermes_escape_top.core.data.external_sources import (
     fred_net_liquidity_spec,
     fred_percentile_spec,
     enrich_source_status,
+    import_files,
     latest_import_file,
     naaim_exposure_spec,
     occ_pcr_spec,
@@ -38,6 +41,10 @@ from hermes_escape_top.core.data.external_sources import (
     source_status,
 )
 from hermes_escape_top.core.data.external_sources.ledger import iter_source_runs
+from hermes_escape_top.core.data.external_sources.clock import (
+    shanghai_today,
+    timestamp_to_shanghai_date,
+)
 
 SOURCE_IDS = (
     "dollar",
@@ -52,6 +59,7 @@ SOURCE_IDS = (
 )
 IMPORT_FILE_SOURCE_IDS = ("naaim_exposure", "aaii_sentiment")
 POLICY_WARN_ONLY_STALE_SOURCE_IDS = frozenset({"dollar"})
+DAILY_RETRY_REUSE_SECONDS = 15 * 60
 OFFICIAL_BROWSER_URLS = {
     "aaii_sentiment": "https://www.aaii.com/files/surveys/sentiment.xls",
     "naaim_exposure": "https://www.naaim.org/programs/naaim-exposure-index/",
@@ -221,7 +229,7 @@ def refresh_retry_sources(
     today: date | None = None,
 ) -> dict[str, Any]:
     cfg = config or load_config()
-    day = today or date.today()
+    day = today or shanghai_today()
     current = status(cfg, today=day)
     selected = [
         source_id
@@ -259,12 +267,13 @@ def pre_daily_check(
     retry_only: bool = False,
 ) -> dict[str, Any]:
     cfg = config or load_config()
+    day = today or shanghai_today()
     refresh_result = (
-        refresh_retry_sources(cfg, today=today)
+        refresh_retry_sources(cfg, today=day)
         if retry_only
         else refresh_all_sources(cfg, auto_import=True)
     )
-    sources = status(cfg, today=today)
+    sources = status(cfg, today=day)
     return _evaluate_readiness(cfg, refresh_result, sources)
 
 
@@ -272,12 +281,21 @@ def daily_source_check(
     config: dict[str, Any] | None = None,
     *,
     today: date | None = None,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """Reuse a complete same-day precheck; otherwise perform a full refresh."""
     cfg = config or load_config()
-    day = today or date.today()
+    day = today or shanghai_today()
     sources = status(cfg, today=day)
     if sources and all(_source_checked_on(row) == day for row in sources.values()):
+        checked_at = now or datetime.now(timezone.utc)
+        retry_rows = [
+            row
+            for row in sources.values()
+            if _source_needs_retry(row, day)
+        ]
+        if any(_daily_retry_is_due(row, checked_at) for row in retry_rows):
+            return pre_daily_check(cfg, today=day, retry_only=True)
         refresh_result = {
             "ok": True,
             "ok_count": sum(1 for row in sources.values() if _attempt_status(row) == "OK"),
@@ -289,6 +307,24 @@ def daily_source_check(
         refresh_result["ok"] = refresh_result["error_count"] == 0
         return _evaluate_readiness(cfg, refresh_result, sources)
     return pre_daily_check(cfg, today=day)
+
+
+def _daily_retry_is_due(row: dict[str, Any], now: datetime) -> bool:
+    if str(row.get("evidence_status") or "") not in {"", "MATCH"}:
+        return True
+    value = row.get("latest_attempt_finished_at") or row.get("finished_at")
+    if not value:
+        return True
+    try:
+        finished_at = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    if finished_at.tzinfo is None:
+        finished_at = finished_at.replace(tzinfo=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    age_seconds = (now.astimezone(timezone.utc) - finished_at.astimezone(timezone.utc)).total_seconds()
+    return age_seconds > DAILY_RETRY_REUSE_SECONDS
 
 
 def _evaluate_readiness(
@@ -312,7 +348,12 @@ def _evaluate_readiness(
         run_status = str(row.get("status") or "")
         freshness = str(row.get("freshness_status") or "")
         evidence = str(row.get("evidence_status") or "")
-        if evidence in {"EVIDENCE_DRIFT", "MISSING_CANONICAL", "NO_LEDGER"}:
+        if evidence in {
+            "EVIDENCE_DRIFT",
+            "MISSING_CANONICAL",
+            "NO_LEDGER",
+            "UNBOUND_LEGACY",
+        }:
             blocking.append(source_id)
         elif run_status != "OK" or freshness == "UNKNOWN":
             blocking.append(source_id)
@@ -377,15 +418,7 @@ def _source_needs_retry(row: dict[str, Any], today: date) -> bool:
 
 def _source_checked_on(row: dict[str, Any]) -> date | None:
     value = row.get("latest_attempt_finished_at") or row.get("finished_at")
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(ZoneInfo("Asia/Shanghai")).date()
+    return timestamp_to_shanghai_date(value)
 
 
 def _attempt_status(row: dict[str, Any]) -> str:
@@ -486,16 +519,35 @@ def _latest_import_for(source_id: str) -> Path | None:
 
 def pending_import_file(source_id: str, archive_dir: Path) -> Path | None:
     """Return an official file only when its content hash is new to the ledger."""
-    path = _latest_import_for(source_id)
-    if path is None:
-        return None
-    file_hash = _file_sha256(path)
-    if not file_hash:
-        return None
-    for row in iter_source_runs(archive_dir):
-        if row.get("source_id") == source_id and _run_content_sha256(row) == file_hash:
-            return None
-    return path
+    processed_hashes = {
+        content_hash
+        for row in iter_source_runs(archive_dir)
+        if row.get("source_id") == source_id
+        if (content_hash := _run_content_sha256(row))
+    }
+    for path in _import_candidates_for(source_id):
+        file_hash = _file_sha256(path)
+        if file_hash and file_hash not in processed_hashes:
+            return path
+    return None
+
+
+def _import_candidates_for(source_id: str) -> list[Path]:
+    profile = profile_for(source_id)
+    if profile is None:
+        return []
+    candidates = import_files(profile)
+    latest = latest_import_file(profile)
+    if latest is not None:
+        candidates.insert(0, latest)
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for path in candidates:
+        resolved = path.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(path)
+    return unique
 
 
 def _previous_import_failure_reason(source_id: str, path: Path, archive_dir: Path) -> str | None:
@@ -518,6 +570,9 @@ def _file_sha256(path: Path) -> str | None:
 
 
 def _run_content_sha256(row: dict[str, Any]) -> str | None:
+    recorded = row.get("official_file_sha256")
+    if recorded:
+        return str(recorded)
     raw_path = row.get("raw_path")
     if not raw_path:
         return None
@@ -543,16 +598,17 @@ def _open_url(url: str) -> None:
 
 def status(config: dict[str, Any] | None = None, *, today: date | None = None) -> dict[str, dict[str, Any]]:
     cfg = config or load_config()
+    day = today or shanghai_today()
     archive_dir = resolve_path(cfg, "archive_dir")
     rows = source_status(
         archive_dir,
         source_specs(cfg),
-        today=today,
+        today=day,
     )
     return {
         source_id: enrich_source_status(
             row,
-            today=today,
+            today=day,
             profile=effective_source_profile(cfg, source_id),
             official_artifact_ready=(
                 source_id in IMPORT_FILE_SOURCE_IDS
@@ -574,6 +630,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--pre-daily-check", action="store_true", help="Refresh all sources, auto-import official files when available, and print readiness.")
     parser.add_argument("--retry-needed", action="store_true", help="Retry only sources whose same-day check failed or whose canonical evidence is not ready.")
     parser.add_argument("--status", action="store_true", help="Print latest source-run status.")
+    parser.add_argument("--lock-timeout", type=float, default=600.0, help="Seconds to wait for the shared pipeline write lock.")
     args = parser.parse_args(argv)
 
     if args.import_file and not args.source:
@@ -583,23 +640,34 @@ def main(argv: list[str] | None = None) -> int:
     if args.status:
         print(json.dumps(status(), ensure_ascii=False, indent=2, sort_keys=True, default=str))
         return 0
-    if args.pre_daily_check:
-        print(json.dumps(pre_daily_check(), ensure_ascii=False, indent=2, sort_keys=True, default=str))
+    if not (args.pre_daily_check or args.retry_needed or args.source or args.all):
+        parser.print_help()
+        return 2
+    try:
+        with pipeline_lock(blocking=True, timeout=max(float(args.lock_timeout), 0.0)):
+            with redirect_stdout(sys.stderr):
+                if args.pre_daily_check:
+                    result = pre_daily_check()
+                elif args.retry_needed:
+                    result = pre_daily_check(retry_only=True)
+                elif args.source and args.open_official_download:
+                    result = open_official_download_and_import(
+                        args.source,
+                        downloads_dir=Path(args.downloads_dir).expanduser(),
+                    )
+                elif args.source:
+                    result = refresh_source(
+                        args.source,
+                        import_file=args.import_file,
+                        auto_import=args.auto_import,
+                    )
+                else:
+                    result = refresh_all_sources(auto_import=True)
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True, default=str))
         return 0
-    if args.retry_needed:
-        print(json.dumps(pre_daily_check(retry_only=True), ensure_ascii=False, indent=2, sort_keys=True, default=str))
-        return 0
-    if args.source:
-        if args.open_official_download:
-            print(json.dumps(open_official_download_and_import(args.source, downloads_dir=Path(args.downloads_dir).expanduser()), ensure_ascii=False, indent=2, sort_keys=True, default=str))
-            return 0
-        print(json.dumps(refresh_source(args.source, import_file=args.import_file, auto_import=args.auto_import), ensure_ascii=False, indent=2, sort_keys=True, default=str))
-        return 0
-    if args.all:
-        print(json.dumps(refresh_all_sources(auto_import=True), ensure_ascii=False, indent=2, sort_keys=True, default=str))
-        return 0
-    parser.print_help()
-    return 2
+    except PipelineBusy as exc:
+        print(json.dumps({"ok": False, "busy": True, "error": str(exc)}, ensure_ascii=False, indent=2))
+        return 75
 
 
 if __name__ == "__main__":

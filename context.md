@@ -183,7 +183,7 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 
 软数据 SLO 由 `features.use_soft_data_max_age` 控制。开启后，超龄软数据会被降为 missing，进入 missing-weight/blind-spot 路径，而不是继续当作新鲜信号评分。
 
-8766 将数据质量拆成四个不混合的维度：行情完整度、来源真实性、时效性、决策输入覆盖率。最后一项直接从当次 `scores[*].missing_analysis.confidence_missing_weight` 统计，不用另一份手工因子清单；IBKR 持仓与 SIP 资金流是辅助证据，不计入策略决策覆盖率。
+8766 将数据质量拆成四个不混合的维度：行情完整度、来源真实性、时效性、评分置信权重覆盖。最后一项直接从当次 `scores[*].confidence_missing_weight` 统计：每个标的先归一化为 100 分置信权重面，再在标的间等权汇总；它不是因子数量覆盖率，也不用另一份手工因子清单。IBKR 持仓与 SIP 资金流是辅助证据，不计入该指标。
 
 ---
 
@@ -410,7 +410,7 @@ PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/
 | `test_external_source_runner.py` | 失败不晋升、canonical/ledger 漂移、可靠性按日去重 |
 | `test_external_source_market_soft.py` | CBOE/CFTC/OCC/BTC adapter 解析、语义校验和 PIT |
 | `test_external_source_fred.py` | FRED raw query-vintage 证据、归一化 `date+1`、抓取时刻不改 source input hash |
-| `test_decision_input_coverage.py` / `test_run_receipt_writer.py` | 决策输入覆盖率与四维质量证据 |
+| `test_decision_input_coverage.py` / `test_run_receipt_writer.py` | 评分置信权重覆盖与四维质量证据 |
 | `test_market_witness.py` | Alpaca OHLCV shadow 对比、不晋升和失败保全 |
 
 ---

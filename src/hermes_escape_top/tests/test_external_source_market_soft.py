@@ -61,6 +61,49 @@ def test_cboe_cross_check_failure_preserves_canonical_target(tmp_path):
     assert target.read_bytes() == before
 
 
+def test_cboe_corrupt_seed_ratio_is_not_recertified_by_valid_new_record(tmp_path):
+    module = _module()
+    target = tmp_path / "soft_history" / "cboe_equity_pcr.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "date,publish_date,equity_pcr,equity_pcr_pctl,source,is_proxy\n"
+        "2026-07-09,2026-07-10,9.0,50,CBOE_DAILY_HTML,False\n",
+        encoding="utf-8",
+    )
+    before = target.read_bytes()
+    spec = module.cboe_pcr_spec(target_path=target, min_rows=1)
+    adapter = module.CboePcrAdapter(seed_path=target, fetch_text=lambda: _cboe_page())
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert "policy bounds" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
+def test_cboe_semantic_validator_rejects_out_of_range_percentile(tmp_path):
+    module = _module()
+    frame = pd.DataFrame(
+        [
+            {
+                "date": "2026-07-09",
+                "publish_date": "2026-07-10",
+                "equity_pcr": 0.6,
+                "equity_pcr_pctl": 101.0,
+                "source": "CBOE_DAILY_HTML",
+                "is_proxy": False,
+            }
+        ]
+    )
+    validator = module.cboe_pcr_spec(
+        target_path=tmp_path / "cboe.csv",
+        min_rows=1,
+    ).semantic_validator
+
+    assert validator is not None
+    assert "percentile" in str(validator(frame)).lower()
+
+
 def test_cboe_adapter_repairs_legacy_publish_dates_to_pit_policy(tmp_path):
     module = _module()
     target = tmp_path / "soft_history" / "cboe_equity_pcr.csv"
@@ -228,6 +271,34 @@ def test_btc_micro_refresh_preserves_previously_verified_real_rows(tmp_path):
     prior = frame.loc[frame["date"] == "2026-07-09"].iloc[0]
     assert bool(prior["is_proxy"]) is False
     assert prior["funding_source"] == "deribit"
+
+
+def test_btc_micro_empty_provider_response_does_not_recertify_seed(tmp_path):
+    module = _module()
+    target = tmp_path / "soft_history" / "btc_funding_basis.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "date,publish_date,btc_funding_8h_avg,btc_funding_pctl,"
+        "btc_basis_annual,btc_basis_pctl,is_proxy,funding_source\n"
+        "2026-07-09,2026-07-09,0.0002,,0.219,,False,deribit\n",
+        encoding="utf-8",
+    )
+    before = target.read_bytes()
+    spec = module.btc_micro_spec(target_path=target, min_rows=1)
+    adapter = module.BtcMicroAdapter(
+        seed_path=target,
+        fetch_bundle=lambda _seed: {
+            "funding_source": "none",
+            "funding": [],
+            "dvol": [],
+        },
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert "provider returned no new observations" in str(run.error_message)
+    assert target.read_bytes() == before
 
 
 def test_refresh_registry_exposes_all_migrated_sources(tmp_path):

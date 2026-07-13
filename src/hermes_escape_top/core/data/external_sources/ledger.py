@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Iterable
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 
 from .registry import latest_frame_date
+from .clock import shanghai_today, timestamp_to_shanghai_date
 
 
 LEDGER_NAME = "external_source_runs.jsonl"
@@ -76,7 +76,7 @@ def source_reliability(
     A successful retry makes that day's outcome successful; repeated attempts
     never inflate the sample count.
     """
-    day = today or date.today()
+    day = today or shanghai_today()
     daily_rows: dict[date, list[dict[str, Any]]] = {}
     for row in iter_source_runs(archive_dir):
         if row.get("source_id") != source_id:
@@ -157,22 +157,7 @@ def _window_success_rate(outcomes: list[tuple[date, bool]], start: date) -> tupl
 
 
 def _operating_day(value: Any) -> date | None:
-    parsed = _timestamp(value)
-    if parsed is None:
-        return None
-    return parsed.astimezone(ZoneInfo("Asia/Shanghai")).date()
-
-
-def _timestamp(value: Any) -> datetime | None:
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed
+    return timestamp_to_shanghai_date(value)
 
 
 def _canonical_evidence(spec: Any, latest_ok: dict[str, Any] | None) -> dict[str, str]:
@@ -187,6 +172,12 @@ def _canonical_evidence(spec: Any, latest_ok: dict[str, Any] | None) -> dict[str
             "evidence_status": "MISSING_CANONICAL",
             "evidence_detail": f"canonical target missing: {target}",
         }
+    expected_hash = str(latest_ok.get("canonical_sha256") or "")
+    if not expected_hash:
+        return {
+            "evidence_status": "UNBOUND_LEGACY",
+            "evidence_detail": "latest successful promotion has no canonical sha256; controlled runner migration required",
+        }
     try:
         current_hash = hashlib.sha256(target.read_bytes()).hexdigest()
     except OSError as exc:
@@ -194,8 +185,7 @@ def _canonical_evidence(spec: Any, latest_ok: dict[str, Any] | None) -> dict[str
             "evidence_status": "EVIDENCE_DRIFT",
             "evidence_detail": f"canonical target unreadable: {exc}",
         }
-    expected_hash = str(latest_ok.get("canonical_sha256") or "")
-    if expected_hash and current_hash != expected_hash:
+    if current_hash != expected_hash:
         return {
             "evidence_status": "EVIDENCE_DRIFT",
             "evidence_detail": f"canonical sha256 {current_hash} != promoted {expected_hash}",
@@ -217,7 +207,7 @@ def _canonical_evidence(spec: Any, latest_ok: dict[str, Any] | None) -> dict[str
             "evidence_status": "EVIDENCE_DRIFT",
             "evidence_detail": f"canonical latest {current_latest} != promoted {expected_latest}",
         }
-    detail = "canonical sha256 and latest date match promotion"
-    if not expected_hash:
-        detail = "legacy promotion latest date matches canonical; sha256 unavailable"
-    return {"evidence_status": "MATCH", "evidence_detail": detail}
+    return {
+        "evidence_status": "MATCH",
+        "evidence_detail": "canonical sha256 and latest date match promotion",
+    }

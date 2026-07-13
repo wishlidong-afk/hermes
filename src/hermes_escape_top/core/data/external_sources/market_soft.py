@@ -14,6 +14,7 @@ from hermes_escape_top.scripts import (
     refresh_cboe_daily_pcr,
 )
 
+from .clock import shanghai_today
 from .registry import ExternalSourceSpec
 
 
@@ -87,10 +88,15 @@ def _validate_cboe(frame: pd.DataFrame) -> str | None:
         error = refresh_cboe_daily_pcr.validate(record, None)
         if error:
             return error
-    else:
-        values = pd.to_numeric(frame.get("equity_pcr"), errors="coerce").dropna()
-        if values.empty or not values.between(*refresh_cboe_daily_pcr.RATIO_BOUNDS).all():
-            return "equity PCR outside policy bounds"
+    values = pd.to_numeric(frame["equity_pcr"], errors="coerce")
+    if values.isna().any() or not values.between(*refresh_cboe_daily_pcr.RATIO_BOUNDS).all():
+        return "equity PCR outside policy bounds"
+    raw_percentiles = frame["equity_pcr_pctl"]
+    percentiles = pd.to_numeric(raw_percentiles, errors="coerce")
+    if (raw_percentiles.notna() & percentiles.isna()).any():
+        return "equity PCR percentile contains non-numeric values"
+    if not percentiles.dropna().between(0.0, 100.0).all():
+        return "equity PCR percentile outside [0, 100]"
     return _validate_publish_lag(frame, observation_column="date", lag_days=1)
 
 
@@ -170,7 +176,7 @@ class OccPcrAdapter:
     )
 
     def fetch_raw(self) -> dict[str, Any]:
-        current = self.today or date.today()
+        current = self.today or shanghai_today()
         friday = current - timedelta(days=(current.weekday() - 4) % 7)
         rows = []
         for offset in range(max(1, self.weeks)):
@@ -282,6 +288,12 @@ class BtcMicroAdapter:
             "funding_source",
         ] = source
         unified["publish_date"] = pd.to_datetime(unified["publish_date"]).dt.date.astype(str)
+        unified.attrs["btc_fetch_evidence"] = {
+            "provider_row_count": int(len(funding) + len(dvol)),
+            "no_new_data_expected": bool((raw or {}).get("no_new_data_expected")),
+            "expected_through": (raw or {}).get("expected_through"),
+            "last_real_date": (raw or {}).get("last_real_date"),
+        }
         return unified
 
 
@@ -307,6 +319,12 @@ def btc_micro_spec(*, target_path: Path, min_rows: int = 1) -> ExternalSourceSpe
 
 
 def _validate_btc(frame: pd.DataFrame) -> str | None:
+    fetch_evidence = frame.attrs.get("btc_fetch_evidence") or {}
+    if (
+        int(fetch_evidence.get("provider_row_count") or 0) == 0
+        and not bool(fetch_evidence.get("no_new_data_expected"))
+    ):
+        return "BTC provider returned no new observations and canonical is not current through the conservative completion date"
     proxy = frame.get("is_proxy")
     if proxy is None:
         real = frame
@@ -362,11 +380,22 @@ def _fetch_btc_bundle(seed_path: Path) -> dict[str, Any]:
     if funding.empty:
         funding = backfill_crypto_micro.fetch_okx_funding_recent()
         source = "okx_failover"
+    expected_through = datetime.now(timezone.utc).date() - timedelta(days=1)
+    last_real_date = None if pd.isna(last_real) else pd.Timestamp(last_real).date()
+    no_new_data_expected = bool(
+        funding.empty
+        and dvol.empty
+        and last_real_date is not None
+        and last_real_date >= expected_through
+    )
     return {
         "source_url": backfill_crypto_micro.DERIBIT,
         "funding_source": source,
         "funding": _frame_records(funding),
         "dvol": _frame_records(dvol),
+        "expected_through": expected_through.isoformat(),
+        "last_real_date": last_real_date.isoformat() if last_real_date else None,
+        "no_new_data_expected": no_new_data_expected,
     }
 
 

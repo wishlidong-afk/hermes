@@ -16,6 +16,7 @@ from .profiles import (
     ExternalSourceProfile,
     effective_source_profile,
     enrich_source_status,
+    import_files,
     latest_import_file,
     profile_for,
 )
@@ -47,6 +48,7 @@ __all__ = [
     "latest_source_run",
     "effective_source_profile",
     "enrich_source_status",
+    "import_files",
     "latest_import_file",
     "profile_for",
     "run_external_source_refresh",

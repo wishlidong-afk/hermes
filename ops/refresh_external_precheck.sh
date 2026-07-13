@@ -43,18 +43,12 @@ else
   REFRESH_ARG="--pre-daily-check"
 fi
 
-if [ "${HERMES_EXTERNAL_PRECHECK_INNER:-0}" != "1" ]; then
-  export HERMES_EXTERNAL_PRECHECK_INNER=1
-  exec "$PY" -m hermes_escape_top.scripts.pipeline_lock_exec \
-    --timeout "${HERMES_EXTERNAL_PRECHECK_LOCK_TIMEOUT:-600}" \
-    -- /bin/bash "$0" "$@"
-fi
-
 {
   echo "=== hermes external precheck start $(date '+%F %T %Z') ==="
   cd "$RUNTIME" || exit 1
   echo "[external-precheck] mode=$MODE"
-  "$PY" -m hermes_escape_top.scripts.refresh_external "$REFRESH_ARG" >"$TMP_JSON"
+  "$PY" -m hermes_escape_top.scripts.refresh_external "$REFRESH_ARG" \
+    --lock-timeout "${HERMES_EXTERNAL_PRECHECK_LOCK_TIMEOUT:-600}" >"$TMP_JSON"
 } >>"$LOG" 2>&1
 rc=$?
 

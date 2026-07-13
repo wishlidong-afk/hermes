@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 import hashlib
+import stat
 
 import pandas as pd
+import pytest
 
 from hermes_escape_top.core.data.external_sources.ledger import (
     append_source_run,
@@ -45,6 +47,18 @@ class ParseBoomAdapter:
 
     def parse(self, raw):
         raise ValueError("bad html")
+
+
+class OfficialParseBoomAdapter:
+    def fetch_raw(self):
+        return {
+            "file_name": "sentiment.xls",
+            "content_sha256": "official-file-sha",
+            "rows": [],
+        }
+
+    def parse(self, raw):
+        raise ValueError("bad official workbook")
 
 
 class ValueAdapter:
@@ -279,6 +293,27 @@ def test_parse_error_preserves_existing_target_and_records_raw_artifact(tmp_path
     assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "PARSE_ERROR"
 
 
+def test_parse_error_persists_official_file_identity_in_ledger(tmp_path):
+    target = tmp_path / "soft_history" / "aaii_sentiment.csv"
+    spec = ExternalSourceSpec(
+        source_id="aaii_sentiment",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+
+    run = run_external_source_refresh(
+        spec,
+        OfficialParseBoomAdapter(),
+        tmp_path / "archive",
+    )
+
+    assert run.status == "PARSE_ERROR"
+    assert run.official_file_name == "sentiment.xls"
+    assert run.official_file_sha256 == "official-file-sha"
+    latest = latest_source_run(tmp_path / "archive", "aaii_sentiment")
+    assert latest["official_file_sha256"] == "official-file-sha"
+
+
 def test_stale_source_frame_preserves_newer_existing_target(tmp_path):
     target = tmp_path / "soft_history" / "dollar.csv"
     target.parent.mkdir(parents=True)
@@ -330,6 +365,31 @@ def test_source_status_detects_canonical_bytes_changed_after_promotion(tmp_path)
     assert "sha256" in row["evidence_detail"]
 
 
+def test_source_status_blocks_legacy_success_without_canonical_hash(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text("date,value\n2026-06-30,999\n", encoding="utf-8")
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+    archive = tmp_path / "archive"
+    append_source_run(
+        archive,
+        {
+            "source_id": "dollar",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-06-30",
+        },
+    )
+
+    row = source_status(archive, [spec])["dollar"]
+
+    assert row["evidence_status"] == "UNBOUND_LEGACY"
+    assert "sha256" in row["evidence_detail"]
+
+
 def test_source_status_reports_missing_canonical_after_promotion(tmp_path):
     target = tmp_path / "soft_history" / "dollar.csv"
     spec = ExternalSourceSpec(
@@ -363,6 +423,33 @@ def test_semantic_validation_failure_preserves_existing_target(tmp_path):
     assert run.status == "VALIDATION_ERROR"
     assert run.error_message == "value outside policy"
     assert target.read_bytes() == before
+
+
+def test_ledger_commit_failure_restores_previous_canonical(monkeypatch, tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text("date,value\n2026-06-29,1.0\n", encoding="utf-8")
+    target.chmod(0o640)
+    before = target.read_bytes()
+
+    def fail_ledger(*_args, **_kwargs):
+        raise OSError("ledger unavailable")
+
+    monkeypatch.setattr(
+        "hermes_escape_top.core.data.external_sources.runner.append_source_run",
+        fail_ledger,
+    )
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+
+    with pytest.raises(OSError, match="ledger unavailable"):
+        run_external_source_refresh(spec, FakeAdapter(), tmp_path / "archive")
+
+    assert target.read_bytes() == before
+    assert stat.S_IMODE(target.stat().st_mode) == 0o640
 
 
 def test_source_status_prefers_latest_success_when_latest_attempt_failed(tmp_path):

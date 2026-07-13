@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 
 from hermes_escape_top.core.data.external_sources.aaii import (
     AaiiSentimentAdapter,
@@ -98,6 +99,59 @@ def test_aaii_adapter_merges_public_rows_with_seed_history(tmp_path):
     assert ledger["official_issue_as_of"] == "2026-06-25"
     assert ledger["pit_rule"] == "official_publish_date_or_reported_plus_one_day"
     assert ledger["source_url"] == "https://www.aaii.com/sentimentsurvey/sent_results"
+
+
+@pytest.mark.parametrize(
+    ("column", "value", "error_fragment"),
+    [
+        ("aaii_bull", 1.1, "share"),
+        ("aaii_bear", -0.1, "share"),
+        ("aaii_bull_bear_spread", 0.9, "spread"),
+        ("aaii_bull_pctl", 101.0, "percentile"),
+        ("publish_date", "2026-06-19", "date/publish"),
+    ],
+)
+def test_aaii_semantic_validator_checks_every_normalized_row(
+    tmp_path,
+    column,
+    value,
+    error_fragment,
+):
+    seed_path = tmp_path / "aaii.csv"
+    _seed_aaii(seed_path, rows=60)
+    frame = pd.read_csv(seed_path)
+    frame.loc[0, column] = value
+    validator = aaii_sentiment_spec(target_path=seed_path, min_rows=1).semantic_validator
+
+    assert validator is not None
+    assert error_fragment in str(validator(frame)).lower()
+
+
+def test_aaii_corrupt_seed_is_not_recertified_by_valid_public_row(tmp_path):
+    seed_path = tmp_path / "soft_history" / "aaii_sentiment.csv"
+    _seed_aaii(seed_path, end="2026-06-18", rows=80)
+    frame = pd.read_csv(seed_path)
+    frame.loc[0, "aaii_bull_bear_spread"] = 0.9
+    frame.to_csv(seed_path, index=False)
+    before = seed_path.read_bytes()
+    html = "Jun 24 44.9% 25.0% 30.1%"
+    adapter = AaiiSentimentAdapter(
+        seed_path=seed_path,
+        fetch_text=lambda _url: html,
+        today=date(2026, 7, 2),
+        percentile_window=10,
+        min_periods=1,
+    )
+
+    run = run_external_source_refresh(
+        aaii_sentiment_spec(target_path=seed_path, min_rows=60),
+        adapter,
+        tmp_path / "archive",
+    )
+
+    assert run.status == "VALIDATION_ERROR"
+    assert "spread" in str(run.error_message).lower()
+    assert seed_path.read_bytes() == before
 
 
 def test_aaii_adapter_records_fetch_error_on_challenge_page(tmp_path):
@@ -200,8 +254,8 @@ def test_aaii_import_adapter_rejects_import_older_than_seed(tmp_path):
     assert "older than current AAII seed" in str(run.error_message)
     assert out.iloc[-1]["date"] == "2026-07-02"
     assert ledger["status"] == "PARSE_ERROR"
-    assert ledger["official_file_name"] is None
-    assert ledger["official_file_sha256"] is None
+    assert ledger["official_file_name"] == "sentiment.csv"
+    assert ledger["official_file_sha256"]
     assert ledger["official_issue_as_of"] is None
 
 
