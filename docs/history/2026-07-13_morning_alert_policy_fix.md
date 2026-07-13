@@ -64,3 +64,23 @@ PASS; allowed warnings: dollar stale; IBKR stale/unavailable
 
 The replay wrote only the acceptance monitor's own report under
 `~/.hermes/logs/acceptance/`.
+
+## Deployment Evidence
+
+Deployed with R6 atomic release switching at 10:06 CST:
+
+```text
+repo/live VERSION: feab9c5 20260713_100612
+current:  releases/feab9c5_20260713_100612
+previous: releases/d9ec486_20260712_184620
+staged smoke: PASS with policy-verified Dollar WARN
+verify_live: PASS; official receipt/state untouched
+dashboard: HTTP 200; preview banner absent
+refresh_external.py repo/live SHA-256: identical
+post-deploy morning acceptance: PASS with Dollar WARN and IBKR INFO
+~/.hermes commit: c41727c
+```
+
+The config prompt was answered `N`; live runtime config was preserved. The
+07:11 scheduled receipt remained `OK`, `as_of=2026-07-10`, with its original
+timestamp.
