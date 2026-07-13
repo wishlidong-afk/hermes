@@ -73,7 +73,7 @@ def run_external_source_refresh(
 
     raw_text = json.dumps(raw, ensure_ascii=False, sort_keys=True, default=str)
     raw_path.write_text(raw_text + "\n", encoding="utf-8")
-    input_hash = _sha256(raw_text)
+    input_hash = _sha256(_stable_raw_text(raw))
 
     try:
         frame = adapter.parse(raw)
@@ -216,6 +216,21 @@ def _iso(now: datetime | None = None) -> str:
 
 def _sha256(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _stable_raw_text(raw: Any) -> str:
+    def normalize(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: normalize(item)
+                for key, item in value.items()
+                if key not in {"fetched_at", "retrieved_at"}
+            }
+        if isinstance(value, list):
+            return [normalize(item) for item in value]
+        return value
+
+    return json.dumps(normalize(raw), ensure_ascii=False, sort_keys=True, default=str)
 
 
 def _sha256_file(path: Path) -> str:

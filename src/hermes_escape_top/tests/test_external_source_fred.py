@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import builtins
+import json
 import subprocess
 import urllib.request
+from pathlib import Path
 from types import SimpleNamespace
 
 import pandas as pd
@@ -94,13 +96,22 @@ def test_fetch_fred_graph_csv_falls_back_to_urllib_when_curl_fails(monkeypatch):
 def test_fred_percentile_adapter_promotes_existing_soft_history_shape(tmp_path):
     def fetch_frame(series_id, start="1990-01-01", end=None, config=None):
         assert series_id == "DTWEXBGS"
-        return pd.DataFrame(
+        frame = pd.DataFrame(
             {
                 "date": pd.to_datetime(["2026-06-01", "2026-06-02", "2026-06-03"]),
                 "publish_date": pd.to_datetime(["2026-06-02", "2026-06-03", "2026-06-04"]),
                 "value": [100.0, 101.0, 102.0],
             }
         )
+        frame.attrs["fred_metadata"] = {
+            "series_id": series_id,
+            "transport": "fred_observations_api",
+            "realtime_start": "2026-07-13",
+            "realtime_end": "2026-07-13",
+            "fetched_at": "2026-07-13T01:00:00+00:00",
+            "pit_rule": "observation_date_plus_one_day",
+        }
+        return frame
 
     target = tmp_path / "soft_history" / "dollar.csv"
     spec = fred_percentile_spec(
@@ -125,6 +136,47 @@ def test_fred_percentile_adapter_promotes_existing_soft_history_shape(tmp_path):
     assert out["dollar_broad"].tolist() == [100.0, 101.0, 102.0]
     assert out["dollar_broad_pctl"].round(2).tolist() == [100.0, 100.0, 100.0]
     assert latest_source_run(tmp_path / "archive", "dollar")["latest_promoted_as_of"] == "2026-06-03"
+    raw = json.loads(Path(run.raw_path).read_text(encoding="utf-8"))
+    assert raw["metadata"]["realtime_start"] == "2026-07-13"
+    assert raw["metadata"]["realtime_end"] == "2026-07-13"
+    assert raw["metadata"]["fetched_at"] == "2026-07-13T01:00:00+00:00"
+    assert raw["metadata"]["pit_rule"] == "observation_date_plus_one_day"
+    assert len(raw["rows"]) == 3
+
+
+def test_fred_source_input_hash_ignores_retrieval_timestamp(tmp_path):
+    fetched_at = ["2026-07-13T01:00:00+00:00"]
+
+    def fetch_frame(series_id, start="1990-01-01", end=None, config=None):
+        frame = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2026-06-01"]),
+                "publish_date": pd.to_datetime(["2026-06-02"]),
+                "value": [100.0],
+            }
+        )
+        frame.attrs["fred_metadata"] = {
+            "series_id": series_id,
+            "realtime_start": "2026-07-13",
+            "realtime_end": "2026-07-13",
+            "fetched_at": fetched_at[0],
+            "pit_rule": "observation_date_plus_one_day",
+        }
+        return frame
+
+    target = tmp_path / "soft_history" / "dollar.csv"
+    spec = fred_percentile_spec(source_id="dollar", target_path=target, field="dollar_broad")
+    adapter = FredPercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=fetch_frame,
+    )
+    first = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+    fetched_at[0] = "2026-07-13T02:00:00+00:00"
+    second = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert first.input_hash == second.input_hash
 
 
 def test_fred_net_liquidity_adapter_promotes_existing_soft_history_shape(tmp_path):
@@ -155,3 +207,6 @@ def test_fred_net_liquidity_adapter_promotes_existing_soft_history_shape(tmp_pat
     assert out["publish_date"].iloc[-1] == "2026-03-12"
     assert out["net_liq"].iloc[-1] > 0
     assert latest_source_run(tmp_path / "archive", "fred_net_liquidity")["latest_promoted_as_of"] == "2026-03-11"
+    raw = json.loads(Path(run.raw_path).read_text(encoding="utf-8"))
+    assert raw["metadata"]["pit_rule"] == "observation_date_plus_one_day"
+    assert set(raw["metadata"]["series_ids"]) == {"walcl", "wtregen", "rrp"}

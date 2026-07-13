@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import os
 import json
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
@@ -92,7 +92,8 @@ def fetch_fred_series_frame(series_id: str, start: str = "1990-01-01", end: Opti
                 params["observation_end"] = end
             url = "https://api.stlouisfed.org/fred/series/observations?" + urlencode(params)
             with urlopen(url, timeout=30) as resp:
-                obs = json.loads(resp.read().decode("utf-8")).get("observations", [])
+                response_payload = json.loads(resp.read().decode("utf-8"))
+            obs = response_payload.get("observations", [])
             if obs:
                 frame = pd.DataFrame(
                     {
@@ -104,7 +105,17 @@ def fetch_fred_series_frame(series_id: str, start: str = "1990-01-01", end: Opti
                     # date+1, NOT realtime_start (see docstring): realtime_start is the
                     # query date for every row here, which breaks asof_pick.
                     frame["publish_date"] = frame["date"] + pd.Timedelta(days=1)
-                    return frame[["date", "publish_date", "value"]]
+                    out = frame[["date", "publish_date", "value"]].copy()
+                    out.attrs["fred_metadata"] = {
+                        "series_id": series_id,
+                        "transport": "fred_observations_api",
+                        "realtime_start": response_payload.get("realtime_start"),
+                        "realtime_end": response_payload.get("realtime_end"),
+                        "fetched_at": datetime.now(timezone.utc).isoformat(),
+                        "pit_rule": "observation_date_plus_one_day",
+                        "source_url": "https://api.stlouisfed.org/fred/series/observations",
+                    }
+                    return out
         except Exception:
             pass  # fall through to the no-key endpoint
     series = fetch_fred_graph_csv(series_id, start=start, end=end)
@@ -114,7 +125,17 @@ def fetch_fred_series_frame(series_id: str, start: str = "1990-01-01", end: Opti
     frame = frame.rename(columns={frame.columns[0]: "date"})
     frame["date"] = pd.to_datetime(frame["date"])
     frame["publish_date"] = frame["date"] + pd.Timedelta(days=1)
-    return frame[["date", "publish_date", "value"]]
+    out = frame[["date", "publish_date", "value"]].copy()
+    out.attrs["fred_metadata"] = {
+        "series_id": series_id,
+        "transport": "fredgraph_csv",
+        "realtime_start": None,
+        "realtime_end": None,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "pit_rule": "observation_date_plus_one_day",
+        "source_url": "https://fred.stlouisfed.org/graph/fredgraph.csv",
+    }
+    return out
 
 
 # Process-level caches keyed by (path, mtime) — safe (auto-invalidate on file
