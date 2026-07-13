@@ -8,7 +8,7 @@ from hermes_escape_top.scripts import run_daily_package as rdp
 def test_refresh_external_sources_runs_registered_bundle_without_raising(monkeypatch):
     monkeypatch.setattr(
         rdp.refresh_external,
-        "pre_daily_check",
+        "daily_source_check",
         lambda: {
             "ready": True,
             "blocking_sources": [],
@@ -31,7 +31,7 @@ def test_refresh_external_sources_runs_registered_bundle_without_raising(monkeyp
 def test_refresh_external_sources_keeps_daily_alive_on_single_source_failure(monkeypatch):
     monkeypatch.setattr(
         rdp.refresh_external,
-        "pre_daily_check",
+        "daily_source_check",
         lambda: {
             "ready": False,
             "blocking_sources": ["real_rate"],
@@ -58,7 +58,7 @@ def test_refresh_external_sources_keeps_daily_alive_on_single_source_failure(mon
     assert by_source["fred_net_liquidity"]["status"] == "OK"
 
 
-def test_refresh_soft_data_no_longer_refreshes_naaim_legacy(monkeypatch):
+def test_refresh_soft_data_does_not_write_runner_owned_fred_aaii_or_naaim(monkeypatch):
     calls = []
 
     def fake_run(args, **_kwargs):
@@ -74,7 +74,13 @@ def test_refresh_soft_data_no_longer_refreshes_naaim_legacy(monkeypatch):
         for args in calls
         if "--only" in args
     ]
-    assert only_args == ["fred", "fred_risk", "cot"]
+    assert only_args == ["cot"]
+    module_names = [
+        args[args.index("-m") + 1]
+        for args in calls
+        if "-m" in args
+    ]
+    assert "hermes_escape_top.scripts.refresh_aaii_public" not in module_names
     assert "naaim" not in only_args
 
 

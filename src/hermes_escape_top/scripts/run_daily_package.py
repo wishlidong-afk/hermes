@@ -230,7 +230,7 @@ def _heal_lagging_symbols(
 # ── Step 1a: refresh ledgered external sources ───────────────────────────────
 
 def refresh_external_sources() -> list[dict]:
-    """Refresh ledgered external feeds before the broad legacy soft refresh.
+    """Consume the morning source precheck or refresh when it did not run.
 
     Non-fatal by design: ExternalSourceRunner validates and atomically promotes
     good data; on failure the cached CSV remains authoritative and the ledger
@@ -239,7 +239,7 @@ def refresh_external_sources() -> list[dict]:
     """
     source_ids = tuple(refresh_external.SOURCE_IDS)
     print(f"[M4-1a] Pre-daily external source check ({', '.join(source_ids)})…")
-    check = refresh_external.pre_daily_check()
+    check = refresh_external.daily_source_check()
     runs = list((check.get("refresh") or {}).get("runs") or [])
     for run in runs:
         print(
@@ -266,39 +266,10 @@ def refresh_soft_data() -> None:
 
     Non-fatal: a failure here does not block scoring; the scoring engine will
     use whatever cached soft data exists and report staleness via health.py.
-    AAII is excluded (no auto-parseable endpoint; requires manual download or
-    Claude-in-Chrome session per prior procedure). NAAIM is refreshed earlier
-    through ExternalSourceRunner, so this legacy block must not write it again.
+    FRED, AAII and NAAIM are refreshed earlier through ExternalSourceRunner, so
+    this legacy block must not write their canonical files again.
     """
-    print("[M4-1b] Refreshing legacy soft data sources (FRED risk signals + COT)…")
-    result = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
-         "--only", "fred"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    if result.returncode != 0:
-        print("[M4-1b] WARNING: FRED net-liquidity refresh failed; proceeding with cached data.")
-        print(result.stderr[-300:] if result.stderr else "")
-    else:
-        print("[M4-1b] FRED net-liquidity OK.")
-
-    result2 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
-         "--only", "fred_risk"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=180,
-    )
-    if result2.returncode != 0:
-        print("[M4-1b] WARNING: FRED risk signals refresh failed; proceeding with cached data.")
-    else:
-        print("[M4-1b] FRED risk signals OK.")
+    print("[M4-1b] Refreshing legacy soft data sources (COT/OCC/CBOE/BTC)…")
 
     result4 = subprocess.run(
         [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
@@ -341,19 +312,6 @@ def refresh_soft_data() -> None:
         print((result6.stdout or result6.stderr or "")[-200:])
     else:
         print("[M4-1b] CBOE daily PCR OK.")
-
-    result7 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.refresh_aaii_public"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    if result7.returncode != 0:
-        print("[M4-1b] WARNING: AAII public probe failed (weekly — member-session fallback per runbook); continuing.")
-    else:
-        print("[M4-1b] AAII public probe OK.")
 
     # BTC funding/DVOL (data_btc_funding defaults ON): its own script was never
     # wired here, so the source drifted 13d stale (2026-06-02) while still being

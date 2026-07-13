@@ -265,6 +265,89 @@ def test_refresh_external_all_sources_keeps_going_on_single_failure(monkeypatch,
     assert "blocked" in result["runs"][-1]["error"]
 
 
+def test_retry_needed_only_runs_failed_same_day_sources(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    calls = []
+    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("dollar", "aaii_sentiment"))
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "finished_at": "2026-07-13T06:45:00+08:00",
+            },
+            "aaii_sentiment": {
+                "source_id": "aaii_sentiment",
+                "status": "OK",
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "latest_attempt_status": "FETCH_ERROR",
+                "latest_attempt_finished_at": "2026-07-13T06:45:00+08:00",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_source",
+        lambda source_id, config=None, auto_import=True: calls.append(source_id)
+        or {"source_id": source_id, "status": "OK"},
+    )
+
+    result = refresh_external.refresh_retry_sources(cfg, today=date(2026, 7, 13))
+
+    assert calls == ["aaii_sentiment"]
+    assert result["mode"] == "retry_needed"
+    assert result["selected_sources"] == ["aaii_sentiment"]
+
+
+def test_daily_source_check_reuses_complete_same_day_precheck(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("dollar",))
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "finished_at": "2026-07-13T06:45:00+08:00",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must not refetch")),
+    )
+
+    result = refresh_external.daily_source_check(cfg, today=date(2026, 7, 13))
+
+    assert result["refresh"]["mode"] == "reuse_same_day"
+    assert result["ready"] is True
+
+
+def test_retry_needed_cli_runs_selective_precheck(monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr(
+        refresh_external,
+        "pre_daily_check",
+        lambda *args, **kwargs: calls.append(kwargs)
+        or {"ready": True, "refresh": {"mode": "retry_needed"}},
+    )
+
+    rc = refresh_external.main(["--retry-needed"])
+
+    assert rc == 0
+    assert calls == [{"retry_only": True}]
+    assert '"mode": "retry_needed"' in capsys.readouterr().out
+
+
 def test_refresh_external_pre_daily_check_marks_stale_sources_not_ready(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
     monkeypatch.setattr(

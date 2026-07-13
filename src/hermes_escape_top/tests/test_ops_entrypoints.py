@@ -77,7 +77,9 @@ def test_shell_entrypoints_prefer_current_release_when_present():
     assert 'RUNTIME="$BASE/current"' in external
     assert 'HERMES_RUNTIME_ROOT="$RUNTIME"' in external
     assert 'export PYTHONPATH="$RUNTIME"' in external
-    assert 'hermes_escape_top.scripts.refresh_external --pre-daily-check' in external
+    assert 'hermes_escape_top.scripts.refresh_external "$REFRESH_ARG"' in external
+    assert 'REFRESH_ARG="--pre-daily-check"' in external
+    assert 'REFRESH_ARG="--retry-needed"' in external
 
 
 def test_external_precheck_launchagent_runs_before_daily():
@@ -206,6 +208,8 @@ def test_external_precheck_writes_latest_and_dated_reports():
     assert 'external_precheck_latest.md' in script
     assert "# External Precheck" in script
     assert "nonblocking_refresh_error_sources" in script
+    assert "HERMES_EXTERNAL_PRECHECK_MODE" in script
+    assert "--retry-needed" in script
 
 
 def test_external_precheck_markdown_includes_top_level_source_status(tmp_path):

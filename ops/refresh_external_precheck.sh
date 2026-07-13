@@ -28,6 +28,20 @@ DATED_MD="$LOG_DIR/external_precheck_${DATE_STAMP}.md"
 TMP_JSON="$LOG_DIR/.external_precheck_${DATE_STAMP}.$$.json"
 TMP_MD="$LOG_DIR/.external_precheck_${DATE_STAMP}.$$.md"
 PY=/usr/bin/python3
+MODE="${HERMES_EXTERNAL_PRECHECK_MODE:-auto}"
+if [ "$MODE" = "auto" ]; then
+  HHMM="$(date +%H%M)"
+  if [ "$HHMM" -ge 700 ]; then
+    MODE="retry_needed"
+  else
+    MODE="all"
+  fi
+fi
+if [ "$MODE" = "retry_needed" ]; then
+  REFRESH_ARG="--retry-needed"
+else
+  REFRESH_ARG="--pre-daily-check"
+fi
 
 if [ "${HERMES_EXTERNAL_PRECHECK_INNER:-0}" != "1" ]; then
   export HERMES_EXTERNAL_PRECHECK_INNER=1
@@ -39,7 +53,8 @@ fi
 {
   echo "=== hermes external precheck start $(date '+%F %T %Z') ==="
   cd "$RUNTIME" || exit 1
-  "$PY" -m hermes_escape_top.scripts.refresh_external --pre-daily-check >"$TMP_JSON"
+  echo "[external-precheck] mode=$MODE"
+  "$PY" -m hermes_escape_top.scripts.refresh_external "$REFRESH_ARG" >"$TMP_JSON"
 } >>"$LOG" 2>&1
 rc=$?
 

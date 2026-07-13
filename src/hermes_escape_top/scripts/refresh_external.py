@@ -5,7 +5,7 @@ import hashlib
 import json
 import subprocess
 import time
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable
 
@@ -158,13 +158,91 @@ def refresh_all_sources(config: dict[str, Any] | None = None, *, auto_import: bo
         "ok_count": ok_count,
         "error_count": error_count,
         "runs": runs,
+        "mode": "all",
     }
 
 
-def pre_daily_check(config: dict[str, Any] | None = None, *, today: date | None = None) -> dict[str, Any]:
+def refresh_retry_sources(
+    config: dict[str, Any] | None = None,
+    *,
+    today: date | None = None,
+) -> dict[str, Any]:
     cfg = config or load_config()
-    refresh_result = refresh_all_sources(cfg, auto_import=True)
+    day = today or date.today()
+    current = status(cfg, today=day)
+    selected = [
+        source_id
+        for source_id in SOURCE_IDS
+        if _source_needs_retry(current.get(source_id) or {}, day)
+    ]
+    runs: list[dict[str, Any]] = []
+    for source_id in selected:
+        try:
+            runs.append(refresh_source(source_id, cfg, auto_import=True))
+        except Exception as exc:
+            runs.append(
+                {
+                    "source_id": source_id,
+                    "status": "ERROR",
+                    "error_type": exc.__class__.__name__,
+                    "error": str(exc),
+                }
+            )
+    ok_count = sum(1 for run in runs if str(run.get("status") or "") == "OK")
+    return {
+        "ok": ok_count == len(runs),
+        "ok_count": ok_count,
+        "error_count": len(runs) - ok_count,
+        "runs": runs,
+        "mode": "retry_needed",
+        "selected_sources": selected,
+    }
+
+
+def pre_daily_check(
+    config: dict[str, Any] | None = None,
+    *,
+    today: date | None = None,
+    retry_only: bool = False,
+) -> dict[str, Any]:
+    cfg = config or load_config()
+    refresh_result = (
+        refresh_retry_sources(cfg, today=today)
+        if retry_only
+        else refresh_all_sources(cfg, auto_import=True)
+    )
     sources = status(cfg, today=today)
+    return _evaluate_readiness(cfg, refresh_result, sources)
+
+
+def daily_source_check(
+    config: dict[str, Any] | None = None,
+    *,
+    today: date | None = None,
+) -> dict[str, Any]:
+    """Reuse a complete same-day precheck; otherwise perform a full refresh."""
+    cfg = config or load_config()
+    day = today or date.today()
+    sources = status(cfg, today=day)
+    if sources and all(_source_checked_on(row) == day for row in sources.values()):
+        refresh_result = {
+            "ok": True,
+            "ok_count": sum(1 for row in sources.values() if _attempt_status(row) == "OK"),
+            "error_count": sum(1 for row in sources.values() if _attempt_status(row) != "OK"),
+            "runs": [_status_as_refresh_run(source_id, row) for source_id, row in sources.items()],
+            "mode": "reuse_same_day",
+            "selected_sources": [],
+        }
+        refresh_result["ok"] = refresh_result["error_count"] == 0
+        return _evaluate_readiness(cfg, refresh_result, sources)
+    return pre_daily_check(cfg, today=day)
+
+
+def _evaluate_readiness(
+    cfg: dict[str, Any],
+    refresh_result: dict[str, Any],
+    sources: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
     refresh_runs = {
         str(run.get("source_id")): run
         for run in refresh_result.get("runs") or []
@@ -178,7 +256,10 @@ def pre_daily_check(config: dict[str, Any] | None = None, *, today: date | None 
     for source_id, row in sources.items():
         run_status = str(row.get("status") or "")
         freshness = str(row.get("freshness_status") or "")
-        if run_status != "OK" or freshness == "UNKNOWN":
+        evidence = str(row.get("evidence_status") or "")
+        if evidence in {"EVIDENCE_DRIFT", "MISSING_CANONICAL", "NO_LEDGER"}:
+            blocking.append(source_id)
+        elif run_status != "OK" or freshness == "UNKNOWN":
             blocking.append(source_id)
         elif freshness == "STALE":
             if _is_policy_warn_only_stale(
@@ -222,6 +303,40 @@ def pre_daily_check(config: dict[str, Any] | None = None, *, today: date | None 
         "blocking_refresh_error_sources": blocking_refresh_errors,
         "refresh": refresh_result,
         "sources": sources,
+    }
+
+
+def _source_needs_retry(row: dict[str, Any], today: date) -> bool:
+    if not row:
+        return True
+    if str(row.get("evidence_status") or "") not in {"", "MATCH"}:
+        return True
+    if _source_checked_on(row) != today:
+        return True
+    return _attempt_status(row) != "OK"
+
+
+def _source_checked_on(row: dict[str, Any]) -> date | None:
+    value = row.get("latest_attempt_finished_at") or row.get("finished_at")
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
+    except ValueError:
+        return None
+
+
+def _attempt_status(row: dict[str, Any]) -> str:
+    return str(row.get("latest_attempt_status") or row.get("status") or "")
+
+
+def _status_as_refresh_run(source_id: str, row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "source_id": source_id,
+        "status": _attempt_status(row),
+        "error_type": row.get("latest_attempt_error_type") or row.get("error_type"),
+        "error_message": row.get("latest_attempt_error_message") or row.get("error_message"),
+        "latest_promoted_as_of": row.get("latest_promoted_as_of"),
     }
 
 
@@ -372,6 +487,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--downloads-dir", default="~/Downloads", help="Directory to watch with --open-official-download.")
     parser.add_argument("--all", action="store_true", help="Refresh all registered sources.")
     parser.add_argument("--pre-daily-check", action="store_true", help="Refresh all sources, auto-import official files when available, and print readiness.")
+    parser.add_argument("--retry-needed", action="store_true", help="Retry only sources whose same-day check failed or whose canonical evidence is not ready.")
     parser.add_argument("--status", action="store_true", help="Print latest source-run status.")
     args = parser.parse_args(argv)
 
@@ -384,6 +500,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.pre_daily_check:
         print(json.dumps(pre_daily_check(), ensure_ascii=False, indent=2, sort_keys=True, default=str))
+        return 0
+    if args.retry_needed:
+        print(json.dumps(pre_daily_check(retry_only=True), ensure_ascii=False, indent=2, sort_keys=True, default=str))
         return 0
     if args.source:
         if args.open_official_download:
