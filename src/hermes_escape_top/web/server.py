@@ -55,7 +55,7 @@ from ..ibkr.live_check import run_live_check
 from ..core.safe_io import PipelineBusy, pipeline_lock
 from ..scripts.refresh_external import refresh_all_sources as refresh_all_external_sources
 from ..scripts.refresh_external import IMPORT_FILE_SOURCE_IDS
-from ..scripts.refresh_external import latest_import_file
+from ..scripts.refresh_external import pending_import_file
 from ..scripts.refresh_external import profile_for
 from ..scripts.refresh_external import refresh_source as refresh_external_source
 from ..scripts.refresh_external import status as external_source_status
@@ -215,12 +215,16 @@ def _attach_external_source_status(payload: dict) -> dict:
 def _attach_external_import_candidates(payload: dict) -> dict:
     """Attach newest official import files for AAII/NAAIM, without importing."""
     candidates = []
+    try:
+        archive_dir = resolve_path(load_config(), "archive_dir")
+    except Exception:
+        return payload
     for source_id in IMPORT_FILE_SOURCE_IDS:
         profile = profile_for(source_id)
         if profile is None:
             continue
         try:
-            path = latest_import_file(profile)
+            path = pending_import_file(source_id, archive_dir)
         except Exception:
             path = None
         if path is None:
@@ -236,6 +240,11 @@ def _attach_external_import_candidates(payload: dict) -> dict:
             "mtime": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds"),
             "size_bytes": stat.st_size,
         })
+        external = payload.get("external_source_status")
+        if isinstance(external, dict) and isinstance(external.get(source_id), dict):
+            external[source_id]["official_artifact_ready"] = True
+            external[source_id]["migration_status"] = "OFFICIAL_FILE_READY"
+            external[source_id]["next_action"] = f"validate and import the staged official file for {source_id}"
     if candidates:
         payload["external_import_candidates"] = candidates
     return payload

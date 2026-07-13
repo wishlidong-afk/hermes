@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -63,7 +65,71 @@ def latest_successful_source_run(archive_dir: Path, source_id: str) -> dict[str,
     return None
 
 
-def source_status(archive_dir: Path, specs: Iterable[Any]) -> dict[str, dict[str, Any]]:
+def source_reliability(
+    archive_dir: Path,
+    source_id: str,
+    *,
+    today: date | None = None,
+) -> dict[str, Any]:
+    """Aggregate one outcome per Asia/Shanghai operating day.
+
+    A successful retry makes that day's outcome successful; repeated attempts
+    never inflate the sample count.
+    """
+    day = today or date.today()
+    daily_rows: dict[date, list[dict[str, Any]]] = {}
+    for row in iter_source_runs(archive_dir):
+        if row.get("source_id") != source_id:
+            continue
+        timestamp = row.get("finished_at") or row.get("started_at")
+        operating_day = _operating_day(timestamp)
+        if operating_day is None or operating_day > day:
+            continue
+        daily_rows.setdefault(operating_day, []).append(row)
+
+    outcomes = sorted(
+        (operating_day, _day_succeeded(rows))
+        for operating_day, rows in daily_rows.items()
+    )
+    latest_ok = latest_successful_source_run(archive_dir, source_id)
+    last_success_at = None
+    if latest_ok is not None:
+        last_success_at = str(latest_ok.get("finished_at") or latest_ok.get("started_at") or "") or None
+    rate_30, samples_30 = _window_success_rate(outcomes, day - timedelta(days=29))
+    rate_90, samples_90 = _window_success_rate(outcomes, day - timedelta(days=89))
+    consecutive_failures = 0
+    for _outcome_day, ok in reversed(outcomes):
+        if ok:
+            break
+        consecutive_failures += 1
+    return {
+        "success_rate_30d": rate_30,
+        "success_rate_90d": rate_90,
+        "samples_30d": samples_30,
+        "samples_90d": samples_90,
+        "consecutive_failures": consecutive_failures,
+        "last_success_at": last_success_at,
+    }
+
+
+def _day_succeeded(rows: list[dict[str, Any]]) -> bool:
+    invalidated_inputs: set[str] = set()
+    for row in reversed(rows):
+        input_hash = str(row.get("input_hash") or "")
+        if str(row.get("status") or "").upper() == "OK":
+            if not input_hash or input_hash not in invalidated_inputs:
+                return True
+        elif input_hash:
+            invalidated_inputs.add(input_hash)
+    return False
+
+
+def source_status(
+    archive_dir: Path,
+    specs: Iterable[Any],
+    *,
+    today: date | None = None,
+) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for spec in specs:
         latest = latest_source_run(archive_dir, spec.source_id)
@@ -78,8 +144,35 @@ def source_status(archive_dir: Path, specs: Iterable[Any]) -> dict[str, dict[str
         else:
             row = latest or {"source_id": spec.source_id, "status": "MISSING"}
         row.update(_canonical_evidence(spec, latest_ok))
+        row.update(source_reliability(archive_dir, spec.source_id, today=today))
         out[spec.source_id] = row
     return out
+
+
+def _window_success_rate(outcomes: list[tuple[date, bool]], start: date) -> tuple[float | None, int]:
+    selected = [ok for operating_day, ok in outcomes if operating_day >= start]
+    if not selected:
+        return None, 0
+    return round(sum(1 for ok in selected if ok) / len(selected) * 100.0, 2), len(selected)
+
+
+def _operating_day(value: Any) -> date | None:
+    parsed = _timestamp(value)
+    if parsed is None:
+        return None
+    return parsed.astimezone(ZoneInfo("Asia/Shanghai")).date()
+
+
+def _timestamp(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 def _canonical_evidence(spec: Any, latest_ok: dict[str, Any] | None) -> dict[str, str]:

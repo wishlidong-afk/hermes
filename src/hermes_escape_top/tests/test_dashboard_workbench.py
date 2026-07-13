@@ -536,11 +536,22 @@ def test_trust_zone_uses_external_source_ledger_status():
             "finished_at": "2026-06-25T14:00:00+00:00",
             "official_issue_as_of": "2026-06-24",
             "official_file_sha256": "abcdef1234567890",
+            "success_rate_30d": 92.86,
+            "success_rate_90d": 96.15,
+            "samples_30d": 7,
+            "consecutive_failures": 0,
+            "migration_status": "MIGRATION_DUE",
+            "migration_deadline": "2026-08-01",
         },
         "aaii_sentiment": {
             "source_id": "aaii_sentiment",
             "status": "FETCH_ERROR",
             "error_message": "AAII public endpoint blocked; manual import required",
+            "success_rate_30d": 75.0,
+            "success_rate_90d": 80.0,
+            "samples_30d": 4,
+            "consecutive_failures": 2,
+            "migration_status": "ACTION_REQUIRED",
         },
     }
 
@@ -569,6 +580,10 @@ def test_trust_zone_uses_external_source_ledger_status():
     assert "AAII Sentiment" in html
     assert "AAII public endpoint blocked; manual import required" in html
     assert "refreshExternalSource('aaii_sentiment')" in html
+    assert "30d 92.86% (n=7)" in html
+    assert "连续失败 2" in html
+    assert "MIGRATION_DUE" in html
+    assert "ACTION_REQUIRED" in html
     assert "--source aaii_sentiment --import-file ~/.hermes/external_imports/sentiment.xls" in html
     assert "--source naaim_exposure --import-file ~/.hermes/external_imports/naaim.xlsx" in html
     assert "刷新全部外部源" in html
@@ -1118,7 +1133,7 @@ def test_external_import_candidate_loader_attaches_latest_official_file(monkeypa
 
     monkeypatch.setattr(server_mod, "IMPORT_FILE_SOURCE_IDS", ("aaii_sentiment",), raising=False)
     monkeypatch.setattr(server_mod, "profile_for", lambda source_id: Profile(), raising=False)
-    monkeypatch.setattr(server_mod, "latest_import_file", lambda profile: import_path, raising=False)
+    monkeypatch.setattr(server_mod, "pending_import_file", lambda source_id, archive_dir: import_path, raising=False)
 
     payload = server_mod._attach_external_import_candidates({})
 

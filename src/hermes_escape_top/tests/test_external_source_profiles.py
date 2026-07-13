@@ -1,3 +1,5 @@
+from datetime import date
+
 from hermes_escape_top.core.data.external_sources import profiles
 
 
@@ -65,3 +67,46 @@ def test_btc_micro_remains_active_when_legacy_flag_is_absent():
 
     assert profile is not None
     assert profile.active is True
+
+
+def test_naaim_status_marks_subscription_migration_due_before_deadline():
+    profile = _effective_source_profile({}, "naaim_exposure")
+
+    row = profiles.enrich_source_status(
+        {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-07-09",
+        },
+        today=date(2026, 7, 13),
+        profile=profile,
+    )
+
+    assert row["migration_status"] == "MIGRATION_DUE"
+    assert row["migration_deadline"] == "2026-08-01"
+
+
+def test_aaii_requires_action_only_when_overdue_without_official_artifact():
+    profile = _effective_source_profile({}, "aaii_sentiment")
+    fresh = profiles.enrich_source_status(
+        {"source_id": "aaii_sentiment", "status": "OK", "latest_promoted_as_of": "2026-07-09"},
+        today=date(2026, 7, 13),
+        profile=profile,
+        official_artifact_ready=False,
+    )
+    overdue = profiles.enrich_source_status(
+        {"source_id": "aaii_sentiment", "status": "OK", "latest_promoted_as_of": "2026-06-20"},
+        today=date(2026, 7, 13),
+        profile=profile,
+        official_artifact_ready=False,
+    )
+    staged = profiles.enrich_source_status(
+        {"source_id": "aaii_sentiment", "status": "OK", "latest_promoted_as_of": "2026-06-20"},
+        today=date(2026, 7, 13),
+        profile=profile,
+        official_artifact_ready=True,
+    )
+
+    assert fresh["migration_status"] == "MONITORED"
+    assert overdue["migration_status"] == "ACTION_REQUIRED"
+    assert staged["migration_status"] == "OFFICIAL_FILE_READY"

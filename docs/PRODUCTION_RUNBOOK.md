@@ -6,7 +6,7 @@
 
 - **06:45 CST** `com.hermes.external-precheck` 全量刷新并验收外部源；**07:05 CST** 同一任务只重试当天失败或 canonical 证据未就绪的源。两次都只写 source ledger 与已验证的 soft_history，不评分、不写官方 run。07:10 daily 若看到完整的当天预检证据会直接复用，避免对 FRED/NAAIM/AAII 连续重复请求。`ready=false` 时弹通知并返回非 0，日志与取证报告在 `~/.hermes/logs/external/`（`external_precheck_latest.{json,md}` 与 `external_precheck_<date>.{json,md}`）。
 - **每个自然日 07:10 CST** `com.hermes.daily`（launchd `StartCalendarInterval` 无 `Weekday` 过滤，包含周末/休市日）→ `~/.hermes/bin/run_daily.sh` → live `scripts/run_daily.py` → `python -m hermes_escape_top.scripts.run_daily_package --live --commit-state`。日志：`~/.hermes/logs/daily/daily_<date>.log`。Health 对 OK 回执的 26 小时阈值依赖这个日历日调度事实，与行情的交易日陈旧规则分开。
-- daily 的 M4-1a 会再跑一次 `refresh_external --pre-daily-check` 等价链路作为最后保险：FRED/NAAIM/AAII 全源刷新 → AAII/NAAIM 自动尝试最新官方下载文件导入 → source profile SLO 验收。失败不 abort official run，但会写 ledger 并在 8766 health 暴露；评分只使用已验证/已存在的缓存数据。
+- daily 的 M4-1a 优先复用当天 06:45/07:05 的完整 ledger 证据；只有当天证据不完整时才补跑全量 ExternalSourceRunner。runner 当前统一管理 FRED、CBOE PCR、CFTC COT、OCC PCR、BTC funding、NAAIM、AAII；AAII/NAAIM 抓取失败时只尝试尚未被 ledger 消费过的官方下载文件。失败不 abort official run，但会写 ledger 并在 8766 health 暴露；评分只使用已验证/已存在的 canonical 缓存。
 - scheduled run 结束并写入 OK receipt 后，会落盘 `reports/system_health_<as_of>.json` 与 `.md`：这是运行健康审计快照，区分策略数据、持仓对账、辅助资金流三层；它不是交易指令，交易仍以 official dashboard/daily_report 为准。
 - **09:00 CST** `com.hermes.watchdog` → audit_log 落后 >2 个 NYSE 交易日则弹通知。日志：`~/.hermes/logs/watchdog.log`。
 - 健康判断三步：① 日志末行 `exit 0`；② preflight 段无 STALE/NOT WRITABLE；③ `[M4-diff]` 段解释今日 vs 昨日变化。
@@ -15,9 +15,11 @@
 ## 2. 数据缺失 / 过期
 
 - preflight 出现 `STALE` 或 watchdog 报警：先手动 `bash ~/.hermes/bin/run_daily.sh`，看 M4-1b 四个刷新步骤哪个 WARNING。
-- 外部源统一刷新+验收：`cd ~/.hermes/skills/investment/escape-top/current && PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --pre-daily-check`。只看 ledger：`--status`。单源刷新：`--source {dollar|real_rate|fred_net_liquidity|naaim_exposure|aaii_sentiment}`。`--all` 默认会在 AAII/NAAIM 自动抓取失败后尝试 `~/Downloads` 内最新官方下载文件导入。
+- 外部源统一刷新+验收：`cd ~/.hermes/skills/investment/escape-top/current && PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --pre-daily-check`。只看 ledger：`--status`。单源刷新：`--source {dollar|real_rate|fred_net_liquidity|cboe_equity_pcr|cot_nq|occ_equity_pcr|btc_funding_basis|naaim_exposure|aaii_sentiment}`。`--all` 默认会在 AAII/NAAIM 自动抓取失败后尝试尚未被 ledger 消费过的官方下载文件；同一文件哈希不会反复导入。
 - AAII 403/Imperva：首选一条命令打开官方下载并自动导入新文件：`cd ~/.hermes/skills/investment/escape-top/current && PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source aaii_sentiment --open-official-download`。若浏览器无法自动下载，则用已登录浏览器从 AAII Sentiment Survey 页面下载官方 `sentiment.xls`，复制到 `~/.hermes/external_imports/`（LaunchAgent 可读，不依赖 Downloads 权限），再执行 `PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source aaii_sentiment --import-file ~/.hermes/external_imports/sentiment.xls`。
 - NAAIM 官网 XLSX 发现失败或 2026-08-01 后订阅化：自动抓取仍首选官方 XLSX；失败时可打开官方页等待 workbook 落盘并导入：`PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source naaim_exposure --open-official-download`。若需手工下载订阅 workbook，则放入 `~/.hermes/external_imports/` 并执行 `PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source naaim_exposure --import-file ~/.hermes/external_imports/naaim.xlsx`。镜像源（如 YCharts/MacroMicro）只用于核对，不直接替代生产真值。
+- 可靠性字段：`--status` 与 8766 展示按 Asia/Shanghai 自然日去重的 `success_rate_30d/90d`、样本数、连续失败和最近成功；同日 06:45 失败、07:05 成功只算一个成功日。`MIGRATION_DUE` 是治理提醒，不代表当前缓存不可用；`ACTION_REQUIRED` 才表示预期发布已超 SLO 且没有可导入的新官方文件。
+- 许可边界：AAII/NAAIM 不以未授权镜像、抓取绕过或推算值替代官方真值。浏览器会话、会员下载或订阅续期仍需人工维护；自动化只负责发现新文件、记录 SHA-256、校验期号/字段/PIT 日期并晋升 canonical。
 - 旧 `backfill_soft_data --only {naaim|aaii}` 只作为诊断参考；生产刷新以 ExternalSourceRunner ledger 为准。
 - 缺数据≠安全：`use_soft_data_max_age` 翻闸后超龄源自动走 missing_weight（当前 OFF，翻闸见 §6）。
 

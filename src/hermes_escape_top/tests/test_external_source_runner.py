@@ -5,7 +5,12 @@ import hashlib
 
 import pandas as pd
 
-from hermes_escape_top.core.data.external_sources.ledger import latest_source_run, source_status
+from hermes_escape_top.core.data.external_sources.ledger import (
+    append_source_run,
+    latest_source_run,
+    source_reliability,
+    source_status,
+)
 from hermes_escape_top.core.data.external_sources.registry import ExternalSourceSpec
 from hermes_escape_top.core.data.external_sources.runner import run_external_source_refresh
 
@@ -56,6 +61,68 @@ class ValueAdapter:
 class SameRawParseBoomAdapter(ValueAdapter):
     def parse(self, raw):
         raise ValueError("same raw rejected by current parser")
+
+
+def _ledger_record(source_id: str, status: str, when: str) -> dict:
+    return {
+        "source_id": source_id,
+        "status": status,
+        "started_at": when,
+        "finished_at": when,
+    }
+
+
+def test_source_reliability_deduplicates_same_day_retries(tmp_path):
+    archive = tmp_path / "archive"
+    append_source_run(archive, _ledger_record("dollar", "FETCH_ERROR", "2026-07-10T06:45:00+08:00"))
+    append_source_run(archive, _ledger_record("dollar", "OK", "2026-07-10T07:05:00+08:00"))
+    append_source_run(archive, _ledger_record("dollar", "FETCH_ERROR", "2026-07-11T06:45:00+08:00"))
+    append_source_run(archive, _ledger_record("dollar", "FETCH_ERROR", "2026-07-11T07:05:00+08:00"))
+    append_source_run(archive, _ledger_record("dollar", "OK", "2026-07-12T06:45:00+08:00"))
+
+    reliability = source_reliability(archive, "dollar", today=pd.Timestamp("2026-07-12").date())
+
+    assert reliability["success_rate_30d"] == 66.67
+    assert reliability["success_rate_90d"] == 66.67
+    assert reliability["samples_30d"] == 3
+    assert reliability["samples_90d"] == 3
+    assert reliability["consecutive_failures"] == 0
+    assert reliability["last_success_at"] == "2026-07-12T06:45:00+08:00"
+
+
+def test_source_status_exposes_daily_reliability_metrics(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    spec = ExternalSourceSpec(source_id="dollar", target_path=target, required_columns=("date", "value"))
+    archive = tmp_path / "archive"
+    target.parent.mkdir(parents=True)
+    target.write_text("date,value\n2026-06-30,1.2\n", encoding="utf-8")
+    success = _ledger_record("dollar", "OK", "2026-07-12T06:45:00+08:00")
+    success["latest_promoted_as_of"] = "2026-06-30"
+    success["canonical_latest_as_of"] = "2026-06-30"
+    append_source_run(archive, success)
+    append_source_run(archive, _ledger_record("dollar", "FETCH_ERROR", "2026-07-13T07:05:00+08:00"))
+
+    row = source_status(archive, [spec], today=pd.Timestamp("2026-07-13").date())["dollar"]
+
+    assert row["samples_30d"] == 2
+    assert row["success_rate_30d"] == 50.0
+    assert row["consecutive_failures"] == 1
+    assert row["last_success_at"]
+
+
+def test_source_reliability_invalidates_same_input_success_rejected_later(tmp_path):
+    archive = tmp_path / "archive"
+    good = _ledger_record("dollar", "OK", "2026-07-13T06:45:00+08:00")
+    good["input_hash"] = "same-raw"
+    rejected = _ledger_record("dollar", "PARSE_ERROR", "2026-07-13T07:05:00+08:00")
+    rejected["input_hash"] = "same-raw"
+    append_source_run(archive, good)
+    append_source_run(archive, rejected)
+
+    reliability = source_reliability(archive, "dollar", today=pd.Timestamp("2026-07-13").date())
+
+    assert reliability["success_rate_30d"] == 0.0
+    assert reliability["consecutive_failures"] == 1
 
 
 def test_success_writes_staging_promotes_target_and_records_ledger(tmp_path):

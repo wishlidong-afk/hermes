@@ -3488,8 +3488,9 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
         safe_id = _external_source_dom_id(source_id)
         rows.append(
             "<tr>"
-            f"<td><b>{esc(source_id)}</b><div class='subtle'>{esc(EXTERNAL_SOURCE_LABELS.get(source_id, 'External source'))}</div></td>"
-            f"<td>{_external_source_status_badge(status)}</td>"
+            f"<td><b>{esc(source_id)}</b><div class='subtle'>{esc(EXTERNAL_SOURCE_LABELS.get(source_id, 'External source'))}</div>"
+            f"<div class='subtle'>{esc(_external_reliability_text(row or {}))}</div></td>"
+            f"<td>{_external_source_status_badge(status)} {_external_migration_badge((row or {}).get('migration_status'))}</td>"
             f"<td>{esc(str(latest)[:10])}</td>"
             f"<td><span class='subtle'>{esc(str(run_time))}</span></td>"
             f"<td>{esc(' · '.join(note_parts) if note_parts else '—')}</td>"
@@ -3602,6 +3603,25 @@ def _external_source_status_badge(status: str) -> str:
     else:
         kind = "warn"
     return _badge(upper, kind)
+
+
+def _external_reliability_text(row: Dict[str, Any]) -> str:
+    rate_30 = row.get("success_rate_30d")
+    rate_90 = row.get("success_rate_90d")
+    samples = int(row.get("samples_30d") or 0)
+    failures = int(row.get("consecutive_failures") or 0)
+    if rate_30 is None and rate_90 is None:
+        return "可靠性：尚无日级样本"
+    text = f"30d {_fmt_num(rate_30)}% (n={samples}) · 90d {_fmt_num(rate_90)}%"
+    return f"{text} · 连续失败 {failures}"
+
+
+def _external_migration_badge(status: Any) -> str:
+    value = str(status or "")
+    if not value or value == "STABLE":
+        return ""
+    kind = "danger" if value == "ACTION_REQUIRED" else "warn" if value == "MIGRATION_DUE" else "watch"
+    return _badge(value, kind)
 
 
 def _data_trust_rows(payload: Dict[str, Any]) -> List[Dict[str, str]]:

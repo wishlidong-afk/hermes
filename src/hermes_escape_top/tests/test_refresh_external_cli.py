@@ -638,6 +638,11 @@ def test_refresh_external_auto_import_skips_previously_failed_file_hash(monkeypa
     assert result["fallback_import_skipped"] == str(import_path)
     assert result["fallback_import_skip_reason"] == "previous failure for same official file hash"
 
+    assert refresh_external.pending_import_file(
+        "aaii_sentiment",
+        tmp_path / "archive",
+    ) is None
+
 
 def test_open_official_download_waits_for_new_file_and_imports(monkeypatch, tmp_path):
     opened = []

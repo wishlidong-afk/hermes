@@ -470,6 +470,20 @@ def _latest_import_for(source_id: str) -> Path | None:
     return latest_import_file(profile)
 
 
+def pending_import_file(source_id: str, archive_dir: Path) -> Path | None:
+    """Return an official file only when its content hash is new to the ledger."""
+    path = _latest_import_for(source_id)
+    if path is None:
+        return None
+    file_hash = _file_sha256(path)
+    if not file_hash:
+        return None
+    for row in iter_source_runs(archive_dir):
+        if row.get("source_id") == source_id and _run_content_sha256(row) == file_hash:
+            return None
+    return path
+
+
 def _previous_import_failure_reason(source_id: str, path: Path, archive_dir: Path) -> str | None:
     file_hash = _file_sha256(path)
     if not file_hash:
@@ -515,12 +529,17 @@ def _open_url(url: str) -> None:
 
 def status(config: dict[str, Any] | None = None, *, today: date | None = None) -> dict[str, dict[str, Any]]:
     cfg = config or load_config()
-    rows = source_status(resolve_path(cfg, "archive_dir"), source_specs(cfg))
+    rows = source_status(
+        resolve_path(cfg, "archive_dir"),
+        source_specs(cfg),
+        today=today,
+    )
     return {
         source_id: enrich_source_status(
             row,
             today=today,
             profile=effective_source_profile(cfg, source_id),
+            official_artifact_ready=False,
         )
         for source_id, row in rows.items()
     }

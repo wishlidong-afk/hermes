@@ -204,6 +204,7 @@ def enrich_source_status(
     *,
     today: date | None = None,
     profile: ExternalSourceProfile | None = None,
+    official_artifact_ready: bool = False,
 ) -> dict[str, Any]:
     source_id = str(row.get("source_id") or "")
     profile = profile or profile_for(source_id)
@@ -220,6 +221,12 @@ def enrich_source_status(
     out["age_days"] = age_days
     out["freshness_status"] = _freshness_status(age_days, profile)
     out["failure_kind"] = _failure_kind(row)
+    out["official_artifact_ready"] = bool(official_artifact_ready)
+    out["migration_status"] = _migration_status(
+        out,
+        profile,
+        today or date.today(),
+    )
     if (
         _same_day_successful_check(out, today or date.today())
         and out["freshness_status"] in {"DUE_SOON", "STALE"}
@@ -281,6 +288,26 @@ def _same_day_successful_check(row: dict[str, Any], today: date) -> bool:
     return checked == today
 
 
+def _migration_status(
+    row: dict[str, Any],
+    profile: ExternalSourceProfile,
+    today: date,
+) -> str:
+    if profile.source_id == "naaim_exposure" and profile.migration_deadline:
+        try:
+            deadline = date.fromisoformat(profile.migration_deadline)
+        except ValueError:
+            deadline = today
+        return "MIGRATION_DUE" if today <= deadline else "ACTION_REQUIRED"
+    if profile.source_id == "aaii_sentiment":
+        if row.get("official_artifact_ready"):
+            return "OFFICIAL_FILE_READY"
+        if str(row.get("freshness_status") or "") == "STALE":
+            return "ACTION_REQUIRED"
+        return "MONITORED"
+    return "STABLE"
+
+
 def _date_from_timestamp(value: Any) -> date | None:
     if not value:
         return None
@@ -298,6 +325,13 @@ def _next_action(row: dict[str, Any], profile: ExternalSourceProfile) -> str:
     source_id = profile.source_id
     failure = str(row.get("failure_kind") or "")
     freshness = str(row.get("freshness_status") or "")
+    migration = str(row.get("migration_status") or "")
+    if migration == "ACTION_REQUIRED" and source_id == "aaii_sentiment":
+        return "download the current official sentiment file and import it through ExternalSourceRunner"
+    if migration == "ACTION_REQUIRED" and source_id == "naaim_exposure":
+        return "NAAIM migration deadline passed; verify official workbook access and import the current issue"
+    if migration == "OFFICIAL_FILE_READY":
+        return f"validate and import the staged official file for {source_id}"
     if str(row.get("publisher_status") or "") == "UNCHANGED_AFTER_REFRESH":
         return f"official source checked today; wait for publisher update for {source_id}"
     if failure == "AUTH_REQUIRED" and profile.import_globs:
@@ -309,4 +343,6 @@ def _next_action(row: dict[str, Any], profile: ExternalSourceProfile) -> str:
         return f"run refresh_external --source {source_id}; if still stale use {profile.fallback}"
     if freshness == "DUE_SOON":
         return f"watch next publication; run refresh_external --source {source_id} if tomorrow still unchanged"
+    if migration == "MIGRATION_DUE" and source_id == "naaim_exposure":
+        return f"before {profile.migration_deadline}, verify official workbook automation and retained import fallback"
     return f"run refresh_external --source {source_id}"
