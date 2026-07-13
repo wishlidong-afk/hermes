@@ -13,24 +13,42 @@ from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.data.external_sources import (
     AaiiSentimentAdapter,
     AaiiSentimentImportAdapter,
+    BtcMicroAdapter,
+    CboePcrAdapter,
+    CotNqAdapter,
     FredNetLiquidityAdapter,
     FredPercentileAdapter,
     NaaimExposureAdapter,
     NaaimExposureImportAdapter,
+    OccPcrAdapter,
     aaii_sentiment_spec,
+    btc_micro_spec,
+    cboe_pcr_spec,
+    cot_nq_spec,
     effective_source_profile,
     fred_net_liquidity_spec,
     fred_percentile_spec,
     enrich_source_status,
     latest_import_file,
     naaim_exposure_spec,
+    occ_pcr_spec,
     profile_for,
     run_external_source_refresh,
     source_status,
 )
 from hermes_escape_top.core.data.external_sources.ledger import iter_source_runs
 
-SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity", "naaim_exposure", "aaii_sentiment")
+SOURCE_IDS = (
+    "dollar",
+    "real_rate",
+    "fred_net_liquidity",
+    "cboe_equity_pcr",
+    "cot_nq",
+    "occ_equity_pcr",
+    "btc_funding_basis",
+    "naaim_exposure",
+    "aaii_sentiment",
+)
 IMPORT_FILE_SOURCE_IDS = ("naaim_exposure", "aaii_sentiment")
 POLICY_WARN_ONLY_STALE_SOURCE_IDS = frozenset({"dollar"})
 OFFICIAL_BROWSER_URLS = {
@@ -82,11 +100,35 @@ def aaii_sentiment_source(config: dict[str, Any]):
     return aaii_sentiment_spec(target_path=target), AaiiSentimentAdapter(seed_path=target)
 
 
+def cboe_equity_pcr_source(config: dict[str, Any]):
+    target = resolve_path(config, "soft_history_dir") / "cboe_equity_pcr.csv"
+    return cboe_pcr_spec(target_path=target), CboePcrAdapter(seed_path=target)
+
+
+def cot_nq_source(config: dict[str, Any]):
+    target = resolve_path(config, "soft_history_dir") / "cot_nq.csv"
+    return cot_nq_spec(target_path=target), CotNqAdapter()
+
+
+def occ_equity_pcr_source(config: dict[str, Any]):
+    target = resolve_path(config, "soft_history_dir") / "occ_equity_pcr.csv"
+    return occ_pcr_spec(target_path=target), OccPcrAdapter(seed_path=target)
+
+
+def btc_funding_basis_source(config: dict[str, Any]):
+    target = resolve_path(config, "soft_history_dir") / "btc_funding_basis.csv"
+    return btc_micro_spec(target_path=target), BtcMicroAdapter(seed_path=target)
+
+
 def source_factories():
     return {
         "dollar": dollar_source,
         "real_rate": real_rate_source,
         "fred_net_liquidity": fred_net_liquidity_source,
+        "cboe_equity_pcr": cboe_equity_pcr_source,
+        "cot_nq": cot_nq_source,
+        "occ_equity_pcr": occ_equity_pcr_source,
+        "btc_funding_basis": btc_funding_basis_source,
         "naaim_exposure": naaim_exposure_source,
         "aaii_sentiment": aaii_sentiment_source,
     }
@@ -254,6 +296,8 @@ def _evaluate_readiness(
     nonblocking_refresh_errors = []
     blocking_refresh_errors = []
     for source_id, row in sources.items():
+        if row.get("active") is False:
+            continue
         run_status = str(row.get("status") or "")
         freshness = str(row.get("freshness_status") or "")
         evidence = str(row.get("evidence_status") or "")
@@ -286,6 +330,8 @@ def _evaluate_readiness(
         if not source_id or str(run.get("status") or "") == "OK":
             continue
         row = sources.get(source_id) or {}
+        if row.get("active") is False:
+            continue
         source_ok = str(row.get("status") or "") == "OK"
         freshness = str(row.get("freshness_status") or "")
         if source_ok and freshness not in {"STALE", "UNKNOWN"}:
@@ -309,6 +355,8 @@ def _evaluate_readiness(
 def _source_needs_retry(row: dict[str, Any], today: date) -> bool:
     if not row:
         return True
+    if row.get("active") is False:
+        return False
     if str(row.get("evidence_status") or "") not in {"", "MATCH"}:
         return True
     if _source_checked_on(row) != today:

@@ -371,6 +371,38 @@ def test_refresh_external_pre_daily_check_marks_stale_sources_not_ready(monkeypa
     assert result["sources"]["dollar"]["next_action"] == "refresh dollar"
 
 
+def test_inactive_research_source_does_not_block_daily_readiness(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda config=None, auto_import=True: {
+            "ok": False,
+            "ok_count": 0,
+            "error_count": 1,
+            "runs": [{"source_id": "cot_nq", "status": "FETCH_ERROR"}],
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "cot_nq": {
+                "source_id": "cot_nq",
+                "status": "MISSING",
+                "freshness_status": "UNKNOWN",
+                "evidence_status": "NO_LEDGER",
+                "active": False,
+            }
+        },
+    )
+
+    result = refresh_external.pre_daily_check(cfg, today=date(2026, 7, 13))
+
+    assert result["ready"] is True
+    assert result["blocking_sources"] == []
+
+
 def test_refresh_external_pre_daily_check_warns_for_policy_stale_dollar(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
     cfg["features"]["use_soft_data_max_age"] = True

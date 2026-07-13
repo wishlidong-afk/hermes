@@ -147,7 +147,12 @@ def build_unified(real_funding: pd.DataFrame, real_dvol: pd.DataFrame,
     if existing_proxy is not None and not existing_proxy.empty:
         base = existing_proxy.copy()
         base["date"] = pd.to_datetime(base["date"]).dt.normalize()
-        base["is_proxy"] = True
+        if "is_proxy" not in base:
+            base["is_proxy"] = True
+        elif base["is_proxy"].dtype != bool:
+            base["is_proxy"] = base["is_proxy"].map(
+                lambda value: str(value).strip().lower() not in {"false", "0", "no"}
+            )
     else:
         base = pd.DataFrame(columns=["date", "btc_funding_8h_avg", "btc_basis_annual"])
         base["is_proxy"] = True

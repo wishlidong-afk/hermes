@@ -262,72 +262,8 @@ def refresh_external_sources() -> list[dict]:
 # ── Step 1b: refresh legacy slow soft data (non-runner sources) ───────────────
 
 def refresh_soft_data() -> None:
-    """Refresh slow-moving soft-data CSVs not yet owned by ExternalSourceRunner.
-
-    Non-fatal: a failure here does not block scoring; the scoring engine will
-    use whatever cached soft data exists and report staleness via health.py.
-    FRED, AAII and NAAIM are refreshed earlier through ExternalSourceRunner, so
-    this legacy block must not write their canonical files again.
-    """
-    print("[M4-1b] Refreshing legacy soft data sources (COT/OCC/CBOE/BTC)…")
-
-    result4 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
-         "--only", "cot"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    if result4.returncode != 0:
-        print("[M4-1b] WARNING: COT NQ refresh failed (weekly — normal if CFTC site is down); continuing.")
-    else:
-        print("[M4-1b] COT NQ OK.")
-
-    result5 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_occ_pcr",
-         "--weeks", "3"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    if result5.returncode != 0:
-        print("[M4-1b] WARNING: OCC PCR refresh failed (weekly Friday report); continuing.")
-    else:
-        print("[M4-1b] OCC equity PCR OK.")
-
-    result6 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.refresh_cboe_daily_pcr"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    if result6.returncode != 0:
-        print("[M4-1b] WARNING: CBOE daily PCR refresh failed/rejected (cache kept); continuing.")
-        print((result6.stdout or result6.stderr or "")[-200:])
-    else:
-        print("[M4-1b] CBOE daily PCR OK.")
-
-    # BTC funding/DVOL (data_btc_funding defaults ON): its own script was never
-    # wired here, so the source drifted 13d stale (2026-06-02) while still being
-    # scored. Deribit/OKX, stdlib-only, non-fatal like the rest.
-    result8 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_crypto_micro"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=90,
-    )
-    if result8.returncode != 0:
-        print("[M4-1b] WARNING: BTC funding/DVOL refresh failed (Deribit/OKX); continuing.")
-    else:
-        print("[M4-1b] BTC funding/DVOL OK.")
+    """Compatibility hook; every external soft-data writer is runner-owned."""
+    print("[M4-1b] Legacy soft refresh skipped; ExternalSourceRunner owns all canonical feeds.")
 
 
 # ── Step 2: run the package score pipeline ────────────────────────────────────

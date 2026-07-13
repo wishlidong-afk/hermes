@@ -42,3 +42,26 @@ def test_profile_default_slo_comes_from_config_default():
     assert profile is not None
     assert profile.max_age_days == 17
     assert profile.warn_age_days == 15
+
+
+def test_disabled_research_source_is_not_active_for_daily_readiness():
+    config = {
+        "features": {"data_cot_nq": False},
+        "soft_data_slo": {"default_max_age_days": 13},
+    }
+
+    profile = _effective_source_profile(config, "cot_nq")
+
+    assert profile is not None
+    assert profile.active is False
+    assert profile.decision_weight == 4.0
+
+
+def test_btc_micro_remains_active_when_legacy_flag_is_absent():
+    profile = _effective_source_profile(
+        {"features": {}, "soft_data_slo": {"default_max_age_days": 13}},
+        "btc_funding_basis",
+    )
+
+    assert profile is not None
+    assert profile.active is True

@@ -23,6 +23,8 @@ class ExternalSourceProfile:
     pit_rule: str = "observation_date"
     migration_deadline: str | None = None
     slo_key: str | None = None
+    active: bool = True
+    feature_default: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -111,6 +113,56 @@ PROFILES: dict[str, ExternalSourceProfile] = {
             "~/Downloads/sentiment*.csv",
         ),
     ),
+    "cboe_equity_pcr": ExternalSourceProfile(
+        source_id="cboe_equity_pcr",
+        label="CBOE Equity Put/Call",
+        cadence="daily",
+        max_age_days=6,
+        warn_age_days=4,
+        primary="CBOE daily market statistics",
+        fallback="keep last validated CBOE observation",
+        feature_flag="data_cboe_pcr",
+        decision_weight=2.0,
+        pit_rule="observation_date_plus_one_day",
+        slo_key="cboe_pcr",
+    ),
+    "cot_nq": ExternalSourceProfile(
+        source_id="cot_nq",
+        label="CFTC NQ Commitments of Traders",
+        cadence="weekly",
+        max_age_days=13,
+        warn_age_days=10,
+        primary="CFTC public reporting API",
+        fallback="keep last validated weekly report",
+        feature_flag="data_cot_nq",
+        decision_weight=4.0,
+        pit_rule="tuesday_observation_friday_publication",
+    ),
+    "occ_equity_pcr": ExternalSourceProfile(
+        source_id="occ_equity_pcr",
+        label="OCC Weekly Equity Put/Call",
+        cadence="weekly",
+        max_age_days=13,
+        warn_age_days=10,
+        primary="OCC weekly volume report",
+        fallback="keep local immutable history",
+        decision_weight=0.0,
+        pit_rule="week_ending_friday_plus_one_day",
+        active=False,
+    ),
+    "btc_funding_basis": ExternalSourceProfile(
+        source_id="btc_funding_basis",
+        label="BTC Funding / Basis / DVOL",
+        cadence="daily",
+        max_age_days=6,
+        warn_age_days=4,
+        primary="Deribit public API",
+        fallback="OKX funding API",
+        feature_flag="data_btc_funding",
+        decision_weight=0.0,
+        pit_rule="exchange_timestamp_utc_day",
+        feature_default=True,
+    ),
 }
 
 
@@ -130,13 +182,20 @@ def effective_source_profile(
     per_source = slo.get("max_age_days") or {}
     key = profile.slo_key or profile.source_id
     configured = per_source.get(key, slo.get("default_max_age_days"))
-    if configured is None:
-        return profile
-    max_age = max(0, int(configured))
+    max_age = profile.max_age_days if configured is None else max(0, int(configured))
+    active = profile.active
+    if profile.feature_flag:
+        active = bool(
+            ((config or {}).get("features") or {}).get(
+                profile.feature_flag,
+                profile.feature_default,
+            )
+        )
     return replace(
         profile,
         max_age_days=max_age,
         warn_age_days=max(0, max_age - 2),
+        active=active,
     )
 
 

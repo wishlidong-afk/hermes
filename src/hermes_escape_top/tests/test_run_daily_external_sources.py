@@ -35,16 +35,17 @@ def test_refresh_external_sources_keeps_daily_alive_on_single_source_failure(mon
         lambda: {
             "ready": False,
             "blocking_sources": ["real_rate"],
-            "warning_sources": [],
-            "refresh": {
-                "runs": [
-                    {"source_id": "dollar", "status": "OK"},
-                    {"source_id": "real_rate", "status": "ERROR", "error": "fred timeout"},
-                    {"source_id": "fred_net_liquidity", "status": "OK"},
-                    {"source_id": "naaim_exposure", "status": "OK"},
-                    {"source_id": "aaii_sentiment", "status": "OK"},
-                ]
-            },
+                "warning_sources": [],
+                "refresh": {
+                    "runs": [
+                        {
+                            "source_id": source_id,
+                            "status": "ERROR" if source_id == "real_rate" else "OK",
+                            **({"error": "fred timeout"} if source_id == "real_rate" else {}),
+                        }
+                        for source_id in rdp.refresh_external.SOURCE_IDS
+                    ]
+                },
         },
     )
 
@@ -58,7 +59,7 @@ def test_refresh_external_sources_keeps_daily_alive_on_single_source_failure(mon
     assert by_source["fred_net_liquidity"]["status"] == "OK"
 
 
-def test_refresh_soft_data_does_not_write_runner_owned_fred_aaii_or_naaim(monkeypatch):
+def test_refresh_soft_data_has_no_direct_canonical_writers_after_runner_migration(monkeypatch):
     calls = []
 
     def fake_run(args, **_kwargs):
@@ -74,13 +75,17 @@ def test_refresh_soft_data_does_not_write_runner_owned_fred_aaii_or_naaim(monkey
         for args in calls
         if "--only" in args
     ]
-    assert only_args == ["cot"]
+    assert only_args == []
     module_names = [
         args[args.index("-m") + 1]
         for args in calls
         if "-m" in args
     ]
     assert "hermes_escape_top.scripts.refresh_aaii_public" not in module_names
+    assert "hermes_escape_top.scripts.backfill_cot" not in module_names
+    assert "hermes_escape_top.scripts.backfill_occ_pcr" not in module_names
+    assert "hermes_escape_top.scripts.refresh_cboe_daily_pcr" not in module_names
+    assert "hermes_escape_top.scripts.backfill_crypto_micro" not in module_names
     assert "naaim" not in only_args
 
 
