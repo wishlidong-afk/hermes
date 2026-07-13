@@ -1,5 +1,10 @@
 # External Data Automation Plan - 2026-07-01
 
+> Historical implementation plan, updated 2026-07-13 to remove a dangerous PIT
+> ambiguity. The implemented architecture is documented in `context.md`,
+> `docs/PRODUCTION_RUNBOOK.md`, and
+> `docs/history/2026-07-13_data_quality_hardening_handoff.md`.
+
 > Scope: make Hermes external data boring, auditable, and source-specific. This plan does not change scoring thresholds or enable new alpha flags. It changes how external data is fetched, validated, promoted, observed, and refreshed.
 
 ## 1. Why This Matters
@@ -136,7 +141,12 @@ Sources:
 Plan:
 
 - Use the FRED API when credentials exist.
-- Preserve `realtime_start` as PIT `publish_date`.
+- Record the standard observations API's top-level `realtime_start` and
+  `realtime_end` as query-vintage evidence only. They are not per-observation
+  first-release dates and must not become normalized `publish_date`.
+- Keep normalized `publish_date = observation_date + 1 day` for the current
+  conservative production convention. A true first-release timeline requires
+  a separately built ALFRED-vintage dataset and its own gate.
 - Treat Graph CSV fallback as lower confidence because it lacks full realtime metadata.
 - Add validators for date monotonicity, numeric value, and revision policy.
 
@@ -294,7 +304,9 @@ Minimum tests:
 - Successful refresh writes raw, normalized, validation, target CSV, and ledger row.
 - Web source refresh returns 409 under pipeline lock contention.
 - Health and trust zone read the same status object.
-- FRED adapter preserves `realtime_start` as PIT `publish_date`.
+- FRED raw evidence preserves query `realtime_start`/`realtime_end`, retrieval
+  time and PIT rule; normalized rows retain the conservative `date + 1 day`
+  publish date. Retrieval timestamps do not change the stable source input hash.
 - Alpaca SIP flow handles partial coverage and marks confidence lower.
 
 Runtime checks:
