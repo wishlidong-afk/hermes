@@ -35,6 +35,18 @@ class ExternalSourceProfile:
 
 
 PROFILES: dict[str, ExternalSourceProfile] = {
+    "fred_vintages": ExternalSourceProfile(
+        source_id="fred_vintages",
+        label="FRED/ALFRED Vintage Events",
+        cadence="daily",
+        max_age_days=6,
+        warn_age_days=4,
+        primary="FRED API output_type=3 exact vintage events",
+        fallback="freeze certified vintage store and all FRED-derived canonicals",
+        feature_flag="use_fred_vintage_pit",
+        decision_weight=0.0,
+        pit_rule="exact_realtime_start_vintage",
+    ),
     "dollar": ExternalSourceProfile(
         source_id="dollar",
         label="DXY / Dollar",
@@ -258,12 +270,23 @@ def effective_source_profile(
                 profile.feature_default,
             )
         )
-    return replace(
+    resolved = replace(
         profile,
         max_age_days=max_age,
         warn_age_days=max(0, max_age - 2),
         active=active,
     )
+    if (
+        source_id in {"dollar", "real_rate", "fred_net_liquidity"}
+        and bool(((config or {}).get("features") or {}).get("use_fred_vintage_pit", False))
+    ):
+        resolved = replace(
+            resolved,
+            primary="FRED/ALFRED exact vintage event store",
+            fallback="freeze last certified exact-vintage canonical",
+            pit_rule="exact_realtime_start_vintage",
+        )
+    return resolved
 
 
 def enrich_source_status(

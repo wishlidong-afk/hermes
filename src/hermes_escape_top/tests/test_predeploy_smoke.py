@@ -85,6 +85,72 @@ def test_fred_publish_date_check_passes_per_row(tmp_path, monkeypatch):
     assert ok, detail
 
 
+def test_fred_publish_date_check_accepts_late_exact_revision(tmp_path, monkeypatch):
+    d = tmp_path / "soft"
+    d.mkdir()
+    pd.DataFrame(
+        {
+            "series_id": ["DFII10"],
+            "observation_date": ["2020-01-02"],
+            "realtime_start": ["2026-06-13"],
+            "vintage_date": ["2026-06-13"],
+            "value": [1.2],
+            "is_missing": [False],
+            "fetched_at": ["2026-07-14T00:00:00+00:00"],
+            "source_url": ["https://api.stlouisfed.org/fred/series/observations"],
+            "response_sha256": ["a" * 64],
+        }
+    ).to_csv(d / "fred_vintages.csv", index=False)
+    pd.DataFrame(
+        {
+            "date": ["2020-01-02", "2020-01-03"],
+            "publish_date": ["2020-01-03", "2026-06-13"],
+            "realtime_start": ["2020-01-03", "2026-06-13"],
+            "vintage_date": ["2020-01-03", "2026-06-13"],
+            "real_rate_10y": [1.0, 1.2],
+            "real_rate_10y_pctl": [50.0, 60.0],
+        }
+    ).to_csv(d / "real_rate.csv", index=False)
+    monkeypatch.setattr(smoke, "resolve_path", lambda cfg, key: d)
+    config = {
+        "features": {"data_real_rate": True, "use_fred_vintage_pit": True},
+        "paths": {},
+    }
+
+    _, ok, detail = smoke.check_fred_publish_dates(config)
+
+    assert ok, detail
+
+
+def test_fred_publish_date_check_rejects_missing_or_mismatched_exact_evidence(
+    tmp_path,
+    monkeypatch,
+):
+    d = tmp_path / "soft"
+    d.mkdir()
+    pd.DataFrame(
+        {
+            "date": ["2020-01-02"],
+            "publish_date": ["2020-01-03"],
+            "realtime_start": ["2020-01-04"],
+            "vintage_date": ["2020-01-03"],
+            "real_rate_10y": [1.0],
+            "real_rate_10y_pctl": [50.0],
+        }
+    ).to_csv(d / "real_rate.csv", index=False)
+    monkeypatch.setattr(smoke, "resolve_path", lambda cfg, key: d)
+    config = {
+        "features": {"data_real_rate": True, "use_fred_vintage_pit": True},
+        "paths": {},
+    }
+
+    _, ok, detail = smoke.check_fred_publish_dates(config)
+
+    assert not ok
+    assert "fred_vintages.csv missing" in detail
+    assert "vintage columns disagree" in detail
+
+
 def test_unexplained_flip_flags_soft_flip_but_allows_valve():
     prev = {"scores": {"SOXL": {"status": "REDUCE", "hard_valve_hits": []}}}
     soft = {"scores": {"SOXL": {"status": "EXIT", "hard_valve_hits": []}}}

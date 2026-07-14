@@ -24,6 +24,9 @@ from hermes_escape_top.core.data.external_sources import (
     CotNqAdapter,
     FredNetLiquidityAdapter,
     FredPercentileAdapter,
+    FredVintageAdapter,
+    FredVintageNetLiquidityAdapter,
+    FredVintagePercentileAdapter,
     NaaimExposureAdapter,
     NaaimExposureImportAdapter,
     OccPcrAdapter,
@@ -35,6 +38,9 @@ from hermes_escape_top.core.data.external_sources import (
     effective_source_profile,
     fred_net_liquidity_spec,
     fred_percentile_spec,
+    fred_vintage_net_liquidity_spec,
+    fred_vintage_percentile_spec,
+    fred_vintage_spec,
     enrich_source_status,
     import_files,
     latest_import_file,
@@ -44,6 +50,7 @@ from hermes_escape_top.core.data.external_sources import (
     run_external_source_refresh,
     source_status,
 )
+from hermes_escape_top.core.data.risk_signals import fred_api_key
 from hermes_escape_top.core.data.external_sources.ledger import (
     canonical_evidence_issue,
     iter_source_runs,
@@ -64,8 +71,10 @@ SOURCE_IDS = (
     "naaim_exposure",
     "aaii_sentiment",
 )
+FRED_DERIVED_SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity")
+FRED_VINTAGE_SOURCE_IDS = ("fred_vintages",) + SOURCE_IDS
 CBOE_INDEX_SOURCE_IDS = tuple(CBOE_INDEX_DEFINITIONS)
-ALL_SOURCE_IDS = SOURCE_IDS + CBOE_INDEX_SOURCE_IDS
+ALL_SOURCE_IDS = FRED_VINTAGE_SOURCE_IDS + CBOE_INDEX_SOURCE_IDS
 IMPORT_FILE_SOURCE_IDS = ("naaim_exposure", "aaii_sentiment")
 POLICY_WARN_ONLY_STALE_SOURCE_IDS = frozenset({"dollar"})
 DAILY_RETRY_REUSE_SECONDS = 15 * 60
@@ -75,8 +84,40 @@ OFFICIAL_BROWSER_URLS = {
 }
 
 
+def _fred_vintage_enabled(config: dict[str, Any]) -> bool:
+    return bool((config.get("features") or {}).get("use_fred_vintage_pit", False))
+
+
+def _fred_vintage_path(config: dict[str, Any]) -> Path:
+    return resolve_path(config, "soft_history_dir") / "fred_vintages.csv"
+
+
+def fred_vintages_source(config: dict[str, Any]):
+    target = _fred_vintage_path(config)
+    return (
+        fred_vintage_spec(target_path=target),
+        FredVintageAdapter(
+            target_path=target,
+            api_key=fred_api_key(config),
+        ),
+    )
+
+
 def dollar_source(config: dict[str, Any]):
     target = resolve_path(config, "soft_history_dir") / "dollar.csv"
+    if _fred_vintage_enabled(config):
+        return (
+            fred_vintage_percentile_spec(
+                source_id="dollar",
+                target_path=target,
+                field="dollar_broad",
+            ),
+            FredVintagePercentileAdapter(
+                vintage_path=_fred_vintage_path(config),
+                series_id="DTWEXBGS",
+                field="dollar_broad",
+            ),
+        )
     spec = fred_percentile_spec(
         source_id="dollar",
         target_path=target,
@@ -91,6 +132,19 @@ def dollar_source(config: dict[str, Any]):
 
 def real_rate_source(config: dict[str, Any]):
     target = resolve_path(config, "soft_history_dir") / "real_rate.csv"
+    if _fred_vintage_enabled(config):
+        return (
+            fred_vintage_percentile_spec(
+                source_id="real_rate",
+                target_path=target,
+                field="real_rate_10y",
+            ),
+            FredVintagePercentileAdapter(
+                vintage_path=_fred_vintage_path(config),
+                series_id="DFII10",
+                field="real_rate_10y",
+            ),
+        )
     spec = fred_percentile_spec(
         source_id="real_rate",
         target_path=target,
@@ -105,6 +159,11 @@ def real_rate_source(config: dict[str, Any]):
 
 def fred_net_liquidity_source(config: dict[str, Any]):
     target = resolve_path(config, "soft_history_dir") / "fred_net_liquidity.csv"
+    if _fred_vintage_enabled(config):
+        return (
+            fred_vintage_net_liquidity_spec(target_path=target),
+            FredVintageNetLiquidityAdapter(vintage_path=_fred_vintage_path(config)),
+        )
     return fred_net_liquidity_spec(target_path=target), FredNetLiquidityAdapter()
 
 
@@ -149,6 +208,7 @@ def cboe_index_source(source_id: str, config: dict[str, Any]):
 
 def source_factories():
     factories = {
+        "fred_vintages": fred_vintages_source,
         "dollar": dollar_source,
         "real_rate": real_rate_source,
         "fred_net_liquidity": fred_net_liquidity_source,
@@ -171,9 +231,10 @@ def source_factories():
 
 
 def configured_source_ids(config: dict[str, Any]) -> tuple[str, ...]:
+    base = FRED_VINTAGE_SOURCE_IDS if _fred_vintage_enabled(config) else SOURCE_IDS
     if bool((config.get("features") or {}).get("use_cboe_official_indices", False)):
-        return ALL_SOURCE_IDS
-    return SOURCE_IDS
+        return base + CBOE_INDEX_SOURCE_IDS
+    return base
 
 
 def source_specs(config: dict[str, Any]):
@@ -232,13 +293,34 @@ def refresh_source(
     return result
 
 
-def refresh_all_sources(config: dict[str, Any] | None = None, *, auto_import: bool = True) -> dict[str, Any]:
-    cfg = config or load_config()
+def _refresh_sources_with_dependencies(
+    source_ids: tuple[str, ...] | list[str],
+    cfg: dict[str, Any],
+    *,
+    auto_import: bool,
+) -> list[dict[str, Any]]:
     runs: list[dict[str, Any]] = []
-    for source_id in configured_source_ids(cfg):
+    fred_vintage_ready = True
+    for source_id in source_ids:
+        if (
+            _fred_vintage_enabled(cfg)
+            and source_id in FRED_DERIVED_SOURCE_IDS
+            and not fred_vintage_ready
+        ):
+            runs.append(
+                {
+                    "source_id": source_id,
+                    "status": "SKIPPED_DEPENDENCY",
+                    "dependency": "fred_vintages",
+                    "error": "exact FRED vintage refresh failed; certified canonical retained",
+                }
+            )
+            continue
         try:
             run = refresh_source(source_id, cfg, auto_import=auto_import)
             runs.append(run)
+            if source_id == "fred_vintages":
+                fred_vintage_ready = str(run.get("status") or "") == "OK"
         except Exception as exc:
             runs.append(
                 {
@@ -248,6 +330,18 @@ def refresh_all_sources(config: dict[str, Any] | None = None, *, auto_import: bo
                     "error": str(exc),
                 }
             )
+            if source_id == "fred_vintages":
+                fred_vintage_ready = False
+    return runs
+
+
+def refresh_all_sources(config: dict[str, Any] | None = None, *, auto_import: bool = True) -> dict[str, Any]:
+    cfg = config or load_config()
+    runs = _refresh_sources_with_dependencies(
+        configured_source_ids(cfg),
+        cfg,
+        auto_import=auto_import,
+    )
     ok_count = sum(1 for run in runs if str(run.get("status")) == "OK")
     error_count = len(runs) - ok_count
     return {
@@ -272,19 +366,7 @@ def refresh_retry_sources(
         for source_id in configured_source_ids(cfg)
         if _source_needs_retry(current.get(source_id) or {}, day)
     ]
-    runs: list[dict[str, Any]] = []
-    for source_id in selected:
-        try:
-            runs.append(refresh_source(source_id, cfg, auto_import=True))
-        except Exception as exc:
-            runs.append(
-                {
-                    "source_id": source_id,
-                    "status": "ERROR",
-                    "error_type": exc.__class__.__name__,
-                    "error": str(exc),
-                }
-            )
+    runs = _refresh_sources_with_dependencies(selected, cfg, auto_import=True)
     ok_count = sum(1 for run in runs if str(run.get("status") or "") == "OK")
     return {
         "ok": ok_count == len(runs),

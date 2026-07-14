@@ -143,6 +143,28 @@ def check_fred_publish_dates(config: Dict[str, Any]) -> CheckResult:
     feats = config.get("features", {}) or {}
     base = resolve_path(config, "soft_history_dir")
     bad: List[str] = []
+    exact_vintage = bool(feats.get("use_fred_vintage_pit", False))
+    if exact_vintage:
+        vintage_path = base / "fred_vintages.csv"
+        if not vintage_path.exists():
+            bad.append("fred_vintages.csv missing")
+        else:
+            try:
+                events = pd.read_csv(vintage_path)
+                required = {
+                    "series_id",
+                    "observation_date",
+                    "realtime_start",
+                    "vintage_date",
+                    "response_sha256",
+                }
+                missing = sorted(required - set(events.columns))
+                if missing:
+                    bad.append("fred_vintages.csv missing columns: " + ", ".join(missing))
+                elif events.duplicated(["series_id", "observation_date", "vintage_date"]).any():
+                    bad.append("fred_vintages.csv duplicate ALFRED event keys")
+            except Exception as exc:
+                bad.append(f"fred_vintages.csv unreadable: {exc}")
     for name, flag in FRED_SOFT_SOURCES.items():
         if not feats.get(flag, False):
             continue
@@ -150,16 +172,38 @@ def check_fred_publish_dates(config: Dict[str, Any]) -> CheckResult:
         if not path.exists():
             bad.append(f"{name}: CSV missing")
             continue
-        df = pd.read_csv(path, parse_dates=["date", "publish_date"])
+        try:
+            df = pd.read_csv(path, parse_dates=["date", "publish_date"])
+        except Exception as exc:
+            bad.append(f"{name}: CSV unreadable: {exc}")
+            continue
         if df.empty or "publish_date" not in df.columns:
             continue
         if len(df) > 1 and df["publish_date"].nunique() <= 1:
             bad.append(f"{name}: publish_date collapsed to one value "
                        f"({df['publish_date'].iloc[-1].date()}) — realtime_start regression")
             continue
-        lag = (df["publish_date"] - df["date"]).dt.days
-        if float(lag.max()) > 5:
-            bad.append(f"{name}: publish_date lags up to {int(lag.max())}d (>5; future-stamp?)")
+        if exact_vintage:
+            required = {"realtime_start", "vintage_date"}
+            if not required.issubset(df.columns):
+                bad.append(f"{name}: exact vintage columns missing")
+                continue
+            realtime = pd.to_datetime(df["realtime_start"], errors="coerce")
+            vintage = pd.to_datetime(df["vintage_date"], errors="coerce")
+            published = pd.to_datetime(df["publish_date"], errors="coerce")
+            if (
+                realtime.isna().any()
+                or vintage.isna().any()
+                or not realtime.equals(vintage)
+                or not realtime.equals(published)
+            ):
+                bad.append(f"{name}: vintage columns disagree")
+            if not published.is_monotonic_increasing or published.duplicated().any():
+                bad.append(f"{name}: exact publish_date must be unique and monotonic")
+        else:
+            lag = (df["publish_date"] - df["date"]).dt.days
+            if float(lag.max()) > 5:
+                bad.append(f"{name}: publish_date lags up to {int(lag.max())}d (>5; future-stamp?)")
     return ("FRED publish_date per-row", not bad, "OK" if not bad else "; ".join(bad))
 
 

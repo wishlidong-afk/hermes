@@ -309,6 +309,74 @@ def fred_vintage_spec(*, target_path: Path) -> ExternalSourceSpec:
     )
 
 
+def _validate_derived_vintage_frame(frame: pd.DataFrame) -> str | None:
+    observed = pd.to_datetime(frame["date"], errors="coerce")
+    published = pd.to_datetime(frame["publish_date"], errors="coerce")
+    vintage = pd.to_datetime(frame["vintage_date"], errors="coerce")
+    realtime = pd.to_datetime(frame["realtime_start"], errors="coerce")
+    if observed.isna().any() or published.isna().any() or vintage.isna().any() or realtime.isna().any():
+        return "unparseable exact-vintage derived dates"
+    if not published.equals(vintage) or not published.equals(realtime):
+        return "publish_date, realtime_start, and vintage_date must match"
+    if (observed > published).any():
+        return "derived observation date cannot be after publish date"
+    return None
+
+
+def fred_vintage_percentile_spec(
+    *,
+    source_id: str,
+    target_path: Path,
+    field: str,
+) -> ExternalSourceSpec:
+    return ExternalSourceSpec(
+        source_id=source_id,
+        target_path=target_path,
+        date_column="publish_date",
+        required_columns=(
+            "date",
+            "publish_date",
+            "realtime_start",
+            "vintage_date",
+            "fetched_at",
+            field,
+            f"{field}_pctl",
+        ),
+        min_rows=1,
+        semantic_validator=_validate_derived_vintage_frame,
+        pit_rule="exact_realtime_start_vintage",
+        source_url=FRED_OBSERVATIONS_URL,
+    )
+
+
+def fred_vintage_net_liquidity_spec(*, target_path: Path) -> ExternalSourceSpec:
+    return ExternalSourceSpec(
+        source_id="fred_net_liquidity",
+        target_path=target_path,
+        date_column="publish_date",
+        required_columns=(
+            "date",
+            "publish_date",
+            "realtime_start",
+            "vintage_date",
+            "fetched_at",
+            "walcl",
+            "wtregen",
+            "rrp",
+            "net_liq",
+            "net_liq_chg10",
+            "net_liq_chg10_pctl",
+            "walcl_realtime_start",
+            "wtregen_realtime_start",
+            "rrp_realtime_start",
+        ),
+        min_rows=1,
+        semantic_validator=_validate_derived_vintage_frame,
+        pit_rule="exact_realtime_start_vintage",
+        source_url=FRED_OBSERVATIONS_URL,
+    )
+
+
 def _normalized_events(events: pd.DataFrame) -> pd.DataFrame:
     frame = events.copy()
     for column in ("observation_date", "vintage_date", "realtime_start"):

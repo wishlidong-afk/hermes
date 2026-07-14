@@ -516,6 +516,27 @@ def test_external_source_ops_shows_latest_failed_attempt_over_cached_ok_status()
     assert "CBOE VIX" in html
 
 
+def test_external_source_ops_discloses_fred_api_non_endorsement():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "fred_vintages": {
+            "source_id": "fred_vintages",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-07-13",
+        }
+    }
+
+    html = render_mod.render_dashboard(
+        payload,
+        health={"level": "OK"},
+        manifest_status={"status": "OK"},
+    )
+
+    assert "FRED/ALFRED Vintage Events" in html
+    assert "uses the FRED® API" in html
+    assert "not endorsed or certified by the Federal Reserve Bank of St. Louis" in html
+
+
 def test_external_precheck_table_uses_latest_attempt_time_and_error():
     payload = {
         "external_source_status": {

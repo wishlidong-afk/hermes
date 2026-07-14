@@ -6,6 +6,14 @@ from .cboe_indices import (
     cboe_index_spec,
 )
 from .fred import FredNetLiquidityAdapter, FredPercentileAdapter, fred_net_liquidity_spec, fred_percentile_spec
+from .fred_vintage import (
+    FredVintageAdapter,
+    FredVintageNetLiquidityAdapter,
+    FredVintagePercentileAdapter,
+    fred_vintage_net_liquidity_spec,
+    fred_vintage_percentile_spec,
+    fred_vintage_spec,
+)
 from .ledger import latest_source_run, source_status
 from .market_soft import (
     BtcMicroAdapter,
@@ -43,6 +51,9 @@ __all__ = [
     "ExternalSourceProfile",
     "FredNetLiquidityAdapter",
     "FredPercentileAdapter",
+    "FredVintageAdapter",
+    "FredVintageNetLiquidityAdapter",
+    "FredVintagePercentileAdapter",
     "NaaimExposureAdapter",
     "NaaimExposureImportAdapter",
     "OccPcrAdapter",
@@ -53,6 +64,9 @@ __all__ = [
     "cot_nq_spec",
     "fred_net_liquidity_spec",
     "fred_percentile_spec",
+    "fred_vintage_net_liquidity_spec",
+    "fred_vintage_percentile_spec",
+    "fred_vintage_spec",
     "naaim_exposure_spec",
     "occ_pcr_spec",
     "latest_source_run",

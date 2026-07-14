@@ -69,6 +69,23 @@ def test_btc_micro_remains_active_when_legacy_flag_is_absent():
     assert profile.active is True
 
 
+def test_fred_vintage_policy_is_inactive_by_default_and_exact_when_enabled():
+    disabled = _effective_source_profile({"features": {}}, "fred_vintages")
+    enabled_config = {"features": {"use_fred_vintage_pit": True}}
+    enabled = _effective_source_profile(enabled_config, "fred_vintages")
+    dollar = _effective_source_profile(enabled_config, "dollar")
+
+    assert disabled is not None
+    assert disabled.active is False
+    assert enabled is not None
+    assert enabled.active is True
+    assert enabled.decision_weight == 0.0
+    assert enabled.pit_rule == "exact_realtime_start_vintage"
+    assert dollar is not None
+    assert dollar.primary == "FRED/ALFRED exact vintage event store"
+    assert dollar.pit_rule == "exact_realtime_start_vintage"
+
+
 def test_naaim_status_marks_subscription_migration_due_before_deadline():
     profile = _effective_source_profile({}, "naaim_exposure")
 

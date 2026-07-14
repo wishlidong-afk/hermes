@@ -63,6 +63,7 @@ TRUST_SOURCE_MAX_AGE_DAYS = {
 }
 
 EXTERNAL_SOURCE_ORDER = [
+    "fred_vintages",
     "dollar",
     "real_rate",
     "fred_net_liquidity",
@@ -75,6 +76,7 @@ EXTERNAL_SOURCE_ORDER = [
     "cboe_vvix",
 ]
 EXTERNAL_SOURCE_LABELS = {
+    "fred_vintages": "FRED/ALFRED Vintage Events",
     "dollar": "DXY / Dollar",
     "real_rate": "10Y Real Rate",
     "fred_net_liquidity": "FRED Net Liquidity",
@@ -3565,6 +3567,7 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
         "</div>"
         f"{_render_external_import_candidates(payload)}"
         "<div class='subtle' style='margin-top:7px'>"
+        "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis. "
         "AAII/NAAIM 自动抓取失败时，只接受官方下载文件导入："
         "<code>PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source aaii_sentiment --import-file ~/.hermes/external_imports/sentiment.xls</code>"
         "；"
