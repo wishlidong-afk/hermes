@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import hashlib
-from datetime import date
+from contextlib import contextmanager
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -23,6 +24,14 @@ def _config(tmp_path):
             "data_net_liquidity": True,
             "data_naaim": True,
             "data_aaii": True,
+        },
+        "soft_data_slo": {
+            "default_max_age_days": 13,
+            "max_age_days": {
+                "dollar": 6,
+                "real_rate": 6,
+                "net_liquidity": 6,
+            },
         },
     }
 
@@ -184,6 +193,7 @@ def test_refresh_external_status_prints_latest_ledger(monkeypatch, tmp_path, cap
 
 def test_refresh_external_status_adds_profile_and_freshness(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
+    monkeypatch.setattr(refresh_external, "pending_import_file", lambda *_args: None)
     append_source_run(
         tmp_path / "archive",
         {
@@ -204,12 +214,28 @@ def test_refresh_external_status_adds_profile_and_freshness(monkeypatch, tmp_pat
     out = refresh_external.status(cfg, today=date(2026, 7, 2))
 
     assert out["dollar"]["cadence"] == "weekly"
-    assert out["dollar"]["max_age_days"] == 10
+    assert out["dollar"]["max_age_days"] == 6
     assert out["dollar"]["age_days"] == 14
     assert out["dollar"]["freshness_status"] == "STALE"
     assert out["dollar"]["next_action"].startswith("run refresh_external")
     assert out["aaii_sentiment"]["failure_kind"] == "AUTH_REQUIRED"
     assert "--import-file" in out["aaii_sentiment"]["next_action"]
+
+
+def test_status_marks_unconsumed_official_artifact_ready(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    staged = tmp_path / "sentiment.xls"
+    staged.write_bytes(b"new official issue")
+    monkeypatch.setattr(
+        refresh_external,
+        "pending_import_file",
+        lambda source_id, _archive: staged if source_id == "aaii_sentiment" else None,
+    )
+
+    out = refresh_external.status(cfg, today=date(2026, 7, 13))
+
+    assert out["aaii_sentiment"]["official_artifact_ready"] is True
+    assert out["aaii_sentiment"]["migration_status"] == "OFFICIAL_FILE_READY"
 
 
 def test_refresh_external_status_explains_due_soon_after_same_day_success(tmp_path):
@@ -220,13 +246,13 @@ def test_refresh_external_status_explains_due_soon_after_same_day_success(tmp_pa
             "source_id": "dollar",
             "status": "OK",
             "latest_promoted_as_of": "2026-06-26",
-            "finished_at": "2026-07-04T12:56:31+00:00",
+            "finished_at": "2026-07-03T22:45:31+00:00",
         },
     )
 
     out = refresh_external.status(cfg, today=date(2026, 7, 4))
 
-    assert out["dollar"]["freshness_status"] == "DUE_SOON"
+    assert out["dollar"]["freshness_status"] == "STALE"
     assert out["dollar"]["publisher_status"] == "UNCHANGED_AFTER_REFRESH"
     assert "wait for publisher update" in out["dollar"]["next_action"]
     assert "run refresh_external --source dollar" not in out["dollar"]["next_action"]
@@ -257,6 +283,275 @@ def test_refresh_external_all_sources_keeps_going_on_single_failure(monkeypatch,
     assert "blocked" in result["runs"][-1]["error"]
 
 
+def test_retry_needed_only_runs_failed_same_day_sources(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    calls = []
+    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("dollar", "aaii_sentiment"))
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "finished_at": "2026-07-13T06:45:00+08:00",
+            },
+            "aaii_sentiment": {
+                "source_id": "aaii_sentiment",
+                "status": "OK",
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "latest_attempt_status": "FETCH_ERROR",
+                "latest_attempt_finished_at": "2026-07-13T06:45:00+08:00",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_source",
+        lambda source_id, config=None, auto_import=True: calls.append(source_id)
+        or {"source_id": source_id, "status": "OK"},
+    )
+
+    result = refresh_external.refresh_retry_sources(cfg, today=date(2026, 7, 13))
+
+    assert calls == ["aaii_sentiment"]
+    assert result["mode"] == "retry_needed"
+    assert result["selected_sources"] == ["aaii_sentiment"]
+
+
+def test_daily_source_check_reuses_utc_ledger_row_from_same_shanghai_day(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("dollar",))
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "finished_at": "2026-07-12T22:45:00+00:00",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must not refetch")),
+    )
+
+    result = refresh_external.daily_source_check(cfg, today=date(2026, 7, 13))
+
+    assert result["refresh"]["mode"] == "reuse_same_day"
+    assert result["ready"] is True
+
+
+def test_refresh_retry_sources_defaults_to_shanghai_operating_day(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    expected = date(2026, 7, 13)
+    seen = []
+    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("dollar",))
+    monkeypatch.setattr(refresh_external, "shanghai_today", lambda: expected)
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: seen.append(today)
+        or {"dollar": {"source_id": "dollar", "active": False}},
+    )
+
+    result = refresh_external.refresh_retry_sources(cfg)
+
+    assert seen == [expected]
+    assert result["selected_sources"] == []
+
+
+def test_daily_source_check_retries_failed_0645_attempt_when_0705_was_missed(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("aaii_sentiment",))
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "aaii_sentiment": {
+                "source_id": "aaii_sentiment",
+                "status": "OK",
+                "active": True,
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "latest_attempt_status": "FETCH_ERROR",
+                "latest_attempt_finished_at": "2026-07-12T22:45:00+00:00",
+            }
+        },
+    )
+    calls = []
+    monkeypatch.setattr(
+        refresh_external,
+        "pre_daily_check",
+        lambda config=None, today=None, retry_only=False: calls.append(retry_only)
+        or {"ready": True, "refresh": {"mode": "retry_needed"}},
+    )
+
+    result = refresh_external.daily_source_check(
+        cfg,
+        today=date(2026, 7, 13),
+        now=datetime(2026, 7, 12, 23, 10, tzinfo=timezone.utc),
+    )
+
+    assert calls == [True]
+    assert result["refresh"]["mode"] == "retry_needed"
+
+
+def test_daily_source_check_reuses_recent_0705_failed_retry(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("aaii_sentiment",))
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "aaii_sentiment": {
+                "source_id": "aaii_sentiment",
+                "status": "OK",
+                "active": True,
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "latest_attempt_status": "FETCH_ERROR",
+                "latest_attempt_finished_at": "2026-07-12T23:05:00+00:00",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "pre_daily_check",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must reuse recent retry")),
+    )
+
+    result = refresh_external.daily_source_check(
+        cfg,
+        today=date(2026, 7, 13),
+        now=datetime(2026, 7, 12, 23, 10, tzinfo=timezone.utc),
+    )
+
+    assert result["refresh"]["mode"] == "reuse_same_day"
+    assert result["refresh"]["error_count"] == 1
+
+
+def test_daily_source_check_ignores_inactive_sources_for_same_day_reuse(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("dollar", "occ_equity_pcr"))
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "active": True,
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "finished_at": "2026-07-12T23:05:00+00:00",
+            },
+            "occ_equity_pcr": {
+                "source_id": "occ_equity_pcr",
+                "status": "MISSING",
+                "active": False,
+                "freshness_status": "UNKNOWN",
+                "evidence_status": "NO_LEDGER",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "pre_daily_check",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("inactive source must not force a full refresh")
+        ),
+    )
+
+    result = refresh_external.daily_source_check(
+        cfg,
+        today=date(2026, 7, 13),
+        now=datetime(2026, 7, 12, 23, 10, tzinfo=timezone.utc),
+    )
+
+    assert result["ready"] is True
+    assert result["refresh"]["mode"] == "reuse_same_day"
+    assert result["refresh"]["ok_count"] == 1
+    assert result["refresh"]["error_count"] == 0
+
+
+def test_retry_needed_cli_runs_selective_precheck(monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr(
+        refresh_external,
+        "pre_daily_check",
+        lambda *args, **kwargs: calls.append(kwargs)
+        or {"ready": True, "refresh": {"mode": "retry_needed"}},
+    )
+
+    rc = refresh_external.main(["--retry-needed"])
+
+    assert rc == 0
+    assert calls == [{"retry_only": True}]
+    assert '"mode": "retry_needed"' in capsys.readouterr().out
+
+
+def test_mutating_cli_holds_pipeline_lock(monkeypatch, capsys):
+    events = []
+
+    @contextmanager
+    def fake_pipeline_lock(*, blocking, timeout):
+        events.append(("enter", blocking, timeout))
+        yield object()
+        events.append(("exit", blocking, timeout))
+
+    monkeypatch.setattr(refresh_external, "pipeline_lock", fake_pipeline_lock)
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda auto_import=True: {"ok": True, "runs": [], "mode": "all"},
+    )
+
+    rc = refresh_external.main(["--all", "--lock-timeout", "0"])
+
+    assert rc == 0
+    assert events == [("enter", True, 0.0), ("exit", True, 0.0)]
+    assert '"mode": "all"' in capsys.readouterr().out
+
+
+def test_mutating_cli_routes_adapter_progress_to_stderr(monkeypatch, capsys):
+    def noisy_refresh(*, auto_import=True):
+        print("provider progress")
+        return {"ok": True, "runs": [], "mode": "all"}
+
+    monkeypatch.setattr(refresh_external, "refresh_all_sources", noisy_refresh)
+
+    rc = refresh_external.main(["--all", "--lock-timeout", "0"])
+
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert json.loads(captured.out)["mode"] == "all"
+    assert "provider progress" in captured.err
+
+
+def test_status_cli_does_not_acquire_pipeline_lock(monkeypatch, capsys):
+    monkeypatch.setattr(
+        refresh_external,
+        "pipeline_lock",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("status must remain read-only")),
+        raising=False,
+    )
+    monkeypatch.setattr(refresh_external, "status", lambda: {})
+
+    rc = refresh_external.main(["--status"])
+
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out) == {}
+
+
 def test_refresh_external_pre_daily_check_marks_stale_sources_not_ready(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
     monkeypatch.setattr(
@@ -278,6 +573,38 @@ def test_refresh_external_pre_daily_check_marks_stale_sources_not_ready(monkeypa
     assert result["ready"] is False
     assert result["blocking_sources"] == ["dollar"]
     assert result["sources"]["dollar"]["next_action"] == "refresh dollar"
+
+
+def test_inactive_research_source_does_not_block_daily_readiness(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda config=None, auto_import=True: {
+            "ok": False,
+            "ok_count": 0,
+            "error_count": 1,
+            "runs": [{"source_id": "cot_nq", "status": "FETCH_ERROR"}],
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "cot_nq": {
+                "source_id": "cot_nq",
+                "status": "MISSING",
+                "freshness_status": "UNKNOWN",
+                "evidence_status": "NO_LEDGER",
+                "active": False,
+            }
+        },
+    )
+
+    result = refresh_external.pre_daily_check(cfg, today=date(2026, 7, 13))
+
+    assert result["ready"] is True
+    assert result["blocking_sources"] == []
 
 
 def test_refresh_external_pre_daily_check_warns_for_policy_stale_dollar(monkeypatch, tmp_path):
@@ -465,6 +792,7 @@ def test_refresh_external_source_auto_imports_latest_official_file_after_fetch_e
 
     monkeypatch.setattr(refresh_external, "run_external_source_refresh", fake_runner)
     monkeypatch.setattr(refresh_external, "latest_import_file", lambda _profile: import_path)
+    monkeypatch.setattr(refresh_external, "import_files", lambda _profile: [import_path])
 
     result = refresh_external.refresh_source("aaii_sentiment", cfg, auto_import=True)
 
@@ -507,6 +835,7 @@ def test_refresh_external_auto_import_skips_previously_failed_file_hash(monkeypa
 
     monkeypatch.setattr(refresh_external, "run_external_source_refresh", fake_runner)
     monkeypatch.setattr(refresh_external, "latest_import_file", lambda _profile: import_path)
+    monkeypatch.setattr(refresh_external, "import_files", lambda _profile: [import_path])
 
     result = refresh_external.refresh_source("aaii_sentiment", cfg, auto_import=True)
 
@@ -514,6 +843,92 @@ def test_refresh_external_auto_import_skips_previously_failed_file_hash(monkeypa
     assert result["status"] == "FETCH_ERROR"
     assert result["fallback_import_skipped"] == str(import_path)
     assert result["fallback_import_skip_reason"] == "previous failure for same official file hash"
+
+    assert refresh_external.pending_import_file(
+        "aaii_sentiment",
+        tmp_path / "archive",
+    ) is None
+
+
+def test_refresh_external_auto_import_does_not_reuse_successful_file_hash(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    import_path = tmp_path / "sentiment.xls"
+    content = b"already imported official file"
+    import_path.write_bytes(content)
+    raw_path = tmp_path / "archive" / "external_sources" / "aaii_sentiment" / "ok" / "raw.json"
+    raw_path.parent.mkdir(parents=True)
+    raw_path.write_text(
+        json.dumps({"source": "manual_official_file", "content_sha256": hashlib.sha256(content).hexdigest()}) + "\n",
+        encoding="utf-8",
+    )
+    append_source_run(
+        tmp_path / "archive",
+        {
+            "source_id": "aaii_sentiment",
+            "status": "OK",
+            "raw_path": str(raw_path),
+        },
+    )
+    calls = []
+
+    def fake_runner(spec, adapter, archive_dir):
+        calls.append(type(adapter).__name__)
+        return SimpleNamespace(to_dict=lambda: {
+            "source_id": spec.source_id,
+            "status": "FETCH_ERROR",
+            "error_message": "AAII public endpoint blocked",
+        })
+
+    monkeypatch.setattr(refresh_external, "run_external_source_refresh", fake_runner)
+    monkeypatch.setattr(refresh_external, "latest_import_file", lambda _profile: import_path)
+    monkeypatch.setattr(refresh_external, "import_files", lambda _profile: [import_path])
+
+    result = refresh_external.refresh_source("aaii_sentiment", cfg, auto_import=True)
+
+    assert calls == ["AaiiSentimentAdapter"]
+    assert result["status"] == "FETCH_ERROR"
+    assert result["fallback_import_skipped"] == str(import_path)
+    assert result["fallback_import_skip_reason"] == "official file hash already processed"
+
+
+def test_pending_import_selects_older_unprocessed_official_file(monkeypatch, tmp_path):
+    archive = tmp_path / "archive"
+    newest = tmp_path / "sentiment-newest.xls"
+    older = tmp_path / "sentiment-older.xls"
+    newest.write_bytes(b"already processed")
+    older.write_bytes(b"new candidate")
+    append_source_run(
+        archive,
+        {
+            "source_id": "aaii_sentiment",
+            "status": "PARSE_ERROR",
+            "official_file_sha256": hashlib.sha256(newest.read_bytes()).hexdigest(),
+        },
+    )
+    monkeypatch.setattr(refresh_external, "latest_import_file", lambda _profile: newest)
+    monkeypatch.setattr(refresh_external, "import_files", lambda _profile: [newest, older])
+
+    assert refresh_external.pending_import_file("aaii_sentiment", archive) == older
+
+
+def test_pending_import_uses_ledger_hash_after_raw_artifact_is_removed(monkeypatch, tmp_path):
+    archive = tmp_path / "archive"
+    candidate = tmp_path / "sentiment.xls"
+    candidate.write_bytes(b"previously rejected")
+    candidate_hash = hashlib.sha256(candidate.read_bytes()).hexdigest()
+    append_source_run(
+        archive,
+        {
+            "source_id": "aaii_sentiment",
+            "status": "PARSE_ERROR",
+            "raw_path": str(tmp_path / "removed" / "raw.json"),
+            "official_file_sha256": candidate_hash,
+        },
+    )
+    monkeypatch.setattr(refresh_external, "latest_import_file", lambda _profile: candidate)
+    monkeypatch.setattr(refresh_external, "import_files", lambda _profile: [candidate])
+
+    assert refresh_external.pending_import_file("aaii_sentiment", archive) is None
 
 
 def test_open_official_download_waits_for_new_file_and_imports(monkeypatch, tmp_path):

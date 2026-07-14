@@ -13,6 +13,7 @@ from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.backtest.posterior import ideal_previous_day_pnl
 from hermes_escape_top.core.safe_io import PipelineBusy, pipeline_lock
 from hermes_escape_top.pipeline import score_pipeline
+from hermes_escape_top.web import server as web_server
 from hermes_escape_top.web.server import create_server
 
 
@@ -223,6 +224,35 @@ class Phase15IntegrationTest(unittest.TestCase):
                 with urllib.request.urlopen(request, timeout=10) as response:
                     payload = json.loads(response.read().decode("utf-8"))
             self.assertEqual(payload["status"], "IBKR_NOT_LIVE")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_legacy_soft_refresh_endpoint_routes_through_external_runner(self) -> None:
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_port}/api/refresh_soft_data",
+                data=b'{"only":"aaii"}',
+                headers={"Origin": "http://127.0.0.1", "Content-Type": "application/json"},
+                method="POST",
+            )
+            run = {"source_id": "aaii_sentiment", "status": "OK"}
+            with mock.patch(
+                "hermes_escape_top.scripts.backfill_soft_data.refresh_all",
+                side_effect=AssertionError("legacy writer must not be reachable"),
+            ), mock.patch(
+                "hermes_escape_top.web.server.refresh_external_source",
+                return_value=run,
+            ) as runner:
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["runs"], [run])
+            runner.assert_called_once_with("aaii_sentiment", auto_import=True)
         finally:
             server.shutdown()
             server.server_close()
@@ -511,18 +541,33 @@ class Phase15IntegrationTest(unittest.TestCase):
                 method="POST",
             )
             with mock.patch(
-                "hermes_escape_top.web.server.pipeline_lock",
-                side_effect=PipelineBusy("pipeline busy"),
-            ), mock.patch("hermes_escape_top.web.server.rerun_external_precheck") as rerun:
+                "hermes_escape_top.web.server.rerun_external_precheck",
+                return_value={"ok": False, "busy": True, "message": "pipeline busy"},
+            ) as rerun:
                 with self.assertRaises(urllib.error.HTTPError) as ctx:
                     urllib.request.urlopen(request, timeout=10)
             self.assertEqual(ctx.exception.code, 409)
             self.assertTrue(json.loads(ctx.exception.read().decode("utf-8"))["busy"])
-            rerun.assert_not_called()
+            rerun.assert_called_once_with()
         finally:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
+
+    def test_external_precheck_helper_reports_cli_lock_contention(self) -> None:
+        completed = mock.Mock(returncode=75, stdout='{"ok": false, "busy": true}', stderr="")
+        with mock.patch(
+            "hermes_escape_top.web.server._external_precheck_script_path",
+            return_value=web_server.Path("/usr/bin/true"),
+        ), mock.patch(
+            "hermes_escape_top.web.server.subprocess.run",
+            return_value=completed,
+        ) as run:
+            payload = web_server.rerun_external_precheck()
+
+        self.assertTrue(payload["busy"])
+        self.assertEqual(payload["returncode"], 75)
+        self.assertEqual(run.call_args.kwargs["env"]["HERMES_EXTERNAL_PRECHECK_LOCK_TIMEOUT"], "0")
 
     def test_refresh_score_is_loopback_only_no_token_required(self) -> None:
         # The data-refresh endpoint (the '刷新策略数据' button) must work from a

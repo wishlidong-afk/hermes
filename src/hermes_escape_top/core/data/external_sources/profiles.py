@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import glob
-from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from dataclasses import asdict, dataclass, replace
+from datetime import date
 from pathlib import Path
 from typing import Any
+
+from .clock import shanghai_today, timestamp_to_shanghai_date
 
 
 @dataclass(frozen=True)
@@ -17,6 +19,14 @@ class ExternalSourceProfile:
     primary: str
     fallback: str
     import_globs: tuple[str, ...] = ()
+    feature_flag: str | None = None
+    decision_weight: float = 0.0
+    automation_mode: str = "api"
+    pit_rule: str = "observation_date"
+    migration_deadline: str | None = None
+    slo_key: str | None = None
+    active: bool = True
+    feature_default: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -33,6 +43,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         warn_age_days=8,
         primary="FRED DTWEXBGS API",
         fallback="rerun FRED external source",
+        feature_flag="data_dollar",
+        decision_weight=4.0,
+        pit_rule="observation_date_plus_one_day",
     ),
     "real_rate": ExternalSourceProfile(
         source_id="real_rate",
@@ -42,6 +55,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         warn_age_days=4,
         primary="FRED DFII10 API",
         fallback="rerun FRED external source",
+        feature_flag="data_real_rate",
+        decision_weight=4.0,
+        pit_rule="observation_date_plus_one_day",
     ),
     "fred_net_liquidity": ExternalSourceProfile(
         source_id="fred_net_liquidity",
@@ -51,6 +67,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         warn_age_days=4,
         primary="FRED WALCL/WTREGEN/RRP APIs",
         fallback="rerun FRED external source",
+        feature_flag="data_net_liquidity",
+        decision_weight=4.0,
+        pit_rule="observation_date_plus_one_day",
+        slo_key="net_liquidity",
     ),
     "naaim_exposure": ExternalSourceProfile(
         source_id="naaim_exposure",
@@ -60,6 +80,11 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         warn_age_days=10,
         primary="NAAIM official XLSX",
         fallback="official workbook import",
+        feature_flag="data_naaim",
+        decision_weight=2.0,
+        automation_mode="official_file",
+        pit_rule="issue_date_plus_one_day",
+        migration_deadline="2026-08-01",
         import_globs=(
             "~/.hermes/external_imports/*naaim*.xlsx",
             "~/.hermes/external_imports/*NAAIM*.xlsx",
@@ -77,6 +102,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         warn_age_days=10,
         primary="AAII official sentiment.xls",
         fallback="browser download + official file import",
+        feature_flag="data_aaii",
+        decision_weight=2.0,
+        automation_mode="browser_assisted",
+        pit_rule="official_publish_date_or_reported_plus_one_day",
         import_globs=(
             "~/.hermes/external_imports/sentiment*.xls",
             "~/.hermes/external_imports/sentiment*.xlsx",
@@ -86,6 +115,56 @@ PROFILES: dict[str, ExternalSourceProfile] = {
             "~/Downloads/sentiment*.csv",
         ),
     ),
+    "cboe_equity_pcr": ExternalSourceProfile(
+        source_id="cboe_equity_pcr",
+        label="CBOE Equity Put/Call",
+        cadence="daily",
+        max_age_days=6,
+        warn_age_days=4,
+        primary="CBOE daily market statistics",
+        fallback="keep last validated CBOE observation",
+        feature_flag="data_cboe_pcr",
+        decision_weight=2.0,
+        pit_rule="observation_date_plus_one_day",
+        slo_key="cboe_pcr",
+    ),
+    "cot_nq": ExternalSourceProfile(
+        source_id="cot_nq",
+        label="CFTC NQ Commitments of Traders",
+        cadence="weekly",
+        max_age_days=13,
+        warn_age_days=10,
+        primary="CFTC public reporting API",
+        fallback="keep last validated weekly report",
+        feature_flag="data_cot_nq",
+        decision_weight=4.0,
+        pit_rule="tuesday_observation_friday_publication",
+    ),
+    "occ_equity_pcr": ExternalSourceProfile(
+        source_id="occ_equity_pcr",
+        label="OCC Weekly Equity Put/Call",
+        cadence="weekly",
+        max_age_days=13,
+        warn_age_days=10,
+        primary="OCC weekly volume report",
+        fallback="keep local immutable history",
+        decision_weight=0.0,
+        pit_rule="week_ending_friday_plus_one_day",
+        active=False,
+    ),
+    "btc_funding_basis": ExternalSourceProfile(
+        source_id="btc_funding_basis",
+        label="BTC Funding / Basis / DVOL",
+        cadence="daily",
+        max_age_days=6,
+        warn_age_days=4,
+        primary="Deribit public API",
+        fallback="OKX funding API",
+        feature_flag="data_btc_funding",
+        decision_weight=0.0,
+        pit_rule="exchange_timestamp_utc_day",
+        feature_default=True,
+    ),
 }
 
 
@@ -93,37 +172,89 @@ def profile_for(source_id: str) -> ExternalSourceProfile | None:
     return PROFILES.get(str(source_id))
 
 
-def enrich_source_status(row: dict[str, Any], *, today: date | None = None) -> dict[str, Any]:
-    source_id = str(row.get("source_id") or "")
+def effective_source_profile(
+    config: dict[str, Any],
+    source_id: str,
+) -> ExternalSourceProfile | None:
+    """Return source metadata with its runtime SLO resolved from config."""
     profile = profile_for(source_id)
+    if profile is None:
+        return None
+    slo = (config or {}).get("soft_data_slo") or {}
+    per_source = slo.get("max_age_days") or {}
+    key = profile.slo_key or profile.source_id
+    configured = per_source.get(key, slo.get("default_max_age_days"))
+    max_age = profile.max_age_days if configured is None else max(0, int(configured))
+    active = profile.active
+    if profile.feature_flag:
+        active = bool(
+            ((config or {}).get("features") or {}).get(
+                profile.feature_flag,
+                profile.feature_default,
+            )
+        )
+    return replace(
+        profile,
+        max_age_days=max_age,
+        warn_age_days=max(0, max_age - 2),
+        active=active,
+    )
+
+
+def enrich_source_status(
+    row: dict[str, Any],
+    *,
+    today: date | None = None,
+    profile: ExternalSourceProfile | None = None,
+    official_artifact_ready: bool = False,
+) -> dict[str, Any]:
+    source_id = str(row.get("source_id") or "")
+    profile = profile or profile_for(source_id)
     out = dict(row)
     if profile is None:
         return out
+    day = today or shanghai_today()
     out.update(profile.to_dict())
     latest = str(
         row.get("latest_promoted_as_of")
         or row.get("latest_normalized_as_of")
         or ""
     )[:10]
-    age_days = _age_days(latest, today or date.today())
+    age_days = _age_days(latest, day)
     out["age_days"] = age_days
     out["freshness_status"] = _freshness_status(age_days, profile)
     out["failure_kind"] = _failure_kind(row)
-    if _same_day_successful_check(out, today or date.today()) and out["freshness_status"] == "DUE_SOON":
+    out["official_artifact_ready"] = bool(official_artifact_ready)
+    out["migration_status"] = _migration_status(
+        out,
+        profile,
+        day,
+    )
+    if (
+        _same_day_successful_check(out, day)
+        and out["freshness_status"] in {"DUE_SOON", "STALE"}
+    ):
         out["publisher_status"] = "UNCHANGED_AFTER_REFRESH"
         out["publisher_note"] = "official source checked today; publisher has not posted a newer observation"
     out["next_action"] = _next_action(out, profile)
     return out
 
 
-def latest_import_file(profile: ExternalSourceProfile) -> Path | None:
+def import_files(profile: ExternalSourceProfile) -> list[Path]:
     matches: list[Path] = []
     for pattern in profile.import_globs:
         matches.extend(Path(path).expanduser() for path in glob.glob(str(Path(pattern).expanduser())))
-    matches = [path for path in matches if path.is_file()]
+    unique = {path.resolve(): path for path in matches if path.is_file()}
+    matches = list(unique.values())
+    matches.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    return matches
+
+
+def latest_import_file(profile: ExternalSourceProfile) -> Path | None:
+    matches = import_files(profile)
     if not matches:
         return None
-    return max(matches, key=lambda path: path.stat().st_mtime)
+    return matches[0]
 
 
 def _age_days(value: str, today: date) -> int | None:
@@ -167,23 +298,41 @@ def _same_day_successful_check(row: dict[str, Any], today: date) -> bool:
     return checked == today
 
 
-def _date_from_timestamp(value: Any) -> date | None:
-    if not value:
-        return None
-    text = str(value)
-    try:
-        return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
-    except ValueError:
+def _migration_status(
+    row: dict[str, Any],
+    profile: ExternalSourceProfile,
+    today: date,
+) -> str:
+    if profile.source_id == "naaim_exposure" and profile.migration_deadline:
         try:
-            return date.fromisoformat(text[:10])
+            deadline = date.fromisoformat(profile.migration_deadline)
         except ValueError:
-            return None
+            deadline = today
+        return "MIGRATION_DUE" if today <= deadline else "ACTION_REQUIRED"
+    if profile.source_id == "aaii_sentiment":
+        if row.get("official_artifact_ready"):
+            return "OFFICIAL_FILE_READY"
+        if str(row.get("freshness_status") or "") == "STALE":
+            return "ACTION_REQUIRED"
+        return "MONITORED"
+    return "STABLE"
+
+
+def _date_from_timestamp(value: Any) -> date | None:
+    return timestamp_to_shanghai_date(value)
 
 
 def _next_action(row: dict[str, Any], profile: ExternalSourceProfile) -> str:
     source_id = profile.source_id
     failure = str(row.get("failure_kind") or "")
     freshness = str(row.get("freshness_status") or "")
+    migration = str(row.get("migration_status") or "")
+    if migration == "ACTION_REQUIRED" and source_id == "aaii_sentiment":
+        return "download the current official sentiment file and import it through ExternalSourceRunner"
+    if migration == "ACTION_REQUIRED" and source_id == "naaim_exposure":
+        return "NAAIM migration deadline passed; verify official workbook access and import the current issue"
+    if migration == "OFFICIAL_FILE_READY":
+        return f"validate and import the staged official file for {source_id}"
     if str(row.get("publisher_status") or "") == "UNCHANGED_AFTER_REFRESH":
         return f"official source checked today; wait for publisher update for {source_id}"
     if failure == "AUTH_REQUIRED" and profile.import_globs:
@@ -195,4 +344,6 @@ def _next_action(row: dict[str, Any], profile: ExternalSourceProfile) -> str:
         return f"run refresh_external --source {source_id}; if still stale use {profile.fallback}"
     if freshness == "DUE_SOON":
         return f"watch next publication; run refresh_external --source {source_id} if tomorrow still unchanged"
+    if migration == "MIGRATION_DUE" and source_id == "naaim_exposure":
+        return f"before {profile.migration_deadline}, verify official workbook automation and retained import fallback"
     return f"run refresh_external --source {source_id}"

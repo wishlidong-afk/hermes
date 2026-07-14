@@ -55,7 +55,7 @@ from ..ibkr.live_check import run_live_check
 from ..core.safe_io import PipelineBusy, pipeline_lock
 from ..scripts.refresh_external import refresh_all_sources as refresh_all_external_sources
 from ..scripts.refresh_external import IMPORT_FILE_SOURCE_IDS
-from ..scripts.refresh_external import latest_import_file
+from ..scripts.refresh_external import pending_import_file
 from ..scripts.refresh_external import profile_for
 from ..scripts.refresh_external import refresh_source as refresh_external_source
 from ..scripts.refresh_external import status as external_source_status
@@ -104,6 +104,34 @@ _BUSY_PAYLOAD = {
     "busy": True,
     "message": "另一个刷新或当日官方 run 正在写数据，本次已跳过以避免并发写坏。请几秒后重试。",
 }
+
+_LEGACY_SOFT_SOURCE_GROUPS = {
+    "fred": ("fred_net_liquidity",),
+    "fred_risk": ("dollar", "real_rate"),
+    "naaim": ("naaim_exposure",),
+    "aaii": ("aaii_sentiment",),
+    "cot": ("cot_nq",),
+}
+
+
+def _refresh_soft_data_via_external_runner(only: object = None) -> dict:
+    """Keep the legacy endpoint without exposing its direct CSV writers."""
+    selected = str(only or "").strip()
+    if not selected:
+        return refresh_all_external_sources()
+    source_ids = _LEGACY_SOFT_SOURCE_GROUPS.get(selected, (selected,))
+    runs = [
+        refresh_external_source(source_id, auto_import=True)
+        for source_id in source_ids
+    ]
+    ok_count = sum(1 for run in runs if str(run.get("status") or "") == "OK")
+    return {
+        "ok": ok_count == len(runs),
+        "ok_count": ok_count,
+        "error_count": len(runs) - ok_count,
+        "runs": runs,
+        "mode": "legacy_endpoint_via_external_runner",
+    }
 
 
 def _latest_precheck(as_of: str) -> dict | None:
@@ -215,12 +243,16 @@ def _attach_external_source_status(payload: dict) -> dict:
 def _attach_external_import_candidates(payload: dict) -> dict:
     """Attach newest official import files for AAII/NAAIM, without importing."""
     candidates = []
+    try:
+        archive_dir = resolve_path(load_config(), "archive_dir")
+    except Exception:
+        return payload
     for source_id in IMPORT_FILE_SOURCE_IDS:
         profile = profile_for(source_id)
         if profile is None:
             continue
         try:
-            path = latest_import_file(profile)
+            path = pending_import_file(source_id, archive_dir)
         except Exception:
             path = None
         if path is None:
@@ -236,6 +268,11 @@ def _attach_external_import_candidates(payload: dict) -> dict:
             "mtime": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds"),
             "size_bytes": stat.st_size,
         })
+        external = payload.get("external_source_status")
+        if isinstance(external, dict) and isinstance(external.get(source_id), dict):
+            external[source_id]["official_artifact_ready"] = True
+            external[source_id]["migration_status"] = "OFFICIAL_FILE_READY"
+            external[source_id]["next_action"] = f"validate and import the staged official file for {source_id}"
     if candidates:
         payload["external_import_candidates"] = candidates
     return payload
@@ -319,7 +356,7 @@ def rerun_external_precheck() -> dict:
         capture_output=True,
         text=True,
         timeout=300,
-        env={**os.environ, "HERMES_EXTERNAL_PRECHECK_INNER": "1"},
+        env={**os.environ, "HERMES_EXTERNAL_PRECHECK_LOCK_TIMEOUT": "0"},
     )
     payload: dict = {
         "ok": result.returncode == 0,
@@ -328,6 +365,8 @@ def rerun_external_precheck() -> dict:
         "stdout_tail": _tail_text(result.stdout),
         "stderr_tail": _tail_text(result.stderr),
     }
+    if result.returncode == 75:
+        payload.update({"busy": True, "message": _BUSY_PAYLOAD["message"]})
     _attach_external_precheck_status(payload)
     return payload
 
@@ -1034,9 +1073,8 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/refresh_soft_data":
                 response_status = 200
                 try:
-                    from ..scripts.backfill_soft_data import refresh_all
                     with pipeline_lock(blocking=False):
-                        payload = refresh_all(only=req.get("only"))
+                        payload = _refresh_soft_data_via_external_runner(req.get("only"))
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD)
                     response_status = 409
@@ -1138,8 +1176,9 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/rerun_external_precheck":
                 response_status = 200
                 try:
-                    with pipeline_lock(blocking=False):
-                        payload = rerun_external_precheck()
+                    payload = rerun_external_precheck()
+                    if payload.get("busy"):
+                        response_status = 409
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD)
                     response_status = 409

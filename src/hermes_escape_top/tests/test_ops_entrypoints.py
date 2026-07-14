@@ -77,7 +77,10 @@ def test_shell_entrypoints_prefer_current_release_when_present():
     assert 'RUNTIME="$BASE/current"' in external
     assert 'HERMES_RUNTIME_ROOT="$RUNTIME"' in external
     assert 'export PYTHONPATH="$RUNTIME"' in external
-    assert 'hermes_escape_top.scripts.refresh_external --pre-daily-check' in external
+    assert 'hermes_escape_top.scripts.refresh_external "$REFRESH_ARG"' in external
+    assert '--lock-timeout "${HERMES_EXTERNAL_PRECHECK_LOCK_TIMEOUT:-600}"' in external
+    assert 'REFRESH_ARG="--pre-daily-check"' in external
+    assert 'REFRESH_ARG="--retry-needed"' in external
 
 
 def test_external_precheck_launchagent_runs_before_daily():
@@ -197,8 +200,9 @@ def test_watchdog_session_completion_starts_at_1630_et():
 def test_external_precheck_writes_latest_and_dated_reports():
     script = (REPO_ROOT / "ops" / "refresh_external_precheck.sh").read_text(encoding="utf-8")
 
-    assert "hermes_escape_top.scripts.pipeline_lock_exec" in script
-    assert "HERMES_EXTERNAL_PRECHECK_INNER" in script
+    assert "hermes_escape_top.scripts.pipeline_lock_exec" not in script
+    assert "HERMES_EXTERNAL_PRECHECK_INNER" not in script
+    assert "HERMES_EXTERNAL_PRECHECK_LOCK_TIMEOUT" in script
     assert 'DATE_STAMP="$(date +%F)"' in script
     assert 'external_precheck_${DATE_STAMP}.json' in script
     assert 'external_precheck_latest.json' in script
@@ -206,6 +210,8 @@ def test_external_precheck_writes_latest_and_dated_reports():
     assert 'external_precheck_latest.md' in script
     assert "# External Precheck" in script
     assert "nonblocking_refresh_error_sources" in script
+    assert "HERMES_EXTERNAL_PRECHECK_MODE" in script
+    assert "--retry-needed" in script
 
 
 def test_external_precheck_markdown_includes_top_level_source_status(tmp_path):
@@ -238,7 +244,7 @@ def test_external_precheck_markdown_includes_top_level_source_status(tmp_path):
 
     result = subprocess.run(
         ["bash", str(REPO_ROOT / "ops" / "refresh_external_precheck.sh")],
-        env={**os.environ, "HOME": str(home), "HERMES_EXTERNAL_PRECHECK_INNER": "1"},
+        env={**os.environ, "HOME": str(home)},
         capture_output=True,
         text=True,
         timeout=30,

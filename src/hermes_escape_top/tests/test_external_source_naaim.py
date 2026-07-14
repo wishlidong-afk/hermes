@@ -135,6 +135,8 @@ def test_naaim_import_adapter_promotes_official_workbook_through_ledger(tmp_path
     assert ledger["official_file_name"] == "USE_Data-since-Inception_2026-06-24.xlsx"
     assert ledger["official_file_sha256"]
     assert ledger["official_issue_as_of"] == "2026-06-24"
+    assert ledger["pit_rule"] == "issue_date_plus_one_day"
+    assert ledger["source_url"] == "https://www.naaim.org/programs/naaim-exposure-index/"
 
 
 def test_naaim_latest_import_file_checks_hermes_external_imports(monkeypatch, tmp_path):

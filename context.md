@@ -84,7 +84,7 @@
 <!-- HERMES_GOVERNANCE_SNAPSHOT_END -->
 
 
-> 由代码事实与治理检查生成于 2026-07-11。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准；`scripts/check_governance_consistency.py` 会阻止关键快照静默漂移。
+> 由代码事实与治理检查生成于 2026-07-13。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准；`scripts/check_governance_consistency.py` 会阻止关键快照静默漂移。
 
 本文给新 agent 一个快速、可执行的项目地图：系统做什么、数据怎样进来、评分怎样变成策略、哪些 flag 已经部署、WebUI 两个端口各负责什么，以及当前性能基线在哪里。
 
@@ -115,6 +115,8 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 | `src/hermes_escape_top/web/` | WebUI/可视化与本批 8766 POST 鉴权 |
 | `src/hermes_escape_top/core/data/market.py` | 本批新增指标帧缓存，生产 flag 默认 OFF |
 | `src/hermes_escape_top/core/data/risk_signals.py` | 软数据源；FRED observations use PIT-safe `date+1` publish dates，标准 observations API 的 `realtime_start` 不作为逐行历史发布时间 |
+| `src/hermes_escape_top/core/data/external_sources/` | 外部软数据单写者；profile/SLO、staging、validation、canonical promotion、ledger 和可靠性证据同属一条链 |
+| `src/hermes_escape_top/core/data/market_witness.py` | Alpaca SIP 日线 OHLCV shadow witness；只比对、只写 archive 证据，永不晋升 canonical 或进入评分 |
 | `scripts/backtest_flag_sweep.py` | 单 variant 全窗口回测；每次只跑一个进程 |
 | `scripts/flag_gate.py` | 读取 equity 曲线做旧版固定变体 OOS/DSR 诊断；授权已冻结，等待正式 IS→OOS PBO gate |
 | `scripts/formal_gate.py` | 读取已提交的实验 manifest，执行逐折 IS 选择→OOS PBO、CPCV、经验偏度/峰度 DSR；结果一次性落盘 |
@@ -148,17 +150,40 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 - FRED observations use PIT-safe `date+1` publish dates；有 key 与 CSV fallback 走相同语义。
 - 标准 observations API 的 `realtime_start` 是查询 vintage 元数据，不足以证明每条历史观测的真实首次发布时间，因此不用于逐行 PIT 对齐。
 
+外部数据自动化现状：
+
+| 源 | canonical | 生产入口 | PIT/可见时间 | 运维边界 |
+|---|---|---|---|---|
+| `dollar` / `real_rate` / `fred_net_liquidity` | `soft_history/*.csv` | FRED API，Graph CSV fallback | 观测日 `+1d`；API realtime 只记 raw query-vintage 证据 | 无 key 仍可 fallback；同内容不因抓取时刻改变 source input hash |
+| `cboe_equity_pcr` | `soft_history/cboe_equity_pcr.csv` | CBOE daily HTML | 观测日 `+1d` | 解析/比率校验失败时保留上一份 canonical |
+| `cot_nq` | `soft_history/cot_nq.csv` | CFTC public API | 周二观测、周五公开 | flag OFF 时不影响生产健康/决策覆盖 |
+| `occ_equity_pcr` | `soft_history/occ_equity_pcr.csv` | OCC weekly report | 周五 week-ending、周六公开 | 当前 inactive，只做迁移/替代源证据 |
+| `btc_funding_basis` | `soft_history/btc_funding_basis.csv` | Deribit，OKX fallback | 交易所 UTC 时间戳归日 | 增量刷新不再把历史 real 行降成 proxy |
+| `naaim_exposure` | `soft_history/naaim_exposure.csv` | 官方 XLSX / official-file import | issue `+1d` | 2026-08-01 迁移截止；订阅/会话是人工责任 |
+| `aaii_sentiment` | `soft_history/aaii_sentiment.csv` | 官方文件 / browser-assisted import | 官方 publish date；公共表无 publish 字段时按 reported `+1d` | Imperva/会员会话无法承诺纯无人值守，不得用未授权镜像冒充真值 |
+
+- 06:45 全量预检，07:05 只重试当日失败/证据未就绪的源，07:10 daily 优先复用当日完整 ledger，不连续重打限流源。
+- 所有外部软数据先写 raw/staging，通过 schema + semantic validation 后才原子晋升；成功 ledger 绑定 canonical SHA-256、最新日期、来源 URL 和 PIT 规则。
+- canonical 字节与最新成功 ledger 不一致时显示 `EVIDENCE_DRIFT`，不会把人工改写重新认证为 OK。
+- AAII/NAAIM 下载文件按 SHA-256 去重；已消费或已失败的旧文件不会在每次预检被当成新候选。
+- 可靠性按 `Asia/Shanghai` 自然日去重；同日失败后重试成功只算一个成功日，避免重试次数虚增成功率。
+- Alpaca SIP 见证只对比 Yahoo/local canonical 的最近 OHLCV，写 `market_witness_*.json`；`NO_WITNESS`/`FETCH_ERROR` 不改评分、不改 `input_hash`。
+
 ---
 
-## 4. 三层数据守卫
+## 4. 数据守卫与质量解释
 
 | 层 | 守卫 | 代码事实 |
 |---|---|---|
 | L1 刷新完整性 | refresh 前后做 history integrity scan，发现跨线/漂移则拒绝评分 | `web/refresh.py::_history_integrity_scan` |
 | L2 manifest SSOT | `data_manifest_latest.json` 与 history CSV 校验；漂移可重冻结，GET health 可显示 | `core/data/manifest.py`、`web/refresh.py::_refresh_manifest` |
 | L3 运行降级 | health 汇总 cache、交易日陈旧、manifest、data_quality、软数据 stale、IBKR 状态 | `web/health.py::compute_health` |
+| L4 外部源证据 | ledger 绑定 canonical hash/PIT/来源，30/90 日可靠性按日去重 | `core/data/external_sources/` |
+| L5 独立行情见证 | Alpaca SIP 与 Yahoo/local canonical 做 shadow 对比，无自动 failover | `core/data/market_witness.py` |
 
 软数据 SLO 由 `features.use_soft_data_max_age` 控制。开启后，超龄软数据会被降为 missing，进入 missing-weight/blind-spot 路径，而不是继续当作新鲜信号评分。
+
+8766 将数据质量拆成四个不混合的维度：行情完整度、来源真实性、时效性、评分置信权重覆盖。最后一项直接从当次 `scores[*].confidence_missing_weight` 统计：每个标的先归一化为 100 分置信权重面，再在标的间等权汇总；它不是因子数量覆盖率，也不用另一份手工因子清单。IBKR 持仓与 SIP 资金流是辅助证据，不计入该指标。
 
 ---
 
@@ -364,7 +389,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 12. 测试与验证
 
-当前回归结果：最终提交前由全套 pytest 重新生成；不得把旧测试数当作健康证明。
+当前回归结果：2026-07-13 数据质量候选分支全套 `845 passed / 0 failed`。此数绑定候选代码节点 `692f175`；后续任何行为改动必须重跑，不得把旧测试数当作健康证明。
 
 标准命令：
 
@@ -381,6 +406,12 @@ PYTHONPATH=src:src/hermes_escape_top/tests /Users/liweishi/.hermes-v3/.venv/bin/
 | `test_phase15_integration.py` | 危险写端点 token 通过/拒绝；低风险 refresh 仅 loopback；busy 409 不调用第二个 writer |
 | `test_validation_harness.py` | 单配置 PBO 不再伪造 1.0；多配置向量仍可计算 |
 | `test_flag_sweep_cache.py` | gate/backtest 配置打开 `use_indicator_cache` |
+| `test_external_source_profiles.py` | config SLO SSOT、active/parked 源和迁移截止日 |
+| `test_external_source_runner.py` | 失败不晋升、canonical/ledger 漂移、可靠性按日去重 |
+| `test_external_source_market_soft.py` | CBOE/CFTC/OCC/BTC adapter 解析、语义校验和 PIT |
+| `test_external_source_fred.py` | FRED raw query-vintage 证据、归一化 `date+1`、抓取时刻不改 source input hash |
+| `test_decision_input_coverage.py` / `test_run_receipt_writer.py` | 评分置信权重覆盖与四维质量证据 |
+| `test_market_witness.py` | Alpaca OHLCV shadow 对比、不晋升和失败保全 |
 
 ---
 

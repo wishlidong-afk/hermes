@@ -488,6 +488,36 @@ def test_trust_health_external_chain_prefers_current_daily_ledger_over_stale_pre
     assert "DUE_SOON" not in trust_section
 
 
+def test_trust_health_does_not_certify_runner_ok_when_canonical_evidence_drifted():
+    payload = _payload()
+    payload["external_source_status"] = {
+        source: {
+            "source_id": source,
+            "status": "OK",
+            "latest_promoted_as_of": "2026-07-02",
+            "freshness_status": "OK",
+            "evidence_status": "EVIDENCE_DRIFT" if source == "dollar" else "MATCH",
+            "evidence_detail": "canonical sha256 changed" if source == "dollar" else "canonical matches",
+        }
+        for source in ("dollar", "real_rate", "fred_net_liquidity", "naaim_exposure", "aaii_sentiment")
+    }
+    payload["external_precheck_status"] = {
+        "ready": False,
+        "blocking_sources": ["dollar"],
+        "warning_sources": [],
+        "refresh": {"ok": True, "ok_count": 5, "error_count": 0},
+        "sources": {},
+    }
+
+    html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
+
+    trust_section = html[html.index("今日可信度与系统状态"):html.index("区域 5 · 数据信任区")]
+    assert "OK 4 / ERR 1 / MISS 0 · EVIDENCE 1" in trust_section
+    assert "正式 daily ledger OK" not in trust_section
+    assert "EVIDENCE_DRIFT" in html
+    assert 'badge danger">EVIDENCE_DRIFT' in html
+
+
 def test_factor_map_lists_all_scoring_inputs_grouped_by_module():
     html = render_mod._render_hard_valve_radar(_payload())
 
@@ -536,11 +566,22 @@ def test_trust_zone_uses_external_source_ledger_status():
             "finished_at": "2026-06-25T14:00:00+00:00",
             "official_issue_as_of": "2026-06-24",
             "official_file_sha256": "abcdef1234567890",
+            "success_rate_30d": 92.86,
+            "success_rate_90d": 96.15,
+            "samples_30d": 7,
+            "consecutive_failures": 0,
+            "migration_status": "MIGRATION_DUE",
+            "migration_deadline": "2026-08-01",
         },
         "aaii_sentiment": {
             "source_id": "aaii_sentiment",
             "status": "FETCH_ERROR",
             "error_message": "AAII public endpoint blocked; manual import required",
+            "success_rate_30d": 75.0,
+            "success_rate_90d": 80.0,
+            "samples_30d": 4,
+            "consecutive_failures": 2,
+            "migration_status": "ACTION_REQUIRED",
         },
     }
 
@@ -569,6 +610,10 @@ def test_trust_zone_uses_external_source_ledger_status():
     assert "AAII Sentiment" in html
     assert "AAII public endpoint blocked; manual import required" in html
     assert "refreshExternalSource('aaii_sentiment')" in html
+    assert "30d 92.86% (n=7)" in html
+    assert "连续失败 2" in html
+    assert "MIGRATION_DUE" in html
+    assert "ACTION_REQUIRED" in html
     assert "--source aaii_sentiment --import-file ~/.hermes/external_imports/sentiment.xls" in html
     assert "--source naaim_exposure --import-file ~/.hermes/external_imports/naaim.xlsx" in html
     assert "刷新全部外部源" in html
@@ -684,6 +729,17 @@ def _system_health_report(as_of: str = "2026-06-04") -> dict:
         "schema_version": "hermes-system-health-v1",
         "generated_at": "2026-07-03T07:12:00+08:00",
         "as_of": as_of,
+        "data_quality_dimensions": {
+            "market_completeness": 100.0,
+            "provenance": 97.0,
+            "timeliness": 96.0,
+            "decision_input_coverage": 98.0,
+        },
+        "market_witness_status": {
+            "status": "OK",
+            "as_of": as_of,
+            "summary": {"MATCH": 3, "NO_WITNESS": 2},
+        },
         "health": {
             "level": "OK",
             "layers": {
@@ -727,6 +783,12 @@ def test_system_health_section_renders_20_dimension_report():
     assert "评分 payload 缓存" in html
     assert "source=scheduled_run_payload" in html
     assert "IBKR 持仓对账" in html
+    assert "评分置信权重覆盖" in html
+    assert "不是因子数量覆盖率" in html
+    assert "决策输入覆盖" not in html
+    assert "98.0" in html
+    assert "OHLCV 见证" in html
+    assert "MATCH 3" in html
 
 
 def test_system_health_section_marks_stale_report():
@@ -1103,7 +1165,7 @@ def test_external_import_candidate_loader_attaches_latest_official_file(monkeypa
 
     monkeypatch.setattr(server_mod, "IMPORT_FILE_SOURCE_IDS", ("aaii_sentiment",), raising=False)
     monkeypatch.setattr(server_mod, "profile_for", lambda source_id: Profile(), raising=False)
-    monkeypatch.setattr(server_mod, "latest_import_file", lambda profile: import_path, raising=False)
+    monkeypatch.setattr(server_mod, "pending_import_file", lambda source_id, archive_dir: import_path, raising=False)
 
     payload = server_mod._attach_external_import_candidates({})
 

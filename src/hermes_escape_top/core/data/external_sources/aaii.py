@@ -18,6 +18,7 @@ from typing import Any, Callable
 import pandas as pd
 
 from ..risk_signals import _last_percentile
+from .clock import shanghai_today
 from .registry import ExternalSourceSpec
 
 
@@ -61,7 +62,7 @@ def parse_aaii_public_rows(html: str, *, today: date | None = None) -> list[dict
     The public page omits years in table rows, so years are inferred from the
     newest-first order and the current date.
     """
-    now = today or date.today()
+    now = today or shanghai_today()
     text = unescape(re.sub(r"<[^>]+>", " ", html or ""))
     text = re.sub(r"\s+", " ", text).strip()
     year = now.year
@@ -178,7 +179,39 @@ def aaii_sentiment_spec(*, target_path: Path, min_rows: int = 52) -> ExternalSou
         target_path=target_path,
         required_columns=tuple(_COLUMNS),
         min_rows=min_rows,
+        semantic_validator=_validate_aaii,
+        pit_rule="official_publish_date_or_reported_plus_one_day",
+        source_url=AAII_SENT_RESULTS_URL,
     )
+
+
+def _validate_aaii(frame: pd.DataFrame) -> str | None:
+    dates = pd.to_datetime(frame["date"], errors="coerce")
+    publish_dates = pd.to_datetime(frame["publish_date"], errors="coerce")
+    if dates.isna().any() or publish_dates.isna().any() or not dates.equals(publish_dates):
+        return "AAII date/publish_date must be parseable and equal"
+
+    bull = pd.to_numeric(frame["aaii_bull"], errors="coerce")
+    bear = pd.to_numeric(frame["aaii_bear"], errors="coerce")
+    spread = pd.to_numeric(frame["aaii_bull_bear_spread"], errors="coerce")
+    if bull.isna().any() or bear.isna().any():
+        return "AAII bull/bear share contains non-numeric values"
+    if not bull.between(0.0, 1.0).all() or not bear.between(0.0, 1.0).all():
+        return "AAII bull/bear share outside [0, 1]"
+    if spread.isna().any() or not spread.between(-1.0, 1.0).all():
+        return "AAII spread outside [-1, 1]"
+    if ((spread - (bull - bear)).abs() > 0.002).any():
+        return "AAII spread is inconsistent with bull minus bear"
+
+    for column in ("aaii_bull_pctl", "aaii_spread_pctl"):
+        raw = frame[column]
+        values = pd.to_numeric(raw, errors="coerce")
+        if (raw.notna() & values.isna()).any():
+            return f"AAII percentile contains non-numeric values: {column}"
+        non_null = values.dropna()
+        if not non_null.between(0.0, 100.0).all():
+            return f"AAII percentile outside [0, 100]: {column}"
+    return None
 
 
 def _fetch_text(url: str) -> str:

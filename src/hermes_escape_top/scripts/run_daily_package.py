@@ -93,6 +93,11 @@ sys.path.insert(0, str(PACKAGE_PARENT))
 
 from hermes_escape_top import pipeline
 from hermes_escape_top.config import load_config, resolve_path
+from hermes_escape_top.core.data.market_witness import refresh_market_witness
+from hermes_escape_top.core.data.external_sources.ledger import (
+    CANONICAL_EVIDENCE_CRITICAL_STATUSES,
+    canonical_evidence_issue,
+)
 from hermes_escape_top.core.data.store import LocalStore, safe_symbol
 from hermes_escape_top.core.safe_io import assert_pipeline_lease
 from hermes_escape_top.scripts.backfill_history import all_backfill_symbols, backfill, write_coverage_report
@@ -230,7 +235,7 @@ def _heal_lagging_symbols(
 # ── Step 1a: refresh ledgered external sources ───────────────────────────────
 
 def refresh_external_sources() -> list[dict]:
-    """Refresh ledgered external feeds before the broad legacy soft refresh.
+    """Consume the morning source precheck or refresh when it did not run.
 
     Non-fatal by design: ExternalSourceRunner validates and atomically promotes
     good data; on failure the cached CSV remains authoritative and the ledger
@@ -239,7 +244,7 @@ def refresh_external_sources() -> list[dict]:
     """
     source_ids = tuple(refresh_external.SOURCE_IDS)
     print(f"[M4-1a] Pre-daily external source check ({', '.join(source_ids)})…")
-    check = refresh_external.pre_daily_check()
+    check = refresh_external.daily_source_check()
     runs = list((check.get("refresh") or {}).get("runs") or [])
     for run in runs:
         print(
@@ -262,114 +267,18 @@ def refresh_external_sources() -> list[dict]:
 # ── Step 1b: refresh legacy slow soft data (non-runner sources) ───────────────
 
 def refresh_soft_data() -> None:
-    """Refresh slow-moving soft-data CSVs not yet owned by ExternalSourceRunner.
+    """Compatibility hook; every external soft-data writer is runner-owned."""
+    print("[M4-1b] Legacy soft refresh skipped; ExternalSourceRunner owns all canonical feeds.")
 
-    Non-fatal: a failure here does not block scoring; the scoring engine will
-    use whatever cached soft data exists and report staleness via health.py.
-    AAII is excluded (no auto-parseable endpoint; requires manual download or
-    Claude-in-Chrome session per prior procedure). NAAIM is refreshed earlier
-    through ExternalSourceRunner, so this legacy block must not write it again.
-    """
-    print("[M4-1b] Refreshing legacy soft data sources (FRED risk signals + COT)…")
-    result = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
-         "--only", "fred"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    if result.returncode != 0:
-        print("[M4-1b] WARNING: FRED net-liquidity refresh failed; proceeding with cached data.")
-        print(result.stderr[-300:] if result.stderr else "")
-    else:
-        print("[M4-1b] FRED net-liquidity OK.")
 
-    result2 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
-         "--only", "fred_risk"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=180,
+def refresh_market_witness_status(as_of: str) -> Dict[str, Any]:
+    """Compare canonical OHLCV against Alpaca without promoting witness data."""
+    result = refresh_market_witness(as_of, load_config())
+    print(
+        f"[M4-1w] Market witness {result.get('status')} "
+        f"as_of={result.get('as_of')} summary={result.get('summary')}"
     )
-    if result2.returncode != 0:
-        print("[M4-1b] WARNING: FRED risk signals refresh failed; proceeding with cached data.")
-    else:
-        print("[M4-1b] FRED risk signals OK.")
-
-    result4 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_soft_data",
-         "--only", "cot"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    if result4.returncode != 0:
-        print("[M4-1b] WARNING: COT NQ refresh failed (weekly — normal if CFTC site is down); continuing.")
-    else:
-        print("[M4-1b] COT NQ OK.")
-
-    result5 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_occ_pcr",
-         "--weeks", "3"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    if result5.returncode != 0:
-        print("[M4-1b] WARNING: OCC PCR refresh failed (weekly Friday report); continuing.")
-    else:
-        print("[M4-1b] OCC equity PCR OK.")
-
-    result6 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.refresh_cboe_daily_pcr"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    if result6.returncode != 0:
-        print("[M4-1b] WARNING: CBOE daily PCR refresh failed/rejected (cache kept); continuing.")
-        print((result6.stdout or result6.stderr or "")[-200:])
-    else:
-        print("[M4-1b] CBOE daily PCR OK.")
-
-    result7 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.refresh_aaii_public"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    if result7.returncode != 0:
-        print("[M4-1b] WARNING: AAII public probe failed (weekly — member-session fallback per runbook); continuing.")
-    else:
-        print("[M4-1b] AAII public probe OK.")
-
-    # BTC funding/DVOL (data_btc_funding defaults ON): its own script was never
-    # wired here, so the source drifted 13d stale (2026-06-02) while still being
-    # scored. Deribit/OKX, stdlib-only, non-fatal like the rest.
-    result8 = subprocess.run(
-        [PYTHON, "-m", "hermes_escape_top.scripts.backfill_crypto_micro"],
-        cwd=str(BASE_DIR),
-        env=_subprocess_env(),
-        capture_output=True,
-        text=True,
-        timeout=90,
-    )
-    if result8.returncode != 0:
-        print("[M4-1b] WARNING: BTC funding/DVOL refresh failed (Deribit/OKX); continuing.")
-    else:
-        print("[M4-1b] BTC funding/DVOL OK.")
+    return result
 
 
 # ── Step 2: run the package score pipeline ────────────────────────────────────
@@ -1465,6 +1374,7 @@ def _write_system_health_report(
 ) -> Dict[str, Path]:
     from hermes_escape_top.web.health import compute_health
     from hermes_escape_top.web.refresh import manifest_status
+    from hermes_escape_top.core.data.quality import decision_input_coverage
 
     config = load_config()
     report_payload = dict(payload)
@@ -1475,6 +1385,8 @@ def _write_system_health_report(
     report_payload["run_receipt"] = receipt
     manifest = manifest_status(config)
     health = compute_health(report_payload, manifest)
+    coverage = decision_input_coverage(payload.get("scores"))
+    quality = payload.get("data_quality") if isinstance(payload.get("data_quality"), dict) else {}
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
     report = {
         "schema_version": "hermes-system-health-v1",
@@ -1485,6 +1397,14 @@ def _write_system_health_report(
         "manifest_status": manifest,
         "run_receipt": receipt,
         "health": health,
+        "decision_input_coverage": coverage,
+        "data_quality_dimensions": {
+            "market_completeness": quality.get("completeness_score"),
+            "provenance": quality.get("quality_score"),
+            "timeliness": quality.get("latency_score"),
+            "decision_input_coverage": coverage.get("coverage_score"),
+        },
+        "market_witness_status": payload.get("market_witness_status"),
     }
     report["audit_dimensions"] = _build_system_health_audit_dimensions(report_payload, report)
     report_dir = _system_health_report_dir(shadow=shadow)
@@ -1529,8 +1449,25 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
     def layer_status(name: str) -> str:
         return _audit_status_from_level((layers.get(name) or {}).get("level"))
 
-    external_rows = [row for row in external_sources.values() if isinstance(row, dict)] if isinstance(external_sources, dict) else []
-    external_bad = [str(row.get("source_id") or "?") for row in external_rows if str(row.get("status") or "") != "OK"]
+    external_rows = [
+        row
+        for row in external_sources.values()
+        if isinstance(row, dict) and row.get("active") is not False
+    ] if isinstance(external_sources, dict) else []
+    external_bad = [
+        str(row.get("source_id") or "?")
+        for row in external_rows
+        if str(row.get("status") or "") != "OK"
+    ]
+    external_evidence_bad = [
+        f"{row.get('source_id') or '?'}:{canonical_evidence_issue(row)}"
+        for row in external_rows
+        if canonical_evidence_issue(row)
+    ]
+    external_evidence_critical = any(
+        canonical_evidence_issue(row) in CANONICAL_EVIDENCE_CRITICAL_STATUSES
+        for row in external_rows
+    )
     file_evidence = _external_file_evidence(external_sources)
     receipt_status = str(receipt.get("status") or "")
     dq_level = str(data_quality.get("level") or "")
@@ -1539,6 +1476,8 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
     ibkr_source = str(ibkr.get("source") or "")
     sip_error = str(sip_status.get("status") or "")
     factor_symbols = _factor_score_symbol_count(payload)
+    coverage_score = (report.get("decision_input_coverage") or {}).get("coverage_score")
+    witness_status = (report.get("market_witness_status") or {}).get("status")
 
     return [
         _audit_row(
@@ -1571,7 +1510,8 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
             "data_quality",
             "数据质量",
             "PASS" if dq_level == "HIGH" else "WARN" if dq_level == "MEDIUM" else "FAIL" if dq_level in {"LOW", "BLOCKED", "NO_CACHE"} else "INFO",
-            f"{dq_level or 'NA'} overall={data_quality.get('overall_score')}",
+            f"{dq_level or 'NA'} overall={data_quality.get('overall_score')} "
+            f"decision_coverage={coverage_score} market_witness={witness_status or 'NA'}",
         ),
         _audit_row("strategy_data_layer", "策略数据层", layer_status("strategy_data"), _layer_detail(layers, "strategy_data")),
         _audit_row(
@@ -1590,8 +1530,10 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
         _audit_row(
             "external_source_runs",
             "外部源 runner",
-            "PASS" if external_rows and not external_bad else "WARN" if external_rows else "INFO",
-            "all OK" if external_rows and not external_bad else ", ".join(external_bad[:6]) or "no external_source_status",
+            "FAIL" if external_evidence_critical else "PASS" if external_rows and not external_bad and not external_evidence_bad else "WARN" if external_rows else "INFO",
+            "all OK"
+            if external_rows and not external_bad and not external_evidence_bad
+            else ", ".join((external_evidence_bad + external_bad)[:6]) or "no external_source_status",
         ),
         _audit_row(
             "external_file_evidence",
@@ -1602,8 +1544,10 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
         _audit_row(
             "external_precheck_readiness",
             "外部源预检",
-            "PASS" if external_rows and not external_bad else "WARN" if external_rows else "INFO",
-            "latest ledger ready" if external_rows and not external_bad else "check latest external precheck log",
+            "FAIL" if external_evidence_critical else "PASS" if external_rows and not external_bad and not external_evidence_bad else "WARN" if external_rows else "INFO",
+            "latest ledger ready"
+            if external_rows and not external_bad and not external_evidence_bad
+            else "check latest external precheck log",
         ),
         _audit_row(
             "ibkr_reconciliation",
@@ -1790,6 +1734,7 @@ def _execute_daily(
 ) -> Dict[str, Any]:
     shadow = not args.live
     refresh_end = args.as_of or date.today().isoformat()
+    market_witness_status: Dict[str, Any] | None = None
 
     if shadow:
         print(f"[M4-1] SHADOW mode — writing to data/shadow/ (production untouched)")
@@ -1822,6 +1767,19 @@ def _execute_daily(
     if args.as_of is None:
         print(f"[M4-1] Auto-selected latest available as_of={as_of}")
 
+    if not shadow and not args.skip_refresh:
+        _run_context["step"] = "market_witness"
+        try:
+            market_witness_status = refresh_market_witness_status(as_of)
+        except Exception as exc:
+            market_witness_status = {
+                "status": "ERROR",
+                "as_of": str(as_of),
+                "error_type": exc.__class__.__name__,
+                "error": str(exc),
+            }
+            print(f"[M4-1w] WARNING: market witness failed ({exc!r}); scoring remains canonical-only.")
+
     _run_context["step"] = "preflight"
     _preflight_report(shadow, as_of)
 
@@ -1850,6 +1808,8 @@ def _execute_daily(
         run_type=args.run_type,
         _lease=_lease,
     )
+    if market_witness_status is not None:
+        payload["market_witness_status"] = market_witness_status
     _run_context["step"] = "external_source_status"
     try:
         external_source_status = refresh_external.status(load_config())

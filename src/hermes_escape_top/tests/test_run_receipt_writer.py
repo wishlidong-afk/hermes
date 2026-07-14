@@ -216,7 +216,13 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
         "as_of": "2026-06-17",
         "input_hash": "abc123def456",
         "cache_status": {"hit": True},
-        "data_quality": {"level": "HIGH", "overall_score": 1.0},
+        "data_quality": {
+            "level": "HIGH",
+            "overall_score": 100.0,
+            "completeness_score": 100.0,
+            "quality_score": 100.0,
+            "latency_score": 100.0,
+        },
         "data_quality_breakdown": {"sources": []},
         "external_source_status": {
             "aaii_sentiment": {
@@ -229,7 +235,18 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
         },
         "ibkr": {"source": "unavailable", "error": "Gateway offline"},
         "alpaca_daily_flow": {"as_of": "2026-06-17"},
-        "scores": {"MSTR": {"final_score": 81}},
+        "market_witness_status": {
+            "status": "OK",
+            "as_of": "2026-06-17",
+            "summary": {"MATCH": 3, "NO_WITNESS": 2},
+        },
+        "scores": {
+            "MSTR": {
+                "final_score": 81,
+                "missing_weight": 10,
+                "confidence_missing_weight": 4,
+            }
+        },
         "factor_scores": {"MSTR": [{"factor_id": "A1", "score": 4}]},
         "sizing": {"MSTR": {"target_weight": 0.0}},
         "decision_layers": {"MSTR": {"hard_valve_state": {"triggered": []}}},
@@ -253,6 +270,14 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     assert out["markdown"].exists()
     data = json.loads(out["json"].read_text(encoding="utf-8"))
     assert data["health"]["layers"]["position_reconciliation"]["level"] == "INFO"
+    assert data["decision_input_coverage"]["coverage_score"] == 96.0
+    assert data["market_witness_status"]["summary"]["MATCH"] == 3
+    assert data["data_quality_dimensions"] == {
+        "market_completeness": 100,
+        "provenance": 100,
+        "timeliness": 100,
+        "decision_input_coverage": 96.0,
+    }
     dimensions = data["audit_dimensions"]
     assert len(dimensions) == 20
     assert {row["id"] for row in dimensions} >= {
@@ -264,10 +289,39 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     evidence = next(row for row in dimensions if row["id"] == "external_file_evidence")
     assert evidence["status"] == "PASS"
     assert "aaii_sentiment:2026-06-17:abcdefff" in evidence["detail"]
+    quality = next(row for row in dimensions if row["id"] == "data_quality")
+    assert "decision_coverage=96.0" in quality["detail"]
     markdown = out["markdown"].read_text(encoding="utf-8")
     assert "策略数据" in markdown
     assert "## 20 维自检" in markdown
     assert "| external_file_evidence | PASS |" in markdown
+
+
+def test_system_health_audit_fails_external_runner_when_canonical_evidence_drifted():
+    payload = {
+        "external_source_status": {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "freshness_status": "OK",
+                "evidence_status": "EVIDENCE_DRIFT",
+                "evidence_detail": "canonical sha256 changed after promotion",
+            }
+        }
+    }
+    report = {
+        "health": {"layers": {}},
+        "manifest_status": {},
+        "run_receipt": {},
+    }
+
+    dimensions = rdp._build_system_health_audit_dimensions(payload, report)
+
+    runner = next(row for row in dimensions if row["id"] == "external_source_runs")
+    readiness = next(row for row in dimensions if row["id"] == "external_precheck_readiness")
+    assert runner["status"] == "FAIL"
+    assert "dollar:EVIDENCE_DRIFT" in runner["detail"]
+    assert readiness["status"] == "FAIL"
 
 
 def test_system_health_report_uses_shared_release_reports(monkeypatch, tmp_path):

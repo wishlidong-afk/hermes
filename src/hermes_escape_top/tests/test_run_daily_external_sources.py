@@ -8,7 +8,7 @@ from hermes_escape_top.scripts import run_daily_package as rdp
 def test_refresh_external_sources_runs_registered_bundle_without_raising(monkeypatch):
     monkeypatch.setattr(
         rdp.refresh_external,
-        "pre_daily_check",
+        "daily_source_check",
         lambda: {
             "ready": True,
             "blocking_sources": [],
@@ -31,20 +31,21 @@ def test_refresh_external_sources_runs_registered_bundle_without_raising(monkeyp
 def test_refresh_external_sources_keeps_daily_alive_on_single_source_failure(monkeypatch):
     monkeypatch.setattr(
         rdp.refresh_external,
-        "pre_daily_check",
+        "daily_source_check",
         lambda: {
             "ready": False,
             "blocking_sources": ["real_rate"],
-            "warning_sources": [],
-            "refresh": {
-                "runs": [
-                    {"source_id": "dollar", "status": "OK"},
-                    {"source_id": "real_rate", "status": "ERROR", "error": "fred timeout"},
-                    {"source_id": "fred_net_liquidity", "status": "OK"},
-                    {"source_id": "naaim_exposure", "status": "OK"},
-                    {"source_id": "aaii_sentiment", "status": "OK"},
-                ]
-            },
+                "warning_sources": [],
+                "refresh": {
+                    "runs": [
+                        {
+                            "source_id": source_id,
+                            "status": "ERROR" if source_id == "real_rate" else "OK",
+                            **({"error": "fred timeout"} if source_id == "real_rate" else {}),
+                        }
+                        for source_id in rdp.refresh_external.SOURCE_IDS
+                    ]
+                },
         },
     )
 
@@ -58,7 +59,7 @@ def test_refresh_external_sources_keeps_daily_alive_on_single_source_failure(mon
     assert by_source["fred_net_liquidity"]["status"] == "OK"
 
 
-def test_refresh_soft_data_no_longer_refreshes_naaim_legacy(monkeypatch):
+def test_refresh_soft_data_has_no_direct_canonical_writers_after_runner_migration(monkeypatch):
     calls = []
 
     def fake_run(args, **_kwargs):
@@ -74,7 +75,17 @@ def test_refresh_soft_data_no_longer_refreshes_naaim_legacy(monkeypatch):
         for args in calls
         if "--only" in args
     ]
-    assert only_args == ["fred", "fred_risk", "cot"]
+    assert only_args == []
+    module_names = [
+        args[args.index("-m") + 1]
+        for args in calls
+        if "-m" in args
+    ]
+    assert "hermes_escape_top.scripts.refresh_aaii_public" not in module_names
+    assert "hermes_escape_top.scripts.backfill_cot" not in module_names
+    assert "hermes_escape_top.scripts.backfill_occ_pcr" not in module_names
+    assert "hermes_escape_top.scripts.refresh_cboe_daily_pcr" not in module_names
+    assert "hermes_escape_top.scripts.backfill_crypto_micro" not in module_names
     assert "naaim" not in only_args
 
 
@@ -134,3 +145,41 @@ def test_execute_daily_attaches_external_source_status_to_returned_payload(monke
     payload = rdp._execute_daily(args=args, _lease=object(), _run_context={"step": "startup", "as_of": "2026-06-18"})
 
     assert payload["external_source_status"]["dollar"]["status"] == "OK"
+
+
+def test_live_daily_attaches_nonblocking_market_witness(monkeypatch):
+    monkeypatch.setattr(rdp, "refresh_history", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_heal_lagging_symbols", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "refresh_external_sources", lambda: [])
+    monkeypatch.setattr(rdp.refresh_external, "status", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(rdp, "refresh_soft_data", lambda: None)
+    monkeypatch.setattr(
+        rdp,
+        "refresh_market_witness_status",
+        lambda as_of: {"status": "WARN", "as_of": as_of, "summary": {"PRICE_MISMATCH": 1}},
+    )
+    monkeypatch.setattr(rdp, "_preflight_report", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_history_integrity_scan", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(rdp, "_refreeze_manifest", lambda: None)
+    monkeypatch.setattr(rdp, "run_score_pipeline", lambda *_args, **_kwargs: {"as_of": "2026-07-10"})
+    monkeypatch.setattr(rdp, "translate", lambda payload: {"orders_preview": {}, **payload})
+    monkeypatch.setattr(rdp, "write_artifacts", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_post_run_diff", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_refresh_next5_unlock", lambda: None)
+    monkeypatch.setattr("hermes_escape_top.core.data.audit.rotate_audit_log", lambda _path: None)
+    args = SimpleNamespace(
+        live=True,
+        skip_refresh=False,
+        as_of="2026-07-10",
+        run_type="scheduled",
+        commit_state=False,
+    )
+
+    payload = rdp._execute_daily(
+        args=args,
+        _lease=object(),
+        _run_context={"step": "startup", "as_of": "2026-07-10"},
+    )
+
+    assert payload["market_witness_status"]["status"] == "WARN"
+    assert payload["market_witness_status"]["summary"] == {"PRICE_MISMATCH": 1}
