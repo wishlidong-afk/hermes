@@ -1,0 +1,93 @@
+{
+  "schema_version": "hermes-cboe-official-indices-live-activation-v1",
+  "activated_at": "2026-07-14T13:55:30+08:00",
+  "release": "d2ed608",
+  "flag": "features.use_cboe_official_indices",
+  "repo_default": false,
+  "live_value": true,
+  "first_attempt": {
+    "status": "ROLLED_BACK",
+    "source_id": "cboe_vix",
+    "error_type": "ReadTimeout",
+    "error": "CBOE CDN read timed out after 30 seconds",
+    "canonical_promotions": 0,
+    "flag_enabled": false
+  },
+  "activation_transaction": {
+    "pipeline_lock_held": true,
+    "all_sources_required": true,
+    "prefetched_official_bytes": true,
+    "pre_migration_yahoo_canonical_used_as_witness": true,
+    "official_receipt_unchanged": true,
+    "official_audit_unchanged": true,
+    "dashboard_http": 200,
+    "preview_banner_count": 0
+  },
+  "sources": [
+    {
+      "source_id": "cboe_vix",
+      "status": "OK",
+      "evidence_status": "MATCH",
+      "latest_as_of": "2026-07-13",
+      "before_rows": 2145,
+      "before_start": "2018-01-02",
+      "before_sha256": "86bf0450d6f8a4652d151021d88fc8de983dcb2f95dd5d3cf0e46d79a3107ea8",
+      "after_rows": 9227,
+      "after_start": "1990-01-02",
+      "canonical_sha256": "29ca9f73edf7f574885227802076ed04f8889e197c4c9df734b8533fef9463ff",
+      "official_file_sha256": "1c100a5f5bea02c6264ff9448273060b670397ccfe7075d4a5bed84119347541"
+    },
+    {
+      "source_id": "cboe_vix3m",
+      "status": "OK",
+      "evidence_status": "MATCH",
+      "latest_as_of": "2026-07-13",
+      "before_rows": 2142,
+      "before_start": "2018-01-02",
+      "before_sha256": "e16baa862423d0484b6803dfc59188cfbaee09f49f08aa3a55921b39787a7122",
+      "after_rows": 4228,
+      "after_start": "2009-09-18",
+      "canonical_sha256": "b07b17f0685118f4d1d25bb5f726cfbac2d9c932fb66ba3e0a0343970e079c12",
+      "official_file_sha256": "fcf70e02334a5cb21c9dd6fb7561ac4bdeedfbc18686772f91ac3b6dae56a7e1"
+    },
+    {
+      "source_id": "cboe_vix9d",
+      "status": "OK",
+      "evidence_status": "MATCH",
+      "latest_as_of": "2026-07-13",
+      "before_rows": 2142,
+      "before_start": "2018-01-02",
+      "before_sha256": "1d87ec9dde10e7e610e9b9ac33eff8ab0bea3699a7229f377a176578c165762b",
+      "after_rows": 3902,
+      "after_start": "2011-01-04",
+      "canonical_sha256": "9a1172e6d4b07b070c09e2a5d5157a32e0e61230830458072618f56d00a4f386",
+      "official_file_sha256": "1528209183db94aae84a366b52cd80fce9675736295b8d96a54ca8f5c126021f"
+    },
+    {
+      "source_id": "cboe_skew",
+      "status": "OK",
+      "evidence_status": "MATCH",
+      "latest_as_of": "2026-07-13",
+      "before_rows": 2091,
+      "before_start": "2018-01-02",
+      "before_sha256": "7cf0e05aec71243c07a1265c70e0b9ac1485d46e47da934b5f658aed2d09984d",
+      "after_rows": 9182,
+      "after_start": "1990-01-02",
+      "canonical_sha256": "02745261b3e44228b1ea97b84bbd6c586ba37608a01266363217be27192202df",
+      "official_file_sha256": "38975b594c828341964df7f2969c6e0a915e460e4f9df47f8a13033fa1df41f0"
+    },
+    {
+      "source_id": "cboe_vvix",
+      "status": "OK",
+      "evidence_status": "MATCH",
+      "latest_as_of": "2026-07-13",
+      "before_rows": 2134,
+      "before_start": "2018-01-02",
+      "before_sha256": "38caecf942eddb19ce58fb576dcf9543ba31a06086d341658db6ffb84dccbde9",
+      "after_rows": 5059,
+      "after_start": "2006-03-06",
+      "canonical_sha256": "d8c59e507d2a4c0905b5519b2e03ddf32af978754a4a37755276f9ff9b8ce874",
+      "official_file_sha256": "57c4600b308baa867a341a254ad86a87a3462dac08fe81a0d2acf86ec70776c7"
+    }
+  ]
+}
