@@ -283,7 +283,7 @@ def refresh_external_sources() -> list[dict]:
     records the error for health/WebUI. A transient FRED outage must not abort the
     daily scoring run.
     """
-    source_ids = tuple(refresh_external.SOURCE_IDS)
+    source_ids = refresh_external.configured_source_ids(load_config())
     print(f"[M4-1a] Pre-daily external source check ({', '.join(source_ids)})…")
     check = refresh_external.daily_source_check()
     runs = list((check.get("refresh") or {}).get("runs") or [])
@@ -1498,9 +1498,17 @@ def _build_system_health_audit_dimensions(payload: Dict[str, Any], report: Dict[
         if isinstance(row, dict) and row.get("active") is not False
     ] if isinstance(external_sources, dict) else []
     external_bad = [
-        str(row.get("source_id") or "?")
+        (
+            f"{row.get('source_id') or '?'}:"
+            f"{row.get('latest_attempt_status') or row.get('status') or 'MISSING'}"
+            + (
+                f" {row.get('latest_attempt_error_message') or row.get('latest_attempt_error_type')}"
+                if row.get("latest_attempt_error_message") or row.get("latest_attempt_error_type")
+                else ""
+            )
+        )
         for row in external_rows
-        if str(row.get("status") or "") != "OK"
+        if str(row.get("latest_attempt_status") or row.get("status") or "") != "OK"
     ]
     external_evidence_bad = [
         f"{row.get('source_id') or '?'}:{canonical_evidence_issue(row)}"

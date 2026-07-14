@@ -1,0 +1,138 @@
+{
+  "all_action_surfaces_equal": true,
+  "all_normalized_regimes_equal": false,
+  "comparison_policy": "Action fields and numeric explanations are compared after 6-decimal normalization; input_hash remains exact and is expected to change when canonical provenance changes.",
+  "dates": {
+    "2022-01-03": {
+      "action_surfaces_equal": true,
+      "baseline_input_hash": "7ed9a2e35cdffdbc9e98b11ab0ba51901408bc95381f37374065c3b430b78df5",
+      "baseline_scores": {
+        "FNGU": 29.07033,
+        "MSTR": 69.265053,
+        "SOXL": 26.574632
+      },
+      "baseline_statuses": {
+        "FNGU": "REDUCE",
+        "MSTR": "EXIT",
+        "SOXL": "REDUCE"
+      },
+      "candidate_input_hash": "8473359586df11413d18a8b1b1072213314c0d65cdaf9f486b930f2f498d93f1",
+      "candidate_scores": {
+        "FNGU": 29.07033,
+        "MSTR": 69.265053,
+        "SOXL": 26.574632
+      },
+      "candidate_statuses": {
+        "FNGU": "REDUCE",
+        "MSTR": "EXIT",
+        "SOXL": "REDUCE"
+      },
+      "input_hash_changed": true,
+      "normalized_regime_equal": false
+    },
+    "2024-08-05": {
+      "action_surfaces_equal": true,
+      "baseline_input_hash": "db5cea025ea998f8f28ec92e77f3cdc72a5e99abf6a87d3cb020fbd4b55d4864",
+      "baseline_scores": {
+        "FNGU": 70.324835,
+        "MSTR": 62.365474,
+        "SOXL": 93.010105
+      },
+      "baseline_statuses": {
+        "FNGU": "EXIT",
+        "MSTR": "EXIT",
+        "SOXL": "EXIT"
+      },
+      "candidate_input_hash": "0ed9b305c280a284a3316c9246c11db70f689148387b8458a184492aa437f176",
+      "candidate_scores": {
+        "FNGU": 70.324835,
+        "MSTR": 62.365474,
+        "SOXL": 93.010105
+      },
+      "candidate_statuses": {
+        "FNGU": "EXIT",
+        "MSTR": "EXIT",
+        "SOXL": "EXIT"
+      },
+      "input_hash_changed": true,
+      "normalized_regime_equal": false
+    },
+    "2026-04-10": {
+      "action_surfaces_equal": true,
+      "baseline_input_hash": "e4dcbc4f1c83d8179e90dbe134280485ecf03d8310d05023b850a3b4f4c6a33b",
+      "baseline_scores": {
+        "FNGU": 43.876526,
+        "MSTR": 53.433368,
+        "SOXL": 22.479053
+      },
+      "baseline_statuses": {
+        "FNGU": "EXIT",
+        "MSTR": "EXIT",
+        "SOXL": "REDUCE"
+      },
+      "candidate_input_hash": "ae69e3de584290237adba844e1f4c7cf53b8df72c9906bb416cc682dde617863",
+      "candidate_scores": {
+        "FNGU": 43.876526,
+        "MSTR": 53.433368,
+        "SOXL": 22.479053
+      },
+      "candidate_statuses": {
+        "FNGU": "EXIT",
+        "MSTR": "EXIT",
+        "SOXL": "REDUCE"
+      },
+      "input_hash_changed": true,
+      "normalized_regime_equal": false
+    },
+    "2026-07-10": {
+      "action_surfaces_equal": true,
+      "baseline_input_hash": "9093b964e3a7e58a1dac935a22d3f88469fa05d7edbb7f92880b6015c5ea51a5",
+      "baseline_scores": {
+        "FNGU": 34.267474,
+        "MSTR": 69.979684,
+        "SOXL": 49.531368
+      },
+      "baseline_statuses": {
+        "FNGU": "REDUCE",
+        "MSTR": "EXIT",
+        "SOXL": "EXIT"
+      },
+      "candidate_input_hash": "80175ceec2a80af3dde2bf08e8a41af38d083b3ba3e65436d83be7e3e676fd6e",
+      "candidate_scores": {
+        "FNGU": 34.267474,
+        "MSTR": 69.979684,
+        "SOXL": 49.531368
+      },
+      "candidate_statuses": {
+        "FNGU": "REDUCE",
+        "MSTR": "EXIT",
+        "SOXL": "EXIT"
+      },
+      "input_hash_changed": true,
+      "normalized_regime_equal": true
+    }
+  },
+  "official_files": {
+    "_SKEW.csv": {
+      "latest": "2026-07-13",
+      "sha256": "02745261b3e44228b1ea97b84bbd6c586ba37608a01266363217be27192202df"
+    },
+    "_VIX.csv": {
+      "latest": "2026-07-13",
+      "sha256": "29ca9f73edf7f574885227802076ed04f8889e197c4c9df734b8533fef9463ff"
+    },
+    "_VIX3M.csv": {
+      "latest": "2026-07-10",
+      "sha256": "0ba279e9b0dd7b4fd4aa7d00b2e69fb25330a571d73dbf4706dd66df465b95b6"
+    },
+    "_VIX9D.csv": {
+      "latest": "2026-07-10",
+      "sha256": "6248cec5ce95069ce5741e947008edd447341e7ba3465109bfe596894188d36b"
+    },
+    "_VVIX.csv": {
+      "latest": "2026-07-13",
+      "sha256": "d8c59e507d2a4c0905b5519b2e03ddf32af978754a4a37755276f9ff9b8ce874"
+    }
+  },
+  "schema_version": "hermes-cboe-migration-impact-v2"
+}

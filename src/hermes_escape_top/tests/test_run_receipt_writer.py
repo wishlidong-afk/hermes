@@ -324,6 +324,35 @@ def test_system_health_audit_fails_external_runner_when_canonical_evidence_drift
     assert readiness["status"] == "FAIL"
 
 
+def test_system_health_audit_warns_on_latest_external_attempt_failure():
+    payload = {
+        "external_source_status": {
+            "cboe_vix": {
+                "source_id": "cboe_vix",
+                "status": "OK",
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "latest_attempt_status": "VALIDATION_ERROR",
+                "latest_attempt_error_message": "Yahoo witness mismatch",
+            }
+        }
+    }
+    report = {
+        "health": {"layers": {}},
+        "manifest_status": {},
+        "run_receipt": {},
+    }
+
+    dimensions = rdp._build_system_health_audit_dimensions(payload, report)
+
+    runner = next(row for row in dimensions if row["id"] == "external_source_runs")
+    readiness = next(row for row in dimensions if row["id"] == "external_precheck_readiness")
+    assert runner["status"] == "WARN"
+    assert "cboe_vix:VALIDATION_ERROR" in runner["detail"]
+    assert "Yahoo witness mismatch" in runner["detail"]
+    assert readiness["status"] == "WARN"
+
+
 def test_system_health_report_uses_shared_release_reports(monkeypatch, tmp_path):
     release = tmp_path / "releases" / "abc123_20260703"
     package_data = release / "hermes_escape_top"

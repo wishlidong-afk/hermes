@@ -488,6 +488,70 @@ def test_trust_health_external_chain_prefers_current_daily_ledger_over_stale_pre
     assert "DUE_SOON" not in trust_section
 
 
+def test_external_source_ops_shows_latest_failed_attempt_over_cached_ok_status():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "cboe_vix": {
+            "source_id": "cboe_vix",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-07-10",
+            "finished_at": "2026-07-13T06:45:00+08:00",
+            "latest_attempt_status": "VALIDATION_ERROR",
+            "latest_attempt_finished_at": "2026-07-14T06:45:00+08:00",
+            "latest_attempt_error_message": "Yahoo witness mismatch 2026-07-13",
+            "freshness_status": "OK",
+            "evidence_status": "MATCH",
+        }
+    }
+
+    html = render_mod.render_dashboard(
+        payload,
+        health={"level": "DEGRADED"},
+        manifest_status={"status": "OK"},
+    )
+
+    assert "VALIDATION_ERROR" in html
+    assert "Yahoo witness mismatch 2026-07-13" in html
+    assert "2026-07-14T06:45:00+08:00" in html
+    assert "CBOE VIX" in html
+
+
+def test_external_precheck_table_uses_latest_attempt_time_and_error():
+    payload = {
+        "external_source_status": {
+            "cboe_vix": {
+                "source_id": "cboe_vix",
+                "status": "OK",
+                "latest_attempt_status": "VALIDATION_ERROR",
+                "evidence_status": "MATCH",
+            }
+        },
+        "external_precheck_status": {
+            "ready": False,
+            "refresh": {"ok_count": 0, "error_count": 1},
+            "sources": {
+                "cboe_vix": {
+                    "source_id": "cboe_vix",
+                    "status": "OK",
+                    "latest_promoted_as_of": "2026-07-10",
+                    "finished_at": "2026-07-13T06:45:00+08:00",
+                    "latest_attempt_status": "VALIDATION_ERROR",
+                    "latest_attempt_finished_at": "2026-07-14T06:45:00+08:00",
+                    "latest_attempt_error_message": "Yahoo witness mismatch latest close",
+                    "evidence_status": "MATCH",
+                }
+            },
+        },
+    }
+
+    html = render_mod._render_external_precheck_summary(payload)
+
+    assert "VALIDATION_ERROR" in html
+    assert "2026-07-14T06:45:00+08:00" in html
+    assert "Yahoo witness mismatch latest close" in html
+    assert "2026-07-13T06:45:00+08:00" not in html
+
+
 def test_trust_health_does_not_certify_runner_ok_when_canonical_evidence_drifted():
     payload = _payload()
     payload["external_source_status"] = {

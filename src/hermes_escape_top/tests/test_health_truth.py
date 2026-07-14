@@ -193,6 +193,31 @@ def test_external_source_failure_degrades_with_reason():
     )
 
 
+def test_latest_external_attempt_failure_degrades_even_when_cached_canonical_is_ok():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "cboe_vix": {
+            "source_id": "cboe_vix",
+            "status": "OK",
+            "freshness_status": "OK",
+            "evidence_status": "MATCH",
+            "latest_attempt_status": "VALIDATION_ERROR",
+            "latest_attempt_finished_at": "2026-07-14T06:45:00+08:00",
+            "latest_attempt_error_message": "Yahoo witness mismatch 2026-07-13",
+        }
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "DEGRADED"
+    assert any(
+        check["label"] == "外部数据源刷新失败"
+        and "cboe_vix" in check["detail"]
+        and "Yahoo witness mismatch" in check["detail"]
+        for check in health["checks"]
+    )
+
+
 def test_market_admission_blocked_degrades_with_quarantine_count():
     payload = _payload()
     payload["market_admission_status"] = {

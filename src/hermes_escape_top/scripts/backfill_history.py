@@ -18,6 +18,7 @@ from ..core.data.market_admission import (
     write_market_admission_evidence,
 )
 from ..core.data.market_witness import is_alpaca_supported_symbol
+from ..core.data.external_sources.cboe_indices import CBOE_INDEX_SYMBOLS
 from ..core.data.store import safe_symbol
 from ..core.safe_io import atomic_write_csv
 
@@ -65,6 +66,8 @@ def all_backfill_symbols(config: Optional[Dict[str, object]] = None) -> list[str
         symbols.update(values)
     for values in cfg.get("component_proxies", {}).values():
         symbols.update(values)
+    if bool((cfg.get("features") or {}).get("use_cboe_official_indices", False)):
+        symbols.difference_update(CBOE_INDEX_SYMBOLS)
     return sorted(symbols)
 
 
@@ -90,12 +93,19 @@ def backfill(
     admission_session: MarketAdmissionSession | None = None,
     admission_archive: str | Path | None = None,
 ) -> Dict[str, BackfillResult]:
+    config = load_config()
+    if bool((config.get("features") or {}).get("use_cboe_official_indices", False)):
+        forbidden = sorted(set(symbols).intersection(CBOE_INDEX_SYMBOLS))
+        if forbidden:
+            raise PermissionError(
+                "CBOE official writer owns canonical history for: "
+                + ", ".join(forbidden)
+            )
     store = Path(store_dir)
     store.mkdir(parents=True, exist_ok=True)
     active_admission = admission_session
     admission_archive_path = Path(admission_archive) if admission_archive is not None else None
     if active_admission is None and downloader is None:
-        config = load_config()
         if bool((config.get("features") or {}).get("use_market_admission_gate", False)):
             admission_start = _market_admission_start(
                 symbols,

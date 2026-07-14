@@ -6,11 +6,10 @@ import os
 import stat
 import tempfile
 from dataclasses import dataclass, field
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 from uuid import uuid4
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -21,6 +20,7 @@ from .market_witness import (
     fetch_alpaca_daily_bar_range,
     is_alpaca_supported_symbol,
 )
+from .market_clock import latest_completed_us_market_session
 from .store import safe_symbol
 
 
@@ -243,20 +243,6 @@ def prepare_market_admission_session(
             requested_end=str(end)[:10],
             completed_through=completed_through,
         )
-
-
-def latest_completed_us_market_session(now: datetime | None = None) -> date:
-    value = now or datetime.now(timezone.utc)
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    eastern = value.astimezone(ZoneInfo("America/New_York"))
-    day = eastern.date()
-    if day.weekday() < 5 and eastern.time() >= time(16, 15):
-        return day
-    day -= timedelta(days=1)
-    while day.weekday() >= 5:
-        day -= timedelta(days=1)
-    return day
 
 
 def write_market_admission_evidence(
