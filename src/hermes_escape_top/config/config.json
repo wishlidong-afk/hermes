@@ -352,6 +352,7 @@
     "use_no_advice_state": true,
     "use_indicator_cache": false,
     "use_market_admission_gate": false,
+    "use_btc_spot_witness": false,
     "use_cboe_official_indices": false
   },
   "_full_confidence_spine_flip": {

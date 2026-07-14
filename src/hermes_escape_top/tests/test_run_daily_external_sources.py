@@ -244,3 +244,37 @@ def test_daily_prefers_current_session_error_over_stale_disk_ok(monkeypatch):
     assert payload["market_admission_status"]["status"] == "ERROR"
     assert "disk full" in payload["market_admission_status"]["run_error"]
     assert score_calls[0]["market_admission_status"]["operation_id"] == session.operation_id
+
+
+def test_daily_market_admission_passes_btc_spot_witness_flag(tmp_path, monkeypatch):
+    captured = {}
+    expected = MarketAdmissionSession(enabled=True, witness_bars={})
+
+    monkeypatch.setattr(rdp, "all_backfill_symbols", lambda _config: ["BTC-USD"])
+
+    def prepare(symbols, start, end, **kwargs):
+        captured.update(
+            {
+                "symbols": list(symbols),
+                "start": start,
+                "end": end,
+                "kwargs": kwargs,
+            }
+        )
+        return expected
+
+    monkeypatch.setattr(rdp, "prepare_market_admission_session", prepare)
+    config = {
+        "features": {
+            "use_market_admission_gate": True,
+            "use_btc_spot_witness": True,
+        },
+        "paths": {"history_dir": str(tmp_path)},
+    }
+
+    actual = rdp._prepare_daily_market_admission(config, "2026-07-14")
+
+    assert actual is expected
+    assert captured["symbols"] == ["BTC-USD"]
+    assert captured["end"] == "2026-07-14"
+    assert captured["kwargs"] == {"btc_spot_witness_enabled": True}

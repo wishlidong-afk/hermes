@@ -196,8 +196,27 @@ def _prepare_daily_market_admission(
         return None
     symbols = all_backfill_symbols(config)
     history_dir = resolve_path(config, "history_dir")
-    start = _market_admission_start(symbols, history_dir, "2018-01-01", 3)
-    return prepare_market_admission_session(symbols, start, str(end)[:10])
+    btc_spot_witness_enabled = bool(
+        (config.get("features") or {}).get("use_btc_spot_witness", False)
+    )
+    start = _market_admission_start(
+        symbols,
+        history_dir,
+        "2018-01-01",
+        3,
+        btc_spot_witness_enabled=btc_spot_witness_enabled,
+    )
+    admission_kwargs = (
+        {"btc_spot_witness_enabled": True}
+        if btc_spot_witness_enabled
+        else {}
+    )
+    return prepare_market_admission_session(
+        symbols,
+        start,
+        str(end)[:10],
+        **admission_kwargs,
+    )
 
 
 def _heal_lagging_symbols(
