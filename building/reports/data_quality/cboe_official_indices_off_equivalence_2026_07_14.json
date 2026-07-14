@@ -1,0 +1,550 @@
+{
+  "all_equal": true,
+  "baseline_source": "/Users/liweishi/Documents/github/hermes",
+  "candidate_source": "/Users/liweishi/Documents/github/hermes/.worktrees/cboe-official-indices",
+  "dates": {
+    "2022-01-03": {
+      "baseline": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "e64ae239a8ba6fd0e1935f566014b839877e04a01ece22e8ad2a5fe043a4ae1c",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "03e4e199dc4bbb0560bf422afbbf019266c5ea69a5e7b5a5cc839b79b0b2d495",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "5b9a947c9db877552c15d837fe7065ba472be93c5044d4ea66d2746f5445fc4d",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "d0f7ab15df7bb48027621f01b8a8f1480868178091af51f2b786c76f260d8baf",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "549d6abd74b5afd5c8c5455d04a3d040e04e43329146602c7d14aa86d64c2c99",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "fbf4d810657fae3e1c33e390478dbf2ebf1aeb13bc866d59fd6461c318834254",
+            "tables": {}
+          }
+        },
+        "input_hash": "7ed9a2e35cdffdbc9e98b11ab0ba51901408bc95381f37374065c3b430b78df5",
+        "payload_sha256": "3313bc5b1d870d70654752f49a629c0805bdb62e58523bf28781407e836eee95",
+        "status": {
+          "FNGU": "REDUCE",
+          "MSTR": "EXIT",
+          "SOXL": "REDUCE"
+        }
+      },
+      "candidate": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "e64ae239a8ba6fd0e1935f566014b839877e04a01ece22e8ad2a5fe043a4ae1c",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "03e4e199dc4bbb0560bf422afbbf019266c5ea69a5e7b5a5cc839b79b0b2d495",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "5b9a947c9db877552c15d837fe7065ba472be93c5044d4ea66d2746f5445fc4d",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "d0f7ab15df7bb48027621f01b8a8f1480868178091af51f2b786c76f260d8baf",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "549d6abd74b5afd5c8c5455d04a3d040e04e43329146602c7d14aa86d64c2c99",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "fbf4d810657fae3e1c33e390478dbf2ebf1aeb13bc866d59fd6461c318834254",
+            "tables": {}
+          }
+        },
+        "input_hash": "7ed9a2e35cdffdbc9e98b11ab0ba51901408bc95381f37374065c3b430b78df5",
+        "payload_sha256": "3313bc5b1d870d70654752f49a629c0805bdb62e58523bf28781407e836eee95",
+        "status": {
+          "FNGU": "REDUCE",
+          "MSTR": "EXIT",
+          "SOXL": "REDUCE"
+        }
+      },
+      "differences": [],
+      "equal": true
+    },
+    "2024-08-05": {
+      "baseline": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "fff8467a0e6754d9bbf36edf867c0a010e9fc8beeaa41b16ea1beb683f0b5d8e",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "1a58c94844f1380883cd041dc9c13cae488c01fc2e7414aae489e83a7696cbd9",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "1c58e55ccb840a75ffb0b93044ed32f974137ac1b8563fbce3c68ca24d2aaaae",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "f5ee54a3be5bb99bdc87345c0eb8f6db74500e7a0bb713982ff91375907ae378",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "de4b3675ee8829db733f95b537bf5c3687ddb7b7f576a8ea91319354e9adedd3",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "27c933693f4ae85a5a27f080190c0b49109b8aedac627c377ec9e5d19a0f6d85",
+            "tables": {}
+          }
+        },
+        "input_hash": "db5cea025ea998f8f28ec92e77f3cdc72a5e99abf6a87d3cb020fbd4b55d4864",
+        "payload_sha256": "ae4b5ef8257ae14dc52a9993e49c844ccf16cdfe211ecf141c08d309e4d7570c",
+        "status": {
+          "FNGU": "EXIT",
+          "MSTR": "EXIT",
+          "SOXL": "EXIT"
+        }
+      },
+      "candidate": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "fff8467a0e6754d9bbf36edf867c0a010e9fc8beeaa41b16ea1beb683f0b5d8e",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "1a58c94844f1380883cd041dc9c13cae488c01fc2e7414aae489e83a7696cbd9",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "1c58e55ccb840a75ffb0b93044ed32f974137ac1b8563fbce3c68ca24d2aaaae",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "f5ee54a3be5bb99bdc87345c0eb8f6db74500e7a0bb713982ff91375907ae378",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "de4b3675ee8829db733f95b537bf5c3687ddb7b7f576a8ea91319354e9adedd3",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "27c933693f4ae85a5a27f080190c0b49109b8aedac627c377ec9e5d19a0f6d85",
+            "tables": {}
+          }
+        },
+        "input_hash": "db5cea025ea998f8f28ec92e77f3cdc72a5e99abf6a87d3cb020fbd4b55d4864",
+        "payload_sha256": "ae4b5ef8257ae14dc52a9993e49c844ccf16cdfe211ecf141c08d309e4d7570c",
+        "status": {
+          "FNGU": "EXIT",
+          "MSTR": "EXIT",
+          "SOXL": "EXIT"
+        }
+      },
+      "differences": [],
+      "equal": true
+    },
+    "2026-04-10": {
+      "baseline": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "710e0e2b4e46b8b0f17e2052aeed41dd5707be333fe93dbad865380fc17e3c1b",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "9cb42c1abeee4c2a16bedaac879892e833d61765fe4058a99f8d09f319cbf157",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "cd3eed69b773b23309e8b4cafbca2d147998a3759b66726e124e556bc2876529",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "43c1e631d928d974dd45f49c60f92455a82dd5be68fbc5bafae057daeb63c710",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "1ccef79e40de500b90c548185b9aa49a564b305d1f6b7855f0295d9319edfd63",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "c235678d4ae045a3b002d939936404d343366d00bb62c27747c0ac7f2d7ffafc",
+            "tables": {}
+          }
+        },
+        "input_hash": "e4dcbc4f1c83d8179e90dbe134280485ecf03d8310d05023b850a3b4f4c6a33b",
+        "payload_sha256": "fca64a4251e93d8aa965da82680a1f5224d425e69a3c934a97c71e053fb809d9",
+        "status": {
+          "FNGU": "EXIT",
+          "MSTR": "EXIT",
+          "SOXL": "REDUCE"
+        }
+      },
+      "candidate": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "710e0e2b4e46b8b0f17e2052aeed41dd5707be333fe93dbad865380fc17e3c1b",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "9cb42c1abeee4c2a16bedaac879892e833d61765fe4058a99f8d09f319cbf157",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "cd3eed69b773b23309e8b4cafbca2d147998a3759b66726e124e556bc2876529",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "43c1e631d928d974dd45f49c60f92455a82dd5be68fbc5bafae057daeb63c710",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "1ccef79e40de500b90c548185b9aa49a564b305d1f6b7855f0295d9319edfd63",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "c235678d4ae045a3b002d939936404d343366d00bb62c27747c0ac7f2d7ffafc",
+            "tables": {}
+          }
+        },
+        "input_hash": "e4dcbc4f1c83d8179e90dbe134280485ecf03d8310d05023b850a3b4f4c6a33b",
+        "payload_sha256": "fca64a4251e93d8aa965da82680a1f5224d425e69a3c934a97c71e053fb809d9",
+        "status": {
+          "FNGU": "EXIT",
+          "MSTR": "EXIT",
+          "SOXL": "REDUCE"
+        }
+      },
+      "differences": [],
+      "equal": true
+    },
+    "2026-07-10": {
+      "baseline": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "dbcc00548e4247996b852482b1637228dd8b8731fb753c536656a80536db4ac3",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "72be1e6b31891a948ab46d154048a1a4aa502fafb4231476c3b0edda93971944",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "93378003e5b44dd9a57ab7ee4bcc8b4b0e71b5ae18970cde68b41efac50177fc",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "105f4895ea9100c7ee87d44b84de153f0bf39a749c9842062287a144ba3f9ef9",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "1c32c86d110ea58faf0998206a9087d2fdd512fb6ee118de8b62f228c8b7f2c4",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "c2d30780939d1a7ffcc85fd7c400f9189034e19faad545b6dc4d20ffe274b1b6",
+            "tables": {}
+          }
+        },
+        "input_hash": "9093b964e3a7e58a1dac935a22d3f88469fa05d7edbb7f92880b6015c5ea51a5",
+        "payload_sha256": "8cc59a5956e5843781ba52c1db4fbc4177dcc7012cd3868976be14448d390c3a",
+        "status": {
+          "FNGU": "REDUCE",
+          "MSTR": "EXIT",
+          "SOXL": "EXIT"
+        }
+      },
+      "candidate": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "dbcc00548e4247996b852482b1637228dd8b8731fb753c536656a80536db4ac3",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "72be1e6b31891a948ab46d154048a1a4aa502fafb4231476c3b0edda93971944",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "93378003e5b44dd9a57ab7ee4bcc8b4b0e71b5ae18970cde68b41efac50177fc",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "105f4895ea9100c7ee87d44b84de153f0bf39a749c9842062287a144ba3f9ef9",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "1c32c86d110ea58faf0998206a9087d2fdd512fb6ee118de8b62f228c8b7f2c4",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "c2d30780939d1a7ffcc85fd7c400f9189034e19faad545b6dc4d20ffe274b1b6",
+            "tables": {}
+          }
+        },
+        "input_hash": "9093b964e3a7e58a1dac935a22d3f88469fa05d7edbb7f92880b6015c5ea51a5",
+        "payload_sha256": "8cc59a5956e5843781ba52c1db4fbc4177dcc7012cd3868976be14448d390c3a",
+        "status": {
+          "FNGU": "REDUCE",
+          "MSTR": "EXIT",
+          "SOXL": "EXIT"
+        }
+      },
+      "differences": [],
+      "equal": true
+    }
+  },
+  "schema_version": "hermes-pipeline-persistence-equivalence-v1",
+  "scope_notes": [
+    "Covers score_pipeline persistence only: four SQLite files, audit_log.jsonl, and signal_journal.jsonl.",
+    "archive_soft_inputs/write_dated_snapshot is a separate command outside the score_pipeline transaction and is intentionally excluded.",
+    "Timestamps, temporary data-root prefixes, and the audit row's timestamp-derived payload_hash are normalized.",
+    "The recoverable transaction envelope is omitted because its random run_id is operational metadata; every business field and persisted row remains strict."
+  ]
+}

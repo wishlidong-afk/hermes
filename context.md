@@ -25,6 +25,7 @@
     "data_yield_curve",
     "use_arm_then_fire",
     "use_b6_mnav_valuation",
+    "use_cboe_official_indices",
     "use_close_confirmation",
     "use_decision_stabilizer",
     "use_hm2_buffer",
@@ -83,7 +84,6 @@
 }
 ```
 <!-- HERMES_GOVERNANCE_SNAPSHOT_END -->
-
 
 > 由代码事实与治理检查生成于 2026-07-13。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准；`scripts/check_governance_consistency.py` 会阻止关键快照静默漂移。
 
@@ -157,6 +157,7 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 |---|---|---|---|---|
 | `dollar` / `real_rate` / `fred_net_liquidity` | `soft_history/*.csv` | FRED API，Graph CSV fallback | 观测日 `+1d`；API realtime 只记 raw query-vintage 证据 | 无 key 仍可 fallback；同内容不因抓取时刻改变 source input hash |
 | `cboe_equity_pcr` | `soft_history/cboe_equity_pcr.csv` | CBOE daily HTML | 观测日 `+1d` | 解析/比率校验失败时保留上一份 canonical |
+| `cboe_vix` / `cboe_vix3m` / `cboe_vix9d` / `cboe_skew` / `cboe_vvix` | `history/_VIX*.csv` / `_SKEW.csv` / `_VVIX.csv` | CBOE official daily history CSV；Yahoo witness-only | 仅已完成美股交易日；未见证尾部不晋升 | `use_cboe_official_indices` repo 默认 OFF；ON 时 `backfill()` 内层禁止 Yahoo 双写，截断/缺日/证据漂移保留旧 canonical |
 | `cot_nq` | `soft_history/cot_nq.csv` | CFTC public API | 周二观测、周五公开 | flag OFF 时不影响生产健康/决策覆盖 |
 | `occ_equity_pcr` | `soft_history/occ_equity_pcr.csv` | OCC weekly report | 周五 week-ending、周六公开 | 当前 inactive，只做迁移/替代源证据 |
 | `btc_funding_basis` | `soft_history/btc_funding_basis.csv` | Deribit，OKX fallback | 交易所 UTC 时间戳归日 | 增量刷新不再把历史 real 行降成 proxy |

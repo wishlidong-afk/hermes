@@ -13,11 +13,14 @@ from typing import Any, Callable
 
 from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.safe_io import PipelineBusy, pipeline_lock
+from hermes_escape_top.core.data.store import safe_symbol
 from hermes_escape_top.core.data.external_sources import (
     AaiiSentimentAdapter,
     AaiiSentimentImportAdapter,
     BtcMicroAdapter,
+    CBOE_INDEX_DEFINITIONS,
     CboePcrAdapter,
+    CboeVolatilityIndexAdapter,
     CotNqAdapter,
     FredNetLiquidityAdapter,
     FredPercentileAdapter,
@@ -27,6 +30,7 @@ from hermes_escape_top.core.data.external_sources import (
     aaii_sentiment_spec,
     btc_micro_spec,
     cboe_pcr_spec,
+    cboe_index_spec,
     cot_nq_spec,
     effective_source_profile,
     fred_net_liquidity_spec,
@@ -60,6 +64,8 @@ SOURCE_IDS = (
     "naaim_exposure",
     "aaii_sentiment",
 )
+CBOE_INDEX_SOURCE_IDS = tuple(CBOE_INDEX_DEFINITIONS)
+ALL_SOURCE_IDS = SOURCE_IDS + CBOE_INDEX_SOURCE_IDS
 IMPORT_FILE_SOURCE_IDS = ("naaim_exposure", "aaii_sentiment")
 POLICY_WARN_ONLY_STALE_SOURCE_IDS = frozenset({"dollar"})
 DAILY_RETRY_REUSE_SECONDS = 15 * 60
@@ -132,8 +138,17 @@ def btc_funding_basis_source(config: dict[str, Any]):
     return btc_micro_spec(target_path=target), BtcMicroAdapter(seed_path=target)
 
 
+def cboe_index_source(source_id: str, config: dict[str, Any]):
+    definition = CBOE_INDEX_DEFINITIONS[source_id]
+    target = resolve_path(config, "history_dir") / f"{safe_symbol(definition.symbol)}.csv"
+    return (
+        cboe_index_spec(definition, target),
+        CboeVolatilityIndexAdapter(definition),
+    )
+
+
 def source_factories():
-    return {
+    factories = {
         "dollar": dollar_source,
         "real_rate": real_rate_source,
         "fred_net_liquidity": fred_net_liquidity_source,
@@ -144,11 +159,26 @@ def source_factories():
         "naaim_exposure": naaim_exposure_source,
         "aaii_sentiment": aaii_sentiment_source,
     }
+    factories.update(
+        {
+            source_id: (
+                lambda config, source_id=source_id: cboe_index_source(source_id, config)
+            )
+            for source_id in CBOE_INDEX_SOURCE_IDS
+        }
+    )
+    return factories
+
+
+def configured_source_ids(config: dict[str, Any]) -> tuple[str, ...]:
+    if bool((config.get("features") or {}).get("use_cboe_official_indices", False)):
+        return ALL_SOURCE_IDS
+    return SOURCE_IDS
 
 
 def source_specs(config: dict[str, Any]):
     specs = []
-    for source_id in SOURCE_IDS:
+    for source_id in configured_source_ids(config):
         spec, _ = source_factories()[source_id](config)
         specs.append(spec)
     return specs
@@ -162,6 +192,8 @@ def refresh_source(
     auto_import: bool = False,
 ) -> dict[str, Any]:
     cfg = config or load_config()
+    if source_id not in configured_source_ids(cfg):
+        raise ValueError(f"external source disabled by config: {source_id}")
     factories = source_factories()
     if source_id not in factories:
         raise ValueError(f"unsupported external source: {source_id}")
@@ -203,7 +235,7 @@ def refresh_source(
 def refresh_all_sources(config: dict[str, Any] | None = None, *, auto_import: bool = True) -> dict[str, Any]:
     cfg = config or load_config()
     runs: list[dict[str, Any]] = []
-    for source_id in SOURCE_IDS:
+    for source_id in configured_source_ids(cfg):
         try:
             run = refresh_source(source_id, cfg, auto_import=auto_import)
             runs.append(run)
@@ -237,7 +269,7 @@ def refresh_retry_sources(
     current = status(cfg, today=day)
     selected = [
         source_id
-        for source_id in SOURCE_IDS
+        for source_id in configured_source_ids(cfg)
         if _source_needs_retry(current.get(source_id) or {}, day)
     ]
     runs: list[dict[str, Any]] = []
@@ -637,7 +669,7 @@ def status(config: dict[str, Any] | None = None, *, today: date | None = None) -
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Refresh Hermes external data sources independently.")
-    parser.add_argument("--source", choices=list(SOURCE_IDS), help="Refresh one source.")
+    parser.add_argument("--source", choices=list(ALL_SOURCE_IDS), help="Refresh one source.")
     parser.add_argument("--import-file", help="Import an official downloaded source file for supported sources.")
     parser.add_argument("--auto-import", action="store_true", help="After a supported source fetch fails, try the newest official file in the configured import locations.")
     parser.add_argument("--open-official-download", action="store_true", help="Open the official browser download/page for a supported source, wait for a new file, then import it.")

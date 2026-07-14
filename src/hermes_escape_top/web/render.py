@@ -62,13 +62,29 @@ TRUST_SOURCE_MAX_AGE_DAYS = {
     "real_rate": 6,
 }
 
-EXTERNAL_SOURCE_ORDER = ["dollar", "real_rate", "fred_net_liquidity", "naaim_exposure", "aaii_sentiment"]
+EXTERNAL_SOURCE_ORDER = [
+    "dollar",
+    "real_rate",
+    "fred_net_liquidity",
+    "naaim_exposure",
+    "aaii_sentiment",
+    "cboe_vix",
+    "cboe_vix3m",
+    "cboe_vix9d",
+    "cboe_skew",
+    "cboe_vvix",
+]
 EXTERNAL_SOURCE_LABELS = {
     "dollar": "DXY / Dollar",
     "real_rate": "10Y Real Rate",
     "fred_net_liquidity": "FRED Net Liquidity",
     "naaim_exposure": "NAAIM Exposure",
     "aaii_sentiment": "AAII Sentiment",
+    "cboe_vix": "CBOE VIX",
+    "cboe_vix3m": "CBOE VIX3M",
+    "cboe_vix9d": "CBOE VIX9D",
+    "cboe_skew": "CBOE SKEW",
+    "cboe_vvix": "CBOE VVIX",
 }
 
 RUNBOOK_REFS = {
@@ -733,7 +749,7 @@ def _render_due_external_source_actions(payload: Dict[str, Any]) -> str:
         if not isinstance(row, dict):
             continue
         freshness = str(row.get("freshness_status") or "")
-        status = str(row.get("status") or "MISSING")
+        status = _external_attempt_status(row)
         evidence = canonical_evidence_issue(row)
         needs_action = bool(evidence) or freshness in {"DUE_SOON", "STALE"} or status not in {"OK", "MISSING"}
         if not needs_action:
@@ -745,7 +761,7 @@ def _render_due_external_source_actions(payload: Dict[str, Any]) -> str:
         rows.append(
             "<div class='trust-warning warn'>"
             f"<b>{esc(str(source_id))}</b> — {esc(evidence or freshness or status)}{esc(age_text)}"
-            f"<div class='mini-note'>latest={esc(str(latest)[:10])} · {esc(str(row.get('evidence_detail') or row.get('next_action') or '到期前刷新，若发布方尚未更新则缓存继续可用。'))}</div>"
+            f"<div class='mini-note'>latest={esc(str(latest)[:10])} · {esc(str(row.get('evidence_detail') or _external_attempt_error(row) or row.get('next_action') or '到期前刷新，若发布方尚未更新则缓存继续可用。'))}</div>"
             f"<button class='btn-muted' style='padding:3px 9px;font-size:12px;min-height:26px;margin-top:5px' "
             f"onclick=\"refreshExternalSource('{safe_id}')\" id='external-source-quick-{safe_id}-btn'>到期前刷新</button>"
             f" <span class='subtle' id='external-source-quick-{safe_id}-status'></span>"
@@ -1028,7 +1044,7 @@ def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
                 continue
             if row.get("active") is False:
                 continue
-            status = str(row.get("status") or "MISSING")
+            status = _external_attempt_status(row)
             evidence = canonical_evidence_issue(row)
             if evidence:
                 evidence_errors += 1
@@ -1146,7 +1162,7 @@ def _external_daily_ledger_all_ok(payload: Dict[str, Any]) -> bool:
         if isinstance(row, dict) and row.get("active") is not False
     ]
     return bool(rows) and all(
-        str(row.get("status") or "") == "OK" and not canonical_evidence_issue(row)
+        _external_attempt_status(row) == "OK" and not canonical_evidence_issue(row)
         for row in rows
     )
 
@@ -1179,9 +1195,15 @@ def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
         row = sources.get(source_id) if isinstance(sources.get(source_id), dict) else None
         if not row:
             continue
-        status = str(row.get("status") or "UNKNOWN")
+        status = _external_attempt_status(row, default="UNKNOWN")
         latest = str(row.get("latest_promoted_as_of") or "—")[:10]
-        finished = str(row.get("finished_at") or row.get("started_at") or "—")
+        finished = str(
+            row.get("latest_attempt_finished_at")
+            or row.get("finished_at")
+            or row.get("latest_attempt_started_at")
+            or row.get("started_at")
+            or "—"
+        )
         label = str(row.get("label") or EXTERNAL_SOURCE_LABELS.get(source_id) or source_id)
         freshness = str(row.get("freshness_status") or "")
         age = row.get("age_days")
@@ -1194,7 +1216,7 @@ def _render_external_precheck_summary(payload: Dict[str, Any]) -> str:
                 f"issue={str(row.get('official_issue_as_of') or '—')[:10]} "
                 f"sha={str(row.get('official_file_sha256') or '—')[:8]}"
             )
-        failure_note = str(row.get("error_message") or row.get("error_type") or row.get("failure_kind") or "")
+        failure_note = str(_external_attempt_error(row) or row.get("failure_kind") or "")
         skip_note = skipped_imports.get(source_id, "")
         note = " · ".join(part for part in (freshness_note, official_note, failure_note, skip_note) if part)
         rows.append(
@@ -3466,21 +3488,24 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
     rows = []
     for source_id in source_ids:
         row = external.get(source_id) if isinstance(external.get(source_id), dict) else {}
-        status = str((row or {}).get("status") or "MISSING")
+        status = _external_attempt_status(row or {})
         latest = (
             (row or {}).get("latest_promoted_as_of")
             or (row or {}).get("latest_normalized_as_of")
             or "—"
         )
         run_time = (
-            (row or {}).get("finished_at")
+            (row or {}).get("latest_attempt_finished_at")
+            or (row or {}).get("finished_at")
             or (row or {}).get("latest_finished_at")
             or (row or {}).get("started_at")
             or (row or {}).get("latest_started_at")
             or "—"
         )
         note = (
-            (row or {}).get("error_message")
+            (row or {}).get("latest_attempt_error_message")
+            or (row or {}).get("latest_attempt_error_type")
+            or (row or {}).get("error_message")
             or (row or {}).get("message")
             or (row or {}).get("error")
             or (row or {}).get("error_type")
@@ -3611,6 +3636,21 @@ def _external_source_dom_id(source_id: Any) -> str:
     text = str(source_id or "").strip()
     safe = "".join(ch for ch in text if ch.isalnum() or ch in {"_", "-"})
     return safe or "source"
+
+
+def _external_attempt_status(row: Dict[str, Any], *, default: str = "MISSING") -> str:
+    return str(row.get("latest_attempt_status") or row.get("status") or default)
+
+
+def _external_attempt_error(row: Dict[str, Any]) -> str:
+    return str(
+        row.get("latest_attempt_error_message")
+        or row.get("latest_attempt_error_type")
+        or row.get("error_message")
+        or row.get("error")
+        or row.get("error_type")
+        or ""
+    )
 
 
 def _external_source_status_badge(status: str) -> str:

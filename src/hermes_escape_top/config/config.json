@@ -351,7 +351,8 @@
     "use_b6_mnav_valuation": false,
     "use_no_advice_state": true,
     "use_indicator_cache": false,
-    "use_market_admission_gate": false
+    "use_market_admission_gate": false,
+    "use_cboe_official_indices": false
   },
   "_full_confidence_spine_flip": {
     "enabled_at": "2026-06-12",

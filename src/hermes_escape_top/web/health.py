@@ -243,6 +243,7 @@ def compute_health(
             if row.get("active") is False:
                 continue
             status = str(row.get("status") or "")
+            attempt_status = str(row.get("latest_attempt_status") or status)
             freshness = str(row.get("freshness_status") or "")
             evidence = canonical_evidence_issue(row)
             if evidence:
@@ -251,6 +252,20 @@ def compute_health(
                     add("CRITICAL", "外部数据证据失配", detail[:160])
                 else:
                     add("DEGRADED", "外部数据证据未绑定", detail[:160])
+                continue
+            if attempt_status == "MISSING":
+                add("DEGRADED", "外部数据源未自动刷新", str(source_id))
+                continue
+            if attempt_status not in {"", "OK"}:
+                attempt_error = (
+                    row.get("latest_attempt_error_message")
+                    or row.get("latest_attempt_error_type")
+                    or row.get("error_message")
+                    or row.get("error")
+                    or ""
+                )
+                detail = f"{source_id}: {attempt_status} {attempt_error}".strip()
+                add("DEGRADED", "外部数据源刷新失败", detail[:160])
                 continue
             if status == "OK" and freshness == "STALE":
                 detail = (

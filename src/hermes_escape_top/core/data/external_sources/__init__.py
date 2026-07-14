@@ -1,4 +1,10 @@
 from .aaii import AaiiSentimentAdapter, AaiiSentimentImportAdapter, aaii_sentiment_spec
+from .cboe_indices import (
+    CBOE_INDEX_DEFINITIONS,
+    CBOE_INDEX_SYMBOLS,
+    CboeVolatilityIndexAdapter,
+    cboe_index_spec,
+)
 from .fred import FredNetLiquidityAdapter, FredPercentileAdapter, fred_net_liquidity_spec, fred_percentile_spec
 from .ledger import latest_source_run, source_status
 from .market_soft import (
@@ -27,7 +33,10 @@ __all__ = [
     "AaiiSentimentAdapter",
     "AaiiSentimentImportAdapter",
     "BtcMicroAdapter",
+    "CBOE_INDEX_DEFINITIONS",
+    "CBOE_INDEX_SYMBOLS",
     "CboePcrAdapter",
+    "CboeVolatilityIndexAdapter",
     "CotNqAdapter",
     "ExternalSourceRun",
     "ExternalSourceSpec",
@@ -40,6 +49,7 @@ __all__ = [
     "aaii_sentiment_spec",
     "btc_micro_spec",
     "cboe_pcr_spec",
+    "cboe_index_spec",
     "cot_nq_spec",
     "fred_net_liquidity_spec",
     "fred_percentile_spec",

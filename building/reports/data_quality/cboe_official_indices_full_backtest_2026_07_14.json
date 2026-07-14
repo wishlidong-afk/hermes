@@ -1,0 +1,73 @@
+{
+  "baseline_git_commit": "517043c2659de4a5d6d263ffd9f6b15e0a1c2ed9",
+  "baseline_metrics": {
+    "cagr": 0.159004,
+    "final_value": 350116.132505,
+    "max_drawdown": -0.190659,
+    "max_drawdown_end": "2019-10-08",
+    "max_drawdown_start": "2018-06-14",
+    "sharpe": 1.069482,
+    "sortino": 1.358219
+  },
+  "baseline_turnover": 235.720287,
+  "candidate_manifest_id": "82057363c61e0e445fd68f4c8994a383310da501037d43beb1e08cd681cf6f6c",
+  "candidate_metrics": {
+    "cagr": 0.166118,
+    "final_value": 368422.423057,
+    "max_drawdown": -0.188253,
+    "max_drawdown_end": "2019-10-09",
+    "max_drawdown_start": "2018-06-14",
+    "sharpe": 1.120147,
+    "sortino": 1.442552
+  },
+  "candidate_turnover": 237.38928,
+  "data_root": "/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/hermes-cboe-full-backtest-g0xuqsgn",
+  "effective_end": "2026-07-10",
+  "effective_start": "2018-01-02",
+  "metric_delta": {
+    "cagr": 0.0071139999999999814,
+    "max_drawdown": 0.0024059999999999915,
+    "sharpe": 0.05066499999999996,
+    "sortino": 0.08433299999999999
+  },
+  "n_days": 2141,
+  "requested_end": "2026-07-10",
+  "requested_start": "2018-01-01",
+  "schema_version": "hermes-cboe-official-indices-full-backtest-v1",
+  "proxy_legs_summary": [
+    {
+      "symbol": "BOXX",
+      "rows": 2141,
+      "vector_sha256": "a36a1ef1a67b283af2beb88eb306a40434220a9659f75733cf346674a08d6d01",
+      "first": {
+        "date": "2018-01-02",
+        "is_proxy": true,
+        "leg": "BOXX",
+        "source": "BIL"
+      },
+      "last": {
+        "date": "2026-07-10",
+        "is_proxy": false,
+        "leg": "BOXX",
+        "source": "BOXX"
+      }
+    },
+    {
+      "symbol": "DBMF",
+      "rows": 2141,
+      "vector_sha256": "8296aec76094398fd84bd3a90b0dda2a308df054915f32211137a2578009a449",
+      "first": {
+        "date": "2018-01-02",
+        "is_proxy": true,
+        "leg": "DBMF",
+        "source": "trend_synth"
+      },
+      "last": {
+        "date": "2026-07-10",
+        "is_proxy": false,
+        "leg": "DBMF",
+        "source": "DBMF"
+      }
+    }
+  ]
+}
