@@ -1,0 +1,161 @@
+{
+  "blocked_gt_1pct": 0,
+  "blocked_rate_pct": 0.0,
+  "coinbase_days": 365,
+  "diff_percentiles": {
+    "max": 0.5042,
+    "p50": 0.0221,
+    "p90": 0.0655,
+    "p95": 0.0849,
+    "p99": 0.1551
+  },
+  "end_exclusive": "2026-07-14",
+  "generated_at": "2026-07-14T06:36:33.415338+00:00",
+  "missing_coinbase_dates": [],
+  "normal_le_0_5pct": 364,
+  "overlap_days": 365,
+  "schema_version": "hermes-btc-spot-witness-overlap-v1",
+  "source_requests": [
+    {
+      "content_sha256": "e95b5c537f08d0372af2ba08353910dc95f95a2d33b9c9e200fc3d41a6f68bc6",
+      "end": "2026-05-09",
+      "row_count": 300,
+      "start": "2025-07-14",
+      "status": "OK",
+      "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2025-07-14T00%3A00%3A00Z&end=2026-05-09T00%3A00%3A00Z"
+    },
+    {
+      "content_sha256": "63decbae206e23382db0861a13255e6516c4ad9a08589d73e99aab8ca2b2d454",
+      "end": "2026-07-14",
+      "row_count": 67,
+      "start": "2026-05-09",
+      "status": "OK",
+      "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2026-05-09T00%3A00%3A00Z&end=2026-07-14T00%3A00%3A00Z"
+    }
+  ],
+  "start": "2025-07-14",
+  "warning_gt_0_5_le_1pct": 1,
+  "worst_rows": [
+    {
+      "close_diff_pct": 0.5042316450477625,
+      "coinbase_close": 62264.94,
+      "date": "2026-07-13",
+      "yahoo_close": 61950.98046875
+    },
+    {
+      "close_diff_pct": 0.2909457051179229,
+      "coinbase_close": 68912.02,
+      "date": "2026-03-21",
+      "yahoo_close": 68711.5234375
+    },
+    {
+      "close_diff_pct": 0.2071929610193931,
+      "coinbase_close": 112980.28,
+      "date": "2025-10-10",
+      "yahoo_close": 113214.3671875
+    },
+    {
+      "close_diff_pct": 0.17913886362891596,
+      "coinbase_close": 61032.0,
+      "date": "2026-06-05",
+      "yahoo_close": 60922.66796875
+    },
+    {
+      "close_diff_pct": 0.14158453241706614,
+      "coinbase_close": 62791.0,
+      "date": "2026-02-05",
+      "yahoo_close": 62702.09765625
+    },
+    {
+      "close_diff_pct": 0.12375091671854653,
+      "coinbase_close": 118070.59,
+      "date": "2025-07-28",
+      "yahoo_close": 117924.4765625
+    },
+    {
+      "close_diff_pct": 0.12060280738340634,
+      "coinbase_close": 101468.15,
+      "date": "2025-11-04",
+      "yahoo_close": 101590.5234375
+    },
+    {
+      "close_diff_pct": 0.11234549060167044,
+      "coinbase_close": 94503.96,
+      "date": "2025-11-14",
+      "yahoo_close": 94397.7890625
+    },
+    {
+      "close_diff_pct": 0.10980109000924847,
+      "coinbase_close": 86536.88,
+      "date": "2025-11-20",
+      "yahoo_close": 86631.8984375
+    },
+    {
+      "close_diff_pct": 0.10577540042304015,
+      "coinbase_close": 108362.27,
+      "date": "2025-10-21",
+      "yahoo_close": 108476.890625
+    },
+    {
+      "close_diff_pct": 0.1034040656823498,
+      "coinbase_close": 63475.2,
+      "date": "2026-06-19",
+      "yahoo_close": 63540.8359375
+    },
+    {
+      "close_diff_pct": 0.1026266578824558,
+      "coinbase_close": 76895.53,
+      "date": "2026-02-01",
+      "yahoo_close": 76974.4453125
+    },
+    {
+      "close_diff_pct": 0.09985425391606838,
+      "coinbase_close": 63302.73,
+      "date": "2026-06-07",
+      "yahoo_close": 63239.51953125
+    },
+    {
+      "close_diff_pct": 0.09807619117997586,
+      "coinbase_close": 59474.01,
+      "date": "2026-06-28",
+      "yahoo_close": 59532.33984375
+    },
+    {
+      "close_diff_pct": 0.09537110458073075,
+      "coinbase_close": 107585.98,
+      "date": "2025-10-22",
+      "yahoo_close": 107688.5859375
+    },
+    {
+      "close_diff_pct": 0.09373868298666221,
+      "coinbase_close": 110536.01,
+      "date": "2025-11-02",
+      "yahoo_close": 110639.625
+    },
+    {
+      "close_diff_pct": 0.08845694953539993,
+      "coinbase_close": 115067.98,
+      "date": "2025-10-12",
+      "yahoo_close": 115169.765625
+    },
+    {
+      "close_diff_pct": 0.08799245032461145,
+      "coinbase_close": 91494.0,
+      "date": "2026-01-04",
+      "yahoo_close": 91413.4921875
+    },
+    {
+      "close_diff_pct": 0.08533366213460765,
+      "coinbase_close": 103284.27,
+      "date": "2025-11-07",
+      "yahoo_close": 103372.40625
+    },
+    {
+      "close_diff_pct": 0.08327317226983773,
+      "coinbase_close": 99614.54,
+      "date": "2025-11-13",
+      "yahoo_close": 99697.4921875
+    }
+  ],
+  "yahoo_days": 365
+}

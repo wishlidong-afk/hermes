@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Mapping
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-
-import pandas as pd
-
 
 COINBASE_CANDLES_URL = "https://api.exchange.coinbase.com/products/BTC-USD/candles"
 COINBASE_SOURCE = "COINBASE_EXCHANGE_BTC_USD_1DAY"
@@ -46,6 +44,18 @@ def fetch_coinbase_daily_bar_range(
     }
     requests: list[dict[str, Any]] = []
     rows_by_date: dict[str, dict[str, Any]] = {}
+    fetched_at = datetime.now(timezone.utc).isoformat()
+
+    def provenance() -> dict[str, Any]:
+        return {
+            "source": COINBASE_SOURCE,
+            "source_url": COINBASE_CANDLES_URL,
+            "fetched_at": fetched_at,
+            "requested_start": start_day.isoformat(),
+            "requested_end": end_day.isoformat(),
+            "requests": list(requests),
+        }
+
     chunk_start = start_day
     while chunk_start < end_day:
         chunk_end = min(end_day, chunk_start + timedelta(days=MAX_CANDLES_PER_REQUEST))
@@ -55,37 +65,45 @@ def fetch_coinbase_daily_bar_range(
             "end": f"{chunk_end.isoformat()}T00:00:00Z",
         }
         url = f"{COINBASE_CANDLES_URL}?{urlencode(params)}"
-        payload = transport(url, headers)
-        if not isinstance(payload, list):
-            raise ValueError("Coinbase candles response must be a list")
-        stable = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-        requests.append(
-            {
-                "url": url,
-                "start": chunk_start.isoformat(),
-                "end": chunk_end.isoformat(),
-                "row_count": len(payload),
-                "content_sha256": hashlib.sha256(stable.encode("utf-8")).hexdigest(),
-            }
-        )
-        for raw in payload:
-            normalized = _normalize_candle(raw)
-            if normalized is None:
-                continue
-            day = str(normalized["t"])[:10]
-            if start_day.isoformat() <= day < end_day.isoformat():
-                rows_by_date[day] = normalized
+        request_evidence: dict[str, Any] = {
+            "url": url,
+            "start": chunk_start.isoformat(),
+            "end": chunk_end.isoformat(),
+        }
+        requests.append(request_evidence)
+        try:
+            payload = transport(url, headers)
+            if not isinstance(payload, list):
+                raise ValueError("Coinbase candles response must be a list")
+            stable = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+            request_evidence.update(
+                {
+                    "status": "OK",
+                    "row_count": len(payload),
+                    "content_sha256": hashlib.sha256(stable.encode("utf-8")).hexdigest(),
+                }
+            )
+            for raw in payload:
+                normalized = _normalize_candle(raw)
+                if normalized is None:
+                    continue
+                day = str(normalized["t"])[:10]
+                if start_day.isoformat() <= day < end_day.isoformat():
+                    previous = rows_by_date.get(day)
+                    if previous is not None and previous != normalized:
+                        raise ValueError(f"conflicting Coinbase candle for {day}")
+                    rows_by_date[day] = normalized
+        except Exception as exc:
+            request_evidence["status"] = "ERROR"
+            request_evidence["error"] = f"{exc.__class__.__name__}: {exc}"
+            try:
+                setattr(exc, "provenance", provenance())
+            except Exception:
+                pass
+            raise
         chunk_start = chunk_end
 
-    return {
-        "source": COINBASE_SOURCE,
-        "source_url": COINBASE_CANDLES_URL,
-        "fetched_at": datetime.now(timezone.utc).isoformat(),
-        "requested_start": start_day.isoformat(),
-        "requested_end": end_day.isoformat(),
-        "requests": requests,
-        "bars": [rows_by_date[day] for day in sorted(rows_by_date)],
-    }
+    return {**provenance(), "bars": [rows_by_date[day] for day in sorted(rows_by_date)]}
 
 
 def compare_btc_spot_close(
@@ -118,11 +136,12 @@ def compare_btc_spot_close(
             "local_sha256": _hash_mapping(local),
             "witness_sha256": _hash_mapping(witness),
         }
-    close_diff = _relative_diff_pct(local.get("close"), witness.get("c"))
-    if close_diff is None:
+    raw_close_diff = _relative_diff_pct(local.get("close"), witness.get("c"))
+    close_diff = round(raw_close_diff, 4) if raw_close_diff is not None else None
+    if raw_close_diff is None:
         status = "PRICE_MISMATCH"
         reason = "Yahoo and Coinbase BTC closes must both be numeric"
-    elif close_diff > PRICE_WARN_PCT:
+    elif raw_close_diff > PRICE_WARN_PCT:
         status = "PRICE_MISMATCH"
         reason = "Yahoo BTC close differs from Coinbase by more than 1.0%"
     else:
@@ -132,7 +151,7 @@ def compare_btc_spot_close(
         "status": status,
         "supported": True,
         "reason": reason,
-        "warning_band": bool(close_diff is not None and close_diff > PRICE_MATCH_PCT),
+        "warning_band": bool(raw_close_diff is not None and raw_close_diff > PRICE_MATCH_PCT),
         "close_diff_pct": close_diff,
         "local_sha256": _hash_mapping(local),
         "witness_sha256": _hash_mapping(witness),
@@ -147,8 +166,10 @@ def _normalize_candle(raw: Any) -> dict[str, Any] | None:
         low, high, open_, close, volume = (float(value) for value in raw[1:6])
     except (TypeError, ValueError, OSError, OverflowError):
         return None
+    if any((timestamp.hour, timestamp.minute, timestamp.second, timestamp.microsecond)):
+        raise ValueError("Coinbase daily candle timestamp must be midnight UTC")
     values = (low, high, open_, close, volume)
-    if not all(pd.notna(value) for value in values):
+    if not all(math.isfinite(value) for value in values):
         return None
     return {
         "t": timestamp.strftime("%Y-%m-%dT00:00:00Z"),
@@ -182,9 +203,9 @@ def _relative_diff_pct(left: Any, right: Any) -> float | None:
         b = float(right)
     except (TypeError, ValueError):
         return None
-    if not pd.notna(a) or not pd.notna(b) or b == 0:
+    if not math.isfinite(a) or not math.isfinite(b) or b == 0:
         return None
-    return round(abs(a - b) / abs(b) * 100.0, 4)
+    return abs(a - b) / abs(b) * 100.0
 
 
 def _hash_mapping(value: Mapping[str, Any]) -> str:

@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from urllib.error import URLError
 from urllib.parse import parse_qs, urlparse
 
+import pytest
+
 import hermes_escape_top.core.data.coinbase_witness as coinbase_module
 from hermes_escape_top.core.data.coinbase_witness import (
     compare_btc_spot_close,
@@ -82,6 +84,58 @@ def test_coinbase_range_chunks_requests_below_the_300_candle_limit() -> None:
     assert len(result["requests"]) == 2
 
 
+def test_coinbase_range_rejects_conflicting_duplicate_bucket() -> None:
+    def transport(_url, _headers):
+        return [
+            _candle(1783900800, 100.0),
+            _candle(1783900800, 101.0),
+        ]
+
+    with pytest.raises(ValueError, match="conflicting Coinbase candle"):
+        fetch_coinbase_daily_bar_range(
+            "2026-07-13",
+            "2026-07-14",
+            request_json=transport,
+        )
+
+
+def test_coinbase_range_rejects_non_midnight_daily_bucket() -> None:
+    def transport(_url, _headers):
+        return [_candle(1783900800 + 3600, 100.0)]
+
+    with pytest.raises(ValueError, match="midnight UTC"):
+        fetch_coinbase_daily_bar_range(
+            "2026-07-13",
+            "2026-07-14",
+            request_json=transport,
+        )
+
+
+def test_coinbase_range_preserves_partial_request_provenance_on_late_failure() -> None:
+    calls = 0
+
+    def transport(_url, _headers):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise TimeoutError("second chunk failed")
+        return []
+
+    with pytest.raises(TimeoutError) as caught:
+        fetch_coinbase_daily_bar_range(
+            "2025-01-01",
+            "2026-07-01",
+            request_json=transport,
+        )
+
+    provenance = caught.value.provenance
+    assert provenance["source"] == "COINBASE_EXCHANGE_BTC_USD_1DAY"
+    assert len(provenance["requests"]) == 2
+    assert provenance["requests"][0]["status"] == "OK"
+    assert provenance["requests"][1]["status"] == "ERROR"
+    assert "second chunk failed" in provenance["requests"][1]["error"]
+
+
 def test_btc_close_match_ignores_volume_and_exposes_warning_band() -> None:
     comparison = compare_btc_spot_close(
         {
@@ -112,6 +166,27 @@ def test_btc_close_difference_above_one_percent_is_rejected() -> None:
 
     assert comparison["status"] == "PRICE_MISMATCH"
     assert comparison["close_diff_pct"] > 1.0
+
+
+def test_btc_close_uses_unrounded_difference_for_one_percent_boundary() -> None:
+    comparison = compare_btc_spot_close(
+        {"date": "2026-07-13", "close": 101.00004},
+        {"t": "2026-07-13T00:00:00Z", "c": 100.0},
+    )
+
+    assert comparison["close_diff_pct"] == 1.0
+    assert comparison["status"] == "PRICE_MISMATCH"
+
+
+@pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), float("-inf")])
+def test_btc_close_rejects_non_finite_values(bad_value: float) -> None:
+    comparison = compare_btc_spot_close(
+        {"date": "2026-07-13", "close": bad_value},
+        {"t": "2026-07-13T00:00:00Z", "c": 100.0},
+    )
+
+    assert comparison["status"] == "PRICE_MISMATCH"
+    assert comparison["close_diff_pct"] is None
 
 
 def test_btc_close_requires_same_date_and_a_witness() -> None:

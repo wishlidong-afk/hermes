@@ -1,0 +1,90 @@
+{
+  "all_completed_rows_admissible": true,
+  "canonical_path": "/Users/liweishi/.hermes/skills/investment/escape-top/shared/hermes_escape_top/data/history/BTC_USD.csv",
+  "canonical_sha256": "543be627a0b5c335e5764a7807da89a63518b19ae62704635986b1ec42dd5fa3",
+  "completed_through": "2026-07-13",
+  "generated_at": "2026-07-14T06:36:31.071911+00:00",
+  "rows": [
+    {
+      "close_diff_pct": 0.0283,
+      "coinbase_close": 63175.25,
+      "date": "2026-07-09",
+      "local_sha256": "2305cfdd2a395ef40d0d5701d096d5ef324d93aa3896f69b93781d28dc5349a0",
+      "reason": "Yahoo BTC close agrees with Coinbase completed UTC-day close",
+      "status": "MATCH",
+      "supported": true,
+      "warning_band": false,
+      "witness_sha256": "34389ea609ab7dff13b3ec0dad122f204018f53f22c571fd7244cd2b8e87d14e",
+      "yahoo_close": 63193.1484375
+    },
+    {
+      "close_diff_pct": 0.0021,
+      "coinbase_close": 64128.49,
+      "date": "2026-07-10",
+      "local_sha256": "171134b41b776bea9822f084810aada14e3b64b0287d8d26c5562fe2882a7ec3",
+      "reason": "Yahoo BTC close agrees with Coinbase completed UTC-day close",
+      "status": "MATCH",
+      "supported": true,
+      "warning_band": false,
+      "witness_sha256": "d705c6bab975579dc98a02b26634515df11b4a5aa9cf4cb413db06dba9cae535",
+      "yahoo_close": 64127.140625
+    },
+    {
+      "close_diff_pct": 0.0455,
+      "coinbase_close": 63773.04,
+      "date": "2026-07-11",
+      "local_sha256": "4282fc7639d65a72f231b2c4a90428e7a2e130fdeda947389228ca3b015537da",
+      "reason": "Yahoo BTC close agrees with Coinbase completed UTC-day close",
+      "status": "MATCH",
+      "supported": true,
+      "warning_band": false,
+      "witness_sha256": "2947633e32e0dbb5a501811bfdf5ebe9d241125e5c9dadccf706ddbc6b9e0967",
+      "yahoo_close": 63802.02734375
+    },
+    {
+      "close_diff_pct": 0.0281,
+      "coinbase_close": 63740.32,
+      "date": "2026-07-12",
+      "local_sha256": "4a397485fcef6c427a202c83d6ae1d1138bcf62f7e8b70449c02ab2b1546c708",
+      "reason": "Yahoo BTC close agrees with Coinbase completed UTC-day close",
+      "status": "MATCH",
+      "supported": true,
+      "warning_band": false,
+      "witness_sha256": "6a095436918040fb9b1e9b8928e0e0be712fd70bc114eef625049795db82d91b",
+      "yahoo_close": 63758.21875
+    },
+    {
+      "close_diff_pct": 0.5042,
+      "coinbase_close": 62264.94,
+      "date": "2026-07-13",
+      "local_sha256": "6bc25e18b990f6dc2ab8419a796f97831027c04eb10555c53142d5c5952e1bc4",
+      "reason": "Yahoo BTC close agrees with Coinbase completed UTC-day close",
+      "status": "MATCH",
+      "supported": true,
+      "warning_band": true,
+      "witness_sha256": "329ce9a920365b922b08f1454d3c9f101b487cf7043cad5ab4d0cb0497167882",
+      "yahoo_close": 61950.98046875
+    }
+  ],
+  "schema_version": "hermes-btc-spot-witness-live-canary-v1",
+  "source": {
+    "fetched_at": "2026-07-14T06:36:31.072046+00:00",
+    "requested_end": "2026-07-14",
+    "requested_start": "2026-07-08",
+    "requests": [
+      {
+        "content_sha256": "5bad0711b64d4b825092618ee99e303cdfaf13d98bafbb03163bc739264aef55",
+        "end": "2026-07-14",
+        "row_count": 7,
+        "start": "2026-07-08",
+        "status": "OK",
+        "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400&start=2026-07-08T00%3A00%3A00Z&end=2026-07-14T00%3A00%3A00Z"
+      }
+    ],
+    "source": "COINBASE_EXCHANGE_BTC_USD_1DAY",
+    "source_url": "https://api.exchange.coinbase.com/products/BTC-USD/candles"
+  },
+  "warning_dates": [
+    "2026-07-13"
+  ]
+}

@@ -45,6 +45,13 @@ bounded historical ranges rather than only a short rolling tail.
 9. Missing candle, fetch failure, date mismatch, or price mismatch preserves
    the last certified `BTC_USD.csv`. There is no fallback exchange and no
    silent source selection in this release.
+10. Threshold decisions use the unrounded difference; only the reported value
+    is rounded. Non-finite prices, non-midnight daily buckets, and conflicting
+    duplicate buckets fail closed.
+11. Candidate admission is positional so duplicate Yahoo date labels cannot
+    carry a rejected row into canonical. Partial multi-page failures retain
+    both successful and failed request provenance, and the v2 validator
+    recomputes row counts and status before health can call evidence current.
 
 ## Integration
 

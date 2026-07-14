@@ -15,6 +15,7 @@ import pandas as pd
 
 from .alpaca_flow import load_alpaca_credentials
 from .coinbase_witness import (
+    COINBASE_CANDLES_URL,
     COINBASE_SOURCE,
     compare_btc_spot_close,
     fetch_coinbase_daily_bar_range,
@@ -73,9 +74,9 @@ class MarketAdmissionSession:
             for row in self.witness_bars.get(symbol, [])
             if isinstance(row, Mapping)
         }
-        admitted_indexes: list[pd.Timestamp] = []
+        admitted_positions: list[int] = []
         rows: list[dict[str, Any]] = []
-        for index, candidate_row in candidate.iterrows():
+        for position, (index, candidate_row) in enumerate(candidate.iterrows()):
             day = pd.Timestamp(index).date().isoformat()
             if (
                 (self.requested_start and day < self.requested_start)
@@ -113,7 +114,7 @@ class MarketAdmissionSession:
             )
             admitted = comparison.get("status") == "MATCH"
             if admitted:
-                admitted_indexes.append(index)
+                admitted_positions.append(position)
             evidence = {
                 "symbol": symbol,
                 "date": day,
@@ -127,11 +128,16 @@ class MarketAdmissionSession:
                 "candidate_sha256": comparison.get("local_sha256"),
                 "witness_sha256": comparison.get("witness_sha256"),
             }
-            if self.fetch_error and comparison.get("status") == "NO_WITNESS":
-                evidence["fetch_error"] = self.fetch_error
+            source_fetch_error = (
+                self.witness_errors.get("alpaca")
+                if self.btc_spot_witness_enabled
+                else self.fetch_error
+            )
+            if source_fetch_error and comparison.get("status") == "NO_WITNESS":
+                evidence["fetch_error"] = source_fetch_error
             rows.append(evidence)
         self.evidence.extend(rows)
-        return candidate.loc[admitted_indexes].copy(), rows
+        return candidate.iloc[admitted_positions].copy(), rows
 
     def _admit_btc(
         self,
@@ -142,9 +148,9 @@ class MarketAdmissionSession:
             for row in self.witness_bars.get("BTC-USD", [])
             if isinstance(row, Mapping)
         }
-        admitted_indexes: list[pd.Timestamp] = []
+        admitted_positions: list[int] = []
         rows: list[dict[str, Any]] = []
-        for index, candidate_row in candidate.iterrows():
+        for position, (index, candidate_row) in enumerate(candidate.iterrows()):
             day = pd.Timestamp(index).date().isoformat()
             if (
                 (self.requested_start and day < self.requested_start)
@@ -184,7 +190,7 @@ class MarketAdmissionSession:
             comparison = compare_btc_spot_close(local, witness_by_date.get(day))
             admitted = comparison.get("status") == "MATCH"
             if admitted:
-                admitted_indexes.append(index)
+                admitted_positions.append(position)
             evidence = {
                 "symbol": "BTC-USD",
                 "date": day,
@@ -202,7 +208,7 @@ class MarketAdmissionSession:
                 evidence["fetch_error"] = witness_error
             rows.append(evidence)
         self.evidence.extend(rows)
-        return candidate.loc[admitted_indexes].copy(), rows
+        return candidate.iloc[admitted_positions].copy(), rows
 
     def uses_calendar_days(self, symbol: str) -> bool:
         return self.enabled and self.btc_spot_witness_enabled and str(symbol).upper() == "BTC-USD"
@@ -394,6 +400,9 @@ def prepare_market_admission_session(
         except Exception as exc:
             witness_bars["BTC-USD"] = []
             witness_errors["coinbase"] = f"{exc.__class__.__name__}: {exc}"
+            partial_provenance = getattr(exc, "provenance", None)
+            if isinstance(partial_provenance, Mapping):
+                witness_provenance["coinbase"] = dict(partial_provenance)
     fetch_error = "; ".join(
         f"{source.upper()}: {message}"
         for source, message in sorted(witness_errors.items())
@@ -477,12 +486,118 @@ def validate_market_admission_evidence(
             out["evidence_detail"] = f"invalid canonical evidence entry: {name}"
             return out
         path = root / name
-        actual = hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else None
-        if actual != expected.get("sha256"):
+        expected_sha = expected.get("sha256")
+        if (
+            not path.is_file()
+            or not isinstance(expected_sha, str)
+            or len(expected_sha) != 64
+            or any(char not in "0123456789abcdef" for char in expected_sha.lower())
+        ):
+            out["status"] = "EVIDENCE_DRIFT"
+            out["evidence_detail"] = f"{name} canonical evidence is incomplete"
+            return out
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        if actual != expected_sha:
             out["status"] = "EVIDENCE_DRIFT"
             out["evidence_detail"] = f"{name} sha256 mismatch"
             return out
+    if str(out.get("schema_version") or "") == "hermes-market-admission-v2":
+        detail = _validate_market_admission_v2(out)
+        if detail:
+            out["status"] = "EVIDENCE_DRIFT"
+            out["evidence_detail"] = detail
+            return out
     return out
+
+
+def _validate_market_admission_v2(payload: Mapping[str, Any]) -> str | None:
+    btc = payload.get("btc_spot_witness")
+    if not isinstance(btc, Mapping) or btc.get("enabled") is not True:
+        return "BTC witness contract is missing or disabled"
+    if btc.get("source") != COINBASE_SOURCE:
+        return "BTC witness source is invalid"
+    try:
+        date.fromisoformat(str(btc.get("completed_through") or ""))
+    except ValueError:
+        return "BTC witness completed_through is invalid"
+
+    provenance = btc.get("provenance")
+    if not isinstance(provenance, Mapping):
+        return "BTC witness provenance is missing"
+    if provenance.get("source") != COINBASE_SOURCE:
+        return "BTC witness provenance source is invalid"
+    if provenance.get("source_url") != COINBASE_CANDLES_URL:
+        return "BTC witness provenance URL is invalid"
+    if _parse_timestamp(provenance.get("fetched_at")) is None:
+        return "BTC witness fetched_at is invalid"
+    for key in ("requested_start", "requested_end"):
+        if str(provenance.get(key) or "")[:10] != str(payload.get(key) or "")[:10]:
+            return f"BTC witness {key} does not match the admission window"
+    requests = provenance.get("requests")
+    if not isinstance(requests, list) or not requests:
+        return "BTC witness request provenance is missing"
+    for request in requests:
+        if not isinstance(request, Mapping) or not str(request.get("url") or "").startswith(
+            COINBASE_CANDLES_URL
+        ):
+            return "BTC witness request URL is invalid"
+        status = request.get("status")
+        if status == "OK":
+            sha = request.get("content_sha256")
+            if (
+                not isinstance(sha, str)
+                or len(sha) != 64
+                or any(char not in "0123456789abcdef" for char in sha.lower())
+            ):
+                return "BTC witness response SHA256 is invalid"
+            if not isinstance(request.get("row_count"), int) or request["row_count"] < 0:
+                return "BTC witness row_count is invalid"
+        elif status == "ERROR":
+            if not request.get("error"):
+                return "BTC witness failed request is missing its error"
+        else:
+            return "BTC witness request status is invalid"
+
+    rows = payload.get("rows")
+    summary = payload.get("summary")
+    if not isinstance(rows, list) or not isinstance(summary, Mapping):
+        return "market admission rows or summary are missing"
+    computed_summary: dict[str, int] = {}
+    admitted_rows = 0
+    deferred_rows = 0
+    for row in rows:
+        if not isinstance(row, Mapping) or not isinstance(row.get("admitted"), bool):
+            return "market admission row contract is invalid"
+        status = str(row.get("status") or "UNKNOWN")
+        admitted = row["admitted"]
+        computed_summary[status] = computed_summary.get(status, 0) + 1
+        admitted_rows += int(admitted)
+        if row.get("blocking") is False:
+            if admitted or status != "DEFERRED_UNFINALIZED":
+                return "nonblocking market admission row is inconsistent"
+            deferred_rows += 1
+        if admitted != (status in {"MATCH", "NOT_APPLICABLE"}):
+            return f"market admission row status/admitted mismatch for {status}"
+    rejected_rows = len(rows) - admitted_rows - deferred_rows
+    if dict(summary) != computed_summary:
+        return "market admission summary does not match rows"
+    if payload.get("admitted_rows") != admitted_rows:
+        return "market admission admitted_rows does not match rows"
+    if payload.get("deferred_rows") != deferred_rows:
+        return "market admission deferred_rows does not match rows"
+    if payload.get("rejected_rows") != rejected_rows:
+        return "market admission rejected_rows does not match rows"
+    if payload.get("run_error"):
+        expected_status = "ERROR"
+    elif payload.get("fetch_error"):
+        expected_status = "FETCH_ERROR"
+    elif rejected_rows:
+        expected_status = "BLOCKED"
+    else:
+        expected_status = "OK"
+    if payload.get("status") != expected_status:
+        return f"market admission status does not match evidence ({expected_status})"
+    return None
 
 
 def _parse_timestamp(value: Any) -> datetime | None:

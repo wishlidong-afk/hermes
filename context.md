@@ -25,6 +25,7 @@
     "data_yield_curve",
     "use_arm_then_fire",
     "use_b6_mnav_valuation",
+    "use_btc_spot_witness",
     "use_cboe_official_indices",
     "use_close_confirmation",
     "use_decision_stabilizer",
@@ -85,7 +86,7 @@
 ```
 <!-- HERMES_GOVERNANCE_SNAPSHOT_END -->
 
-> 由代码事实与治理检查生成于 2026-07-13。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准；`scripts/check_governance_consistency.py` 会阻止关键快照静默漂移。
+> 由代码事实与治理检查生成于 2026-07-14。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准；`scripts/check_governance_consistency.py` 会阻止关键快照静默漂移。
 
 本文给新 agent 一个快速、可执行的项目地图：系统做什么、数据怎样进来、评分怎样变成策略、哪些 flag 已经部署、WebUI 两个端口各负责什么，以及当前性能基线在哪里。
 
@@ -118,6 +119,7 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 | `src/hermes_escape_top/core/data/risk_signals.py` | 软数据源；FRED observations use PIT-safe `date+1` publish dates，标准 observations API 的 `realtime_start` 不作为逐行历史发布时间 |
 | `src/hermes_escape_top/core/data/external_sources/` | 外部软数据单写者；profile/SLO、staging、validation、canonical promotion、ledger 和可靠性证据同属一条链 |
 | `src/hermes_escape_top/core/data/market_witness.py` | Alpaca SIP 日线 OHLCV shadow witness；只比对、只写 archive 证据，永不晋升 canonical 或进入评分 |
+| `src/hermes_escape_top/core/data/coinbase_witness.py` | Coinbase Exchange BTC-USD UTC 日线独立见证；只核对 Yahoo 候选的完成日收盘，不比较成交量、不直接写 canonical |
 | `scripts/backtest_flag_sweep.py` | 单 variant 全窗口回测；每次只跑一个进程 |
 | `scripts/flag_gate.py` | 读取 equity 曲线做旧版固定变体 OOS/DSR 诊断；授权已冻结，等待正式 IS→OOS PBO gate |
 | `scripts/formal_gate.py` | 读取已提交的实验 manifest，执行逐折 IS 选择→OOS PBO、CPCV、经验偏度/峰度 DSR；结果一次性落盘 |
@@ -161,6 +163,7 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 | `cot_nq` | `soft_history/cot_nq.csv` | CFTC public API | 周二观测、周五公开 | flag OFF 时不影响生产健康/决策覆盖 |
 | `occ_equity_pcr` | `soft_history/occ_equity_pcr.csv` | OCC weekly report | 周五 week-ending、周六公开 | 当前 inactive，只做迁移/替代源证据 |
 | `btc_funding_basis` | `soft_history/btc_funding_basis.csv` | Deribit，OKX fallback | 交易所 UTC 时间戳归日 | 增量刷新不再把历史 real 行降成 proxy |
+| `btc_spot_witness` | `history/BTC_USD.csv` 的准入证据 | Coinbase Exchange public BTC-USD 1D candles；Yahoo 仍是候选 writer | 仅完成的 UTC 日；日期相同且 close 差异 <=1% 才晋升 | repo 默认 OFF；ON 时缺失/失配冻结旧 canonical，成交量口径不参与判断 |
 | `naaim_exposure` | `soft_history/naaim_exposure.csv` | 官方 XLSX / official-file import | issue `+1d` | 2026-08-01 迁移截止；订阅/会话是人工责任 |
 | `aaii_sentiment` | `soft_history/aaii_sentiment.csv` | 官方文件 / browser-assisted import | 官方 publish date；公共表无 publish 字段时按 reported `+1d` | Imperva/会员会话无法承诺纯无人值守，不得用未授权镜像冒充真值 |
 
@@ -170,6 +173,7 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 - AAII/NAAIM 下载文件按 SHA-256 去重；已消费或已失败的旧文件不会在每次预检被当成新候选。
 - 可靠性按 `Asia/Shanghai` 自然日去重；同日失败后重试成功只算一个成功日，避免重试次数虚增成功率。
 - Alpaca SIP 见证只对比 Yahoo/local canonical 的最近 OHLCV，写 `market_witness_*.json`；`NO_WITNESS`/`FETCH_ERROR` 不改评分、不改 `input_hash`。
+- Coinbase BTC 见证属于 canonical admission 而非评分因子：0.5%-1.0% close 差异标黄但可晋升，>1.0% 或缺日冻结旧值；当前 UTC 日延后且不制造健康红灯。
 
 ---
 
@@ -181,7 +185,7 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 | L2 manifest SSOT | `data_manifest_latest.json` 与 history CSV 校验；漂移可重冻结，GET health 可显示 | `core/data/manifest.py`、`web/refresh.py::_refresh_manifest` |
 | L3 运行降级 | health 汇总 cache、交易日陈旧、manifest、data_quality、软数据 stale、IBKR 状态 | `web/health.py::compute_health` |
 | L4 外部源证据 | ledger 绑定 canonical hash/PIT/来源，30/90 日可靠性按日去重 | `core/data/external_sources/` |
-| L5 独立行情见证 | Alpaca SIP 与 Yahoo/local canonical 做 shadow 对比，无自动 failover | `core/data/market_witness.py` |
+| L5 独立行情见证 | 美股/ETF 用 Alpaca SIP；BTC 用 Coinbase Exchange 完成 UTC 日 close；均无自动 failover | `core/data/market_witness.py`、`core/data/coinbase_witness.py` |
 
 软数据 SLO 由 `features.use_soft_data_max_age` 控制。开启后，超龄软数据会被降为 missing，进入 missing-weight/blind-spot 路径，而不是继续当作新鲜信号评分。
 
@@ -319,6 +323,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 | `use_regime_multipliers` | true | live，保持历史无条件 regime multiplier 行为 |
 | `use_indicator_cache` | false | 生产默认 OFF；本批 backtest harness 打开，byte-identical 已证明 |
 | `use_market_admission_gate` | false | repo 默认 OFF；live runtime 自 2026-07-14 为 ON，美股/ETF行情须经 Yahoo + Alpaca SIP 双源一致才晋升 |
+| `use_btc_spot_witness` | false | repo 默认 OFF；候选态，开启后 BTC-USD 的 Yahoo 候选须经 Coinbase 完成 UTC 日 close 见证 |
 | `data_onchain_mstr` | false | rejected/parked |
 | `data_mstr_mnav` | false | parked |
 | `use_b6_mnav_valuation` | false | rejected/parked |

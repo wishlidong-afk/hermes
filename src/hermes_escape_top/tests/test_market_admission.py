@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -9,6 +10,7 @@ from hermes_escape_top.core.data.market_admission import (
     prepare_market_admission_session,
     read_market_admission_evidence,
     latest_completed_us_market_session,
+    validate_market_admission_evidence,
     write_market_admission_evidence,
 )
 
@@ -99,6 +101,19 @@ def test_market_admission_freezes_price_mismatch() -> None:
     assert evidence[0]["admitted"] is False
 
 
+def test_market_admission_selects_matching_position_when_candidate_dates_repeat() -> None:
+    candidate = pd.concat([_candidate(close=100.0), _candidate(close=120.0)])
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"QQQ": [_witness(close=100.0)]},
+    )
+
+    admitted, evidence = session.admit("QQQ", candidate)
+
+    assert list(admitted["Close"]) == [100.0]
+    assert [row["status"] for row in evidence] == ["MATCH", "PRICE_MISMATCH"]
+
+
 def test_market_admission_freezes_missing_witness() -> None:
     session = MarketAdmissionSession(enabled=True, witness_bars={"QQQ": []})
 
@@ -174,6 +189,21 @@ def test_btc_spot_witness_freezes_close_mismatch() -> None:
     assert evidence[0]["status"] == "PRICE_MISMATCH"
     assert evidence[0]["admitted"] is False
     assert session.payload()["status"] == "BLOCKED"
+
+
+def test_btc_spot_witness_selects_matching_position_when_candidate_dates_repeat() -> None:
+    candidate = pd.concat([_candidate(close=100.0), _candidate(close=120.0)])
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"BTC-USD": [_btc_witness(close=100.0)]},
+        btc_spot_witness_enabled=True,
+        btc_completed_through="2026-07-13",
+    )
+
+    admitted, evidence = session.admit("BTC-USD", candidate)
+
+    assert list(admitted["Close"]) == [100.0]
+    assert [row["status"] for row in evidence] == ["MATCH", "PRICE_MISMATCH"]
 
 
 def test_btc_spot_witness_defers_open_utc_day_without_blocking_health() -> None:
@@ -252,6 +282,46 @@ def test_prepare_market_admission_keeps_alpaca_evidence_when_coinbase_fails() ->
     assert payload["btc_spot_witness"]["completed_through"] == "2026-07-13"
 
 
+def test_prepare_market_admission_keeps_partial_coinbase_failure_provenance() -> None:
+    calls = 0
+
+    def coinbase_transport(_url, _headers):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise TimeoutError("second chunk failed")
+        return []
+
+    session = prepare_market_admission_session(
+        ["BTC-USD"],
+        "2025-01-01",
+        "2026-07-01",
+        btc_spot_witness_enabled=True,
+        coinbase_request_json=coinbase_transport,
+        now=datetime(2026, 7, 2, 5, 0, tzinfo=timezone.utc),
+    )
+
+    provenance = session.payload()["btc_spot_witness"]["provenance"]
+    assert len(provenance["requests"]) == 2
+    assert provenance["requests"][-1]["status"] == "ERROR"
+
+
+def test_coinbase_failure_is_not_misattributed_to_a_missing_alpaca_row() -> None:
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"QQQ": [], "BTC-USD": []},
+        btc_spot_witness_enabled=True,
+        btc_completed_through="2026-07-13",
+        witness_errors={"coinbase": "TimeoutError: Coinbase unavailable"},
+        fetch_error="COINBASE: TimeoutError: Coinbase unavailable",
+    )
+
+    _admitted, evidence = session.admit("QQQ", _candidate())
+
+    assert evidence[0]["status"] == "NO_WITNESS"
+    assert "fetch_error" not in evidence[0]
+
+
 def test_market_admission_fetch_failure_becomes_blocking_evidence() -> None:
     def fail(_url, _headers):
         raise TimeoutError("Alpaca unavailable")
@@ -303,6 +373,79 @@ def test_market_admission_dated_evidence_uses_shanghai_operating_day(tmp_path) -
 
     assert (tmp_path / "market_admission_2026-07-14.json").exists()
     assert not (tmp_path / "market_admission_2026-07-13.json").exists()
+
+
+def test_market_admission_v2_validator_checks_provenance_and_row_consistency(tmp_path) -> None:
+    history = tmp_path / "history"
+    history.mkdir()
+    (history / "BTC_USD.csv").write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-13,99,101,98,100,100,1000\n",
+        encoding="utf-8",
+    )
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"BTC-USD": [_btc_witness()]},
+        btc_spot_witness_enabled=True,
+        btc_completed_through="2026-07-13",
+        requested_start="2026-07-13",
+        requested_end="2026-07-14",
+        completed_through="2026-07-13",
+        witness_provenance={
+            "coinbase": {
+                "source": "COINBASE_EXCHANGE_BTC_USD_1DAY",
+                "source_url": "https://api.exchange.coinbase.com/products/BTC-USD/candles",
+                "fetched_at": "2026-07-14T00:01:00+00:00",
+                "requested_start": "2026-07-13",
+                "requested_end": "2026-07-14",
+                "requests": [{
+                    "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400",
+                    "start": "2026-07-13",
+                    "end": "2026-07-14",
+                    "status": "OK",
+                    "row_count": 1,
+                    "content_sha256": "a" * 64,
+                }],
+            }
+        },
+    )
+    session.admit("BTC-USD", _candidate())
+    session.bind_canonical_files(history, ["BTC-USD"])
+    valid = session.payload(generated_at="2026-07-14T00:02:00+00:00")
+
+    checked = validate_market_admission_evidence(
+        valid,
+        history,
+        as_of="2026-07-13",
+    )
+    assert checked["status"] == "OK"
+
+    corruptions = []
+    missing_provenance = copy.deepcopy(valid)
+    missing_provenance["btc_spot_witness"]["provenance"] = {}
+    corruptions.append(missing_provenance)
+    inconsistent_row = copy.deepcopy(valid)
+    inconsistent_row["rows"][0]["admitted"] = False
+    corruptions.append(inconsistent_row)
+    inconsistent_summary = copy.deepcopy(valid)
+    inconsistent_summary["summary"] = {"MATCH": 2}
+    corruptions.append(inconsistent_summary)
+    inconsistent_status = copy.deepcopy(valid)
+    inconsistent_status["status"] = "BLOCKED"
+    corruptions.append(inconsistent_status)
+    missing_canonical = copy.deepcopy(valid)
+    missing_canonical["canonical_files"] = {
+        "DOES_NOT_EXIST.csv": {"sha256": None, "latest_as_of": None}
+    }
+    corruptions.append(missing_canonical)
+
+    for corrupted in corruptions:
+        checked = validate_market_admission_evidence(
+            corrupted,
+            history,
+            as_of="2026-07-13",
+        )
+        assert checked["status"] == "EVIDENCE_DRIFT"
 
 
 def test_market_admission_rejects_unfinalized_market_session() -> None:
