@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import tempfile
 import unittest
 import json
@@ -9,11 +10,32 @@ from unittest import mock
 from hermes_escape_top.core.data.run_transaction import recover_incomplete_score_run, score_run_transaction
 from hermes_escape_top.core.safe_io import pipeline_lock
 from hermes_escape_top.pipeline import score_pipeline
-from hermes_escape_top.web.server import _attach_alpaca_daily_flow, _latest_score_payload
+from hermes_escape_top.web.server import (
+    _attach_alpaca_daily_flow,
+    _attach_market_admission_status,
+    _latest_score_payload,
+)
 from hermes_escape_top.web.render import render_dashboard, write_dashboard
 
 
 class Phase14WebTest(unittest.TestCase):
+    def test_score_pipeline_persists_market_admission_context_in_audit(self) -> None:
+        status = {
+            "mode": "enforce_consensus",
+            "status": "ERROR",
+            "operation_id": "current-run",
+            "run_error": "OSError: evidence disk full",
+        }
+        with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
+            payload = score_pipeline(
+                "2026-05-29",
+                market_admission_status=status,
+            )
+
+        record = json.loads(Path(payload["audit_log_path"]).read_text(encoding="utf-8").splitlines()[-1])
+        self.assertEqual(payload["market_admission_status"], status)
+        self.assertEqual(record["payload"]["market_admission_status"], status)
+
     def test_render_dashboard_contains_core_sections(self) -> None:
         with mock.patch("hermes_escape_top.pipeline._ibkr_payload", return_value={"source": "disabled"}):
             payload = score_pipeline("2026-05-29")
@@ -129,6 +151,182 @@ class Phase14WebTest(unittest.TestCase):
                 _attach_alpaca_daily_flow(payload)
 
         self.assertEqual(payload["alpaca_daily_flow"]["as_of"], "2026-06-16")
+
+    def test_market_admission_attachment_never_hides_missing_required_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = {"as_of": "2026-07-13"}
+            with mock.patch(
+                "hermes_escape_top.web.server.load_config",
+                return_value={
+                    "features": {"use_market_admission_gate": True},
+                    "paths": {"archive_dir": tmp},
+                },
+            ):
+                _attach_market_admission_status(payload)
+
+        self.assertEqual(payload["market_admission_status"]["status"], "MISSING")
+        self.assertEqual(payload["market_admission_status"]["mode"], "enforce_consensus")
+
+    def test_market_admission_attachment_loads_current_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp)
+            history = archive / "history"
+            history.mkdir()
+            canonical = history / "QQQ.csv"
+            canonical.write_text("date,close\n2026-07-13,100\n", encoding="utf-8")
+            (archive / "market_admission_latest.json").write_text(
+                json.dumps({
+                    "mode": "enforce_consensus",
+                    "status": "BLOCKED",
+                    "rejected_rows": 1,
+                    "generated_at": "2026-07-14T00:05:00+00:00",
+                    "completed_through": "2026-07-13",
+                    "operation_id": "current-run",
+                    "canonical_files": {
+                        "QQQ.csv": {
+                            "sha256": hashlib.sha256(canonical.read_bytes()).hexdigest(),
+                            "latest_as_of": "2026-07-13",
+                        }
+                    },
+                }),
+                encoding="utf-8",
+            )
+            payload = {"as_of": "2026-07-13"}
+            with mock.patch(
+                "hermes_escape_top.web.server.load_config",
+                return_value={
+                    "features": {"use_market_admission_gate": True},
+                    "paths": {"archive_dir": tmp, "history_dir": str(history)},
+                },
+            ):
+                _attach_market_admission_status(payload)
+
+        self.assertEqual(payload["market_admission_status"]["status"], "BLOCKED")
+
+    def test_market_admission_attachment_rejects_stale_ok_from_prior_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "archive"
+            history = root / "history"
+            archive.mkdir()
+            history.mkdir()
+            (archive / "market_admission_latest.json").write_text(
+                json.dumps({
+                    "mode": "enforce_consensus",
+                    "status": "OK",
+                    "generated_at": "2026-07-01T03:00:00+00:00",
+                    "completed_through": "2026-07-01",
+                    "operation_id": "old-run",
+                    "canonical_files": {},
+                }),
+                encoding="utf-8",
+            )
+            payload = {
+                "as_of": "2026-07-13",
+                "run_receipt": {"started_at": "2026-07-14T00:00:00+00:00"},
+            }
+            with mock.patch(
+                "hermes_escape_top.web.server.load_config",
+                return_value={
+                    "features": {"use_market_admission_gate": True},
+                    "paths": {
+                        "archive_dir": str(archive),
+                        "history_dir": str(history),
+                    },
+                },
+            ):
+                _attach_market_admission_status(payload)
+
+        self.assertEqual(payload["market_admission_status"]["status"], "STALE")
+
+    def test_market_admission_attachment_detects_canonical_hash_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "archive"
+            history = root / "history"
+            archive.mkdir()
+            history.mkdir()
+            (history / "QQQ.csv").write_text("date,close\n2026-07-13,100\n", encoding="utf-8")
+            (archive / "market_admission_latest.json").write_text(
+                json.dumps({
+                    "mode": "enforce_consensus",
+                    "status": "OK",
+                    "generated_at": "2026-07-14T00:05:00+00:00",
+                    "completed_through": "2026-07-13",
+                    "operation_id": "current-run",
+                    "canonical_files": {
+                        "QQQ.csv": {"sha256": "0" * 64, "latest_as_of": "2026-07-13"},
+                    },
+                }),
+                encoding="utf-8",
+            )
+            payload = {
+                "as_of": "2026-07-13",
+                "run_receipt": {"started_at": "2026-07-14T00:00:00+00:00"},
+            }
+            with mock.patch(
+                "hermes_escape_top.web.server.load_config",
+                return_value={
+                    "features": {"use_market_admission_gate": True},
+                    "paths": {
+                        "archive_dir": str(archive),
+                        "history_dir": str(history),
+                    },
+                },
+            ):
+                _attach_market_admission_status(payload)
+
+        self.assertEqual(
+            payload["market_admission_status"]["status"],
+            "EVIDENCE_DRIFT",
+        )
+
+    def test_market_admission_attachment_preserves_current_run_error_over_old_ok(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "archive"
+            history = root / "history"
+            archive.mkdir()
+            history.mkdir()
+            canonical = history / "QQQ.csv"
+            canonical.write_text("date,close\n2026-07-13,100\n", encoding="utf-8")
+            canonical_hash = hashlib.sha256(canonical.read_bytes()).hexdigest()
+            common = {
+                "mode": "enforce_consensus",
+                "generated_at": "2026-07-14T00:05:00+00:00",
+                "completed_through": "2026-07-13",
+                "canonical_files": {
+                    "QQQ.csv": {"sha256": canonical_hash, "latest_as_of": "2026-07-13"},
+                },
+            }
+            (archive / "market_admission_latest.json").write_text(
+                json.dumps({**common, "status": "OK", "operation_id": "old-run"}),
+                encoding="utf-8",
+            )
+            payload = {
+                "as_of": "2026-07-13",
+                "run_receipt": {"started_at": "2026-07-14T00:00:00+00:00"},
+                "market_admission_status": {
+                    **common,
+                    "status": "ERROR",
+                    "operation_id": "current-run",
+                    "run_error": "OSError: evidence disk full",
+                },
+            }
+            with mock.patch(
+                "hermes_escape_top.web.server.load_config",
+                return_value={
+                    "features": {"use_market_admission_gate": True},
+                    "paths": {
+                        "archive_dir": str(archive),
+                        "history_dir": str(history),
+                    },
+                },
+            ):
+                _attach_market_admission_status(payload)
+
+        self.assertEqual(payload["market_admission_status"]["status"], "ERROR")
+        self.assertEqual(payload["market_admission_status"]["operation_id"], "current-run")
 
 
 if __name__ == "__main__":

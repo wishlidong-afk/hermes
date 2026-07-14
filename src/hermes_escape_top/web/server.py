@@ -49,6 +49,10 @@ RUN_DAILY_PKG = (
 
 from ..config import load_config, resolve_path
 from ..core.data.alpaca_flow import load_daily_flow_snapshot
+from ..core.data.market_admission import (
+    read_market_admission_evidence,
+    validate_market_admission_evidence,
+)
 from ..core.data.run_transaction import pending_score_run_transaction
 from ..core.data.state_store import record_execution_confirmation
 from ..ibkr.live_check import run_live_check
@@ -237,6 +241,77 @@ def _attach_external_source_status(payload: dict) -> dict:
         payload["external_source_status"] = external_source_status(load_config())
     except Exception as exc:
         payload["external_source_status_error"] = str(exc)
+    return payload
+
+
+def _attach_market_admission_status(payload: dict) -> dict:
+    """Attach current gate evidence without trusting the persisted score payload."""
+    try:
+        config = load_config()
+        enabled = bool((config.get("features") or {}).get("use_market_admission_gate", False))
+        if not enabled:
+            payload.pop("market_admission_status", None)
+            return payload
+        archive_dir = resolve_path(config, "archive_dir")
+        persisted = read_market_admission_evidence(archive_dir)
+        current = payload.get("market_admission_status")
+        current = current if isinstance(current, dict) else None
+        if persisted is None and current is None:
+            payload["market_admission_status"] = {
+                "mode": "enforce_consensus",
+                "status": "MISSING",
+                "reason": "market admission is enabled but no evidence file exists",
+            }
+        else:
+            receipt = payload.get("run_receipt") or {}
+            history_dir = resolve_path(config, "history_dir")
+            validated_current = (
+                validate_market_admission_evidence(
+                    current,
+                    history_dir,
+                    as_of=payload.get("as_of"),
+                    run_started_at=receipt.get("started_at"),
+                )
+                if current is not None
+                else None
+            )
+            validated_persisted = (
+                validate_market_admission_evidence(
+                    persisted,
+                    history_dir,
+                    as_of=payload.get("as_of"),
+                    run_started_at=receipt.get("started_at"),
+                )
+                if persisted is not None
+                else None
+            )
+            if validated_current is None:
+                selected = validated_persisted
+            elif validated_persisted is None:
+                selected = validated_current
+            elif current.get("operation_id") != persisted.get("operation_id"):
+                selected = validated_current
+            else:
+                severity = {
+                    "OK": 0,
+                    "BLOCKED": 2,
+                    "MISSING": 3,
+                    "STALE": 3,
+                    "FETCH_ERROR": 4,
+                    "ERROR": 5,
+                    "EVIDENCE_DRIFT": 6,
+                }
+                selected = max(
+                    (validated_current, validated_persisted),
+                    key=lambda row: severity.get(str(row.get("status") or ""), 4),
+                )
+            payload["market_admission_status"] = selected
+    except Exception as exc:
+        payload["market_admission_status"] = {
+            "mode": "enforce_consensus",
+            "status": "ERROR",
+            "run_error": f"{exc.__class__.__name__}: {exc}",
+        }
     return payload
 
 
@@ -932,13 +1007,14 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 payload = apply_ibkr_position_overlay(payload)
                 _attach_alpaca_daily_flow(payload)
                 _attach_external_source_status(payload)
+                payload["run_receipt"] = _read_run_receipt()
+                _attach_market_admission_status(payload)
                 _attach_external_import_candidates(payload)
                 _attach_external_precheck_status(payload)
                 _attach_system_health_report(payload)
                 _attach_system_health_history(payload)
                 payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of, records=audit_records)
                 payload["prev_valves"] = _prev_official_valves(audit_records, payload.get("as_of") or as_of)
-                payload["run_receipt"] = _read_run_receipt()
                 shadow = _shadow_status()
                 try:
                     manifest = manifest_status()
@@ -961,6 +1037,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                     payload = apply_ibkr_position_overlay(payload)
                     _attach_alpaca_daily_flow(payload)
                     _attach_external_source_status(payload)
+                    _attach_market_admission_status(payload)
                     _attach_external_import_candidates(payload)
                     _attach_external_precheck_status(payload)
                 self._send(200, "application/json; charset=utf-8",
@@ -998,8 +1075,9 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                     score = apply_ibkr_position_overlay(score)
                     _attach_alpaca_daily_flow(score)
                     _attach_external_source_status(score)
-                    _attach_external_precheck_status(score)
                     score["run_receipt"] = _read_run_receipt()
+                    _attach_market_admission_status(score)
+                    _attach_external_precheck_status(score)
                     try:
                         manifest = manifest_status()
                     except Exception:

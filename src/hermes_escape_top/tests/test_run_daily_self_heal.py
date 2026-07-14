@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+from hermes_escape_top.core.data.market_admission import MarketAdmissionSession
 from hermes_escape_top.scripts import run_daily_package as rdp
 from hermes_escape_top.core.safe_io import pipeline_lock
 
@@ -27,13 +28,20 @@ def test_refresh_history_reuses_daily_lease_without_child_lock(tmp_path, monkeyp
         lambda symbols, **kwargs: calls.append((symbols, kwargs)) or {},
     )
     monkeypatch.setattr(rdp, "write_coverage_report", lambda _results, _path: report)
+    session = MarketAdmissionSession(enabled=True, witness_bars={})
 
     lock_path = archive / ".pipeline.lock"
     with pipeline_lock(path=lock_path) as lease:
-        rdp.refresh_history("2026-06-18", _lease=lease)
+        rdp.refresh_history(
+            "2026-06-18",
+            _lease=lease,
+            admission_session=session,
+        )
 
     assert calls[0][0] == ["QQQ"]
     assert calls[0][1]["store_dir"] == history
+    assert calls[0][1]["admission_session"] is session
+    assert calls[0][1]["admission_archive"] == archive
 
 
 def _feed_dates(monkeypatch, *snapshots):
@@ -67,6 +75,40 @@ def test_heal_refetches_only_the_laggard(monkeypatch):
     rdp._heal_lagging_symbols("2026-06-17", _lease=object())
     # exactly MSTR was re-fetched, individually; no peer was touched
     assert calls == [["MSTR"]]
+
+
+def test_heal_reuses_batch_market_admission_session(monkeypatch, tmp_path):
+    _feed_dates(
+        monkeypatch,
+        {"QQQ": D16, "MSTR": D15},
+        {"QQQ": D16, "MSTR": D16},
+    )
+    session = MarketAdmissionSession(enabled=True, witness_bars={})
+    calls = []
+    archive = tmp_path / "archive"
+    history = tmp_path / "history"
+    monkeypatch.setattr(
+        rdp,
+        "load_config",
+        lambda: {"paths": {"archive_dir": str(archive), "history_dir": str(history)}},
+    )
+    monkeypatch.setattr(rdp, "assert_pipeline_lease", lambda *_args, **_kwargs: None)
+
+    def fake_backfill(symbols, **kwargs):
+        calls.append((list(symbols), kwargs))
+        return {symbol: type("Result", (), {"updated": True})() for symbol in symbols}
+
+    monkeypatch.setattr(rdp, "backfill", fake_backfill)
+
+    rdp._heal_lagging_symbols(
+        "2026-06-17",
+        _lease=object(),
+        admission_session=session,
+    )
+
+    assert calls[0][0] == ["MSTR"]
+    assert calls[0][1]["admission_session"] is session
+    assert calls[0][1]["admission_archive"] == archive
 
 
 def test_heal_is_noop_when_all_aligned(monkeypatch):

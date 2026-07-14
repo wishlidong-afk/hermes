@@ -10,6 +10,7 @@ import pandas as pd
 
 from hermes_escape_top.core.data.market_witness import (
     build_market_witness_payload,
+    fetch_alpaca_daily_bar_range,
     fetch_alpaca_daily_bars,
     refresh_market_witness,
     write_market_witness,
@@ -53,6 +54,21 @@ def test_market_witness_matches_close_and_volume_within_policy() -> None:
     assert row["status"] == "MATCH"
     assert row["close_diff_pct"] < 0.5
     assert row["volume_diff_pct"] < 10.0
+
+
+def test_shadow_market_witness_preserves_legacy_match_when_volume_is_missing() -> None:
+    witness = _alpaca()
+    witness["v"] = None
+
+    payload = build_market_witness_payload(
+        "2026-07-10",
+        ["MSTR"],
+        {"MSTR": _local()},
+        {"MSTR": [witness]},
+    )
+
+    assert payload["status"] == "OK"
+    assert payload["symbols"]["MSTR"]["status"] == "MATCH"
 
 
 def test_market_witness_reports_mismatch_without_promoting_it() -> None:
@@ -113,6 +129,52 @@ def test_fetch_alpaca_daily_bars_uses_raw_sip_daily_endpoint() -> None:
     assert "feed=sip" in seen["url"]
     assert "adjustment=raw" in seen["url"]
     assert seen["headers"]["APCA-API-KEY-ID"] == "key"
+
+
+def test_fetch_alpaca_daily_bar_range_uses_requested_window() -> None:
+    seen = {}
+
+    def transport(url, headers):
+        seen["url"] = url
+        return {"bars": {"MSTR": [_alpaca()]}, "next_page_token": None}
+
+    rows = fetch_alpaca_daily_bar_range(
+        ["MSTR"],
+        "2026-07-10",
+        "2026-07-14",
+        {"key": "key", "secret": "secret"},
+        request_json=transport,
+    )
+
+    assert rows["MSTR"][0]["c"] == 100.1
+    assert "start=2026-07-10T00%3A00%3A00Z" in seen["url"]
+    assert "end=2026-07-14T00%3A00%3A00Z" in seen["url"]
+    assert "timeframe=1Day" in seen["url"]
+    assert "feed=sip" in seen["url"]
+    assert "adjustment=raw" in seen["url"]
+
+
+def test_fetch_alpaca_daily_bar_range_rejects_repeated_page_token() -> None:
+    calls = []
+
+    def transport(url, _headers):
+        calls.append(url)
+        return {"bars": {}, "next_page_token": "stuck"}
+
+    try:
+        fetch_alpaca_daily_bar_range(
+            ["MSTR"],
+            "2026-07-10",
+            "2026-07-14",
+            {"key": "key", "secret": "secret"},
+            request_json=transport,
+        )
+    except RuntimeError as exc:
+        assert "repeated page token" in str(exc)
+    else:
+        raise AssertionError("repeated Alpaca page token must fail closed")
+
+    assert len(calls) == 2
 
 
 def test_refresh_market_witness_writes_archive_only(tmp_path: Path) -> None:

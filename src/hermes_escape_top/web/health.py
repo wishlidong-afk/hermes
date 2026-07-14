@@ -64,6 +64,7 @@ def compute_health(
     sip_flow = payload.get("alpaca_daily_flow") or {}
     sip_status = payload.get("alpaca_daily_flow_status") or {}
     external_sources = payload.get("external_source_status") or {}
+    market_admission = payload.get("market_admission_status") or {}
 
     # 1. Is there a scored payload at all?
     if not cache.get("hit"):
@@ -83,6 +84,52 @@ def compute_health(
         add("CRITICAL", "数据清单漂移", "manifest 与历史 CSV 不一致")
     elif ms == "MISSING":
         add("DEGRADED", "数据清单缺失", "")
+
+    # 3a. Dual-source market admission preserves the last certified bars when
+    #     Yahoo and Alpaca cannot establish consensus. That is safer than
+    #     promoting uncertain data, but the freeze must remain visible.
+    admission_mode = str(market_admission.get("mode") or "")
+    admission_status = str(market_admission.get("status") or "")
+    if admission_mode == "enforce_consensus" and admission_status == "FETCH_ERROR":
+        add(
+            "DEGRADED",
+            "双源行情见证不可用",
+            str(market_admission.get("fetch_error") or "Alpaca witness unavailable")[:160],
+        )
+    elif admission_mode == "enforce_consensus" and admission_status == "ERROR":
+        add(
+            "DEGRADED",
+            "双源行情准入失败",
+            str(market_admission.get("run_error") or "market admission failed")[:160],
+        )
+    elif admission_mode == "enforce_consensus" and admission_status == "MISSING":
+        add(
+            "DEGRADED",
+            "双源行情准入证据缺失",
+            str(market_admission.get("reason") or "required market admission evidence is missing")[:160],
+        )
+    elif admission_mode == "enforce_consensus" and admission_status == "STALE":
+        add(
+            "DEGRADED",
+            "双源行情准入证据过期",
+            str(market_admission.get("evidence_detail") or "market admission evidence is stale")[:160],
+        )
+    elif admission_mode == "enforce_consensus" and admission_status == "EVIDENCE_DRIFT":
+        add(
+            "CRITICAL",
+            "双源行情证据漂移",
+            str(market_admission.get("evidence_detail") or "canonical history no longer matches evidence")[:160],
+        )
+    elif admission_mode == "enforce_consensus" and admission_status == "BLOCKED":
+        summary = market_admission.get("summary") or {}
+        summary_text = ", ".join(
+            f"{key}={value}" for key, value in sorted(summary.items())
+        )
+        add(
+            "DEGRADED",
+            "双源行情候选已隔离",
+            f"rejected={market_admission.get('rejected_rows', 0)} {summary_text}".strip()[:160],
+        )
 
     # 4. Overall data-quality level
     level = str(dq.get("level") or "")
