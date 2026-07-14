@@ -803,6 +803,56 @@ def test_refresh_external_source_auto_imports_latest_official_file_after_fetch_e
     assert result["fallback_import_file"] == str(import_path)
 
 
+def test_refresh_external_auto_import_tries_next_file_after_stale_candidate(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    stale_path = tmp_path / "sentiment-stale.xls"
+    valid_path = tmp_path / "sentiment-current.xls"
+    stale_path.write_bytes(b"stale official file")
+    valid_path.write_bytes(b"current official file")
+    calls = []
+
+    def fake_runner(spec, adapter, archive_dir):
+        calls.append(type(adapter).__name__)
+        if len(calls) == 1:
+            return SimpleNamespace(to_dict=lambda: {
+                "source_id": spec.source_id,
+                "status": "FETCH_ERROR",
+                "error_message": "AAII public endpoint blocked",
+            })
+        if len(calls) == 2:
+            return SimpleNamespace(to_dict=lambda: {
+                "source_id": spec.source_id,
+                "status": "PARSE_ERROR",
+                "error_message": "AAII import file is older than current AAII seed",
+            })
+        return SimpleNamespace(to_dict=lambda: {
+            "source_id": spec.source_id,
+            "status": "OK",
+            "latest_promoted_as_of": "2026-07-09",
+        })
+
+    monkeypatch.setattr(refresh_external, "run_external_source_refresh", fake_runner)
+    monkeypatch.setattr(refresh_external, "latest_import_file", lambda _profile: stale_path)
+    monkeypatch.setattr(
+        refresh_external,
+        "import_files",
+        lambda _profile: [stale_path, valid_path],
+    )
+
+    result = refresh_external.refresh_source("aaii_sentiment", cfg, auto_import=True)
+
+    assert calls == [
+        "AaiiSentimentAdapter",
+        "AaiiSentimentImportAdapter",
+        "AaiiSentimentImportAdapter",
+    ]
+    assert result["status"] == "OK"
+    assert result["latest_promoted_as_of"] == "2026-07-09"
+    assert result["fallback_from_status"] == "FETCH_ERROR"
+    assert result["fallback_import_file"] == str(valid_path)
+    assert result["fallback_attempted_files"] == [str(stale_path), str(valid_path)]
+
+
 def test_refresh_external_auto_import_skips_previously_failed_file_hash(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
     import_path = tmp_path / "sentiment.xls"
@@ -867,6 +917,7 @@ def test_refresh_external_auto_import_does_not_reuse_successful_file_hash(monkey
             "source_id": "aaii_sentiment",
             "status": "OK",
             "raw_path": str(raw_path),
+            "canonical_sha256": "bound-canonical-sha",
         },
     )
     calls = []
@@ -889,6 +940,25 @@ def test_refresh_external_auto_import_does_not_reuse_successful_file_hash(monkey
     assert result["status"] == "FETCH_ERROR"
     assert result["fallback_import_skipped"] == str(import_path)
     assert result["fallback_import_skip_reason"] == "official file hash already processed"
+
+
+def test_pending_import_retries_successful_legacy_file_without_canonical_binding(monkeypatch, tmp_path):
+    archive = tmp_path / "archive"
+    candidate = tmp_path / "sentiment-current.xls"
+    candidate.write_bytes(b"current official file")
+    append_source_run(
+        archive,
+        {
+            "source_id": "aaii_sentiment",
+            "status": "OK",
+            "official_file_sha256": hashlib.sha256(candidate.read_bytes()).hexdigest(),
+            "canonical_sha256": None,
+        },
+    )
+    monkeypatch.setattr(refresh_external, "latest_import_file", lambda _profile: candidate)
+    monkeypatch.setattr(refresh_external, "import_files", lambda _profile: [candidate])
+
+    assert refresh_external.pending_import_file("aaii_sentiment", archive) == candidate
 
 
 def test_pending_import_selects_older_unprocessed_official_file(monkeypatch, tmp_path):
