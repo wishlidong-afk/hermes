@@ -106,19 +106,21 @@ Duplicate observation dates are allowed; publish dates are unique and drive
 ### Net Liquidity
 
 Maintain independent vintage states for `WALCL`, `WTREGEN`, and `RRPONTSYD`.
-After each event day, use the latest observation date present in all three
-states, recompute the full common-date net-liquidity history, its 10-observation
-change, and trailing percentile, then emit only when that decision-facing
-output changes. Component realtime-start dates are retained in the derived row.
+After each event day, align the union of visible observation dates and
+forward-fill the weekly `WALCL` / `WTREGEN` components onto the daily RRP dates,
+matching the established production factor semantics. Recompute the full
+net-liquidity history, its 10-observation change, and trailing percentile, then
+emit only when that decision-facing output changes. Component realtime-start
+dates are retained in the derived row.
 
 ## Dependency And Failure Policy
 
 With the flag ON, refresh order is:
 
 1. `fred_vintages`
-2. `dollar`
-3. `real_rate`
-4. `fred_net_liquidity`
+2. `dollar_vintage`
+3. `real_rate_vintage`
+4. `fred_net_liquidity_vintage`
 
 If the vintage source fails, a refresh-all run does not regenerate the three
 derived canonicals from unverified input. The previous certified files remain
@@ -126,8 +128,10 @@ in place and the failed vintage ledger row explains the degradation. An
 individual derived refresh verifies the vintage-store SHA before reading it.
 
 `fred_vintages` is added to the Source Policy Registry with zero direct score
-weight; the three decision sources retain their weights but switch their PIT
-rule to `alfred_latest_vintage_at_or_before_as_of` while ON.
+weight. The three exact derived sources have independent canonical files and
+ledger identities: `dollar_vintage.csv`, `real_rate_vintage.csv`, and
+`fred_net_liquidity_vintage.csv`. The scoring consumers select those files only
+while the flag is ON; the untouched legacy files remain the OFF path.
 
 ## Rollout
 
@@ -138,10 +142,11 @@ rule to `alfred_latest_vintage_at_or_before_as_of` while ON.
 4. Generate isolated Dollar, real-rate, and net-liquidity canonicals.
 5. Measure score/backtest impact. Because true vintages change historical
    inputs, this is a data-baseline migration, not a silent live flip.
-6. Only after the formal evidence passes, promote all four files and flip the
-   flag in one lock-held transaction; otherwise leave the exact dataset parked
-   for research and keep production on the documented approximation.
+6. Only after the formal evidence passes, install the four exact files beside
+   the legacy files and flip the flag in one lock-held transaction; otherwise
+   leave the exact dataset parked for research and keep production on the
+   documented approximation.
 
-Rollback sets the flag false and restores the three pre-activation derived
-canonicals. The immutable vintage event store may remain as non-scoring
-evidence.
+Rollback only sets the flag false. That immediately selects the untouched
+legacy canonicals and legacy ledger identities; no data-file restoration is
+required. The immutable vintage event store may remain as non-scoring evidence.

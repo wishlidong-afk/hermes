@@ -71,10 +71,20 @@ SOURCE_IDS = (
     "naaim_exposure",
     "aaii_sentiment",
 )
-FRED_DERIVED_SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity")
-FRED_VINTAGE_SOURCE_IDS = ("fred_vintages",) + SOURCE_IDS
+LEGACY_FRED_SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity")
+FRED_DERIVED_SOURCE_IDS = (
+    "dollar_vintage",
+    "real_rate_vintage",
+    "fred_net_liquidity_vintage",
+)
+NON_FRED_SOURCE_IDS = tuple(
+    source_id for source_id in SOURCE_IDS if source_id not in LEGACY_FRED_SOURCE_IDS
+)
+FRED_VINTAGE_SOURCE_IDS = ("fred_vintages",) + FRED_DERIVED_SOURCE_IDS + NON_FRED_SOURCE_IDS
 CBOE_INDEX_SOURCE_IDS = tuple(CBOE_INDEX_DEFINITIONS)
-ALL_SOURCE_IDS = FRED_VINTAGE_SOURCE_IDS + CBOE_INDEX_SOURCE_IDS
+ALL_SOURCE_IDS = (
+    ("fred_vintages",) + SOURCE_IDS + FRED_DERIVED_SOURCE_IDS + CBOE_INDEX_SOURCE_IDS
+)
 IMPORT_FILE_SOURCE_IDS = ("naaim_exposure", "aaii_sentiment")
 POLICY_WARN_ONLY_STALE_SOURCE_IDS = frozenset({"dollar"})
 DAILY_RETRY_REUSE_SECONDS = 15 * 60
@@ -105,19 +115,6 @@ def fred_vintages_source(config: dict[str, Any]):
 
 def dollar_source(config: dict[str, Any]):
     target = resolve_path(config, "soft_history_dir") / "dollar.csv"
-    if _fred_vintage_enabled(config):
-        return (
-            fred_vintage_percentile_spec(
-                source_id="dollar",
-                target_path=target,
-                field="dollar_broad",
-            ),
-            FredVintagePercentileAdapter(
-                vintage_path=_fred_vintage_path(config),
-                series_id="DTWEXBGS",
-                field="dollar_broad",
-            ),
-        )
     spec = fred_percentile_spec(
         source_id="dollar",
         target_path=target,
@@ -130,21 +127,24 @@ def dollar_source(config: dict[str, Any]):
     return spec, adapter
 
 
+def dollar_vintage_source(config: dict[str, Any]):
+    target = resolve_path(config, "soft_history_dir") / "dollar_vintage.csv"
+    return (
+        fred_vintage_percentile_spec(
+            source_id="dollar_vintage",
+            target_path=target,
+            field="dollar_broad",
+        ),
+        FredVintagePercentileAdapter(
+            vintage_path=_fred_vintage_path(config),
+            series_id="DTWEXBGS",
+            field="dollar_broad",
+        ),
+    )
+
+
 def real_rate_source(config: dict[str, Any]):
     target = resolve_path(config, "soft_history_dir") / "real_rate.csv"
-    if _fred_vintage_enabled(config):
-        return (
-            fred_vintage_percentile_spec(
-                source_id="real_rate",
-                target_path=target,
-                field="real_rate_10y",
-            ),
-            FredVintagePercentileAdapter(
-                vintage_path=_fred_vintage_path(config),
-                series_id="DFII10",
-                field="real_rate_10y",
-            ),
-        )
     spec = fred_percentile_spec(
         source_id="real_rate",
         target_path=target,
@@ -157,14 +157,33 @@ def real_rate_source(config: dict[str, Any]):
     return spec, adapter
 
 
+def real_rate_vintage_source(config: dict[str, Any]):
+    target = resolve_path(config, "soft_history_dir") / "real_rate_vintage.csv"
+    return (
+        fred_vintage_percentile_spec(
+            source_id="real_rate_vintage",
+            target_path=target,
+            field="real_rate_10y",
+        ),
+        FredVintagePercentileAdapter(
+            vintage_path=_fred_vintage_path(config),
+            series_id="DFII10",
+            field="real_rate_10y",
+        ),
+    )
+
+
 def fred_net_liquidity_source(config: dict[str, Any]):
     target = resolve_path(config, "soft_history_dir") / "fred_net_liquidity.csv"
-    if _fred_vintage_enabled(config):
-        return (
-            fred_vintage_net_liquidity_spec(target_path=target),
-            FredVintageNetLiquidityAdapter(vintage_path=_fred_vintage_path(config)),
-        )
     return fred_net_liquidity_spec(target_path=target), FredNetLiquidityAdapter()
+
+
+def fred_net_liquidity_vintage_source(config: dict[str, Any]):
+    target = resolve_path(config, "soft_history_dir") / "fred_net_liquidity_vintage.csv"
+    return (
+        fred_vintage_net_liquidity_spec(target_path=target),
+        FredVintageNetLiquidityAdapter(vintage_path=_fred_vintage_path(config)),
+    )
 
 
 def naaim_exposure_source(config: dict[str, Any]):
@@ -210,8 +229,11 @@ def source_factories():
     factories = {
         "fred_vintages": fred_vintages_source,
         "dollar": dollar_source,
+        "dollar_vintage": dollar_vintage_source,
         "real_rate": real_rate_source,
+        "real_rate_vintage": real_rate_vintage_source,
         "fred_net_liquidity": fred_net_liquidity_source,
+        "fred_net_liquidity_vintage": fred_net_liquidity_vintage_source,
         "cboe_equity_pcr": cboe_equity_pcr_source,
         "cot_nq": cot_nq_source,
         "occ_equity_pcr": occ_equity_pcr_source,

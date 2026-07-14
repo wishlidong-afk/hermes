@@ -171,6 +171,7 @@ class FredVintageAdapter:
                     "series_id": series_id,
                     "file_type": "json",
                     "output_type": "3",
+                    "limit": "100000",
                     "observation_start": str(observation_start)[:10],
                     "realtime_start": realtime_start,
                     "realtime_end": realtime_end,
@@ -180,6 +181,16 @@ class FredVintageAdapter:
                     params,
                     request_evidence=request_evidence,
                 )
+                observations = list((payload or {}).get("observations") or [])
+                try:
+                    total_count = int((payload or {}).get("count", len(observations)))
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(f"invalid FRED response count for {series_id}") from exc
+                if total_count > len(observations):
+                    raise ValueError(
+                        f"truncated FRED vintage response for {series_id}: "
+                        f"count={total_count} rows={len(observations)}"
+                    )
                 responses.append(
                     {
                         "series_id": series_id,
@@ -351,7 +362,7 @@ def fred_vintage_percentile_spec(
 
 def fred_vintage_net_liquidity_spec(*, target_path: Path) -> ExternalSourceSpec:
     return ExternalSourceSpec(
-        source_id="fred_net_liquidity",
+        source_id="fred_net_liquidity_vintage",
         target_path=target_path,
         date_column="publish_date",
         required_columns=(
@@ -488,27 +499,32 @@ def build_vintage_net_liquidity_frame(
                 states[series_id].pop(observation_date, None)
             else:
                 states[series_id][observation_date] = (float(event["value"]), str(vintage_date))
-        common_dates = set(states[required[0]])
-        for series_id in required[1:]:
-            common_dates &= set(states[series_id])
-        if not common_dates:
+        union_dates: set[str] = set()
+        for series_id in required:
+            union_dates.update(states[series_id])
+        if not union_dates:
             continue
-        ordered_dates = sorted(common_dates)
-        net_rows: list[dict[str, Any]] = []
-        for observation_date in ordered_dates:
-            walcl = states["WALCL"][observation_date][0]
-            wtregen = states["WTREGEN"][observation_date][0]
-            rrp = states["RRPONTSYD"][observation_date][0]
-            net_rows.append(
-                {
-                    "date": observation_date,
-                    "walcl": walcl,
-                    "wtregen": wtregen,
-                    "rrp": rrp,
-                    "net_liq": walcl - wtregen - rrp,
-                }
+        ordered_dates = sorted(union_dates)
+        value_columns: dict[str, pd.Series] = {}
+        vintage_columns: dict[str, pd.Series] = {}
+        for series_id in required:
+            values = pd.Series(
+                {date: value for date, (value, _seen_at) in states[series_id].items()},
+                dtype="float64",
             )
-        net_frame = pd.DataFrame(net_rows)
+            seen_at = pd.Series(
+                {date: seen for date, (_value, seen) in states[series_id].items()},
+                dtype="object",
+            )
+            value_columns[series_id] = values.reindex(ordered_dates).ffill()
+            vintage_columns[series_id] = seen_at.reindex(ordered_dates).ffill()
+        aligned = pd.DataFrame(value_columns, index=ordered_dates).dropna()
+        if aligned.empty:
+            continue
+        net_frame = aligned.rename(
+            columns={"WALCL": "walcl", "WTREGEN": "wtregen", "RRPONTSYD": "rrp"}
+        ).reset_index(names="date")
+        net_frame["net_liq"] = net_frame["walcl"] - net_frame["wtregen"] - net_frame["rrp"]
         net_frame["net_liq_chg10"] = net_frame["net_liq"].diff(change_periods)
         current = net_frame.iloc[-1]
         if pd.isna(current["net_liq_chg10"]):
@@ -546,9 +562,9 @@ def build_vintage_net_liquidity_frame(
                 "net_liq": float(current["net_liq"]),
                 "net_liq_chg10": float(current["net_liq_chg10"]),
                 "net_liq_chg10_pctl": percentile,
-                "walcl_realtime_start": states["WALCL"][current_date][1],
-                "wtregen_realtime_start": states["WTREGEN"][current_date][1],
-                "rrp_realtime_start": states["RRPONTSYD"][current_date][1],
+                "walcl_realtime_start": str(vintage_columns["WALCL"].loc[current_date]),
+                "wtregen_realtime_start": str(vintage_columns["WTREGEN"].loc[current_date]),
+                "rrp_realtime_start": str(vintage_columns["RRPONTSYD"].loc[current_date]),
             }
         )
     return pd.DataFrame(rows, columns=output_columns)

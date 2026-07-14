@@ -71,6 +71,7 @@ of four states:
 | `use_market_admission_gate` | **ON (live config; repo default OFF)** ✅ | live | Live since 2026-07-14: require Yahoo + Alpaca SIP consensus before supported U.S. equity/ETF OHLCV rows can replace canonical history; mismatch or missing witness preserves the prior certified row |
 | `use_btc_spot_witness` | **ON (live config; repo default OFF)** ✅ | live | Live since 2026-07-14: Coinbase completed UTC-day close gates Yahoo BTC-USD candidates; activation recertification `b1ee0b6f3fb34f73a500661559c78356` admitted 38 MATCH + 2 NOT_APPLICABLE rows with zero rejects |
 | `use_cboe_official_indices` | **ON (live config; repo default OFF)** ✅ | live | Live since 2026-07-14: official CBOE VIX/VIX3M/VIX9D/SKEW/VVIX files are the five canonical single writers; Yahoo is witness-only, and mismatched or unconfirmed rows stay frozen. Activation evidence: `building/reports/data_quality/cboe_official_indices_live_activation_2026_07_14.json` |
+| `use_fred_vintage_pit` | OFF | candidate | Replace legacy FRED `date+1` canonicals with an exact ALFRED output-type-3 event store and as-of vintage replay. OFF is four-date/six-artifact identical; live flip remains blocked pending the one-shot full backtest/formal decision. |
 
 ---
 
@@ -128,6 +129,7 @@ These flags had zero code references and were removed from config.json:
 | `use_indicator_cache` | Candidate | Reusing an indicator frame should reduce repeated score latency without changing payload semantics | OFF-path byte identity and a fresh performance measurement are required before any live flip |
 | `use_market_admission_gate` | Live | Dual-source consensus prevents a corrupt or cross-wired Yahoo row from entering canonical history | 914 tests; four-date/six-artifact OFF identity; isolated and live read-only certification; operation `c192975dd63c478a904b21c152108a1c`; 8766 strategy health OK |
 | `use_btc_spot_witness` | Live | Coinbase completed-day close should catch a corrupt Yahoo BTC row without rejecting normal cross-venue variation | `building/reports/data_quality/btc_spot_witness_off_equivalence_2026_07_14.json`; `btc_spot_witness_historical_overlap_2026_07_14.json`; 365/365 overlap, 0 days above 1%, max 0.5042%; 964 tests; live operation `b1ee0b6f3fb34f73a500661559c78356` |
+| `use_fred_vintage_pit` | Candidate | Exact `realtime_start` vintages remove revised-history leakage from Dollar, Real Rate, and Net Liquidity while freezing all three derived canonicals if the parent vintage refresh fails | `building/reports/data_quality/fred_vintage_pit_off_persistence_equivalence_2026_07_14.json`; `fred_vintage_pit_score_impact_2026_07_14.json`; isolated 29,970-event bootstrap. Dollar has no exact pre-2019 vintage evidence, so the one-shot full backtest/formal decision is mandatory before any live flip. |
 
 ---
 
@@ -159,4 +161,4 @@ config.json also records this.
 
 ---
 
-*Last updated: 2026-07-12 (dollar SLO 6→14 one-shot formal gate archived as Rejected / NO_FLIP)*
+*Last updated: 2026-07-14 (FRED/ALFRED exact-vintage PIT candidate registered; production flag remains OFF)*

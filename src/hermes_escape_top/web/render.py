@@ -64,6 +64,9 @@ TRUST_SOURCE_MAX_AGE_DAYS = {
 
 EXTERNAL_SOURCE_ORDER = [
     "fred_vintages",
+    "dollar_vintage",
+    "real_rate_vintage",
+    "fred_net_liquidity_vintage",
     "dollar",
     "real_rate",
     "fred_net_liquidity",
@@ -77,6 +80,9 @@ EXTERNAL_SOURCE_ORDER = [
 ]
 EXTERNAL_SOURCE_LABELS = {
     "fred_vintages": "FRED/ALFRED Vintage Events",
+    "dollar_vintage": "DXY / Dollar · exact vintage",
+    "real_rate_vintage": "10Y Real Rate · exact vintage",
+    "fred_net_liquidity_vintage": "FRED Net Liquidity · exact vintage",
     "dollar": "DXY / Dollar",
     "real_rate": "10Y Real Rate",
     "fred_net_liquidity": "FRED Net Liquidity",

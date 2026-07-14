@@ -50,6 +50,19 @@ class FredNetLiquiditySource:
         if not bool(config.get("features", {}).get(self.feature_flag, False)):
             return SoftDataRecord(self.name, day, None, "FRED", False, reason=f"feature disabled: {self.feature_flag}")
         path = self.history_path(config)
+        if (
+            not path.exists()
+            and bool((config.get("features") or {}).get("use_fred_vintage_pit", False))
+        ):
+            return SoftDataRecord(
+                self.name,
+                day,
+                None,
+                "FRED_ALFRED",
+                False,
+                quality_penalty=5.0,
+                reason="FRED exact-vintage net-liquidity canonical missing",
+            )
         if not path.exists() and not config.get("runtime", {}).get("offline_replay_mode", False):
             try:
                 self.backfill(config=config)
@@ -102,7 +115,12 @@ class FredNetLiquiditySource:
             base = resolve_path(config, "soft_history_dir")
         else:
             base = Path("data/soft_history")
-        return base / "fred_net_liquidity.csv"
+        name = (
+            "fred_net_liquidity_vintage.csv"
+            if bool((config.get("features") or {}).get("use_fred_vintage_pit", False))
+            else "fred_net_liquidity.csv"
+        )
+        return base / name
 
 
 class CboeIndicesSource:

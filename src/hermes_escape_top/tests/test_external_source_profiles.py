@@ -84,6 +84,21 @@ def test_fred_vintage_policy_is_inactive_by_default_and_exact_when_enabled():
     assert dollar is not None
     assert dollar.primary == "FRED/ALFRED exact vintage event store"
     assert dollar.pit_rule == "exact_realtime_start_vintage"
+    exact_sources = {
+        source_id: _effective_source_profile(enabled_config, source_id)
+        for source_id in (
+            "dollar_vintage",
+            "real_rate_vintage",
+            "fred_net_liquidity_vintage",
+        )
+    }
+    assert all(profile is not None and profile.active for profile in exact_sources.values())
+    assert exact_sources["dollar_vintage"].slo_key == "dollar"
+    assert exact_sources["real_rate_vintage"].slo_key == "real_rate"
+    assert exact_sources["fred_net_liquidity_vintage"].slo_key == "net_liquidity"
+    assert {profile.pit_rule for profile in exact_sources.values()} == {
+        "exact_realtime_start_vintage"
+    }
 
 
 def test_naaim_status_marks_subscription_migration_due_before_deadline():

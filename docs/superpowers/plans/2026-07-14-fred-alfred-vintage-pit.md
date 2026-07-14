@@ -27,8 +27,9 @@ old value and a replay after it sees the revision; future vintages never leak.
 
 - Add `use_fred_vintage_pit=false`.
 - OFF keeps the existing FRED adapters and source order.
-- ON prepends `fred_vintages` and makes the three derived adapters consume its
-  SHA-bound canonical event store.
+- ON prepends `fred_vintages` and writes three independently named exact
+  canonicals/ledgers; scoring selects them only while ON, so OFF remains an
+  immediate data-path rollback.
 - Skip derived regeneration during refresh-all if the vintage refresh fails.
 - Update Source Policy Registry, health/trust display, FRED attribution, and
   predeploy smoke semantics.
@@ -49,8 +50,8 @@ Verify: reports under `building/reports/data_quality/` and a history handoff.
 
 - Independent blocking review before merge.
 - Merge and deploy with repo flag OFF.
-- If the historical migration evidence passes, perform one lock-held backup,
-  four-file promotion, flag flip, manifest refreeze, dashboard restart, and
-  health validation while proving official receipt/audit unchanged.
+- If the historical migration evidence passes, perform one lock-held install
+  of the four side-by-side exact files, flag flip, manifest refreeze, dashboard
+  restart, and health validation while proving official receipt/audit unchanged.
 - If evidence fails, leave the flag OFF and register the exact dataset as
   research-ready rather than weakening thresholds or hiding missing history.

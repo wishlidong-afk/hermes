@@ -17,6 +17,8 @@ from hermes_escape_top.core.data.external_sources.fred_vintage import (
     fred_vintage_spec,
 )
 from hermes_escape_top.core.data.external_sources.registry import validate_normalized_frame
+from hermes_escape_top.core.data.macro import FredNetLiquiditySource
+from hermes_escape_top.core.data.risk_signals import FredPercentileSource
 
 
 def _event(
@@ -114,6 +116,29 @@ def test_vintage_adapter_chunks_long_realtime_period_without_overlap(tmp_path) -
         (pd.Timestamp(end) - pd.Timestamp(start)).days < 4 * 366
         for start, end in observation_ranges
     )
+
+
+def test_vintage_adapter_rejects_truncated_observation_response(tmp_path) -> None:
+    def request(endpoint, params):
+        if endpoint.endswith("/vintagedates"):
+            return _vintage_response(
+                "2020-01-02" if params["sort_order"] == "asc" else "2020-01-03"
+            )
+        assert params["limit"] == "100000"
+        return {
+            "count": 2,
+            "observations": [{"date": "2020-01-01", "TEST_20200102": "1.0"}],
+        }
+
+    adapter = FredVintageAdapter(
+        target_path=tmp_path / "fred_vintages.csv",
+        api_key="key",
+        series_starts={"TEST": "2000-01-01"},
+        request_json=request,
+    )
+
+    with pytest.raises(ValueError, match="truncated FRED vintage response"):
+        adapter.fetch_raw()
 
 
 def test_vintage_adapter_incremental_no_change_preserves_seed(tmp_path) -> None:
@@ -252,6 +277,34 @@ def test_vintage_net_liquidity_replay_recomputes_after_old_revision() -> None:
     assert after["walcl_realtime_start"] == "2020-01-09"
 
 
+def test_vintage_net_liquidity_forward_fills_weekly_components_to_daily_rrp() -> None:
+    events = pd.DataFrame(
+        [
+            _event("WALCL", "2020-01-01", "2020-01-02", 100.0),
+            _event("WTREGEN", "2020-01-01", "2020-01-02", 10.0),
+            _event("RRPONTSYD", "2020-01-01", "2020-01-02", 5.0),
+            _event("RRPONTSYD", "2020-01-02", "2020-01-03", 6.0),
+        ]
+    )
+
+    frame = build_vintage_net_liquidity_frame(
+        events,
+        percentile_window=2,
+        min_periods=1,
+        change_periods=1,
+    )
+
+    current = frame.iloc[-1]
+    assert current["date"] == "2020-01-02"
+    assert current["walcl"] == 100.0
+    assert current["wtregen"] == 10.0
+    assert current["rrp"] == 6.0
+    assert current["net_liq"] == 84.0
+    assert current["net_liq_chg10"] == -1.0
+    assert current["walcl_realtime_start"] == "2020-01-02"
+    assert current["rrp_realtime_start"] == "2020-01-03"
+
+
 def test_derived_adapters_verify_sha_bound_vintage_store(tmp_path) -> None:
     path = tmp_path / "fred_vintages.csv"
     events = pd.DataFrame(
@@ -278,3 +331,41 @@ def test_derived_adapters_verify_sha_bound_vintage_store(tmp_path) -> None:
 
     net = FredVintageNetLiquidityAdapter(vintage_path=path)
     assert net.vintage_path == path
+
+
+def test_scoring_consumers_select_exact_canonical_only_when_flag_is_on(tmp_path) -> None:
+    base = {"paths": {"soft_history_dir": str(tmp_path)}, "features": {}}
+    exact = {
+        "paths": {"soft_history_dir": str(tmp_path)},
+        "features": {"use_fred_vintage_pit": True},
+    }
+    dollar = FredPercentileSource("dollar", "data_dollar", "DTWEXBGS", "dollar_broad")
+    net = FredNetLiquiditySource()
+
+    assert dollar.history_path(base).name == "dollar.csv"
+    assert dollar.history_path(exact).name == "dollar_vintage.csv"
+    assert net.history_path(base).name == "fred_net_liquidity.csv"
+    assert net.history_path(exact).name == "fred_net_liquidity_vintage.csv"
+
+
+def test_scoring_consumers_do_not_backfill_legacy_data_into_missing_exact_path(tmp_path) -> None:
+    config = {
+        "paths": {"soft_history_dir": str(tmp_path)},
+        "features": {
+            "use_fred_vintage_pit": True,
+            "data_dollar": True,
+            "data_net_liquidity": True,
+        },
+    }
+    dollar = FredPercentileSource("dollar", "data_dollar", "DTWEXBGS", "dollar_broad")
+    net = FredNetLiquiditySource()
+
+    dollar_record = dollar.collect("2026-07-14", config)
+    net_record = net.collect("2026-07-14", config)
+
+    assert dollar_record.data_available is False
+    assert "exact-vintage canonical missing" in dollar_record.reason
+    assert net_record.data_available is False
+    assert "exact-vintage net-liquidity canonical missing" in net_record.reason
+    assert not (tmp_path / "dollar_vintage.csv").exists()
+    assert not (tmp_path / "fred_net_liquidity_vintage.csv").exists()

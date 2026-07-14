@@ -537,6 +537,28 @@ def test_external_source_ops_discloses_fred_api_non_endorsement():
     assert "not endorsed or certified by the Federal Reserve Bank of St. Louis" in html
 
 
+def test_external_source_ops_labels_exact_fred_derivatives():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "dollar_vintage": {"source_id": "dollar_vintage", "status": "OK"},
+        "real_rate_vintage": {"source_id": "real_rate_vintage", "status": "OK"},
+        "fred_net_liquidity_vintage": {
+            "source_id": "fred_net_liquidity_vintage",
+            "status": "OK",
+        },
+    }
+
+    html = render_mod.render_dashboard(
+        payload,
+        health={"level": "OK"},
+        manifest_status={"status": "OK"},
+    )
+
+    assert "DXY / Dollar · exact vintage" in html
+    assert "10Y Real Rate · exact vintage" in html
+    assert "FRED Net Liquidity · exact vintage" in html
+
+
 def test_external_precheck_table_uses_latest_attempt_time_and_error():
     payload = {
         "external_source_status": {

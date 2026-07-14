@@ -1,0 +1,845 @@
+{
+  "config_source": "/Users/liweishi/.hermes/skills/investment/escape-top/shared/hermes_escape_top/config/config.json",
+  "dates": {
+    "2018-06-01": {
+      "off": {
+        "input_hash": "90c619a07f4d45e2fdd511aa3f69978dcc855233bb3778b05b275fb0a7edb60f",
+        "scores": {
+          "FNGU": {
+            "a_factors": {
+              "A10_REAL_RATE": 3.0,
+              "A11_DOLLAR": 3.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 100.0,
+            "module_a": 13.0,
+            "status": "NO_ADVICE"
+          },
+          "MSTR": {
+            "a_factors": {
+              "A10_REAL_RATE": 3.0,
+              "A11_DOLLAR": 3.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 100.0,
+            "module_a": 13.0,
+            "status": "NO_ADVICE"
+          },
+          "SOXL": {
+            "a_factors": {
+              "A10_REAL_RATE": 3.0,
+              "A11_DOLLAR": 3.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 100.0,
+            "module_a": 13.0,
+            "status": "NO_ADVICE"
+          }
+        },
+        "soft": {
+          "dollar": {
+            "as_of": "2018-06-01",
+            "data_available": true,
+            "fields": {
+              "dollar_broad": 111.9894,
+              "dollar_broad_pctl": 86.90476190476191
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "dollar",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 86.90476190476191
+          },
+          "net_liquidity": {
+            "as_of": "2018-06-01",
+            "data_available": true,
+            "fields": {
+              "net_liq": 4002146.525,
+              "net_liq_chg10": 1798.0699999998324,
+              "net_liq_chg10_pctl": 53.57142857142857
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "net_liquidity",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 53.57142857142857
+          },
+          "real_rate": {
+            "as_of": "2018-06-01",
+            "data_available": true,
+            "fields": {
+              "real_rate_10y": 0.76,
+              "real_rate_10y_pctl": 82.53968253968253
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "real_rate",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 82.53968253968253
+          }
+        }
+      },
+      "on": {
+        "input_hash": "7b2c9e7f3b3b32ed68998c933f2e3cfc1545820b31ba193209ef15d64a44cbd9",
+        "scores": {
+          "FNGU": {
+            "a_factors": {
+              "A10_REAL_RATE": 3.0,
+              "A11_DOLLAR": 0.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 100.0,
+            "module_a": 10.0,
+            "status": "NO_ADVICE"
+          },
+          "MSTR": {
+            "a_factors": {
+              "A10_REAL_RATE": 3.0,
+              "A11_DOLLAR": 0.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 100.0,
+            "module_a": 10.0,
+            "status": "NO_ADVICE"
+          },
+          "SOXL": {
+            "a_factors": {
+              "A10_REAL_RATE": 3.0,
+              "A11_DOLLAR": 0.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 100.0,
+            "module_a": 10.0,
+            "status": "NO_ADVICE"
+          }
+        },
+        "soft": {
+          "dollar": {
+            "as_of": "2018-06-01",
+            "data_available": false,
+            "fields": {},
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "dollar",
+            "quality_penalty": 5.0,
+            "reason": "no record as of date",
+            "source": "FRED",
+            "value": null
+          },
+          "net_liquidity": {
+            "as_of": "2018-06-01",
+            "data_available": true,
+            "fields": {
+              "net_liq": 4327181.103,
+              "net_liq_chg10": -10088.742999999784,
+              "net_liq_chg10_pctl": 55.33980582524271
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "net_liquidity",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 55.33980582524271
+          },
+          "real_rate": {
+            "as_of": "2018-06-01",
+            "data_available": true,
+            "fields": {
+              "real_rate_10y": 0.76,
+              "real_rate_10y_pctl": 82.53968253968253
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "real_rate",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 82.53968253968253
+          }
+        }
+      }
+    },
+    "2019-03-01": {
+      "off": {
+        "input_hash": "84241c7d1b7c9bdf6fd06c10e65c035f42f00d8462b4a1b980169f5149305613",
+        "scores": {
+          "FNGU": {
+            "a_factors": {
+              "A10_REAL_RATE": 0.0,
+              "A11_DOLLAR": 2.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 40.25780219780219,
+            "module_a": 16.0,
+            "status": "EXIT"
+          },
+          "MSTR": {
+            "a_factors": {
+              "A10_REAL_RATE": 0.0,
+              "A11_DOLLAR": 2.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 29.380526315789474,
+            "module_a": 16.0,
+            "status": "REDUCE"
+          },
+          "SOXL": {
+            "a_factors": {
+              "A10_REAL_RATE": 0.0,
+              "A11_DOLLAR": 2.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 37.38315789473685,
+            "module_a": 16.0,
+            "status": "REDUCE"
+          }
+        },
+        "soft": {
+          "dollar": {
+            "as_of": "2019-03-01",
+            "data_available": true,
+            "fields": {
+              "dollar_broad": 114.1991,
+              "dollar_broad_pctl": 63.49206349206349
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "dollar",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 63.49206349206349
+          },
+          "net_liquidity": {
+            "as_of": "2019-03-01",
+            "data_available": true,
+            "fields": {
+              "net_liq": 3664012.585,
+              "net_liq_chg10": -5307.717999999877,
+              "net_liq_chg10_pctl": 57.14285714285714
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "net_liquidity",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 57.14285714285714
+          },
+          "real_rate": {
+            "as_of": "2019-03-01",
+            "data_available": true,
+            "fields": {
+              "real_rate_10y": 0.78,
+              "real_rate_10y_pctl": 33.33333333333333
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "real_rate",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 33.33333333333333
+          }
+        }
+      },
+      "on": {
+        "input_hash": "77f4056f8a1c4832081b546545d46e276dcece420f5e234fb0ded401ff9f2137",
+        "scores": {
+          "FNGU": {
+            "a_factors": {
+              "A10_REAL_RATE": 0.0,
+              "A11_DOLLAR": 0.0,
+              "A5_NET_LIQUIDITY": 4.0
+            },
+            "final_score": 44.54022988505747,
+            "module_a": 18.0,
+            "status": "EXIT"
+          },
+          "MSTR": {
+            "a_factors": {
+              "A10_REAL_RATE": 0.0,
+              "A11_DOLLAR": 0.0,
+              "A5_NET_LIQUIDITY": 4.0
+            },
+            "final_score": 32.61604395604395,
+            "module_a": 18.0,
+            "status": "REDUCE"
+          },
+          "SOXL": {
+            "a_factors": {
+              "A10_REAL_RATE": 0.0,
+              "A11_DOLLAR": 0.0,
+              "A5_NET_LIQUIDITY": 4.0
+            },
+            "final_score": 40.87505494505494,
+            "module_a": 18.0,
+            "status": "REDUCE"
+          }
+        },
+        "soft": {
+          "dollar": {
+            "as_of": "2019-03-01",
+            "data_available": true,
+            "fields": {
+              "dollar_broad": 112.6429,
+              "dollar_broad_pctl": null
+            },
+            "is_proxy": false,
+            "latency_days": 4,
+            "name": "dollar",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": null
+          },
+          "net_liquidity": {
+            "as_of": "2019-03-01",
+            "data_available": true,
+            "fields": {
+              "net_liq": 3974277.411,
+              "net_liq_chg10": -53793.13899999997,
+              "net_liq_chg10_pctl": 1.984126984126984
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "net_liquidity",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 1.984126984126984
+          },
+          "real_rate": {
+            "as_of": "2019-03-01",
+            "data_available": true,
+            "fields": {
+              "real_rate_10y": 0.78,
+              "real_rate_10y_pctl": 33.33333333333333
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "real_rate",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 33.33333333333333
+          }
+        }
+      }
+    },
+    "2022-06-15": {
+      "off": {
+        "input_hash": "e536aa1e245a7542feeb3fb3bc8402dc9a93fa82ab2bcc292e58aef93a7cefb4",
+        "scores": {
+          "FNGU": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 4.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 69.64901098901099,
+            "module_a": 20.0,
+            "status": "EXIT"
+          },
+          "MSTR": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 4.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 75.23568421052632,
+            "module_a": 20.0,
+            "status": "EXIT"
+          },
+          "SOXL": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 4.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 76.19052631578947,
+            "module_a": 20.0,
+            "status": "EXIT"
+          }
+        },
+        "soft": {
+          "dollar": {
+            "as_of": "2022-06-15",
+            "data_available": true,
+            "fields": {
+              "dollar_broad": 121.6669,
+              "dollar_broad_pctl": 100.0
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "dollar",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 100.0
+          },
+          "net_liquidity": {
+            "as_of": "2022-06-15",
+            "data_available": true,
+            "fields": {
+              "net_liq": 8192646.143,
+              "net_liq_chg10": 101878.68099999988,
+              "net_liq_chg10_pctl": 62.698412698412696
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "net_liquidity",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 62.698412698412696
+          },
+          "real_rate": {
+            "as_of": "2022-06-15",
+            "data_available": true,
+            "fields": {
+              "real_rate_10y": 0.89,
+              "real_rate_10y_pctl": 100.0
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "real_rate",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 100.0
+          }
+        }
+      },
+      "on": {
+        "input_hash": "26fe1532e813737227f5e9dcc5040c2ed049f6d7b57a2208e35d5f25a67e887b",
+        "scores": {
+          "FNGU": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 4.0,
+              "A5_NET_LIQUIDITY": 1.0
+            },
+            "final_score": 69.64901098901099,
+            "module_a": 20.0,
+            "status": "EXIT"
+          },
+          "MSTR": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 4.0,
+              "A5_NET_LIQUIDITY": 1.0
+            },
+            "final_score": 75.23568421052632,
+            "module_a": 20.0,
+            "status": "EXIT"
+          },
+          "SOXL": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 4.0,
+              "A5_NET_LIQUIDITY": 1.0
+            },
+            "final_score": 76.19052631578947,
+            "module_a": 20.0,
+            "status": "EXIT"
+          }
+        },
+        "soft": {
+          "dollar": {
+            "as_of": "2022-06-15",
+            "data_available": true,
+            "fields": {
+              "dollar_broad": 120.1624,
+              "dollar_broad_pctl": 96.82539682539682
+            },
+            "is_proxy": false,
+            "latency_days": 2,
+            "name": "dollar",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 96.82539682539682
+          },
+          "net_liquidity": {
+            "as_of": "2022-06-15",
+            "data_available": true,
+            "fields": {
+              "net_liq": 8915367.692,
+              "net_liq_chg10": 3072.2390000000596,
+              "net_liq_chg10_pctl": 32.53968253968254
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "net_liquidity",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 32.53968253968254
+          },
+          "real_rate": {
+            "as_of": "2022-06-15",
+            "data_available": true,
+            "fields": {
+              "real_rate_10y": 0.89,
+              "real_rate_10y_pctl": 100.0
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "real_rate",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 100.0
+          }
+        }
+      }
+    },
+    "2026-07-10": {
+      "off": {
+        "input_hash": "80175ceec2a80af3dde2bf08e8a41af38d083b3ba3e65436d83be7e3e676fd6e",
+        "scores": {
+          "FNGU": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 3.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 34.26747368421053,
+            "module_a": 17.0,
+            "status": "REDUCE"
+          },
+          "MSTR": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 3.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 69.97968421052632,
+            "module_a": 17.0,
+            "status": "EXIT"
+          },
+          "SOXL": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 3.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 49.531368421052626,
+            "module_a": 17.0,
+            "status": "EXIT"
+          }
+        },
+        "soft": {
+          "dollar": {
+            "as_of": "2026-07-10",
+            "data_available": true,
+            "fields": {
+              "dollar_broad": 120.753,
+              "dollar_broad_pctl": 78.17460317460318
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "dollar",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 78.17460317460318
+          },
+          "net_liquidity": {
+            "as_of": "2026-07-10",
+            "data_available": true,
+            "fields": {
+              "net_liq": 5961541.228,
+              "net_liq_chg10": 144596.7620000001,
+              "net_liq_chg10_pctl": 96.03174603174604
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "net_liquidity",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 96.03174603174604
+          },
+          "real_rate": {
+            "as_of": "2026-07-10",
+            "data_available": true,
+            "fields": {
+              "real_rate_10y": 2.31,
+              "real_rate_10y_pctl": 100.0
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "real_rate",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 100.0
+          }
+        }
+      },
+      "on": {
+        "input_hash": "0e3fdb5c807d89ff74bface8918a6967eb52795760a20e5c661eecf273772d92",
+        "scores": {
+          "FNGU": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 3.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 34.26747368421053,
+            "module_a": 17.0,
+            "status": "REDUCE"
+          },
+          "MSTR": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 3.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 69.97968421052632,
+            "module_a": 17.0,
+            "status": "EXIT"
+          },
+          "SOXL": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 3.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 49.531368421052626,
+            "module_a": 17.0,
+            "status": "EXIT"
+          }
+        },
+        "soft": {
+          "dollar": {
+            "as_of": "2026-07-10",
+            "data_available": true,
+            "fields": {
+              "dollar_broad": 120.6902,
+              "dollar_broad_pctl": 77.77777777777779
+            },
+            "is_proxy": false,
+            "latency_days": 4,
+            "name": "dollar",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 77.77777777777779
+          },
+          "net_liquidity": {
+            "as_of": "2026-07-10",
+            "data_available": true,
+            "fields": {
+              "net_liq": 5961546.455,
+              "net_liq_chg10": 144603.17300000042,
+              "net_liq_chg10_pctl": 96.03174603174604
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "net_liquidity",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 96.03174603174604
+          },
+          "real_rate": {
+            "as_of": "2026-07-10",
+            "data_available": true,
+            "fields": {
+              "real_rate_10y": 2.31,
+              "real_rate_10y_pctl": 100.0
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "real_rate",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 100.0
+          }
+        }
+      }
+    },
+    "2026-07-14": {
+      "off": {
+        "input_hash": "a19c384199036faf88a890c1eecf8449486ec045db9d7d43de65ace02dbdde54",
+        "scores": {
+          "FNGU": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 2.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 31.629578947368426,
+            "module_a": 16.0,
+            "status": "TRIM"
+          },
+          "MSTR": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 2.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 70.76168421052633,
+            "module_a": 16.0,
+            "status": "EXIT"
+          },
+          "SOXL": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 2.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 52.483999999999995,
+            "module_a": 16.0,
+            "status": "EXIT"
+          }
+        },
+        "soft": {
+          "dollar": {
+            "as_of": "2026-07-14",
+            "data_available": true,
+            "fields": {
+              "dollar_broad": 120.5046,
+              "dollar_broad_pctl": 67.06349206349206
+            },
+            "is_proxy": false,
+            "latency_days": 3,
+            "name": "dollar",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 67.06349206349206
+          },
+          "net_liquidity": {
+            "as_of": "2026-07-14",
+            "data_available": true,
+            "fields": {
+              "net_liq": 5961546.205,
+              "net_liq_chg10": 144603.63100000005,
+              "net_liq_chg10_pctl": 96.03174603174604
+            },
+            "is_proxy": false,
+            "latency_days": 0,
+            "name": "net_liquidity",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 96.03174603174604
+          },
+          "real_rate": {
+            "as_of": "2026-07-14",
+            "data_available": true,
+            "fields": {
+              "real_rate_10y": 2.32,
+              "real_rate_10y_pctl": 100.0
+            },
+            "is_proxy": false,
+            "latency_days": 3,
+            "name": "real_rate",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 100.0
+          }
+        }
+      },
+      "on": {
+        "input_hash": "da02525aca3154478f86a957fc5e2af01c4c13221eb14c071db71b98a0e41584",
+        "scores": {
+          "FNGU": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 2.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 31.629578947368426,
+            "module_a": 16.0,
+            "status": "TRIM"
+          },
+          "MSTR": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 2.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 70.76168421052633,
+            "module_a": 16.0,
+            "status": "EXIT"
+          },
+          "SOXL": {
+            "a_factors": {
+              "A10_REAL_RATE": 4.0,
+              "A11_DOLLAR": 2.0,
+              "A5_NET_LIQUIDITY": 0.0
+            },
+            "final_score": 52.483999999999995,
+            "module_a": 16.0,
+            "status": "EXIT"
+          }
+        },
+        "soft": {
+          "dollar": {
+            "as_of": "2026-07-14",
+            "data_available": true,
+            "fields": {
+              "dollar_broad": 120.5046,
+              "dollar_broad_pctl": 67.06349206349206
+            },
+            "is_proxy": false,
+            "latency_days": 1,
+            "name": "dollar",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 67.06349206349206
+          },
+          "net_liquidity": {
+            "as_of": "2026-07-14",
+            "data_available": true,
+            "fields": {
+              "net_liq": 5961546.205,
+              "net_liq_chg10": 144603.63100000005,
+              "net_liq_chg10_pctl": 96.03174603174604
+            },
+            "is_proxy": false,
+            "latency_days": 1,
+            "name": "net_liquidity",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 96.03174603174604
+          },
+          "real_rate": {
+            "as_of": "2026-07-14",
+            "data_available": true,
+            "fields": {
+              "real_rate_10y": 2.32,
+              "real_rate_10y_pctl": 100.0
+            },
+            "is_proxy": false,
+            "latency_days": 1,
+            "name": "real_rate",
+            "quality_penalty": 0.0,
+            "reason": "",
+            "source": "FRED",
+            "value": 100.0
+          }
+        }
+      }
+    }
+  },
+  "exact_source": "/tmp/hermes-fred-vintage-bootstrap.6Rg5S1/soft_history",
+  "rollback_contract": "flag OFF selects untouched legacy canonical files",
+  "schema_version": "hermes-fred-vintage-pit-impact-v2"
+}

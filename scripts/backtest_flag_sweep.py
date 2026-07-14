@@ -80,6 +80,8 @@ def build_config(variant: str) -> dict:
         feats["data_cnn_fgi"] = True
     elif variant == "cot_nq":
         feats["data_cot_nq"] = True
+    elif variant == "fred_vintage_pit":
+        feats["use_fred_vintage_pit"] = True
     elif variant == "CM_EXCHANGE_INFLOW_PRESSURE":
         feats["data_onchain_mstr"] = True
         cfg["onchain_mstr"] = {"candidate": "CM_EXCHANGE_INFLOW_PRESSURE"}

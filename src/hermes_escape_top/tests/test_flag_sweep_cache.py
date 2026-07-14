@@ -24,6 +24,7 @@ def test_build_config_variants_are_distinct() -> None:
     cot = mod.build_config("cot_nq")
     mnav = mod.build_config("mnav_b6")
     stabilizer = mod.build_config("decision_stabilizer")
+    fred_vintage = mod.build_config("fred_vintage_pit")
 
     assert baseline["features"]["use_indicator_cache"] is True
     assert baseline["features"]["data_cot_nq"] is False
@@ -31,6 +32,8 @@ def test_build_config_variants_are_distinct() -> None:
     assert mnav["features"]["data_mstr_mnav"] is True
     assert mnav["features"]["use_b6_mnav_valuation"] is True
     assert stabilizer["features"]["use_decision_stabilizer"] is True
+    assert baseline["features"]["use_fred_vintage_pit"] is False
+    assert fred_vintage["features"]["use_fred_vintage_pit"] is True
 
 
 def test_cache_fresh_requires_schema_key_and_equity(tmp_path, monkeypatch) -> None:

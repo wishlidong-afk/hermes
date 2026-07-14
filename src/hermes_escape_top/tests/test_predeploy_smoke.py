@@ -110,7 +110,7 @@ def test_fred_publish_date_check_accepts_late_exact_revision(tmp_path, monkeypat
             "real_rate_10y": [1.0, 1.2],
             "real_rate_10y_pctl": [50.0, 60.0],
         }
-    ).to_csv(d / "real_rate.csv", index=False)
+    ).to_csv(d / "real_rate_vintage.csv", index=False)
     monkeypatch.setattr(smoke, "resolve_path", lambda cfg, key: d)
     config = {
         "features": {"data_real_rate": True, "use_fred_vintage_pit": True},
@@ -137,7 +137,7 @@ def test_fred_publish_date_check_rejects_missing_or_mismatched_exact_evidence(
             "real_rate_10y": [1.0],
             "real_rate_10y_pctl": [50.0],
         }
-    ).to_csv(d / "real_rate.csv", index=False)
+    ).to_csv(d / "real_rate_vintage.csv", index=False)
     monkeypatch.setattr(smoke, "resolve_path", lambda cfg, key: d)
     config = {
         "features": {"data_real_rate": True, "use_fred_vintage_pit": True},

@@ -1,0 +1,107 @@
+{
+  "coverage_notes": [
+    "DTWEXBGS exact vintage evidence begins in 2019-02; pre-2019 Dollar is intentionally unavailable.",
+    "Legacy and exact derived canonicals coexist; flag OFF selects untouched legacy files."
+  ],
+  "derived": {
+    "dollar_vintage": {
+      "duplicate_publish_dates": 0,
+      "first_publish_date": "2019-02-11",
+      "last_publish_date": "2026-07-13",
+      "pit_rule": "exact_realtime_start_vintage",
+      "rows": 388,
+      "sha256": "a2bc843d495553a174e102e9e584c6c63832a456b732c8cc3faa7e65c81526aa",
+      "status": "OK"
+    },
+    "fred_net_liquidity_vintage": {
+      "duplicate_publish_dates": 0,
+      "first_publish_date": "2016-04-12",
+      "last_publish_date": "2026-07-13",
+      "pit_rule": "exact_realtime_start_vintage",
+      "rows": 2553,
+      "sha256": "d7fcef52443c84e564bee50ed8c93625058711977e9f454cc18a0dbcf606f964",
+      "status": "OK"
+    },
+    "real_rate_vintage": {
+      "duplicate_publish_dates": 0,
+      "first_publish_date": "2005-10-18",
+      "last_publish_date": "2026-07-13",
+      "pit_rule": "exact_realtime_start_vintage",
+      "rows": 5045,
+      "sha256": "d042209537ef6f2329df322926e90ca58eb7237f528871a62ed03de862063f66",
+      "status": "OK"
+    }
+  },
+  "deterministic_rebuild": {
+    "all_equal": true,
+    "dollar_vintage": {
+      "after_sha256": "a2bc843d495553a174e102e9e584c6c63832a456b732c8cc3faa7e65c81526aa",
+      "before_sha256": "a2bc843d495553a174e102e9e584c6c63832a456b732c8cc3faa7e65c81526aa",
+      "equal": true
+    },
+    "fred_net_liquidity_vintage": {
+      "after_sha256": "d7fcef52443c84e564bee50ed8c93625058711977e9f454cc18a0dbcf606f964",
+      "before_sha256": "d7fcef52443c84e564bee50ed8c93625058711977e9f454cc18a0dbcf606f964",
+      "equal": true
+    },
+    "real_rate_vintage": {
+      "after_sha256": "d042209537ef6f2329df322926e90ca58eb7237f528871a62ed03de862063f66",
+      "before_sha256": "d042209537ef6f2329df322926e90ca58eb7237f528871a62ed03de862063f66",
+      "equal": true
+    }
+  },
+  "event_store": {
+    "api_key_absent_from_raw": true,
+    "duplicate_event_keys": 0,
+    "missing_events": 1298,
+    "request_count": 30,
+    "rows": 29970,
+    "series": {
+      "DFII10": {
+        "first_observation": "2005-10-10",
+        "first_vintage": "2005-10-18",
+        "last_observation": "2026-07-10",
+        "last_vintage": "2026-07-13",
+        "rows": 5416
+      },
+      "DTWEXBGS": {
+        "first_observation": "2006-01-02",
+        "first_vintage": "2019-02-11",
+        "last_observation": "2026-07-10",
+        "last_vintage": "2026-07-13",
+        "rows": 18616
+      },
+      "RRPONTSYD": {
+        "first_observation": "2015-01-02",
+        "first_vintage": "2016-03-29",
+        "last_observation": "2026-07-13",
+        "last_vintage": "2026-07-13",
+        "rows": 4170
+      },
+      "WALCL": {
+        "first_observation": "2015-01-07",
+        "first_vintage": "2015-01-08",
+        "last_observation": "2026-07-08",
+        "last_vintage": "2026-07-09",
+        "rows": 601
+      },
+      "WTREGEN": {
+        "first_observation": "2015-01-07",
+        "first_vintage": "2015-01-08",
+        "last_observation": "2026-07-08",
+        "last_vintage": "2026-07-09",
+        "rows": 1167
+      }
+    },
+    "sha256": "8e6a36f3d17404663d850dd7635fde1dd8f99ba45fd9333a57d3521ccef1e936",
+    "validation": null
+  },
+  "generated_on": "2026-07-14",
+  "official_source": {
+    "attribution": "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
+    "observations": "https://api.stlouisfed.org/fred/series/observations",
+    "pit_rule": "exact_realtime_start_vintage",
+    "vintage_dates": "https://api.stlouisfed.org/fred/series/vintagedates"
+  },
+  "schema_version": "hermes-fred-vintage-bootstrap-evidence-v1"
+}

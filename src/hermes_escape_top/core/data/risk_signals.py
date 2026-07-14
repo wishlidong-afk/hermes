@@ -271,7 +271,10 @@ class FredPercentileSource:
             base = resolve_path(config, "soft_history_dir")
         else:
             base = Path("data/soft_history")
-        return base / f"{self.name}.csv"
+        suffix = "_vintage" if bool(
+            (config.get("features") or {}).get("use_fred_vintage_pit", False)
+        ) else ""
+        return base / f"{self.name}{suffix}.csv"
 
     def build_frame(self, end: Optional[str] = None, config: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
         raw = fetch_fred_series_frame(self.series_id, start=self.start, end=end, config=config)
@@ -299,6 +302,19 @@ class FredPercentileSource:
         if not bool(config.get("features", {}).get(self.feature_flag, False)):
             return SoftDataRecord(self.name, day, None, "FRED", False, reason=f"feature disabled: {self.feature_flag}")
         path = self.history_path(config)
+        if (
+            not path.exists()
+            and bool((config.get("features") or {}).get("use_fred_vintage_pit", False))
+        ):
+            return SoftDataRecord(
+                self.name,
+                day,
+                None,
+                "FRED_ALFRED",
+                False,
+                quality_penalty=5.0,
+                reason=f"{self.name} exact-vintage canonical missing",
+            )
         if not path.exists() and not config.get("runtime", {}).get("offline_replay_mode", False):
             try:
                 self.backfill(config)

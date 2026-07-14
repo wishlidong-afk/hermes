@@ -168,7 +168,8 @@ def check_fred_publish_dates(config: Dict[str, Any]) -> CheckResult:
     for name, flag in FRED_SOFT_SOURCES.items():
         if not feats.get(flag, False):
             continue
-        path = base / f"{name}.csv"
+        suffix = "_vintage" if exact_vintage else ""
+        path = base / f"{name}{suffix}.csv"
         if not path.exists():
             bad.append(f"{name}: CSV missing")
             continue

@@ -43,22 +43,28 @@ def test_fred_vintage_flag_on_registers_event_store_before_exact_derivatives(tmp
 
     assert refresh_external.configured_source_ids(config)[:4] == (
         "fred_vintages",
-        "dollar",
-        "real_rate",
-        "fred_net_liquidity",
+        "dollar_vintage",
+        "real_rate_vintage",
+        "fred_net_liquidity_vintage",
     )
     vintage_spec, vintage_adapter = refresh_external.fred_vintages_source(config)
-    dollar_spec, dollar_adapter = refresh_external.dollar_source(config)
-    rate_spec, rate_adapter = refresh_external.real_rate_source(config)
-    net_spec, net_adapter = refresh_external.fred_net_liquidity_source(config)
+    dollar_spec, dollar_adapter = refresh_external.dollar_vintage_source(config)
+    rate_spec, rate_adapter = refresh_external.real_rate_vintage_source(config)
+    net_spec, net_adapter = refresh_external.fred_net_liquidity_vintage_source(config)
 
     assert vintage_spec.target_path.name == "fred_vintages.csv"
     assert isinstance(vintage_adapter, FredVintageAdapter)
     assert vintage_adapter.api_key == "test-key"
+    assert dollar_spec.source_id == "dollar_vintage"
+    assert dollar_spec.target_path.name == "dollar_vintage.csv"
     assert dollar_spec.date_column == "publish_date"
     assert dollar_spec.pit_rule == "exact_realtime_start_vintage"
     assert isinstance(dollar_adapter, FredVintagePercentileAdapter)
     assert isinstance(rate_adapter, FredVintagePercentileAdapter)
+    assert rate_spec.source_id == "real_rate_vintage"
+    assert rate_spec.target_path.name == "real_rate_vintage.csv"
+    assert net_spec.source_id == "fred_net_liquidity_vintage"
+    assert net_spec.target_path.name == "fred_net_liquidity_vintage.csv"
     assert net_spec.date_column == "publish_date"
     assert isinstance(net_adapter, FredVintageNetLiquidityAdapter)
 
@@ -70,9 +76,9 @@ def test_refresh_all_freezes_fred_derivatives_when_vintage_refresh_fails(
     config = _config(tmp_path, enabled=True)
     source_ids = (
         "fred_vintages",
-        "dollar",
-        "real_rate",
-        "fred_net_liquidity",
+        "dollar_vintage",
+        "real_rate_vintage",
+        "fred_net_liquidity_vintage",
         "cboe_equity_pcr",
     )
     calls: list[str] = []
@@ -93,9 +99,14 @@ def test_refresh_all_freezes_fred_derivatives_when_vintage_refresh_fails(
     skipped = {
         row["source_id"]: row
         for row in result["runs"]
-        if row["source_id"] in {"dollar", "real_rate", "fred_net_liquidity"}
+        if row["source_id"]
+        in {"dollar_vintage", "real_rate_vintage", "fred_net_liquidity_vintage"}
     }
-    assert set(skipped) == {"dollar", "real_rate", "fred_net_liquidity"}
+    assert set(skipped) == {
+        "dollar_vintage",
+        "real_rate_vintage",
+        "fred_net_liquidity_vintage",
+    }
     assert {row["status"] for row in skipped.values()} == {"SKIPPED_DEPENDENCY"}
     assert all(row["dependency"] == "fred_vintages" for row in skipped.values())
     assert result["runs"][-1]["source_id"] == "cboe_equity_pcr"
@@ -106,7 +117,12 @@ def test_refresh_all_runs_exact_derivatives_after_successful_vintage_refresh(
     tmp_path,
 ) -> None:
     config = _config(tmp_path, enabled=True)
-    source_ids = ("fred_vintages", "dollar", "real_rate", "fred_net_liquidity")
+    source_ids = (
+        "fred_vintages",
+        "dollar_vintage",
+        "real_rate_vintage",
+        "fred_net_liquidity_vintage",
+    )
     calls: list[str] = []
 
     monkeypatch.setattr(refresh_external, "configured_source_ids", lambda _config: source_ids)
@@ -130,9 +146,9 @@ def test_retry_freezes_selected_derivatives_when_vintage_retry_fails(
     config = _config(tmp_path, enabled=True)
     source_ids = (
         "fred_vintages",
-        "dollar",
-        "real_rate",
-        "fred_net_liquidity",
+        "dollar_vintage",
+        "real_rate_vintage",
+        "fred_net_liquidity_vintage",
         "cboe_equity_pcr",
     )
     calls: list[str] = []
