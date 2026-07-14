@@ -68,7 +68,7 @@ of four states:
 | `use_b6_mnav_valuation` | OFF | gate-failed | Consume `SOFT.MSTR_valuation_pctl` as B6 mNAV valuation heat; failed full in-system gate, stays OFF |
 | `use_no_advice_state` | **ON** ✅ | live | Emit an explicit no-advice state when required decision evidence is blocked instead of fabricating a normal recommendation |
 | `use_indicator_cache` | OFF | candidate | Cache indicator frames by symbol/history identity; OFF preserves the uncached scoring path |
-| `use_market_admission_gate` | OFF | candidate | Require Yahoo + Alpaca SIP consensus before supported U.S. equity/ETF OHLCV rows can replace canonical history; mismatch or missing witness preserves the prior certified row |
+| `use_market_admission_gate` | **ON (live config; repo default OFF)** ✅ | live | Live since 2026-07-14: require Yahoo + Alpaca SIP consensus before supported U.S. equity/ETF OHLCV rows can replace canonical history; mismatch or missing witness preserves the prior certified row |
 
 ---
 
@@ -124,7 +124,7 @@ These flags had zero code references and were removed from config.json:
 | Experiment | State | Hypothesis | Required validation |
 |---|---|---|---|
 | `use_indicator_cache` | Candidate | Reusing an indicator frame should reduce repeated score latency without changing payload semantics | OFF-path byte identity and a fresh performance measurement are required before any live flip |
-| `use_market_admission_gate` | Candidate | Dual-source consensus should prevent a corrupt or cross-wired Yahoo row from entering canonical history | OFF-path payload/persistence identity; deterministic freeze/admit tests; isolated real-network Yahoo + Alpaca canary; live flip requires explicit config review |
+| `use_market_admission_gate` | Live | Dual-source consensus prevents a corrupt or cross-wired Yahoo row from entering canonical history | 914 tests; four-date/six-artifact OFF identity; isolated and live read-only certification; operation `c192975dd63c478a904b21c152108a1c`; 8766 strategy health OK |
 
 ---
 

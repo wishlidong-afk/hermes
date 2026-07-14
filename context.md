@@ -317,7 +317,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 | `use_no_advice_state` | true | live（2026-06-14）；critical 字段缺失→NO_ADVICE/sell0，不再伪装 100 分 EXIT。历史 close 零缺失=no-op 安全网 |
 | `use_regime_multipliers` | true | live，保持历史无条件 regime multiplier 行为 |
 | `use_indicator_cache` | false | 生产默认 OFF；本批 backtest harness 打开，byte-identical 已证明 |
-| `use_market_admission_gate` | false | 候选；OFF 时行为不变，ON 时美股/ETF行情须经 Yahoo + Alpaca SIP 双源一致才晋升 |
+| `use_market_admission_gate` | false | repo 默认 OFF；live runtime 自 2026-07-14 为 ON，美股/ETF行情须经 Yahoo + Alpaca SIP 双源一致才晋升 |
 | `data_onchain_mstr` | false | rejected/parked |
 | `data_mstr_mnav` | false | parked |
 | `use_b6_mnav_valuation` | false | rejected/parked |

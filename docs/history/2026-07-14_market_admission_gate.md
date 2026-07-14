@@ -57,3 +57,18 @@ verification pass may the live runtime config flip this single flag to true
 under `.pipeline.lock`. The flip must preserve all other live config values and
 must not trigger an official daily run. A subsequent scheduled run supplies the
 first production admission evidence.
+
+## Live activation
+
+- Code release: `e98b5d9_20260714_121821`; R6 smoke and `verify_live` passed.
+- The shared live config changed only `features.use_market_admission_gate` from
+  absent/false to true under `.pipeline.lock`; repo default remains false.
+- Before the flip, live canonical history was certified read-only against
+  Alpaca SIP for the completed 2026-07-13 session. Operation
+  `c192975dd63c478a904b21c152108a1c` produced 148 MATCH rows, 34
+  NOT_APPLICABLE rows, zero rejects, and SHA bindings for all 45 canonical
+  files.
+- Post-activation validation returned OK and `/api/health_status` reported
+  strategy data OK. The scheduled receipt and audit log mtime/size were
+  unchanged, proving activation did not run daily or create another official
+  record.
