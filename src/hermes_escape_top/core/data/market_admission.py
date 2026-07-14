@@ -14,6 +14,12 @@ from uuid import uuid4
 import pandas as pd
 
 from .alpaca_flow import load_alpaca_credentials
+from .coinbase_witness import (
+    COINBASE_SOURCE,
+    compare_btc_spot_close,
+    fetch_coinbase_daily_bar_range,
+    latest_completed_utc_day,
+)
 from .external_sources.clock import timestamp_to_shanghai_date
 from .market_witness import (
     compare_market_bar,
@@ -28,6 +34,10 @@ from .store import safe_symbol
 class MarketAdmissionSession:
     enabled: bool
     witness_bars: Mapping[str, Iterable[Mapping[str, Any]]]
+    btc_spot_witness_enabled: bool = False
+    btc_completed_through: str | None = None
+    witness_provenance: dict[str, Any] = field(default_factory=dict)
+    witness_errors: dict[str, str] = field(default_factory=dict)
     fetch_error: str | None = None
     run_error: str | None = None
     requested_start: str | None = None
@@ -51,6 +61,8 @@ class MarketAdmissionSession:
             rows = [self._bypass_row(symbol, index, "DISABLED") for index in candidate.index]
             self.evidence.extend(rows)
             return candidate.copy(), rows
+        if self.btc_spot_witness_enabled and symbol == "BTC-USD":
+            return self._admit_btc(candidate)
         if not is_alpaca_supported_symbol(symbol):
             rows = [self._bypass_row(symbol, index, "NOT_APPLICABLE") for index in candidate.index]
             self.evidence.extend(rows)
@@ -121,6 +133,80 @@ class MarketAdmissionSession:
         self.evidence.extend(rows)
         return candidate.loc[admitted_indexes].copy(), rows
 
+    def _admit_btc(
+        self,
+        candidate: pd.DataFrame,
+    ) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
+        witness_by_date = {
+            str(row.get("t") or "")[:10]: row
+            for row in self.witness_bars.get("BTC-USD", [])
+            if isinstance(row, Mapping)
+        }
+        admitted_indexes: list[pd.Timestamp] = []
+        rows: list[dict[str, Any]] = []
+        for index, candidate_row in candidate.iterrows():
+            day = pd.Timestamp(index).date().isoformat()
+            if (
+                (self.requested_start and day < self.requested_start)
+                or (self.requested_end and day >= self.requested_end)
+            ):
+                rows.append(
+                    self._rejection_row(
+                        "BTC-USD",
+                        day,
+                        "OUTSIDE_WITNESS_WINDOW",
+                        "candidate date is outside the fetched Coinbase witness window",
+                    )
+                )
+                continue
+            if self.btc_completed_through and day > self.btc_completed_through:
+                rows.append(
+                    self._rejection_row(
+                        "BTC-USD",
+                        day,
+                        "DEFERRED_UNFINALIZED",
+                        (
+                            "BTC UTC day is still open; "
+                            f"completed_through={self.btc_completed_through}"
+                        ),
+                        blocking=False,
+                    )
+                )
+                continue
+            local = {
+                "date": day,
+                "open": candidate_row.get("Open"),
+                "high": candidate_row.get("High"),
+                "low": candidate_row.get("Low"),
+                "close": candidate_row.get("Close"),
+                "volume": candidate_row.get("Volume"),
+            }
+            comparison = compare_btc_spot_close(local, witness_by_date.get(day))
+            admitted = comparison.get("status") == "MATCH"
+            if admitted:
+                admitted_indexes.append(index)
+            evidence = {
+                "symbol": "BTC-USD",
+                "date": day,
+                "status": comparison.get("status"),
+                "admitted": admitted,
+                "reason": comparison.get("reason"),
+                "warning_band": bool(comparison.get("warning_band", False)),
+                "close_diff_pct": comparison.get("close_diff_pct"),
+                "candidate_sha256": comparison.get("local_sha256"),
+                "witness_sha256": comparison.get("witness_sha256"),
+                "witness_source": COINBASE_SOURCE,
+            }
+            witness_error = self.witness_errors.get("coinbase")
+            if witness_error and comparison.get("status") == "NO_WITNESS":
+                evidence["fetch_error"] = witness_error
+            rows.append(evidence)
+        self.evidence.extend(rows)
+        return candidate.loc[admitted_indexes].copy(), rows
+
+    def uses_calendar_days(self, symbol: str) -> bool:
+        return self.enabled and self.btc_spot_witness_enabled and str(symbol).upper() == "BTC-USD"
+
     def payload(self, *, generated_at: str | None = None) -> dict[str, Any]:
         summary: dict[str, int] = {}
         admitted_rows = 0
@@ -128,7 +214,12 @@ class MarketAdmissionSession:
             status = str(row.get("status") or "UNKNOWN")
             summary[status] = summary.get(status, 0) + 1
             admitted_rows += int(bool(row.get("admitted")))
-        rejected_rows = len(self.evidence) - admitted_rows
+        deferred_rows = sum(
+            1
+            for row in self.evidence
+            if not row.get("admitted") and row.get("blocking") is False
+        )
+        rejected_rows = len(self.evidence) - admitted_rows - deferred_rows
         if not self.enabled:
             status = "DISABLED"
         elif self.run_error:
@@ -139,10 +230,18 @@ class MarketAdmissionSession:
             status = "BLOCKED"
         else:
             status = "OK"
-        return {
-            "schema_version": "hermes-market-admission-v1",
+        payload = {
+            "schema_version": (
+                "hermes-market-admission-v2"
+                if self.btc_spot_witness_enabled
+                else "hermes-market-admission-v1"
+            ),
             "mode": "enforce_consensus" if self.enabled else "off",
-            "source": "YAHOO_PLUS_ALPACA_SIP",
+            "source": (
+                "YAHOO_PLUS_ALPACA_SIP_PLUS_COINBASE_EXCHANGE"
+                if self.btc_spot_witness_enabled
+                else "YAHOO_PLUS_ALPACA_SIP"
+            ),
             "status": status,
             "generated_at": generated_at or self.generated_at,
             "operation_id": self.operation_id,
@@ -157,6 +256,16 @@ class MarketAdmissionSession:
             "rejected_rows": rejected_rows,
             "rows": list(self.evidence),
         }
+        if self.btc_spot_witness_enabled:
+            payload["deferred_rows"] = deferred_rows
+            payload["btc_spot_witness"] = {
+                "enabled": True,
+                "source": COINBASE_SOURCE,
+                "completed_through": self.btc_completed_through,
+                "provenance": dict(self.witness_provenance.get("coinbase") or {}),
+                "error": self.witness_errors.get("coinbase"),
+            }
+        return payload
 
     def bind_canonical_files(
         self,
@@ -198,14 +307,19 @@ class MarketAdmissionSession:
         day: str,
         status: str,
         reason: str,
+        *,
+        blocking: bool = True,
     ) -> dict[str, Any]:
-        return {
+        row = {
             "symbol": symbol,
             "date": day,
             "status": status,
             "admitted": False,
             "reason": reason,
         }
+        if not blocking:
+            row["blocking"] = False
+        return row
 
 
 def prepare_market_admission_session(
@@ -216,33 +330,86 @@ def prepare_market_admission_session(
     credentials: Mapping[str, str] | None = None,
     request_json: Callable[[str, Mapping[str, str]], dict[str, Any]] | None = None,
     now: datetime | None = None,
+    btc_spot_witness_enabled: bool = False,
+    coinbase_request_json: Callable[[str, Mapping[str, str]], Any] | None = None,
 ) -> MarketAdmissionSession:
     completed_through = latest_completed_us_market_session(now).isoformat()
-    try:
-        auth = dict(credentials or load_alpaca_credentials())
-        witness_bars = fetch_alpaca_daily_bar_range(
-            symbols,
-            start,
-            end,
-            auth,
-            request_json=request_json,
-        )
-        return MarketAdmissionSession(
-            enabled=True,
-            witness_bars=witness_bars,
-            requested_start=str(start)[:10],
-            requested_end=str(end)[:10],
-            completed_through=completed_through,
-        )
-    except Exception as exc:
-        return MarketAdmissionSession(
-            enabled=True,
-            witness_bars={},
-            fetch_error=f"{exc.__class__.__name__}: {exc}",
-            requested_start=str(start)[:10],
-            requested_end=str(end)[:10],
-            completed_through=completed_through,
-        )
+    if not btc_spot_witness_enabled:
+        try:
+            auth = dict(credentials or load_alpaca_credentials())
+            witness_bars = fetch_alpaca_daily_bar_range(
+                symbols,
+                start,
+                end,
+                auth,
+                request_json=request_json,
+            )
+            return MarketAdmissionSession(
+                enabled=True,
+                witness_bars=witness_bars,
+                requested_start=str(start)[:10],
+                requested_end=str(end)[:10],
+                completed_through=completed_through,
+            )
+        except Exception as exc:
+            return MarketAdmissionSession(
+                enabled=True,
+                witness_bars={},
+                fetch_error=f"{exc.__class__.__name__}: {exc}",
+                requested_start=str(start)[:10],
+                requested_end=str(end)[:10],
+                completed_through=completed_through,
+            )
+
+    selected = sorted({str(symbol).upper() for symbol in symbols})
+    witness_bars: dict[str, Iterable[Mapping[str, Any]]] = {}
+    witness_errors: dict[str, str] = {}
+    witness_provenance: dict[str, Any] = {}
+    alpaca_symbols = [symbol for symbol in selected if is_alpaca_supported_symbol(symbol)]
+    if alpaca_symbols:
+        try:
+            auth = dict(credentials or load_alpaca_credentials())
+            witness_bars.update(
+                fetch_alpaca_daily_bar_range(
+                    alpaca_symbols,
+                    start,
+                    end,
+                    auth,
+                    request_json=request_json,
+                )
+            )
+        except Exception as exc:
+            witness_errors["alpaca"] = f"{exc.__class__.__name__}: {exc}"
+    if "BTC-USD" in selected:
+        try:
+            coinbase = fetch_coinbase_daily_bar_range(
+                start,
+                end,
+                request_json=coinbase_request_json,
+            )
+            witness_bars["BTC-USD"] = list(coinbase.get("bars") or [])
+            witness_provenance["coinbase"] = {
+                key: value for key, value in coinbase.items() if key != "bars"
+            }
+        except Exception as exc:
+            witness_bars["BTC-USD"] = []
+            witness_errors["coinbase"] = f"{exc.__class__.__name__}: {exc}"
+    fetch_error = "; ".join(
+        f"{source.upper()}: {message}"
+        for source, message in sorted(witness_errors.items())
+    ) or None
+    return MarketAdmissionSession(
+        enabled=True,
+        witness_bars=witness_bars,
+        btc_spot_witness_enabled=True,
+        btc_completed_through=latest_completed_utc_day(now).isoformat(),
+        witness_provenance=witness_provenance,
+        witness_errors=witness_errors,
+        fetch_error=fetch_error,
+        requested_start=str(start)[:10],
+        requested_end=str(end)[:10],
+        completed_through=completed_through,
+    )
 
 
 def write_market_admission_evidence(

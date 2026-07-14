@@ -38,6 +38,17 @@ def _witness(close: float = 100.0, volume: float = 1_000.0) -> dict:
     }
 
 
+def _btc_witness(close: float = 100.0) -> dict:
+    return {
+        "t": "2026-07-13T00:00:00Z",
+        "o": close - 1.0,
+        "h": close + 1.0,
+        "l": close - 2.0,
+        "c": close,
+        "v": 12.5,
+    }
+
+
 def test_market_admission_promotes_only_matching_supported_row() -> None:
     session = MarketAdmissionSession(
         enabled=True,
@@ -130,6 +141,115 @@ def test_market_admission_does_not_gate_unsupported_index() -> None:
     assert list(admitted.index) == [pd.Timestamp("2026-07-13")]
     assert evidence[0]["status"] == "NOT_APPLICABLE"
     assert evidence[0]["admitted"] is True
+
+
+def test_btc_spot_witness_admits_close_match_without_comparing_volume() -> None:
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"BTC-USD": [_btc_witness(close=100.6)]},
+        btc_spot_witness_enabled=True,
+        btc_completed_through="2026-07-13",
+    )
+
+    admitted, evidence = session.admit("BTC-USD", _candidate(close=100.0, volume=9e9))
+
+    assert list(admitted.index) == [pd.Timestamp("2026-07-13")]
+    assert evidence[0]["status"] == "MATCH"
+    assert evidence[0]["warning_band"] is True
+    assert evidence[0]["witness_source"] == "COINBASE_EXCHANGE_BTC_USD_1DAY"
+    assert "volume_diff_pct" not in evidence[0]
+
+
+def test_btc_spot_witness_freezes_close_mismatch() -> None:
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"BTC-USD": [_btc_witness(close=97.0)]},
+        btc_spot_witness_enabled=True,
+        btc_completed_through="2026-07-13",
+    )
+
+    admitted, evidence = session.admit("BTC-USD", _candidate(close=100.0))
+
+    assert admitted.empty
+    assert evidence[0]["status"] == "PRICE_MISMATCH"
+    assert evidence[0]["admitted"] is False
+    assert session.payload()["status"] == "BLOCKED"
+
+
+def test_btc_spot_witness_defers_open_utc_day_without_blocking_health() -> None:
+    candidate = _candidate(close=100.0)
+    candidate.index = pd.to_datetime(["2026-07-14"])
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"BTC-USD": []},
+        btc_spot_witness_enabled=True,
+        btc_completed_through="2026-07-13",
+    )
+
+    admitted, evidence = session.admit("BTC-USD", candidate)
+    payload = session.payload()
+
+    assert admitted.empty
+    assert evidence[0]["status"] == "DEFERRED_UNFINALIZED"
+    assert evidence[0]["blocking"] is False
+    assert payload["status"] == "OK"
+    assert payload["rejected_rows"] == 0
+    assert payload["deferred_rows"] == 1
+
+
+def test_btc_spot_witness_flag_off_preserves_legacy_bypass_payload() -> None:
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"BTC-USD": [_btc_witness()]},
+        btc_spot_witness_enabled=False,
+    )
+
+    admitted, evidence = session.admit("BTC-USD", _candidate())
+    payload = session.payload(generated_at="2026-07-14T03:00:00+00:00")
+
+    assert list(admitted.index) == [pd.Timestamp("2026-07-13")]
+    assert evidence[0] == {
+        "symbol": "BTC-USD",
+        "date": "2026-07-13",
+        "status": "NOT_APPLICABLE",
+        "admitted": True,
+        "reason": "Alpaca SIP admission does not apply",
+    }
+    assert payload["schema_version"] == "hermes-market-admission-v1"
+    assert payload["source"] == "YAHOO_PLUS_ALPACA_SIP"
+    assert "btc_spot_witness" not in payload
+    assert "deferred_rows" not in payload
+
+
+def test_prepare_market_admission_keeps_alpaca_evidence_when_coinbase_fails() -> None:
+    def alpaca_transport(_url, _headers):
+        return {"bars": {"QQQ": [_witness()]}, "next_page_token": None}
+
+    def coinbase_transport(_url, _headers):
+        raise TimeoutError("Coinbase unavailable")
+
+    session = prepare_market_admission_session(
+        ["QQQ", "BTC-USD"],
+        "2026-07-10",
+        "2026-07-14",
+        credentials={"key": "key", "secret": "secret"},
+        request_json=alpaca_transport,
+        btc_spot_witness_enabled=True,
+        coinbase_request_json=coinbase_transport,
+        now=datetime(2026, 7, 14, 5, 0, tzinfo=timezone.utc),
+    )
+
+    qqq, qqq_evidence = session.admit("QQQ", _candidate())
+    btc, btc_evidence = session.admit("BTC-USD", _candidate())
+    payload = session.payload()
+
+    assert list(qqq.index) == [pd.Timestamp("2026-07-13")]
+    assert qqq_evidence[0]["status"] == "MATCH"
+    assert btc.empty
+    assert btc_evidence[0]["status"] == "NO_WITNESS"
+    assert payload["status"] == "FETCH_ERROR"
+    assert "Coinbase unavailable" in payload["fetch_error"]
+    assert payload["btc_spot_witness"]["completed_through"] == "2026-07-13"
 
 
 def test_market_admission_fetch_failure_becomes_blocking_evidence() -> None:
