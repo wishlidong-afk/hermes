@@ -17,6 +17,7 @@ class ExternalSourceSpec:
     semantic_validator: Callable[[pd.DataFrame], str | None] | None = None
     pit_rule: str | None = None
     source_url: str | None = None
+    allow_duplicate_dates: bool = False
 
     def __post_init__(self) -> None:
         if not self.source_id:
@@ -37,7 +38,7 @@ def validate_normalized_frame(spec: ExternalSourceSpec, frame: pd.DataFrame) -> 
     dates = pd.to_datetime(frame[spec.date_column], errors="coerce")
     if dates.isna().any():
         return f"unparseable dates in {spec.date_column}"
-    if dates.duplicated().any():
+    if not spec.allow_duplicate_dates and dates.duplicated().any():
         return f"duplicate dates in {spec.date_column}"
     if not dates.is_monotonic_increasing:
         return f"dates are not monotonic increasing in {spec.date_column}"
