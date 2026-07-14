@@ -151,14 +151,14 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 
 - `market_symbols` 含 `IAU`，金腿执行符号已经从 GLD 换为 IAU。
 - `component_proxies` 为 FNGU/SOXL 穿透股票资金流提供底层股票 CMF/MFI/AD slope。
-- FRED observations use PIT-safe `date+1` publish dates；这是 repo 默认 OFF 路径，有 key 与 CSV fallback 走相同语义。`features.use_fred_vintage_pit` Candidate 路径改用 ALFRED output-type-3 事件库，以真实 `realtime_start` 做 as-of 回放；父事件刷新失败时三个派生 canonical 全部冻结，不做部分晋升。
+- FRED observations use PIT-safe `date+1` publish dates；这是当前生产路径，有 key 与 CSV fallback 走相同语义。ALFRED output-type-3 精确事件库与真实 `realtime_start` as-of 回放已经实现并保留为研究/取证能力，但 `fred-vintage-pit-v1` 正式 gate 因 CPCV OOS 退化和 MaxDD 恶化而拒绝，`features.use_fred_vintage_pit` 必须保持 false。
 - 标准 observations API 的 `realtime_start` 是查询 vintage 元数据，不足以证明每条历史观测的真实首次发布时间，因此不用于逐行 PIT 对齐。
 
 外部数据自动化现状：
 
 | 源 | canonical | 生产入口 | PIT/可见时间 | 运维边界 |
 |---|---|---|---|---|
-| `dollar` / `real_rate` / `fred_net_liquidity` | legacy `*.csv`；Candidate 独立 `*_vintage.csv` | 默认 FRED API/Graph CSV；Candidate 为 ALFRED exact vintage event store | 默认观测日 `+1d`；Candidate 为真实 `realtime_start` | exact 路径无 key 直接失败并保留旧认证数据；flag OFF 立即读回未改动 legacy；Dollar 的官方 vintage 仅从 2019-02 起可用 |
+| `dollar` / `real_rate` / `fred_net_liquidity` | production legacy `*.csv`；research-only 独立 `*_vintage.csv` | 默认 FRED API/Graph CSV；研究路径为 ALFRED exact vintage event store | 生产观测日 `+1d`；研究路径为真实 `realtime_start` | `fred-vintage-pit-v1` 已正式拒绝，生产 flag 保持 OFF；exact 路径无 key 失败并保留旧认证数据；Dollar 官方 vintage 仅从 2019-02 起可用 |
 | `cboe_equity_pcr` | `soft_history/cboe_equity_pcr.csv` | CBOE daily HTML | 观测日 `+1d` | 解析/比率校验失败时保留上一份 canonical |
 | `cboe_vix` / `cboe_vix3m` / `cboe_vix9d` / `cboe_skew` / `cboe_vvix` | `history/_VIX*.csv` / `_SKEW.csv` / `_VVIX.csv` | CBOE official daily history CSV；Yahoo witness-only | 仅已完成美股交易日；未见证尾部不晋升 | 2026-07-14 live 已开启，repo 默认 OFF；`backfill()` 内层禁止 Yahoo 双写，截断/缺日/证据漂移保留旧 canonical |
 | `cot_nq` | `soft_history/cot_nq.csv` | CFTC public API | 周二观测、周五公开 | flag OFF 时不影响生产健康/决策覆盖 |
@@ -325,7 +325,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 | `use_indicator_cache` | false | 生产默认 OFF；本批 backtest harness 打开，byte-identical 已证明 |
 | `use_market_admission_gate` | false | repo 默认 OFF；live runtime 自 2026-07-14 为 ON，美股/ETF行情须经 Yahoo + Alpaca SIP 双源一致才晋升 |
 | `use_btc_spot_witness` | false | repo 默认 OFF；live runtime 自 2026-07-14 为 ON，BTC-USD 的 Yahoo 候选须经 Coinbase 完成 UTC 日 close 见证 |
-| `use_fred_vintage_pit` | false | Candidate；OFF 四日期/六落盘产物严格等价，exact 历史影响与一次性 full gate 完成前不得翻闸 |
+| `use_fred_vintage_pit` | false | Rejected；OFF 四日期/六落盘产物严格等价；正式 gate 因 CPCV OOS Δ -0.077120 与 MaxDD 恶化 1.73pp 拒绝，禁止翻闸或原参数重跑 |
 | `data_onchain_mstr` | false | rejected/parked |
 | `data_mstr_mnav` | false | parked |
 | `use_b6_mnav_valuation` | false | rejected/parked |

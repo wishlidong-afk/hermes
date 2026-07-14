@@ -55,3 +55,8 @@ Verify: reports under `building/reports/data_quality/` and a history handoff.
   restart, and health validation while proving official receipt/audit unchanged.
 - If evidence fails, leave the flag OFF and register the exact dataset as
   research-ready rather than weakening thresholds or hiding missing history.
+
+Outcome: the one-shot formal gate returned **REJECTED / NO_FLIP**. The exact
+adapter, event store, replay builders, source policy, validation, and OFF-path
+rollback remain available as research infrastructure; production stays on the
+legacy FRED path and the experiment is closed without retuning.

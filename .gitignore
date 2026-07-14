@@ -44,6 +44,7 @@ src/hermes_escape_top/data/archive/*.json
 src/hermes_escape_top/data/archive/*.sqlite
 src/hermes_escape_top/data/archive/*.jsonl
 .pipeline.lock
+building/reports/formal_gate/**/.formal_gate.lock
 
 # scripts/output — diagnostic run outputs, not for version control
 scripts/output/

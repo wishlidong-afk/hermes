@@ -144,6 +144,53 @@ def test_result_commit_marker_is_written_once_and_last(tmp_path) -> None:
         mod.write_result_once(output, result, "changed")
 
 
+def test_result_snapshots_input_artifacts_before_final_marker(tmp_path) -> None:
+    mod = _load_module()
+    output = tmp_path / "formal_gate" / "alpha-v1"
+    source = tmp_path / "flag_sweep" / "baseline.json"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b'{"metric": 1}\n')
+    result = {
+        "schema": "hermes-formal-gate-result-v1",
+        "experiment_id": "alpha-v1",
+        "verdict": "REJECTED",
+        "authorization": "NO_FLIP",
+    }
+
+    mod.write_result_once(
+        output,
+        result,
+        "# Formal Gate\n",
+        artifact_sources={"artifacts/baseline.json": source},
+    )
+    source.write_bytes(b'{"metric": 2}\n')
+
+    assert (output / "artifacts" / "baseline.json").read_bytes() == b'{"metric": 1}\n'
+    assert (output / "result.json").exists()
+
+
+def test_artifact_snapshot_sources_collects_each_variant_without_touching_baseline(tmp_path) -> None:
+    mod = _load_module()
+    manifest = _manifest()
+    artifact_dir = tmp_path / manifest.artifacts_dir
+    artifact_dir.mkdir(parents=True)
+    expected = {
+        "baseline.json",
+        "baseline_equity.json",
+        "baseline_legacy_close_equity.json",
+        "alpha.json",
+        "alpha_equity.json",
+        "alpha_legacy_close_equity.json",
+    }
+    for name in expected:
+        (artifact_dir / name).write_text(f"{name}\n", encoding="utf-8")
+
+    sources = mod.artifact_snapshot_sources(tmp_path, manifest)
+
+    assert set(sources) == {f"artifacts/{name}" for name in expected}
+    assert {path.name for path in sources.values()} == expected
+
+
 def test_run_rechecks_manifest_and_code_before_final_commit(tmp_path, monkeypatch) -> None:
     mod = _load_module()
     manifest = _manifest()

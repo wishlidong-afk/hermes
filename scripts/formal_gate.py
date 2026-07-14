@@ -117,7 +117,29 @@ def _atomic_replace_text(path: Path, text: str) -> None:
         raise
 
 
-def write_result_once(output_dir: Path, result: Mapping[str, Any], report: str) -> None:
+def _atomic_replace_bytes(path: Path, payload: bytes) -> None:
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def write_result_once(
+    output_dir: Path,
+    result: Mapping[str, Any],
+    report: str,
+    *,
+    artifact_sources: Mapping[str, Path] | None = None,
+) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     with (output_dir / ".formal_gate.lock").open("a+", encoding="utf-8") as lock_handle:
         fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
@@ -125,6 +147,18 @@ def write_result_once(output_dir: Path, result: Mapping[str, Any], report: str) 
             result_path = output_dir / "result.json"
             if result_path.exists():
                 raise FormalGateError(f"experiment already has a final result: {result_path}")
+            for relative, source in sorted((artifact_sources or {}).items()):
+                destination = (output_dir / relative).resolve()
+                try:
+                    destination.relative_to(output_dir.resolve())
+                except ValueError as exc:
+                    raise FormalGateError(f"artifact snapshot escapes output directory: {relative}") from exc
+                try:
+                    payload = source.read_bytes()
+                except OSError as exc:
+                    raise FormalGateError(f"cannot snapshot gate artifact: {source}") from exc
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                _atomic_replace_bytes(destination, payload)
             _atomic_replace_text(output_dir / "REPORT.md", report)
             _atomic_replace_text(result_path, json.dumps(result, indent=2, sort_keys=True, default=str) + "\n")
         finally:
@@ -173,6 +207,17 @@ def load_artifacts(
                 "error": str(exc),
             }
     return equities, statuses, missing_equities
+
+
+def artifact_snapshot_sources(repo_root: Path, manifest: ExperimentManifest) -> dict[str, Path]:
+    artifact_dir = (repo_root / manifest.artifacts_dir).resolve()
+    sources: dict[str, Path] = {}
+    for variant in manifest.variants:
+        for suffix in (".json", "_equity.json", "_legacy_close_equity.json"):
+            source = artifact_dir / f"{variant}{suffix}"
+            if source.exists():
+                sources[f"artifacts/{source.name}"] = source
+    return sources
 
 
 def render_report(manifest: ExperimentManifest, result: Mapping[str, Any]) -> str:
@@ -256,7 +301,12 @@ def run(manifest_path: Path, *, repo_root: Path = REPO_ROOT, output_root: Path =
             or final_manifest.manifest_sha256 != manifest.manifest_sha256
         ):
             raise FormalGateError("manifest or gate code changed while the formal gate was running")
-        write_result_once(output_dir, result, render_report(manifest, result))
+        write_result_once(
+            output_dir,
+            result,
+            render_report(manifest, result),
+            artifact_sources=artifact_snapshot_sources(repo_root, manifest),
+        )
     return result
 
 

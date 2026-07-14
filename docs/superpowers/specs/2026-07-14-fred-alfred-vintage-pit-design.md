@@ -150,3 +150,17 @@ while the flag is ON; the untouched legacy files remain the OFF path.
 Rollback only sets the flag false. That immediately selects the untouched
 legacy canonicals and legacy ledger identities; no data-file restoration is
 required. The immutable vintage event store may remain as non-scoring evidence.
+
+## Final Decision
+
+The one-shot `fred-vintage-pit-v1` formal gate ran at commit `0cd674e` with
+fresh baseline and candidate artifacts sharing the same history manifest,
+soft-history hash, and next-open execution timing. It returned **REJECTED /
+NO_FLIP**: walk-forward OOS delta passed (+0.165206), but CPCV OOS delta failed
+(-0.077120) and maximum drawdown worsened by 1.73 percentage points, above the
+pre-registered 1-point tolerance. Full CAGR fell from 15.56% to 13.90%.
+
+Therefore the exact event store and replay code remain default-OFF research and
+audit infrastructure. Production scoring keeps the legacy canonicals. This
+experiment may not be tuned or rerun; any future production migration needs a
+new mechanism, prior, and pre-registered manifest.
