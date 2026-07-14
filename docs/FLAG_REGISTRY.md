@@ -6,6 +6,8 @@ A flag must pass the pre-registered formal IS-selection/OOS-PBO gate before bein
 Rollback = set the flag back to `false` (byte-identical behavior restored).
 
 > **Research evidence freeze (2026-07-10):** existing `GATE_REPORT*.md` PBO columns are fixed-variant OOS bottom-half rates, not formal PBO. They remain historical diagnostics for past decisions but cannot authorize any new flag or routing change. The replacement formal gate is implemented in `scripts/formal_gate.py`; authorization remains frozen until a pre-registered experiment produces fresh v3 artifacts and a one-shot formal result.
+>
+> **PIT data-correctness migrations:** authoritative replacements of the same economic datum use the separate, pre-declared policy in [`ADR-001`](adr/ADR-001-pit-data-correctness-migrations.md). This does not reclassify or authorize any existing Rejected experiment, including `fred-vintage-pit-v1`.
 
 This registry is also the experiment ledger. Every experiment should end in one
 of four states:

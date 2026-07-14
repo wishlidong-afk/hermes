@@ -88,6 +88,33 @@ def test_discover_naaim_xlsx_url_prefers_since_inception_workbook():
     assert url == "https://www.naaim.org/wp-content/uploads/2026/06/USE_Data-since-Inception_2026-06-24.xlsx"
 
 
+def test_discover_naaim_xlsx_url_selects_latest_dated_official_workbook():
+    html = """
+      <a href="/wp-content/uploads/2026/06/USE_Data-since-Inception_2026-06-24.xlsx">Old</a>
+      <a data-href="https://naaim.org/wp-content/uploads/2026/07/USE_Data-since-Inception_2026-07-08.xlsx">Current</a>
+      <a href="/wp-content/uploads/2026/07/USE_Data-since-Inception_2026-07-01.xlsx">Previous</a>
+    """
+
+    url = discover_naaim_xlsx_url(html, "https://www.naaim.org/programs/naaim-exposure-index/")
+
+    assert url == "https://naaim.org/wp-content/uploads/2026/07/USE_Data-since-Inception_2026-07-08.xlsx"
+
+
+def test_discover_naaim_xlsx_url_rejects_non_naaim_download_host():
+    html = '<a href="https://example.com/USE_Data-since-Inception_2099-12-31.xlsx">HERE</a>'
+
+    assert discover_naaim_xlsx_url(html) is None
+
+
+def test_discover_naaim_xlsx_url_prefers_latest_issue_over_legacy_name():
+    html = """
+      <a href="/wp-content/uploads/2026/06/USE_Data-since-Inception_2026-06-24.xlsx">Old full history</a>
+      <a href="/member-downloads/NAAIM_2026-07-08.xlsx">New subscription name</a>
+    """
+
+    assert discover_naaim_xlsx_url(html) == "https://www.naaim.org/member-downloads/NAAIM_2026-07-08.xlsx"
+
+
 def test_naaim_adapter_promotes_existing_soft_history_shape(tmp_path):
     xlsx_url = "https://naaim.org/wp-content/uploads/2026/06/USE_Data-since-Inception_2026-06-24.xlsx"
     html = f'<a href="{xlsx_url}">Download EXCEL file with data since inception</a>'
@@ -110,7 +137,63 @@ def test_naaim_adapter_promotes_existing_soft_history_shape(tmp_path):
     assert out["naaim_exposure"].tolist() == [86.82, 79.27, 92.83, 98.59]
     assert out["naaim_pctl"].round(2).tolist() == [100.0, 50.0, 100.0, 100.0]
     assert out["is_proxy"].tolist() == [False, False, False, False]
-    assert latest_source_run(tmp_path / "archive", "naaim_exposure")["latest_promoted_as_of"] == "2026-06-24"
+    ledger = latest_source_run(tmp_path / "archive", "naaim_exposure")
+    assert ledger["latest_promoted_as_of"] == "2026-06-24"
+    assert ledger["source_url"] == xlsx_url
+
+
+def test_naaim_fetch_failure_preserves_certified_canonical(tmp_path):
+    target = tmp_path / "soft_history" / "naaim_exposure.csv"
+    target.parent.mkdir(parents=True)
+    certified = b"date,publish_date,naaim_exposure,naaim_pctl,is_proxy\n2026-06-24,2026-06-25,98.59,100.0,False\n"
+    target.write_bytes(certified)
+    adapter = NaaimExposureAdapter(fetch_text=lambda _url: (_ for _ in ()).throw(RuntimeError("subscription required")))
+
+    run = run_external_source_refresh(
+        naaim_exposure_spec(target_path=target, min_rows=1),
+        adapter,
+        tmp_path / "archive",
+    )
+
+    assert run.status == "FETCH_ERROR"
+    assert target.read_bytes() == certified
+
+
+def test_naaim_direct_and_official_import_paths_are_canonical_equivalent(tmp_path):
+    xlsx_url = "https://naaim.org/wp-content/uploads/2026/06/USE_Data-since-Inception_2026-06-24.xlsx"
+    workbook = _naaim_xlsx()
+    html = f'<a href="{xlsx_url}">Download EXCEL file with data since inception</a>'
+    direct_target = tmp_path / "direct" / "naaim_exposure.csv"
+    direct = NaaimExposureAdapter(
+        fetch_text=lambda _url: html,
+        fetch_bytes=lambda _url: workbook,
+        percentile_window=3,
+        min_periods=1,
+    )
+    import_path = tmp_path / "USE_Data-since-Inception_2026-06-24.xlsx"
+    import_path.write_bytes(workbook)
+    imported_target = tmp_path / "imported" / "naaim_exposure.csv"
+    imported = NaaimExposureImportAdapter(
+        import_path=import_path,
+        percentile_window=3,
+        min_periods=1,
+    )
+
+    direct_run = run_external_source_refresh(
+        naaim_exposure_spec(target_path=direct_target, min_rows=4),
+        direct,
+        tmp_path / "direct_archive",
+    )
+    import_run = run_external_source_refresh(
+        naaim_exposure_spec(target_path=imported_target, min_rows=4),
+        imported,
+        tmp_path / "import_archive",
+    )
+
+    assert direct_run.status == "OK"
+    assert import_run.status == "OK"
+    assert direct_target.read_bytes() == imported_target.read_bytes()
+    assert direct_run.official_file_sha256 == import_run.official_file_sha256
 
 
 def test_naaim_import_adapter_promotes_official_workbook_through_ledger(tmp_path):

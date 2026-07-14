@@ -72,6 +72,8 @@ def run_external_source_refresh(
             "FETCH_ERROR",
             error_type=exc.__class__.__name__,
             error_message=str(exc),
+            pit_rule=spec.pit_rule,
+            source_url=spec.source_url,
         )
 
     raw_text = json.dumps(raw, ensure_ascii=False, sort_keys=True, default=str)
@@ -94,6 +96,9 @@ def run_external_source_refresh(
             input_hash=input_hash,
             official_file_name=official["official_file_name"],
             official_file_sha256=official["official_file_sha256"],
+            fetched_at=started,
+            pit_rule=spec.pit_rule,
+            source_url=_source_url(raw) or spec.source_url,
         )
     if not isinstance(frame, pd.DataFrame):
         frame = pd.DataFrame(frame)
@@ -132,6 +137,9 @@ def run_external_source_refresh(
             official_issue_as_of=official["official_issue_as_of"],
             official_file_name=official["official_file_name"],
             official_file_sha256=official["official_file_sha256"],
+            fetched_at=started,
+            pit_rule=spec.pit_rule,
+            source_url=_source_url(raw) or spec.source_url,
         )
 
     previous = _canonical_snapshot(spec.target_path)
@@ -159,7 +167,7 @@ def run_external_source_refresh(
             canonical_latest_as_of=latest_as_of,
             fetched_at=started,
             pit_rule=spec.pit_rule,
-            source_url=spec.source_url or _source_url(raw),
+            source_url=_source_url(raw) or spec.source_url,
         )
     except BaseException as exc:
         try:
@@ -290,7 +298,7 @@ def _restore_canonical(
 def _source_url(raw: Any) -> str | None:
     if not isinstance(raw, dict):
         return None
-    for key in ("url", "index_url", "xlsx_url", "source_url"):
+    for key in ("artifact_url", "xlsx_url", "url", "source_url", "index_url"):
         value = raw.get(key)
         if value:
             return str(value)

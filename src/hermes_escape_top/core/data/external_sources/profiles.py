@@ -151,11 +151,11 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         cadence="weekly",
         max_age_days=13,
         warn_age_days=10,
-        primary="AAII official sentiment.xls",
+        primary="AAII results page, then official Insights RSS",
         fallback="browser download + official file import",
         feature_flag="data_aaii",
         decision_weight=2.0,
-        automation_mode="browser_assisted",
+        automation_mode="official_rss_with_file_fallback",
         pit_rule="official_publish_date_or_reported_plus_one_day",
         import_globs=(
             "~/.hermes/external_imports/sentiment*.xls",

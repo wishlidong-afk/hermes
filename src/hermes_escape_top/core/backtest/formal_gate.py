@@ -24,6 +24,7 @@ from hermes_escape_top.core.backtest.validation import deflated_sharpe
 
 
 MANIFEST_SCHEMA = "hermes-formal-gate-v1"
+MANIFEST_SCHEMA_V2 = "hermes-formal-gate-v2"
 RESULT_SCHEMA = "hermes-formal-gate-result-v1"
 MIN_GATE_FOLDS = 8
 MAX_PBO_THRESHOLD = 0.5
@@ -45,6 +46,8 @@ _TOP_LEVEL_FIELDS = {
     "cpcv",
     "thresholds",
 }
+_TOP_LEVEL_FIELDS_V2 = _TOP_LEVEL_FIELDS | {"governance_lane"}
+_GOVERNANCE_LANES = {"alpha_experiment", "data_correctness_migration"}
 _WALK_FORWARD_FIELDS = {
     "is_years",
     "oos_months",
@@ -105,6 +108,7 @@ class ExperimentManifest:
     walk_forward: Mapping[str, Any]
     cpcv: Mapping[str, Any]
     thresholds: Mapping[str, float]
+    governance_lane: str
     manifest_sha256: str
 
     @property
@@ -115,9 +119,19 @@ class ExperimentManifest:
     def from_dict(cls, raw: Mapping[str, Any]) -> "ExperimentManifest":
         if not isinstance(raw, Mapping):
             raise FormalGateError("manifest must be an object")
-        _require_exact_fields("manifest", raw, _TOP_LEVEL_FIELDS)
-        if raw["schema"] != MANIFEST_SCHEMA:
-            raise FormalGateError(f"schema must be {MANIFEST_SCHEMA}")
+        schema = str(raw.get("schema") or "")
+        if schema == MANIFEST_SCHEMA:
+            _require_exact_fields("manifest", raw, _TOP_LEVEL_FIELDS)
+            governance_lane = "alpha_experiment"
+        elif schema == MANIFEST_SCHEMA_V2:
+            _require_exact_fields("manifest", raw, _TOP_LEVEL_FIELDS_V2)
+            governance_lane = str(raw["governance_lane"])
+            if governance_lane not in _GOVERNANCE_LANES:
+                raise FormalGateError(
+                    "governance_lane must be alpha_experiment or data_correctness_migration"
+                )
+        else:
+            raise FormalGateError(f"schema must be {MANIFEST_SCHEMA} or {MANIFEST_SCHEMA_V2}")
 
         experiment_id = str(raw["experiment_id"])
         if not _NAME_RE.fullmatch(experiment_id):
@@ -217,7 +231,7 @@ class ExperimentManifest:
             raise FormalGateError("gate thresholds cannot be weaker than policy")
 
         normalized = {
-            "schema": MANIFEST_SCHEMA,
+            "schema": schema,
             "experiment_id": experiment_id,
             "created_at": str(raw["created_at"]),
             "hypothesis": hypothesis,
@@ -230,8 +244,11 @@ class ExperimentManifest:
             "cpcv": normalized_cpcv,
             "thresholds": normalized_thresholds,
         }
+        if schema == MANIFEST_SCHEMA_V2:
+            normalized["governance_lane"] = governance_lane
         constructor_values = dict(normalized)
         constructor_values["candidates"] = candidates
+        constructor_values["governance_lane"] = governance_lane
         return cls(**constructor_values, manifest_sha256=_canonical_hash(normalized))
 
 
@@ -348,6 +365,7 @@ def _blocked_result(
     return {
         "schema": RESULT_SCHEMA,
         "experiment_id": manifest.experiment_id,
+        "governance_lane": manifest.governance_lane,
         "manifest_sha256": manifest.manifest_sha256,
         "variants": list(manifest.variants),
         "target_variant": manifest.target,
@@ -430,9 +448,16 @@ def evaluate_formal_gate(
         "deflated_sharpe": dsr >= thresholds["min_dsr"],
     }
     passed = all(checks.values())
+    if manifest.governance_lane == "data_correctness_migration":
+        verdict = "MIGRATION_IMPACT_RECORDED"
+        authorization = "NO_FLIP"
+    else:
+        verdict = "CANDIDATE_GATE_PASSED" if passed else "REJECTED"
+        authorization = "HUMAN_FLIP_REQUIRED" if passed else "NO_FLIP"
     return {
         "schema": RESULT_SCHEMA,
         "experiment_id": manifest.experiment_id,
+        "governance_lane": manifest.governance_lane,
         "manifest_sha256": manifest.manifest_sha256,
         "variants": list(manifest.variants),
         "target_variant": manifest.target,
@@ -453,6 +478,6 @@ def evaluate_formal_gate(
         },
         "thresholds": dict(thresholds),
         "checks": checks,
-        "verdict": "CANDIDATE_GATE_PASSED" if passed else "REJECTED",
-        "authorization": "HUMAN_FLIP_REQUIRED" if passed else "NO_FLIP",
+        "verdict": verdict,
+        "authorization": authorization,
     }

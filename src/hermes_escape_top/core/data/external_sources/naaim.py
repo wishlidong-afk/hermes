@@ -9,9 +9,10 @@ import zipfile
 from dataclasses import dataclass
 from datetime import date, timedelta
 from html import unescape
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import urljoin
+from urllib.parse import unquote, urljoin, urlparse
 from xml.etree import ElementTree as ET
 
 import pandas as pd
@@ -22,7 +23,7 @@ from .registry import ExternalSourceSpec
 
 NAAIM_INDEX_URL = "https://www.naaim.org/programs/naaim-exposure-index/"
 USER_AGENT = "hermes-escape-top/1.0 (research; read-only)"
-_XLSX_HREF_RE = re.compile(r"""href=["']([^"']+\.xlsx?[^"']*)["']""", re.IGNORECASE)
+_ISSUE_DATE_RE = re.compile(r"(?<!\d)(20\d{2}-\d{2}-\d{2})(?!\d)")
 
 
 FetchText = Callable[[str], str]
@@ -30,14 +31,49 @@ FetchBytes = Callable[[str], bytes]
 
 
 def discover_naaim_xlsx_url(html: str, base_url: str = NAAIM_INDEX_URL) -> str | None:
-    urls = [urljoin(base_url, unescape(match)) for match in _XLSX_HREF_RE.findall(html or "")]
-    if not urls:
+    parser = _NaaimWorkbookLinkParser()
+    parser.feed(html or "")
+    candidates: list[str] = []
+    for raw_url in parser.urls:
+        url = urljoin(base_url, unescape(raw_url).strip())
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+        path = unquote(parsed.path).lower()
+        if parsed.scheme not in {"http", "https"}:
+            continue
+        if host != "naaim.org" and not host.endswith(".naaim.org"):
+            continue
+        if not path.endswith(".xlsx"):
+            continue
+        if url not in candidates:
+            candidates.append(url)
+    if not candidates:
         return None
-    for url in urls:
-        normalized = url.lower().replace("_", "-")
-        if "use-data" in normalized or "since-inception" in normalized:
-            return url
-    return urls[0]
+    return max(candidates, key=_workbook_rank)
+
+
+class _NaaimWorkbookLinkParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.urls: list[str] = []
+
+    def handle_starttag(self, _tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        for name, value in attrs:
+            if name.lower() in {"href", "data-href", "data-url"} and value:
+                self.urls.append(value)
+
+
+def _workbook_rank(url: str) -> tuple[date, int, str]:
+    normalized = unquote(url).lower().replace("_", "-")
+    preferred = int("use-data" in normalized or "since-inception" in normalized)
+    matches = _ISSUE_DATE_RE.findall(normalized)
+    issue_date = date.min
+    for value in matches:
+        try:
+            issue_date = max(issue_date, date.fromisoformat(value))
+        except ValueError:
+            continue
+    return issue_date, preferred, normalized
 
 
 @dataclass(frozen=True)

@@ -166,12 +166,12 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 | `btc_funding_basis` | `soft_history/btc_funding_basis.csv` | Deribit，OKX fallback | 交易所 UTC 时间戳归日 | 增量刷新不再把历史 real 行降成 proxy |
 | `btc_spot_witness` | `history/BTC_USD.csv` 的准入证据 | Coinbase Exchange public BTC-USD 1D candles；Yahoo 仍是候选 writer | 仅完成的 UTC 日；日期相同且 close 差异 <=1% 才晋升 | live 自 2026-07-14 为 ON（repo 默认 OFF）；缺失/失配冻结旧 canonical，成交量口径不参与判断 |
 | `naaim_exposure` | `soft_history/naaim_exposure.csv` | 官方 XLSX / official-file import | issue `+1d` | 2026-08-01 迁移截止；订阅/会话是人工责任 |
-| `aaii_sentiment` | `soft_history/aaii_sentiment.csv` | 官方文件 / browser-assisted import | 官方 publish date；公共表无 publish 字段时按 reported `+1d` | Imperva/会员会话无法承诺纯无人值守，不得用未授权镜像冒充真值 |
+| `aaii_sentiment` | `soft_history/aaii_sentiment.csv` | AAII 结果页 → AAII 官方 Insights RSS → official-file import | 结果页按 reported `+1d`；RSS 只按自身 artifact `pubDate` 可用，不向前回填 | Imperva 不再是自动化单点；RSS 可能比结果页晚约 2 天，两条官方发布面均失败时才需人工文件 |
 
 - 06:45 全量预检，07:05 只重试当日失败/证据未就绪的源，07:10 daily 优先复用当日完整 ledger，不连续重打限流源。
 - 所有外部软数据先写 raw/staging，通过 schema + semantic validation 后才原子晋升；成功 ledger 绑定 canonical SHA-256、最新日期、来源 URL 和 PIT 规则。
 - canonical 字节与最新成功 ledger 不一致时显示 `EVIDENCE_DRIFT`，不会把人工改写重新认证为 OK。
-- AAII/NAAIM 下载文件按 SHA-256 去重；已消费或已失败的旧文件不会在每次预检被当成新候选。
+- AAII 结果页受阻时自动切换官方 Insights RSS，ledger 记录实际 URL 与 XML 指纹；AAII/NAAIM 下载文件按 SHA-256 去重，已消费或已失败的旧文件不会在每次预检被当成新候选。
 - 可靠性按 `Asia/Shanghai` 自然日去重；同日失败后重试成功只算一个成功日，避免重试次数虚增成功率。
 - Alpaca SIP 见证只对比 Yahoo/local canonical 的最近 OHLCV，写 `market_witness_*.json`；`NO_WITNESS`/`FETCH_ERROR` 不改评分、不改 `input_hash`。
 - Coinbase BTC 见证属于 canonical admission 而非评分因子：0.5%-1.0% close 差异标黄但可晋升，>1.0% 或缺日冻结旧值；当前 UTC 日延后且不制造健康红灯。

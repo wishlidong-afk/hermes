@@ -225,6 +225,7 @@ def render_report(manifest: ExperimentManifest, result: Mapping[str, Any]) -> st
         f"# Formal Gate: {manifest.experiment_id}",
         "",
         f"- Hypothesis: {manifest.hypothesis}",
+        f"- Governance lane: `{manifest.governance_lane}`",
         f"- Manifest SHA256: `{manifest.manifest_sha256}`",
         f"- Candidate universe: `{', '.join(manifest.variants)}`",
         f"- Declared trials: {manifest.declared_trial_count}",
@@ -236,6 +237,12 @@ def render_report(manifest: ExperimentManifest, result: Mapping[str, Any]) -> st
         lines.append(f"Blocked variants: `{', '.join(result.get('blocked_variants', []))}`")
         return "\n".join(lines) + "\n"
 
+    closing = (
+        "This records performance impact only. A data-correctness migration remains NO_FLIP "
+        "until its correctness evidence and baseline restatement receive explicit human approval."
+        if manifest.governance_lane == "data_correctness_migration"
+        else "A passing result is still a candidate result. Production remains unchanged until a human flip."
+    )
     lines += [
         "| Check | Result |",
         "|---|---|",
@@ -252,7 +259,7 @@ def render_report(manifest: ExperimentManifest, result: Mapping[str, Any]) -> st
         f"Target DSR: `{result['target']['dsr']:.6f}` using n_trials={result['target']['dsr_inputs']['n_trials']}, "
         f"skew={result['target']['dsr_inputs']['skew']:.6f}, kurtosis={result['target']['dsr_inputs']['kurtosis']:.6f}.",
         "",
-        "A passing result is still a candidate result. Production remains unchanged until a human flip.",
+        closing,
     ]
     return "\n".join(lines) + "\n"
 
@@ -272,6 +279,7 @@ def run(manifest_path: Path, *, repo_root: Path = REPO_ROOT, output_root: Path =
         return {
             "schema": "hermes-formal-gate-result-v1",
             "experiment_id": manifest.experiment_id,
+            "governance_lane": manifest.governance_lane,
             "manifest_sha256": manifest.manifest_sha256,
             "manifest_git_commit": manifest_commit,
             "verdict": "BLOCKED",

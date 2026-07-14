@@ -49,6 +49,22 @@ class ParseBoomAdapter:
         raise ValueError("bad html")
 
 
+class RoutedParseBoomAdapter:
+    def fetch_raw(self):
+        return {
+            "url": "https://actual.example.test/feed",
+            "rows": [{"date": "2026-06-30", "value": 1.2}],
+        }
+
+    def parse(self, raw):
+        raise ValueError("bad routed payload")
+
+
+class RoutedMissingColumnAdapter(RoutedParseBoomAdapter):
+    def parse(self, raw):
+        return pd.DataFrame([{"date": "2026-06-30"}])
+
+
 class OfficialParseBoomAdapter:
     def fetch_raw(self):
         return {
@@ -291,6 +307,30 @@ def test_parse_error_preserves_existing_target_and_records_raw_artifact(tmp_path
     assert "bad html" in str(run.error_message)
     assert target.read_text(encoding="utf-8") == "date,value\n2026-06-29,9.9\n"
     assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "PARSE_ERROR"
+
+
+@pytest.mark.parametrize(
+    ("adapter", "expected_status"),
+    [
+        (RoutedParseBoomAdapter(), "PARSE_ERROR"),
+        (RoutedMissingColumnAdapter(), "VALIDATION_ERROR"),
+    ],
+)
+def test_failure_after_fetch_keeps_actual_route_and_pit_evidence(tmp_path, adapter, expected_status):
+    spec = ExternalSourceSpec(
+        source_id="routed",
+        target_path=tmp_path / "routed.csv",
+        required_columns=("date", "value"),
+        pit_rule="artifact_publish_date",
+        source_url="https://configured.example.test/landing",
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == expected_status
+    assert run.source_url == "https://actual.example.test/feed"
+    assert run.pit_rule == "artifact_publish_date"
+    assert run.fetched_at
 
 
 def test_parse_error_persists_official_file_identity_in_ledger(tmp_path):

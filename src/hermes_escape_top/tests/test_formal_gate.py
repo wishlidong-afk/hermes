@@ -79,6 +79,7 @@ def test_manifest_seals_exact_candidate_universe_and_trial_count() -> None:
     manifest = _manifest()
 
     assert manifest.variants == ("baseline", "alpha", "beta")
+    assert manifest.governance_lane == "alpha_experiment"
     assert manifest.target == "alpha"
     assert manifest.declared_trial_count == 7
     assert len(manifest.manifest_sha256) == 64
@@ -142,6 +143,20 @@ def test_manifest_seals_exact_candidate_universe_and_trial_count() -> None:
         )
 
 
+def test_v2_manifest_requires_an_immutable_governance_lane() -> None:
+    with pytest.raises(FormalGateError, match="governance_lane"):
+        _manifest(schema="hermes-formal-gate-v2")
+
+    migration = _manifest(
+        schema="hermes-formal-gate-v2",
+        governance_lane="data_correctness_migration",
+    )
+    assert migration.governance_lane == "data_correctness_migration"
+
+    with pytest.raises(FormalGateError, match="governance_lane"):
+        _manifest(schema="hermes-formal-gate-v2", governance_lane="choose_after_results")
+
+
 def test_selection_evidence_uses_is_winner_for_oos_pbo() -> None:
     matrix = PerformanceMatrix(
         variants=("baseline", "alpha"),
@@ -193,6 +208,26 @@ def test_formal_gate_passes_only_as_candidate_pending_human_flip() -> None:
     assert math.isfinite(result["target"]["dsr_inputs"]["skew"])
     assert math.isfinite(result["target"]["dsr_inputs"]["kurtosis"])
     assert all(result["checks"].values())
+
+
+def test_data_correctness_lane_records_impact_without_alpha_authorization() -> None:
+    manifest = _manifest(
+        schema="hermes-formal-gate-v2",
+        governance_lane="data_correctness_migration",
+        target="beta",
+    )
+    result = evaluate_formal_gate(
+        manifest,
+        _synthetic_equities(),
+        {variant: {"status": "FRESH"} for variant in manifest.variants},
+        walk_forward_splits=_splits(),
+        cpcv_splits=_splits(),
+    )
+
+    assert result["governance_lane"] == "data_correctness_migration"
+    assert result["verdict"] == "MIGRATION_IMPACT_RECORDED"
+    assert result["authorization"] == "NO_FLIP"
+    assert not all(result["checks"].values())
 
 
 def test_formal_gate_runs_registered_walk_forward_and_cpcv_design() -> None:

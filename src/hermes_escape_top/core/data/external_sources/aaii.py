@@ -11,9 +11,11 @@ import tempfile
 import urllib.request
 from dataclasses import dataclass
 from datetime import date, timedelta
+from email.utils import parsedate_to_datetime
 from html import unescape
 from pathlib import Path
 from typing import Any, Callable
+from xml.etree import ElementTree as ET
 
 import pandas as pd
 
@@ -23,6 +25,7 @@ from .registry import ExternalSourceSpec
 
 
 AAII_SENT_RESULTS_URL = "https://www.aaii.com/sentimentsurvey/sent_results"
+AAII_INSIGHTS_FEED_URL = "https://insights.aaii.com/feed"
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
 FetchText = Callable[[str], str]
 
@@ -90,34 +93,113 @@ def parse_aaii_public_rows(html: str, *, today: date | None = None) -> list[dict
     return rows
 
 
+def parse_aaii_insights_feed(xml: str) -> list[dict[str, Any]]:
+    """Parse AAII's own Insights RSS as an official automation fallback."""
+    try:
+        root = ET.fromstring(xml or "")
+    except ET.ParseError:
+        return []
+    rows: list[dict[str, Any]] = []
+    namespace = {"content": "http://purl.org/rss/1.0/modules/content/"}
+    for item in root.findall("./channel/item"):
+        title = str(item.findtext("title") or "")
+        if "aaii sentiment survey" not in title.lower():
+            continue
+        published = _rss_date(item.findtext("pubDate"))
+        body = item.findtext("content:encoded", default="", namespaces=namespace)
+        if published is None or not body:
+            continue
+        text = unescape(re.sub(r"<[^>]+>", " ", body))
+        text = re.sub(r"\s+", " ", text).strip()
+        marker = re.search(r"this week(?:'|’)?s sentiment survey results\s*:", text, re.IGNORECASE)
+        if marker is None:
+            continue
+        result_text = re.split(r"historical averages\s*:", text[marker.end():], maxsplit=1, flags=re.IGNORECASE)[0]
+        bull = _labeled_percent(result_text, "bullish")
+        neutral = _labeled_percent(result_text, "neutral")
+        bear = _labeled_percent(result_text, "bearish")
+        if any(value is None for value in (bull, neutral, bear)):
+            continue
+        reported = _previous_weekday(published, weekday=2)
+        row = {
+            "reported": reported,
+            "publish_date": published,
+            "bull": bull,
+            "neutral": neutral,
+            "bear": bear,
+        }
+        if _valid_share_row(row):
+            rows.append(row)
+    rows.sort(key=lambda row: row["reported"], reverse=True)
+    return rows
+
+
 @dataclass(frozen=True)
 class AaiiSentimentAdapter:
     seed_path: Path
     url: str = AAII_SENT_RESULTS_URL
+    feed_url: str = AAII_INSIGHTS_FEED_URL
     percentile_window: int = 156
     min_periods: int = 52
     today: date | None = None
     fetch_text: FetchText = lambda url: _fetch_text(url)
 
     def fetch_raw(self) -> dict[str, Any]:
-        html = self.fetch_text(self.url)
-        if _looks_blocked(html):
-            raise ValueError(
-                "AAII public endpoint blocked; download the official sentiment.xls in a browser "
-                "and run refresh_external --source aaii_sentiment --import-file PATH"
-            )
-        if not html:
-            raise ValueError("AAII public endpoint returned empty response")
-        return {
-            "url": self.url,
-            "source": "public_html",
-            "file_name": "sent_results.html",
-            "content_sha256": hashlib.sha256(html.encode("utf-8")).hexdigest(),
-            "html": html,
-        }
+        primary_failure = ""
+        public_rows: list[dict[str, Any]] = []
+        try:
+            html = self.fetch_text(self.url)
+        except Exception as exc:
+            html = ""
+            primary_failure = f"fetch_error:{exc.__class__.__name__}"
+        if html and not _looks_blocked(html):
+            public_rows = parse_aaii_public_rows(html, today=self.today)
+        if any(_valid_share_row(row) for row in public_rows):
+            return {
+                "url": self.url,
+                "source": "public_html",
+                "file_name": "sent_results.html",
+                "content_sha256": hashlib.sha256(html.encode("utf-8")).hexdigest(),
+                "html": html,
+            }
+        if not primary_failure:
+            if _looks_blocked(html):
+                primary_failure = "blocked"
+            elif public_rows:
+                primary_failure = "invalid_rows"
+            else:
+                primary_failure = "empty_or_unparseable"
+
+        try:
+            feed = self.fetch_text(self.feed_url)
+        except Exception as exc:
+            feed = ""
+            feed_failure = f"fetch_error:{exc.__class__.__name__}"
+            feed_rows: list[dict[str, Any]] = []
+        else:
+            feed_rows = parse_aaii_insights_feed(feed)
+            feed_failure = "empty_or_unparseable" if not feed_rows else ""
+        if not feed_failure:
+            return {
+                "url": self.feed_url,
+                "source": "official_insights_rss",
+                "file_name": "aaii_insights_feed.xml",
+                "content_sha256": hashlib.sha256(feed.encode("utf-8")).hexdigest(),
+                "primary_failure": primary_failure,
+                "artifact_published_as_of": max(row["publish_date"] for row in feed_rows).isoformat(),
+                "rss": feed,
+            }
+        raise ValueError(
+            f"AAII public endpoint {primary_failure}; official Insights RSS {feed_failure}; "
+            "download the official sentiment.xls in a browser and run "
+            "refresh_external --source aaii_sentiment --import-file PATH"
+        )
 
     def parse(self, raw: dict[str, Any]) -> pd.DataFrame:
-        rows = parse_aaii_public_rows(str((raw or {}).get("html") or ""), today=self.today)
+        if str((raw or {}).get("source") or "") == "official_insights_rss":
+            rows = parse_aaii_insights_feed(str((raw or {}).get("rss") or ""))
+        else:
+            rows = parse_aaii_public_rows(str((raw or {}).get("html") or ""), today=self.today)
         if not rows:
             raise ValueError("no AAII sentiment rows parsed; page structure changed or login wall")
 
@@ -234,6 +316,24 @@ def _looks_blocked(html: str) -> bool:
     )
 
 
+def _rss_date(value: str | None) -> date | None:
+    try:
+        return parsedate_to_datetime(str(value or "")).date()
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _previous_weekday(day: date, *, weekday: int) -> date:
+    return day - timedelta(days=(day.weekday() - weekday) % 7)
+
+
+def _labeled_percent(text: str, label: str) -> float | None:
+    match = re.search(rf"\b{re.escape(label)}\s*:\s*([0-9]+(?:\.[0-9]+)?)%", text, re.IGNORECASE)
+    if match is None:
+        return None
+    return round(float(match.group(1)) / 100.0, 3)
+
+
 def _read_seed(path: Path) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame(columns=_COLUMNS)
@@ -257,7 +357,7 @@ def _valid_share_row(row: dict[str, Any]) -> bool:
 
 
 def _normalized_record(row: dict[str, Any]) -> dict[str, Any]:
-    publish_date = row["reported"] + timedelta(days=1)
+    publish_date = row.get("publish_date") or (row["reported"] + timedelta(days=1))
     bull = round(float(row["bull"]), 3)
     bear = round(float(row["bear"]), 3)
     return {

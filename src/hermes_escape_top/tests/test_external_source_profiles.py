@@ -46,6 +46,15 @@ def test_profile_default_slo_comes_from_config_default():
     assert profile.warn_age_days == 15
 
 
+def test_aaii_profile_declares_official_rss_automation_with_file_fallback():
+    profile = _effective_source_profile({}, "aaii_sentiment")
+
+    assert profile is not None
+    assert profile.automation_mode == "official_rss_with_file_fallback"
+    assert "Insights RSS" in profile.primary
+    assert "official file import" in profile.fallback
+
+
 def test_disabled_research_source_is_not_active_for_daily_readiness():
     config = {
         "features": {"data_cot_nq": False},
