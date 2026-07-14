@@ -118,3 +118,10 @@ official score audit retained identical byte counts and mtimes across the
 activation, proving that activation did not manufacture another official run.
 Live config now has `features.use_cboe_official_indices=true`; repository
 default remains false for fail-safe deployment and isolated tests.
+
+After the five canonical files changed, the central history manifest was
+refrozen only after a full integrity scan returned clean. The older
+market-admission evidence still carried the pre-migration SKEW SHA; this was
+not papered over. During the subsequent BTC-witness activation it was replaced
+by a fresh, lock-held read-only admission certification that excludes all
+CBOE-owned files and validates the remaining 40 canonical bindings.

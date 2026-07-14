@@ -163,7 +163,7 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 | `cot_nq` | `soft_history/cot_nq.csv` | CFTC public API | 周二观测、周五公开 | flag OFF 时不影响生产健康/决策覆盖 |
 | `occ_equity_pcr` | `soft_history/occ_equity_pcr.csv` | OCC weekly report | 周五 week-ending、周六公开 | 当前 inactive，只做迁移/替代源证据 |
 | `btc_funding_basis` | `soft_history/btc_funding_basis.csv` | Deribit，OKX fallback | 交易所 UTC 时间戳归日 | 增量刷新不再把历史 real 行降成 proxy |
-| `btc_spot_witness` | `history/BTC_USD.csv` 的准入证据 | Coinbase Exchange public BTC-USD 1D candles；Yahoo 仍是候选 writer | 仅完成的 UTC 日；日期相同且 close 差异 <=1% 才晋升 | repo 默认 OFF；ON 时缺失/失配冻结旧 canonical，成交量口径不参与判断 |
+| `btc_spot_witness` | `history/BTC_USD.csv` 的准入证据 | Coinbase Exchange public BTC-USD 1D candles；Yahoo 仍是候选 writer | 仅完成的 UTC 日；日期相同且 close 差异 <=1% 才晋升 | live 自 2026-07-14 为 ON（repo 默认 OFF）；缺失/失配冻结旧 canonical，成交量口径不参与判断 |
 | `naaim_exposure` | `soft_history/naaim_exposure.csv` | 官方 XLSX / official-file import | issue `+1d` | 2026-08-01 迁移截止；订阅/会话是人工责任 |
 | `aaii_sentiment` | `soft_history/aaii_sentiment.csv` | 官方文件 / browser-assisted import | 官方 publish date；公共表无 publish 字段时按 reported `+1d` | Imperva/会员会话无法承诺纯无人值守，不得用未授权镜像冒充真值 |
 
@@ -323,7 +323,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 | `use_regime_multipliers` | true | live，保持历史无条件 regime multiplier 行为 |
 | `use_indicator_cache` | false | 生产默认 OFF；本批 backtest harness 打开，byte-identical 已证明 |
 | `use_market_admission_gate` | false | repo 默认 OFF；live runtime 自 2026-07-14 为 ON，美股/ETF行情须经 Yahoo + Alpaca SIP 双源一致才晋升 |
-| `use_btc_spot_witness` | false | repo 默认 OFF；候选态，开启后 BTC-USD 的 Yahoo 候选须经 Coinbase 完成 UTC 日 close 见证 |
+| `use_btc_spot_witness` | false | repo 默认 OFF；live runtime 自 2026-07-14 为 ON，BTC-USD 的 Yahoo 候选须经 Coinbase 完成 UTC 日 close 见证 |
 | `data_onchain_mstr` | false | rejected/parked |
 | `data_mstr_mnav` | false | parked |
 | `use_b6_mnav_valuation` | false | rejected/parked |

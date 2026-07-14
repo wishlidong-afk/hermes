@@ -74,3 +74,21 @@ Rollback is one config change under the same lock:
 `features.use_btc_spot_witness=false`. The existing US-equity
 `use_market_admission_gate` remains ON, and no historical restoration is needed
 because every BTC row still originated from Yahoo.
+
+## Live Activation Result
+
+The default-OFF code release `d9085d2_20260714_144144` passed staged smoke and
+the non-official `verify_live` path. Under `.pipeline.lock`, the live canary
+then matched all five completed UTC days; four were in the normal band and
+2026-07-13 was an admitted 0.5042% warning. Only
+`features.use_btc_spot_witness` changed from absent/false to true.
+
+The first post-flip health read exposed a pre-existing `_SKEW.csv` evidence
+drift: the earlier CBOE migration had changed that canonical SHA while the
+latest market-admission evidence still bound its pre-migration value. No
+status was hidden or manually forced green. A lock-held, read-only
+recertification excluded the CBOE-owned files, fetched fresh Alpaca and
+Coinbase witnesses, and wrote v2 operation
+`b1ee0b6f3fb34f73a500661559c78356`: 38 `MATCH`, 2 `NOT_APPLICABLE`, zero
+rejects, and 40 current canonical SHA bindings. Strategy health then returned
+`OK`; the official receipt and audit log retained identical sizes and mtimes.
