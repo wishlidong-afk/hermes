@@ -69,7 +69,7 @@ of four states:
 | `use_no_advice_state` | **ON** ✅ | live | Emit an explicit no-advice state when required decision evidence is blocked instead of fabricating a normal recommendation |
 | `use_indicator_cache` | OFF | candidate | Cache indicator frames by symbol/history identity; OFF preserves the uncached scoring path |
 | `use_market_admission_gate` | **ON (live config; repo default OFF)** ✅ | live | Live since 2026-07-14: require Yahoo + Alpaca SIP consensus before supported U.S. equity/ETF OHLCV rows can replace canonical history; mismatch or missing witness preserves the prior certified row |
-| `use_cboe_official_indices` | OFF | candidate | Make official CBOE VIX/VIX3M/VIX9D/SKEW/VVIX files the five canonical single writers; Yahoo is witness-only, and mismatched or unconfirmed rows stay frozen |
+| `use_cboe_official_indices` | **ON (live config; repo default OFF)** ✅ | live | Live since 2026-07-14: official CBOE VIX/VIX3M/VIX9D/SKEW/VVIX files are the five canonical single writers; Yahoo is witness-only, and mismatched or unconfirmed rows stay frozen. Activation evidence: `building/reports/data_quality/cboe_official_indices_live_activation_2026_07_14.json` |
 
 ---
 

@@ -89,3 +89,32 @@ Activation must hold `.pipeline.lock` for the complete transaction:
 Rollback restores the five snapshots and sets the live flag false while holding
 the same pipeline lock. No official daily run, receipt, order path, or IBKR write
 is part of activation.
+
+## Live Activation Result
+
+The code-only release `d2ed608` was deployed first with the repository default
+OFF while preserving live config. Its staged smoke and non-official
+`verify_live` path passed before any canonical data changed.
+
+The first controlled activation attempt at 2026-07-14 13:53 CST hit a 30-second
+CBOE CDN timeout on VIX. It promoted no source, restored all five snapshots,
+kept the flag OFF, and returned 8766 to service. The five official files were
+then prefetched outside the lock with bounded transport retries and their exact
+bytes were consumed inside one lock-held activation transaction.
+
+The second attempt succeeded at 2026-07-14 13:55 CST:
+
+| Source | Before rows/start | After rows/start | Latest | Canonical SHA-256 |
+|---|---:|---:|---|---|
+| VIX | 2,145 / 2018-01-02 | 9,227 / 1990-01-02 | 2026-07-13 | `29ca9f73edf7f574885227802076ed04f8889e197c4c9df734b8533fef9463ff` |
+| VIX3M | 2,142 / 2018-01-02 | 4,228 / 2009-09-18 | 2026-07-13 | `b07b17f0685118f4d1d25bb5f726cfbac2d9c932fb66ba3e0a0343970e079c12` |
+| VIX9D | 2,142 / 2018-01-02 | 3,902 / 2011-01-04 | 2026-07-13 | `9a1172e6d4b07b070c09e2a5d5157a32e0e61230830458072618f56d00a4f386` |
+| SKEW | 2,091 / 2018-01-02 | 9,182 / 1990-01-02 | 2026-07-13 | `02745261b3e44228b1ea97b84bbd6c586ba37608a01266363217be27192202df` |
+| VVIX | 2,134 / 2018-01-02 | 5,059 / 2006-03-06 | 2026-07-13 | `d8c59e507d2a4c0905b5519b2e03ddf32af978754a4a37755276f9ff9b8ce874` |
+
+All five current source-status records are `OK`, canonical evidence is `MATCH`,
+and 8766 returned HTTP 200 with no preview banner. The scheduled receipt and
+official score audit retained identical byte counts and mtimes across the
+activation, proving that activation did not manufacture another official run.
+Live config now has `features.use_cboe_official_indices=true`; repository
+default remains false for fail-safe deployment and isolated tests.
