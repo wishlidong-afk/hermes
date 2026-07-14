@@ -1,0 +1,363 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import stat
+import tempfile
+from dataclasses import dataclass, field
+from datetime import date, datetime, time, timedelta, timezone
+from pathlib import Path
+from typing import Any, Callable, Iterable, Mapping
+from uuid import uuid4
+from zoneinfo import ZoneInfo
+
+import pandas as pd
+
+from .alpaca_flow import load_alpaca_credentials
+from .external_sources.clock import timestamp_to_shanghai_date
+from .market_witness import (
+    compare_market_bar,
+    fetch_alpaca_daily_bar_range,
+    is_alpaca_supported_symbol,
+)
+from .store import safe_symbol
+
+
+@dataclass
+class MarketAdmissionSession:
+    enabled: bool
+    witness_bars: Mapping[str, Iterable[Mapping[str, Any]]]
+    fetch_error: str | None = None
+    run_error: str | None = None
+    requested_start: str | None = None
+    requested_end: str | None = None
+    completed_through: str | None = None
+    operation_id: str = field(default_factory=lambda: uuid4().hex)
+    generated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    canonical_files: dict[str, dict[str, Any]] = field(default_factory=dict)
+    evidence: list[dict[str, Any]] = field(default_factory=list)
+
+    def admit(
+        self,
+        symbol: str,
+        candidate: pd.DataFrame,
+    ) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
+        if candidate.empty:
+            return candidate.copy(), []
+
+        symbol = str(symbol).upper()
+        if not self.enabled:
+            rows = [self._bypass_row(symbol, index, "DISABLED") for index in candidate.index]
+            self.evidence.extend(rows)
+            return candidate.copy(), rows
+        if not is_alpaca_supported_symbol(symbol):
+            rows = [self._bypass_row(symbol, index, "NOT_APPLICABLE") for index in candidate.index]
+            self.evidence.extend(rows)
+            return candidate.copy(), rows
+
+        witness_by_date = {
+            str(row.get("t") or "")[:10]: row
+            for row in self.witness_bars.get(symbol, [])
+            if isinstance(row, Mapping)
+        }
+        admitted_indexes: list[pd.Timestamp] = []
+        rows: list[dict[str, Any]] = []
+        for index, candidate_row in candidate.iterrows():
+            day = pd.Timestamp(index).date().isoformat()
+            if (
+                (self.requested_start and day < self.requested_start)
+                or (self.requested_end and day >= self.requested_end)
+            ):
+                evidence = self._rejection_row(
+                    symbol,
+                    day,
+                    "OUTSIDE_WITNESS_WINDOW",
+                    "candidate date is outside the fetched witness window",
+                )
+                rows.append(evidence)
+                continue
+            if self.completed_through and day > self.completed_through:
+                evidence = self._rejection_row(
+                    symbol,
+                    day,
+                    "UNFINALIZED_SESSION",
+                    f"candidate session is later than completed_through={self.completed_through}",
+                )
+                rows.append(evidence)
+                continue
+            local = {
+                "date": day,
+                "open": candidate_row.get("Open"),
+                "high": candidate_row.get("High"),
+                "low": candidate_row.get("Low"),
+                "close": candidate_row.get("Close"),
+                "volume": candidate_row.get("Volume"),
+            }
+            comparison = compare_market_bar(
+                local,
+                witness_by_date.get(day),
+                require_complete=True,
+            )
+            admitted = comparison.get("status") == "MATCH"
+            if admitted:
+                admitted_indexes.append(index)
+            evidence = {
+                "symbol": symbol,
+                "date": day,
+                "status": comparison.get("status"),
+                "admitted": admitted,
+                "reason": comparison.get("reason"),
+                "warning_band": bool(comparison.get("warning_band", False)),
+                "close_diff_pct": comparison.get("close_diff_pct"),
+                "max_ohlc_diff_pct": comparison.get("max_ohlc_diff_pct"),
+                "volume_diff_pct": comparison.get("volume_diff_pct"),
+                "candidate_sha256": comparison.get("local_sha256"),
+                "witness_sha256": comparison.get("witness_sha256"),
+            }
+            if self.fetch_error and comparison.get("status") == "NO_WITNESS":
+                evidence["fetch_error"] = self.fetch_error
+            rows.append(evidence)
+        self.evidence.extend(rows)
+        return candidate.loc[admitted_indexes].copy(), rows
+
+    def payload(self, *, generated_at: str | None = None) -> dict[str, Any]:
+        summary: dict[str, int] = {}
+        admitted_rows = 0
+        for row in self.evidence:
+            status = str(row.get("status") or "UNKNOWN")
+            summary[status] = summary.get(status, 0) + 1
+            admitted_rows += int(bool(row.get("admitted")))
+        rejected_rows = len(self.evidence) - admitted_rows
+        if not self.enabled:
+            status = "DISABLED"
+        elif self.run_error:
+            status = "ERROR"
+        elif self.fetch_error:
+            status = "FETCH_ERROR"
+        elif rejected_rows:
+            status = "BLOCKED"
+        else:
+            status = "OK"
+        return {
+            "schema_version": "hermes-market-admission-v1",
+            "mode": "enforce_consensus" if self.enabled else "off",
+            "source": "YAHOO_PLUS_ALPACA_SIP",
+            "status": status,
+            "generated_at": generated_at or self.generated_at,
+            "operation_id": self.operation_id,
+            "requested_start": self.requested_start,
+            "requested_end": self.requested_end,
+            "completed_through": self.completed_through,
+            "fetch_error": self.fetch_error,
+            "run_error": self.run_error,
+            "canonical_files": dict(self.canonical_files),
+            "summary": summary,
+            "admitted_rows": admitted_rows,
+            "rejected_rows": rejected_rows,
+            "rows": list(self.evidence),
+        }
+
+    def bind_canonical_files(
+        self,
+        history_dir: Path,
+        symbols: Iterable[str],
+    ) -> None:
+        root = Path(history_dir)
+        for symbol in symbols:
+            name = f"{safe_symbol(symbol)}.csv"
+            path = root / name
+            if not path.exists():
+                self.canonical_files.pop(name, None)
+                continue
+            latest_as_of = None
+            try:
+                dates = pd.read_csv(path, usecols=["date"])["date"].dropna()
+                if not dates.empty:
+                    latest_as_of = str(dates.iloc[-1])[:10]
+            except Exception:
+                latest_as_of = None
+            self.canonical_files[name] = {
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "latest_as_of": latest_as_of,
+            }
+
+    @staticmethod
+    def _bypass_row(symbol: str, index: Any, status: str) -> dict[str, Any]:
+        return {
+            "symbol": symbol,
+            "date": pd.Timestamp(index).date().isoformat(),
+            "status": status,
+            "admitted": True,
+            "reason": "Alpaca SIP admission does not apply",
+        }
+
+    @staticmethod
+    def _rejection_row(
+        symbol: str,
+        day: str,
+        status: str,
+        reason: str,
+    ) -> dict[str, Any]:
+        return {
+            "symbol": symbol,
+            "date": day,
+            "status": status,
+            "admitted": False,
+            "reason": reason,
+        }
+
+
+def prepare_market_admission_session(
+    symbols: Iterable[str],
+    start: str,
+    end: str,
+    *,
+    credentials: Mapping[str, str] | None = None,
+    request_json: Callable[[str, Mapping[str, str]], dict[str, Any]] | None = None,
+    now: datetime | None = None,
+) -> MarketAdmissionSession:
+    completed_through = latest_completed_us_market_session(now).isoformat()
+    try:
+        auth = dict(credentials or load_alpaca_credentials())
+        witness_bars = fetch_alpaca_daily_bar_range(
+            symbols,
+            start,
+            end,
+            auth,
+            request_json=request_json,
+        )
+        return MarketAdmissionSession(
+            enabled=True,
+            witness_bars=witness_bars,
+            requested_start=str(start)[:10],
+            requested_end=str(end)[:10],
+            completed_through=completed_through,
+        )
+    except Exception as exc:
+        return MarketAdmissionSession(
+            enabled=True,
+            witness_bars={},
+            fetch_error=f"{exc.__class__.__name__}: {exc}",
+            requested_start=str(start)[:10],
+            requested_end=str(end)[:10],
+            completed_through=completed_through,
+        )
+
+
+def latest_completed_us_market_session(now: datetime | None = None) -> date:
+    value = now or datetime.now(timezone.utc)
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    eastern = value.astimezone(ZoneInfo("America/New_York"))
+    day = eastern.date()
+    if day.weekday() < 5 and eastern.time() >= time(16, 15):
+        return day
+    day -= timedelta(days=1)
+    while day.weekday() >= 5:
+        day -= timedelta(days=1)
+    return day
+
+
+def write_market_admission_evidence(
+    archive_dir: Path,
+    payload: Mapping[str, Any],
+) -> Path:
+    archive = Path(archive_dir)
+    archive.mkdir(parents=True, exist_ok=True)
+    generated_date = timestamp_to_shanghai_date(payload.get("generated_at"))
+    if generated_date is None:
+        raise ValueError("market admission payload missing generated_at")
+    generated_day = generated_date.isoformat()
+    encoded = json.dumps(dict(payload), ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    dated = archive / f"market_admission_{generated_day}.json"
+    latest = archive / "market_admission_latest.json"
+    for path in (dated, latest):
+        _atomic_write_text(path, encoded)
+    return latest
+
+
+def read_market_admission_evidence(archive_dir: Path) -> dict[str, Any] | None:
+    path = Path(archive_dir) / "market_admission_latest.json"
+    if not path.exists():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return payload if isinstance(payload, dict) else None
+
+
+def validate_market_admission_evidence(
+    payload: Mapping[str, Any],
+    history_dir: Path,
+    *,
+    as_of: str | None = None,
+    run_started_at: str | None = None,
+) -> dict[str, Any]:
+    out = dict(payload)
+    if str(out.get("mode") or "") != "enforce_consensus":
+        return out
+    generated = _parse_timestamp(out.get("generated_at"))
+    started = _parse_timestamp(run_started_at)
+    completed = str(out.get("completed_through") or "")[:10]
+    current_as_of = str(as_of or "")[:10]
+    missing = [
+        key
+        for key in ("operation_id", "generated_at", "completed_through", "canonical_files")
+        if not out.get(key)
+    ]
+    if missing or generated is None:
+        out["status"] = "STALE"
+        out["evidence_detail"] = f"evidence provenance missing: {', '.join(missing) or 'invalid generated_at'}"
+        return out
+    if current_as_of and completed < current_as_of:
+        out["status"] = "STALE"
+        out["evidence_detail"] = f"completed_through={completed} before score as_of={current_as_of}"
+        return out
+    if started is not None and generated < started:
+        out["status"] = "STALE"
+        out["evidence_detail"] = "evidence predates the current run receipt"
+        return out
+    canonical_files = out.get("canonical_files") or {}
+    root = Path(history_dir)
+    for name, expected in sorted(canonical_files.items()):
+        if Path(name).name != name or not isinstance(expected, Mapping):
+            out["status"] = "EVIDENCE_DRIFT"
+            out["evidence_detail"] = f"invalid canonical evidence entry: {name}"
+            return out
+        path = root / name
+        actual = hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else None
+        if actual != expected.get("sha256"):
+            out["status"] = "EVIDENCE_DRIFT"
+            out["evidence_detail"] = f"{name} sha256 mismatch"
+            return out
+    return out
+
+
+def _parse_timestamp(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else 0o644
+    fd, temp_name = tempfile.mkstemp(
+        dir=str(path.parent),
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+    )
+    temp = Path(temp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        temp.chmod(mode)
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)

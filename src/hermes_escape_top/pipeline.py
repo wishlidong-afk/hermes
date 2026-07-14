@@ -137,6 +137,7 @@ def score_pipeline(
     shadow: bool = False,
     include_ibkr: bool = True,
     run_type: str = "manual_rerun",
+    market_admission_status: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Run one complete score transaction under the per-data-dir mutex."""
     config = load_config(config_path)
@@ -148,6 +149,7 @@ def score_pipeline(
             shadow=shadow,
             include_ibkr=include_ibkr,
             run_type=run_type,
+            market_admission_status=market_admission_status,
             _lease=lease,
         )
 
@@ -158,6 +160,7 @@ def _score_pipeline_locked(
     shadow: bool = False,
     include_ibkr: bool = True,
     run_type: str = "manual_rerun",
+    market_admission_status: Optional[Dict[str, Any]] = None,
     *,
     _lease: Any,
 ) -> Dict[str, Any]:
@@ -322,6 +325,8 @@ def _score_pipeline_locked(
             "data_quality": quality_from_snapshots(snapshots.values()).to_dict(),
             "ibkr": ibkr_payload,
         }
+        if market_admission_status is not None:
+            payload["market_admission_status"] = dict(market_admission_status)
         payload["input_hash"] = stable_hash(payload["snapshots"])
         payload["data_quality_breakdown"] = _quality_breakdown(payload, snapshots, flow)
         payload.update(build_action_context(payload, snapshots))

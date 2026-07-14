@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from hermes_escape_top.core.data.market_admission import MarketAdmissionSession
 from hermes_escape_top.scripts import run_daily_package as rdp
 
 
@@ -148,7 +149,16 @@ def test_execute_daily_attaches_external_source_status_to_returned_payload(monke
 
 
 def test_live_daily_attaches_nonblocking_market_witness(monkeypatch):
-    monkeypatch.setattr(rdp, "refresh_history", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        rdp,
+        "refresh_history",
+        lambda *_args, **_kwargs: {
+            "mode": "enforce_consensus",
+            "status": "OK",
+            "admitted_rows": 3,
+            "rejected_rows": 0,
+        },
+    )
     monkeypatch.setattr(rdp, "_heal_lagging_symbols", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(rdp, "refresh_external_sources", lambda: [])
     monkeypatch.setattr(rdp.refresh_external, "status", lambda *_args, **_kwargs: {})
@@ -183,3 +193,54 @@ def test_live_daily_attaches_nonblocking_market_witness(monkeypatch):
 
     assert payload["market_witness_status"]["status"] == "WARN"
     assert payload["market_witness_status"]["summary"] == {"PRICE_MISMATCH": 1}
+    assert payload["market_admission_status"]["status"] == "OK"
+    assert payload["market_admission_status"]["admitted_rows"] == 3
+
+
+def test_daily_prefers_current_session_error_over_stale_disk_ok(monkeypatch):
+    session = MarketAdmissionSession(enabled=True, witness_bars={})
+    session.run_error = "OSError: evidence disk full"
+    score_calls = []
+    monkeypatch.setattr(rdp, "_prepare_daily_market_admission", lambda *_args: session)
+    monkeypatch.setattr(
+        rdp,
+        "refresh_history",
+        lambda *_args, **_kwargs: {"mode": "enforce_consensus", "status": "OK"},
+    )
+    monkeypatch.setattr(rdp, "_heal_lagging_symbols", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        rdp,
+        "read_market_admission_evidence",
+        lambda *_args: {"mode": "enforce_consensus", "status": "OK"},
+    )
+    monkeypatch.setattr(rdp, "refresh_external_sources", lambda: [])
+    monkeypatch.setattr(rdp.refresh_external, "status", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(rdp, "refresh_soft_data", lambda: None)
+    monkeypatch.setattr(rdp, "_preflight_report", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_history_integrity_scan", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        rdp,
+        "run_score_pipeline",
+        lambda *_args, **kwargs: score_calls.append(kwargs) or {"as_of": "2026-07-13"},
+    )
+    monkeypatch.setattr(rdp, "translate", lambda payload: {"orders_preview": {}, **payload})
+    monkeypatch.setattr(rdp, "write_artifacts", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_post_run_diff", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rdp, "_refresh_next5_unlock", lambda: None)
+    args = SimpleNamespace(
+        live=False,
+        skip_refresh=False,
+        as_of="2026-07-13",
+        run_type="manual_rerun",
+        commit_state=False,
+    )
+
+    payload = rdp._execute_daily(
+        args=args,
+        _lease=object(),
+        _run_context={"step": "startup", "as_of": "2026-07-13"},
+    )
+
+    assert payload["market_admission_status"]["status"] == "ERROR"
+    assert "disk full" in payload["market_admission_status"]["run_error"]
+    assert score_calls[0]["market_admission_status"]["operation_id"] == session.operation_id

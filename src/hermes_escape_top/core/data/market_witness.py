@@ -33,15 +33,36 @@ def fetch_alpaca_daily_bars(
     *,
     request_json: Callable[[str, Mapping[str, str]], dict[str, Any]] | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
-    ordered = sorted({str(symbol).upper() for symbol in symbols if _is_supported(symbol)})
+    day = date.fromisoformat(str(as_of)[:10])
+    return fetch_alpaca_daily_bar_range(
+        symbols,
+        day.isoformat(),
+        (day + timedelta(days=1)).isoformat(),
+        credentials,
+        request_json=request_json,
+    )
+
+
+def fetch_alpaca_daily_bar_range(
+    symbols: Iterable[str],
+    start: str,
+    end: str,
+    credentials: Mapping[str, str],
+    *,
+    request_json: Callable[[str, Mapping[str, str]], dict[str, Any]] | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    ordered = sorted({str(symbol).upper() for symbol in symbols if is_alpaca_supported_symbol(symbol)})
     if not ordered:
         return {}
-    day = date.fromisoformat(str(as_of)[:10])
+    start_day = date.fromisoformat(str(start)[:10])
+    end_day = date.fromisoformat(str(end)[:10])
+    if end_day <= start_day:
+        raise ValueError("Alpaca daily bar range end must be after start")
     params = {
         "symbols": ",".join(ordered),
         "timeframe": "1Day",
-        "start": f"{day.isoformat()}T00:00:00Z",
-        "end": f"{(day + timedelta(days=1)).isoformat()}T00:00:00Z",
+        "start": f"{start_day.isoformat()}T00:00:00Z",
+        "end": f"{end_day.isoformat()}T00:00:00Z",
         "limit": "10000",
         "feed": "sip",
         "adjustment": "raw",
@@ -56,7 +77,12 @@ def fetch_alpaca_daily_bars(
     transport = request_json or _request_json
     out: dict[str, list[dict[str, Any]]] = {symbol: [] for symbol in ordered}
     page_token = None
+    seen_page_tokens: set[str] = set()
+    page_count = 0
     while True:
+        page_count += 1
+        if page_count > 100:
+            raise RuntimeError("Alpaca daily bars exceeded 100 pages")
         query = dict(params)
         if page_token:
             query["page_token"] = page_token
@@ -67,6 +93,10 @@ def fetch_alpaca_daily_bars(
         page_token = payload.get("next_page_token")
         if not page_token:
             return out
+        page_token = str(page_token)
+        if page_token in seen_page_tokens:
+            raise RuntimeError("Alpaca daily bars returned a repeated page token")
+        seen_page_tokens.add(page_token)
 
 
 def build_market_witness_payload(
@@ -79,7 +109,7 @@ def build_market_witness_payload(
 ) -> dict[str, Any]:
     rows: dict[str, dict[str, Any]] = {}
     for symbol in sorted({str(value).upper() for value in symbols}):
-        if not _is_supported(symbol):
+        if not is_alpaca_supported_symbol(symbol):
             rows[symbol] = {
                 "status": "NO_WITNESS",
                 "supported": False,
@@ -88,7 +118,7 @@ def build_market_witness_payload(
             continue
         local = local_bars.get(symbol)
         remote = list(witness_bars.get(symbol) or [])
-        rows[symbol] = _compare_bar(local, remote[-1] if remote else None)
+        rows[symbol] = compare_market_bar(local, remote[-1] if remote else None)
 
     summary: dict[str, int] = {}
     for row in rows.values():
@@ -210,9 +240,11 @@ def _load_local_bars(
     return out
 
 
-def _compare_bar(
+def compare_market_bar(
     local: Mapping[str, Any] | None,
     witness: Mapping[str, Any] | None,
+    *,
+    require_complete: bool = False,
 ) -> dict[str, Any]:
     if not local:
         return {
@@ -244,12 +276,18 @@ def _compare_bar(
     finite_price_diffs = [value for value in price_diffs.values() if value is not None]
     max_price_diff = max(finite_price_diffs) if finite_price_diffs else None
     volume_diff = _relative_diff_pct(local.get("volume"), witness.get("v"))
-    if max_price_diff is None:
+    if require_complete and len(finite_price_diffs) != 4:
+        status = "PRICE_MISMATCH"
+        reason = "all raw OHLC fields must be comparable"
+    elif max_price_diff is None:
         status = "PRICE_MISMATCH"
         reason = "comparable OHLC fields unavailable"
     elif max_price_diff > PRICE_WARN_PCT:
         status = "PRICE_MISMATCH"
         reason = "raw OHLC difference exceeds witness policy"
+    elif require_complete and volume_diff is None:
+        status = "VOLUME_MISMATCH"
+        reason = "raw volume must be comparable"
     elif volume_diff is not None and volume_diff > VOLUME_WARN_PCT:
         status = "VOLUME_MISMATCH"
         reason = "raw volume difference exceeds witness policy"
@@ -272,7 +310,7 @@ def _compare_bar(
     }
 
 
-def _is_supported(symbol: Any) -> bool:
+def is_alpaca_supported_symbol(symbol: Any) -> bool:
     return bool(_US_EQUITY_SYMBOL.fullmatch(str(symbol or "").upper()))
 
 

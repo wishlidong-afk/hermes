@@ -3,7 +3,12 @@ from __future__ import annotations
 
 import pandas as pd
 
-from hermes_escape_top.scripts.backfill_history import _sanity_check_download, backfill
+from hermes_escape_top.core.data.market_admission import MarketAdmissionSession
+from hermes_escape_top.scripts.backfill_history import (
+    _market_admission_start,
+    _sanity_check_download,
+    backfill,
+)
 
 
 def _frame(closes, start="2026-06-01"):
@@ -91,6 +96,406 @@ def test_incomplete_overlap_bar_cannot_erase_cached_close(tmp_path):
 
     saved = pd.read_csv(path)
     assert saved.loc[saved["date"] == "2026-06-18", "close"].item() == 30.82
+
+
+def test_backfill_market_admission_freezes_mismatched_candidate(tmp_path):
+    path = tmp_path / "QQQ.csv"
+    path.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-10,99,101,98,100,100,1000\n",
+        encoding="utf-8",
+    )
+    before = path.read_bytes()
+    incoming = pd.DataFrame(
+        {
+            "Open": [99.0],
+            "High": [101.0],
+            "Low": [98.0],
+            "Close": [100.0],
+            "Adj Close": [100.0],
+            "Volume": [1_000.0],
+        },
+        index=pd.to_datetime(["2026-07-13"]),
+    )
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={
+            "QQQ": [
+                {
+                    "t": "2026-07-13T04:00:00Z",
+                    "o": 79.0,
+                    "h": 81.0,
+                    "l": 78.0,
+                    "c": 80.0,
+                    "v": 1_000.0,
+                }
+            ]
+        },
+    )
+
+    result = backfill(
+        ["QQQ"],
+        start="2026-07-10",
+        end="2026-07-14",
+        store_dir=tmp_path,
+        downloader=lambda *_args: incoming,
+        admission_session=session,
+    )
+
+    assert path.read_bytes() == before
+    assert result["QQQ"].updated is False
+    assert "market admission froze 1/1 rows" in result["QQQ"].reason
+
+
+def test_backfill_market_admission_appends_matching_candidate(tmp_path):
+    path = tmp_path / "QQQ.csv"
+    path.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-10,99,101,98,100,100,1000\n",
+        encoding="utf-8",
+    )
+    incoming = pd.DataFrame(
+        {
+            "Open": [100.0],
+            "High": [102.0],
+            "Low": [99.0],
+            "Close": [101.0],
+            "Adj Close": [101.0],
+            "Volume": [1_100.0],
+        },
+        index=pd.to_datetime(["2026-07-13"]),
+    )
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={
+            "QQQ": [
+                {
+                    "t": "2026-07-13T04:00:00Z",
+                    "o": 100.0,
+                    "h": 102.0,
+                    "l": 99.0,
+                    "c": 101.0,
+                    "v": 1_100.0,
+                }
+            ]
+        },
+    )
+
+    result = backfill(
+        ["QQQ"],
+        start="2026-07-10",
+        end="2026-07-14",
+        store_dir=tmp_path,
+        downloader=lambda *_args: incoming,
+        admission_session=session,
+    )
+
+    saved = pd.read_csv(path)
+    assert result["QQQ"].updated is True
+    assert saved["date"].tolist() == ["2026-07-10", "2026-07-13"]
+    assert len(session.canonical_files["QQQ.csv"]["sha256"]) == 64
+    assert session.canonical_files["QQQ.csv"]["latest_as_of"] == "2026-07-13"
+
+
+def test_backfill_market_admission_flag_prefetches_and_writes_evidence(tmp_path, monkeypatch):
+    from hermes_escape_top.scripts import backfill_history as module
+
+    history = tmp_path / "history"
+    archive = tmp_path / "archive"
+    history.mkdir()
+    (history / "QQQ.csv").write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-10,99,101,98,100,100,1000\n",
+        encoding="utf-8",
+    )
+    incoming = pd.DataFrame(
+        {
+            "Open": [100.0],
+            "High": [102.0],
+            "Low": [99.0],
+            "Close": [101.0],
+            "Adj Close": [101.0],
+            "Volume": [1_100.0],
+        },
+        index=pd.to_datetime(["2026-07-13"]),
+    )
+    prepared = []
+    written = []
+
+    def prepare(symbols, start, end):
+        prepared.append((list(symbols), start, end))
+        return MarketAdmissionSession(
+            enabled=True,
+            witness_bars={
+                "QQQ": [
+                    {
+                        "t": "2026-07-13T04:00:00Z",
+                        "o": 100.0,
+                        "h": 102.0,
+                        "l": 99.0,
+                        "c": 101.0,
+                        "v": 1_100.0,
+                    }
+                ]
+            },
+            requested_start=start,
+            requested_end=end,
+        )
+
+    monkeypatch.setattr(
+        module,
+        "load_config",
+        lambda: {
+            "features": {"use_market_admission_gate": True},
+            "paths": {"archive_dir": str(archive)},
+        },
+    )
+    monkeypatch.setattr(module, "_download_yfinance", lambda *_args: incoming)
+    monkeypatch.setattr(module, "prepare_market_admission_session", prepare)
+    monkeypatch.setattr(
+        module,
+        "write_market_admission_evidence",
+        lambda path, payload: written.append((path, payload)),
+    )
+
+    result = backfill(
+        ["QQQ"],
+        start="2026-07-01",
+        end="2026-07-14",
+        store_dir=history,
+        repair_overlap_days=3,
+    )
+
+    assert result["QQQ"].updated is True
+    assert prepared == [(["QQQ"], "2026-07-01", "2026-07-14")]
+    assert written[0][0] == archive
+    assert written[0][1]["status"] == "OK"
+
+
+def test_market_admission_witness_range_includes_missing_history_head(tmp_path):
+    (tmp_path / "QQQ.csv").write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-10,99,101,98,100,100,1000\n",
+        encoding="utf-8",
+    )
+
+    start = _market_admission_start(
+        ["QQQ"],
+        tmp_path,
+        "2026-07-01",
+        repair_overlap_days=3,
+    )
+
+    assert start == "2026-07-01"
+
+
+def test_backfill_market_admission_flag_off_does_not_fetch_witness(tmp_path, monkeypatch):
+    from hermes_escape_top.scripts import backfill_history as module
+
+    history = tmp_path / "history"
+    history.mkdir()
+    incoming = pd.DataFrame(
+        {
+            "Open": [99.0],
+            "High": [101.0],
+            "Low": [98.0],
+            "Close": [100.0],
+            "Adj Close": [100.0],
+            "Volume": [1_000.0],
+        },
+        index=pd.to_datetime(["2026-07-13"]),
+    )
+    monkeypatch.setattr(
+        module,
+        "load_config",
+        lambda: {"features": {"use_market_admission_gate": False}},
+    )
+    monkeypatch.setattr(module, "_download_yfinance", lambda *_args: incoming)
+    monkeypatch.setattr(
+        module,
+        "prepare_market_admission_session",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("witness must stay off")),
+    )
+
+    result = backfill(
+        ["QQQ"],
+        start="2026-07-13",
+        end="2026-07-14",
+        store_dir=history,
+    )
+
+    assert result["QQQ"].updated is True
+    assert pd.read_csv(history / "QQQ.csv")["date"].tolist() == ["2026-07-13"]
+
+
+def test_backfill_market_admission_records_run_failure_in_evidence(tmp_path, monkeypatch):
+    from hermes_escape_top.scripts import backfill_history as module
+
+    history = tmp_path / "history"
+    archive = tmp_path / "archive"
+    history.mkdir()
+    qqq = history / "QQQ.csv"
+    qqq.write_text("date,close\n2026-07-10,100\n", encoding="utf-8")
+    before = qqq.read_bytes()
+    captured = []
+    session = MarketAdmissionSession(enabled=True, witness_bars={})
+
+    monkeypatch.setattr(
+        module,
+        "load_config",
+        lambda: {
+            "features": {"use_market_admission_gate": True},
+            "paths": {"archive_dir": str(archive)},
+        },
+    )
+    monkeypatch.setattr(module, "prepare_market_admission_session", lambda *_args: session)
+    def partial_write_then_fail(symbol, _start, _end, store, *_args, **_kwargs):
+        if symbol == "QQQ":
+            (store / "QQQ.csv").write_text(
+                "date,close\n2026-07-10,100\n2026-07-13,101\n",
+                encoding="utf-8",
+            )
+            return None
+        raise OSError("disk write failed")
+
+    monkeypatch.setattr(module, "_backfill_one", partial_write_then_fail)
+    monkeypatch.setattr(
+        module,
+        "write_market_admission_evidence",
+        lambda _path, payload: captured.append(payload),
+    )
+
+    try:
+        backfill(
+            ["QQQ", "SPY"],
+            start="2026-07-13",
+            end="2026-07-14",
+            store_dir=history,
+        )
+    except OSError as exc:
+        assert str(exc) == "disk write failed"
+    else:
+        raise AssertionError("backfill failure must propagate")
+
+    assert captured[0]["status"] == "ERROR"
+    assert captured[0]["run_error"] == "OSError: disk write failed"
+    assert qqq.read_bytes() == before
+
+
+def test_backfill_market_admission_rolls_back_when_evidence_write_fails(tmp_path, monkeypatch):
+    from hermes_escape_top.scripts import backfill_history as module
+
+    history = tmp_path / "history"
+    archive = tmp_path / "archive"
+    history.mkdir()
+    qqq = history / "QQQ.csv"
+    qqq.write_text("date,close\n2026-07-10,100\n", encoding="utf-8")
+    before = qqq.read_bytes()
+
+    monkeypatch.setattr(
+        module,
+        "load_config",
+        lambda: {
+            "features": {"use_market_admission_gate": True},
+            "paths": {"archive_dir": str(archive)},
+        },
+    )
+    monkeypatch.setattr(
+        module,
+        "prepare_market_admission_session",
+        lambda *_args: MarketAdmissionSession(enabled=True, witness_bars={}),
+    )
+
+    def write_candidate(_symbol, _start, _end, store, *_args, **_kwargs):
+        (store / "QQQ.csv").write_text(
+            "date,close\n2026-07-10,100\n2026-07-13,101\n",
+            encoding="utf-8",
+        )
+        return None
+
+    monkeypatch.setattr(module, "_backfill_one", write_candidate)
+    monkeypatch.setattr(
+        module,
+        "write_market_admission_evidence",
+        lambda *_args: (_ for _ in ()).throw(OSError("evidence disk full")),
+    )
+
+    try:
+        backfill(
+            ["QQQ"],
+            start="2026-07-13",
+            end="2026-07-14",
+            store_dir=history,
+        )
+    except RuntimeError as exc:
+        assert "evidence recovery was incomplete" in str(exc)
+    else:
+        raise AssertionError("evidence failure must fail the guarded promotion")
+
+    assert qqq.read_bytes() == before
+
+
+def test_shared_market_admission_session_keeps_batch_evidence_during_self_heal(
+    tmp_path,
+    monkeypatch,
+):
+    from hermes_escape_top.scripts import backfill_history as module
+
+    archive = tmp_path / "archive"
+    captured = []
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={
+            "QQQ": [
+                {
+                    "t": "2026-07-13T04:00:00Z",
+                    "o": 79.0,
+                    "h": 81.0,
+                    "l": 78.0,
+                    "c": 80.0,
+                    "v": 1_000.0,
+                }
+            ]
+        },
+    )
+    candidate = pd.DataFrame(
+        {
+            "Open": [99.0],
+            "High": [101.0],
+            "Low": [98.0],
+            "Close": [100.0],
+            "Adj Close": [100.0],
+            "Volume": [1_000.0],
+        },
+        index=pd.to_datetime(["2026-07-13"]),
+    )
+    monkeypatch.setattr(
+        module,
+        "write_market_admission_evidence",
+        lambda _path, payload: captured.append(payload.copy()),
+    )
+
+    backfill(
+        ["QQQ"],
+        start="2026-07-13",
+        end="2026-07-14",
+        store_dir=tmp_path / "history",
+        downloader=lambda *_args: candidate,
+        admission_session=session,
+        admission_archive=archive,
+    )
+    backfill(
+        ["SPY"],
+        start="2026-07-13",
+        end="2026-07-14",
+        store_dir=tmp_path / "history",
+        downloader=lambda *_args: pd.DataFrame(),
+        admission_session=session,
+        admission_archive=archive,
+    )
+
+    assert [payload["status"] for payload in captured] == ["BLOCKED", "BLOCKED"]
+    assert captured[-1]["summary"] == {"PRICE_MISMATCH": 1}
 
 
 def test_backfill_skips_initial_holiday_gap_before_first_cached_bar(tmp_path):
@@ -356,3 +761,9 @@ def test_no_advice_state_flag(tmp_path, monkeypatch):
     # to the fake-100-EXIT behavior fails here.
     from hermes_escape_top.config import load_config
     assert load_config()["features"]["use_no_advice_state"] is True
+
+
+def test_market_admission_gate_defaults_off():
+    from hermes_escape_top.config import load_config
+
+    assert load_config()["features"]["use_market_admission_gate"] is False

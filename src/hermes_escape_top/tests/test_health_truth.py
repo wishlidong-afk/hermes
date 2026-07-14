@@ -193,6 +193,97 @@ def test_external_source_failure_degrades_with_reason():
     )
 
 
+def test_market_admission_blocked_degrades_with_quarantine_count():
+    payload = _payload()
+    payload["market_admission_status"] = {
+        "mode": "enforce_consensus",
+        "status": "BLOCKED",
+        "rejected_rows": 2,
+        "summary": {"PRICE_MISMATCH": 1, "NO_WITNESS": 1},
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "DEGRADED"
+    assert any(
+        check["label"] == "双源行情候选已隔离"
+        and "rejected=2" in check["detail"]
+        and "PRICE_MISMATCH" in check["detail"]
+        for check in health["checks"]
+    )
+
+
+def test_market_admission_fetch_error_never_falls_back_silently():
+    payload = _payload()
+    payload["market_admission_status"] = {
+        "mode": "enforce_consensus",
+        "status": "FETCH_ERROR",
+        "fetch_error": "TimeoutError: Alpaca unavailable",
+        "rejected_rows": 3,
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "DEGRADED"
+    assert any(
+        check["label"] == "双源行情见证不可用"
+        and "Alpaca unavailable" in check["detail"]
+        for check in health["checks"]
+    )
+
+
+def test_market_admission_run_error_is_visible_as_strategy_degradation():
+    payload = _payload()
+    payload["market_admission_status"] = {
+        "mode": "enforce_consensus",
+        "status": "ERROR",
+        "run_error": "OSError: disk write failed",
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "DEGRADED"
+    assert any(
+        check["label"] == "双源行情准入失败"
+        and "disk write failed" in check["detail"]
+        for check in health["checks"]
+    )
+
+
+def test_required_market_admission_evidence_cannot_be_missing_green() -> None:
+    payload = _payload()
+    payload["market_admission_status"] = {
+        "mode": "enforce_consensus",
+        "status": "MISSING",
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "DEGRADED"
+    assert any(
+        check["label"] == "双源行情准入证据缺失"
+        for check in health["checks"]
+    )
+
+
+def test_market_admission_evidence_drift_is_critical() -> None:
+    payload = _payload()
+    payload["market_admission_status"] = {
+        "mode": "enforce_consensus",
+        "status": "EVIDENCE_DRIFT",
+        "evidence_detail": "QQQ.csv sha256 mismatch",
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "CRITICAL"
+    assert any(
+        check["label"] == "双源行情证据漂移"
+        and "QQQ.csv" in check["detail"]
+        for check in health["checks"]
+    )
+
+
 def test_external_source_evidence_drift_is_critical_even_when_runner_status_is_ok():
     payload = _payload()
     payload["external_source_status"] = {

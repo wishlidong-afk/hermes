@@ -94,13 +94,23 @@ sys.path.insert(0, str(PACKAGE_PARENT))
 from hermes_escape_top import pipeline
 from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.data.market_witness import refresh_market_witness
+from hermes_escape_top.core.data.market_admission import (
+    MarketAdmissionSession,
+    prepare_market_admission_session,
+    read_market_admission_evidence,
+)
 from hermes_escape_top.core.data.external_sources.ledger import (
     CANONICAL_EVIDENCE_CRITICAL_STATUSES,
     canonical_evidence_issue,
 )
 from hermes_escape_top.core.data.store import LocalStore, safe_symbol
 from hermes_escape_top.core.safe_io import assert_pipeline_lease
-from hermes_escape_top.scripts.backfill_history import all_backfill_symbols, backfill, write_coverage_report
+from hermes_escape_top.scripts.backfill_history import (
+    _market_admission_start,
+    all_backfill_symbols,
+    backfill,
+    write_coverage_report,
+)
 from hermes_escape_top.scripts import refresh_external
 
 TRADE_SYMBOLS = ["MSTR", "FNGU", "SOXL"]
@@ -147,7 +157,12 @@ def _latest_available_as_of() -> str:
 
 # ── Step 1: refresh OHLCV history ────────────────────────────────────────────
 
-def refresh_history(as_of: str, *, _lease: Any) -> None:
+def refresh_history(
+    as_of: str,
+    *,
+    _lease: Any,
+    admission_session: MarketAdmissionSession | None = None,
+) -> Dict[str, Any] | None:
     """Fetch the latest OHLCV bar inside the daily transaction lease."""
     print(f"[M4-1] Refreshing OHLCV history up to {as_of}…")
     config = load_config()
@@ -155,15 +170,34 @@ def refresh_history(as_of: str, *, _lease: Any) -> None:
         _lease,
         path=resolve_path(config, "archive_dir") / ".pipeline.lock",
     )
+    symbols = all_backfill_symbols(config)
+    archive_dir = resolve_path(config, "archive_dir")
     results = backfill(
-        all_backfill_symbols(config),
+        symbols,
         start="2018-01-01",
         end=as_of,
         store_dir=resolve_path(config, "history_dir"),
         repair_overlap_days=3,
+        admission_session=admission_session,
+        admission_archive=archive_dir if admission_session is not None else None,
     )
     write_coverage_report(results, BASE_DIR / "reports" / "N0_history_coverage.md")
     print("[M4-1] History refresh OK.")
+    if bool((config.get("features") or {}).get("use_market_admission_gate", False)):
+        return read_market_admission_evidence(resolve_path(config, "archive_dir"))
+    return None
+
+
+def _prepare_daily_market_admission(
+    config: Dict[str, Any],
+    end: str,
+) -> MarketAdmissionSession | None:
+    if not bool((config.get("features") or {}).get("use_market_admission_gate", False)):
+        return None
+    symbols = all_backfill_symbols(config)
+    history_dir = resolve_path(config, "history_dir")
+    start = _market_admission_start(symbols, history_dir, "2018-01-01", 3)
+    return prepare_market_admission_session(symbols, start, str(end)[:10])
 
 
 def _heal_lagging_symbols(
@@ -172,6 +206,7 @@ def _heal_lagging_symbols(
     _lease: Any,
     max_passes: int = 2,
     delay_s: float = 3.0,
+    admission_session: MarketAdmissionSession | None = None,
 ) -> None:
     """Re-fetch, individually, any symbol whose last cached bar lags its peers.
 
@@ -218,6 +253,12 @@ def _heal_lagging_symbols(
                     end=end,
                     store_dir=resolve_path(config, "history_dir"),
                     repair_overlap_days=3,
+                    admission_session=admission_session,
+                    admission_archive=(
+                        resolve_path(config, "archive_dir")
+                        if admission_session is not None
+                        else None
+                    ),
                 )
                 if not result.get(sym) or not result[sym].updated:
                     print(f"[M4-1] self-heal: {sym} did not advance; leaving cached.")
@@ -287,6 +328,7 @@ def run_score_pipeline(
     as_of: str,
     shadow: bool = True,
     run_type: str = "manual_rerun",
+    market_admission_status: Dict[str, Any] | None = None,
     *,
     _lease: Any,
 ) -> Dict[str, Any]:
@@ -295,6 +337,7 @@ def run_score_pipeline(
         as_of,
         shadow=shadow,
         run_type=run_type,
+        market_admission_status=market_admission_status,
         _lease=_lease,
     )
     print(f"[M4-1] score_pipeline OK. Schema: {payload.get('schema_version')}")
@@ -1735,6 +1778,8 @@ def _execute_daily(
     shadow = not args.live
     refresh_end = args.as_of or date.today().isoformat()
     market_witness_status: Dict[str, Any] | None = None
+    market_admission_status: Dict[str, Any] | None = None
+    market_admission_session: MarketAdmissionSession | None = None
 
     if shadow:
         print(f"[M4-1] SHADOW mode — writing to data/shadow/ (production untouched)")
@@ -1743,14 +1788,31 @@ def _execute_daily(
 
     if not args.skip_refresh:
         _run_context["step"] = "history_refresh"
+        try:
+            market_admission_session = _prepare_daily_market_admission(
+                load_config(),
+                refresh_end,
+            )
+        except Exception as exc:
+            print(f"[M4-1] WARNING: market admission setup failed ({exc!r}); backfill will fail closed.")
         # A hung source must never kill the scoring run — degrade to cached
         # data (the same philosophy each refresh step already applies to
         # non-zero exits; subprocess.TimeoutExpired previously escaped it).
         try:
-            refresh_history(refresh_end, _lease=_lease)
+            market_admission_status = refresh_history(
+                refresh_end,
+                _lease=_lease,
+                admission_session=market_admission_session,
+            )
         except Exception as exc:
             print(f"[M4-1] WARNING: history refresh crashed ({exc!r}); proceeding with cached bars.")
-        _heal_lagging_symbols(refresh_end, _lease=_lease)
+        _heal_lagging_symbols(
+            refresh_end,
+            _lease=_lease,
+            admission_session=market_admission_session,
+        )
+        if market_admission_session is not None:
+            market_admission_status = market_admission_session.payload()
         _run_context["step"] = "external_source_refresh"
         try:
             refresh_external_sources()
@@ -1806,10 +1868,13 @@ def _execute_daily(
         as_of,
         shadow=shadow,
         run_type=args.run_type,
+        market_admission_status=market_admission_status,
         _lease=_lease,
     )
     if market_witness_status is not None:
         payload["market_witness_status"] = market_witness_status
+    if market_admission_status is not None:
+        payload["market_admission_status"] = market_admission_status
     _run_context["step"] = "external_source_status"
     try:
         external_source_status = refresh_external.status(load_config())

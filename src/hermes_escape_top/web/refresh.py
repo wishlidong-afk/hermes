@@ -14,6 +14,7 @@ import pandas as pd
 from ..config import load_config, resolve_path, trade_symbols
 from ..core.data.base import SymbolSnapshot
 from ..core.data.manifest import verify_manifest, write_manifest
+from ..core.data.market_admission import read_market_admission_evidence
 from ..core.safe_io import assert_pipeline_lease, pipeline_lock
 from ..core.data.store import safe_symbol
 from ..core.data.state_store import recent_ibkr_snapshots, write_ibkr_snapshot, write_refresh_run
@@ -275,7 +276,16 @@ def _refresh_score_with_market_data_locked(
     ))
     as_of = latest_history_date(config, _critical_symbols(config)) or _normalize_as_of(requested_as_of)
     score_start = time.perf_counter()
-    payload = _score_pipeline_locked(as_of, _lease=_lease)
+    market_admission_status = None
+    if bool((config.get("features") or {}).get("use_market_admission_gate", False)):
+        market_admission_status = read_market_admission_evidence(
+            resolve_path(config, "archive_dir")
+        )
+    payload = _score_pipeline_locked(
+        as_of,
+        market_admission_status=market_admission_status,
+        _lease=_lease,
+    )
     steps.append(_step("score_pipeline", "OK", score_start, as_of=as_of))
     soft = payload.get("soft_data") or {}
     soft_records = soft.get("records") or {}

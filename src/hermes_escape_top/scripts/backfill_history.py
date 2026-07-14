@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import stat
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 from pathlib import Path
@@ -9,6 +12,12 @@ import pandas as pd
 from dateutil.easter import easter
 
 from ..config import load_config, resolve_path
+from ..core.data.market_admission import (
+    MarketAdmissionSession,
+    prepare_market_admission_session,
+    write_market_admission_evidence,
+)
+from ..core.data.market_witness import is_alpaca_supported_symbol
 from ..core.data.store import safe_symbol
 from ..core.safe_io import atomic_write_csv
 
@@ -78,13 +87,130 @@ def backfill(
     store_dir: str | Path = "data/history",
     downloader: Optional[Downloader] = None,
     repair_overlap_days: int = 0,
+    admission_session: MarketAdmissionSession | None = None,
+    admission_archive: str | Path | None = None,
 ) -> Dict[str, BackfillResult]:
     store = Path(store_dir)
     store.mkdir(parents=True, exist_ok=True)
+    active_admission = admission_session
+    admission_archive_path = Path(admission_archive) if admission_archive is not None else None
+    if active_admission is None and downloader is None:
+        config = load_config()
+        if bool((config.get("features") or {}).get("use_market_admission_gate", False)):
+            admission_start = _market_admission_start(
+                symbols,
+                store,
+                start,
+                repair_overlap_days,
+            )
+            admission_end = str(end)[:10] if end else (date.today() + timedelta(days=1)).isoformat()
+            active_admission = prepare_market_admission_session(
+                symbols,
+                admission_start,
+                admission_end,
+            )
+            admission_archive_path = resolve_path(config, "archive_dir")
     out: Dict[str, BackfillResult] = {}
-    for symbol in symbols:
-        out[symbol] = _backfill_one(symbol, start, end, store, downloader or _download_yfinance, repair_overlap_days=repair_overlap_days)
+    snapshots = {
+        store / f"{safe_symbol(symbol)}.csv": _history_snapshot(
+            store / f"{safe_symbol(symbol)}.csv"
+        )
+        for symbol in symbols
+    } if active_admission is not None and active_admission.enabled else {}
+    try:
+        for symbol in symbols:
+            out[symbol] = _backfill_one(
+                symbol,
+                start,
+                end,
+                store,
+                downloader or _download_yfinance,
+                repair_overlap_days=repair_overlap_days,
+                admission_session=active_admission,
+            )
+        if active_admission is not None:
+            active_admission.bind_canonical_files(store, symbols)
+        if active_admission is not None and admission_archive_path is not None:
+            write_market_admission_evidence(
+                admission_archive_path,
+                active_admission.payload(),
+            )
+    except BaseException as exc:
+        rollback_error: BaseException | None = None
+        for path, snapshot in snapshots.items():
+            try:
+                _restore_history_snapshot(path, snapshot)
+            except BaseException as restore_exc:
+                rollback_error = restore_exc
+        if active_admission is not None:
+            active_admission.run_error = f"{exc.__class__.__name__}: {exc}"
+            active_admission.bind_canonical_files(store, symbols)
+        evidence_error: BaseException | None = None
+        if active_admission is not None and admission_archive_path is not None:
+            try:
+                write_market_admission_evidence(
+                    admission_archive_path,
+                    active_admission.payload(),
+                )
+            except BaseException as write_exc:
+                evidence_error = write_exc
+        if rollback_error is not None or evidence_error is not None:
+            raise RuntimeError(
+                "market admission failed and rollback/evidence recovery was incomplete: "
+                f"rollback={rollback_error!r} evidence={evidence_error!r}"
+            ) from (rollback_error or evidence_error)
+        raise
     return out
+
+
+def _history_snapshot(path: Path) -> tuple[bool, bytes, int | None]:
+    if not path.exists():
+        return False, b"", None
+    return True, path.read_bytes(), stat.S_IMODE(path.stat().st_mode)
+
+
+def _restore_history_snapshot(
+    path: Path,
+    snapshot: tuple[bool, bytes, int | None],
+) -> None:
+    existed, content, mode = snapshot
+    if not existed:
+        path.unlink(missing_ok=True)
+        return
+    fd, temp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.rollback.")
+    temp = Path(temp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if mode is not None:
+            temp.chmod(mode)
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+def _market_admission_start(
+    symbols: Iterable[str],
+    store_dir: Path,
+    configured_start: str,
+    repair_overlap_days: int,
+) -> str:
+    floor = pd.Timestamp(configured_start).date()
+    starts: list[date] = []
+    for symbol in symbols:
+        if not is_alpaca_supported_symbol(symbol):
+            continue
+        existing = _read_existing(store_dir / f"{safe_symbol(symbol)}.csv")
+        if existing.empty:
+            starts.append(floor)
+            continue
+        first = existing.index.min().date()
+        last = existing.index.max().date()
+        tail_start = max(floor, last - timedelta(days=max(0, int(repair_overlap_days))))
+        starts.append(floor if floor < first else tail_start)
+    return min(starts, default=floor).isoformat()
 
 
 def write_coverage_report(results: Dict[str, BackfillResult], output_path: str | Path) -> Path:
@@ -116,6 +242,7 @@ def _backfill_one(
     store_dir: Path,
     downloader: Downloader,
     repair_overlap_days: int = 0,
+    admission_session: MarketAdmissionSession | None = None,
 ) -> BackfillResult:
     path = store_dir / f"{safe_symbol(symbol)}.csv"
     existing = _read_existing(path)
@@ -157,6 +284,21 @@ def _backfill_one(
             return _result(symbol, path, existing, updated=False,
                            source_symbol=_yf_symbol(symbol),
                            reason=f"REJECTED corrupt download: {why}")
+    if admission_session is not None and not normalized.empty:
+        candidate_rows = len(normalized)
+        normalized, _ = admission_session.admit(symbol, normalized)
+        frozen_rows = candidate_rows - len(normalized)
+        if frozen_rows:
+            reasons.append(f"market admission froze {frozen_rows}/{candidate_rows} rows")
+        if normalized.empty:
+            return _result(
+                symbol,
+                path,
+                existing,
+                updated=False,
+                source_symbol=_yf_symbol(symbol),
+                reason="; ".join(reasons),
+            )
     combined = pd.concat([existing, normalized]).sort_index()
     if not combined.empty:
         combined = combined[~combined.index.duplicated(keep="last")]
