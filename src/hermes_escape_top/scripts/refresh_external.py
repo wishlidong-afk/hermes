@@ -173,8 +173,8 @@ def refresh_source(
     result = run.to_dict()
     if auto_import and not import_file and str(result.get("status")) != "OK":
         latest_file = _latest_import_for(source_id)
-        fallback = pending_import_file(source_id, archive_dir)
-        if latest_file is not None and fallback is None:
+        fallbacks = pending_import_files(source_id, archive_dir)
+        if latest_file is not None and not fallbacks:
             skip_reason = (
                 _previous_import_failure_reason(source_id, latest_file, archive_dir)
                 or "official file hash already processed"
@@ -182,20 +182,21 @@ def refresh_source(
             result["fallback_import_skipped"] = str(latest_file)
             result["fallback_import_skip_reason"] = skip_reason
             return result
-        if fallback is not None:
-            skip_reason = _previous_import_failure_reason(source_id, fallback, archive_dir)
-            if skip_reason:
-                result["fallback_import_skipped"] = str(fallback)
-                result["fallback_import_skip_reason"] = skip_reason
-                return result
+        attempted: list[str] = []
+        fallback_from_status = result.get("status")
+        for fallback in fallbacks:
+            attempted.append(str(fallback))
             fallback_run = run_external_source_refresh(
                 spec,
                 _import_adapter(source_id, spec, fallback),
                 archive_dir,
             ).to_dict()
-            fallback_run["fallback_from_status"] = result.get("status")
+            fallback_run["fallback_from_status"] = fallback_from_status
             fallback_run["fallback_import_file"] = str(fallback)
-            return fallback_run
+            fallback_run["fallback_attempted_files"] = list(attempted)
+            result = fallback_run
+            if str(fallback_run.get("status")) == "OK":
+                return fallback_run
     return result
 
 
@@ -521,17 +522,30 @@ def _latest_import_for(source_id: str) -> Path | None:
 
 def pending_import_file(source_id: str, archive_dir: Path) -> Path | None:
     """Return an official file only when its content hash is new to the ledger."""
+    candidates = pending_import_files(source_id, archive_dir)
+    return candidates[0] if candidates else None
+
+
+def pending_import_files(source_id: str, archive_dir: Path) -> list[Path]:
+    """Return every unprocessed official file in discovery order."""
+    latest_by_hash: dict[str, dict[str, Any]] = {}
+    for row in iter_source_runs(archive_dir):
+        if row.get("source_id") != source_id:
+            continue
+        content_hash = _run_content_sha256(row)
+        if content_hash:
+            latest_by_hash[content_hash] = row
     processed_hashes = {
         content_hash
-        for row in iter_source_runs(archive_dir)
-        if row.get("source_id") == source_id
-        if (content_hash := _run_content_sha256(row))
+        for content_hash, row in latest_by_hash.items()
+        if str(row.get("status") or "") != "OK" or row.get("canonical_sha256")
     }
+    pending: list[Path] = []
     for path in _import_candidates_for(source_id):
         file_hash = _file_sha256(path)
         if file_hash and file_hash not in processed_hashes:
-            return path
-    return None
+            pending.append(path)
+    return pending
 
 
 def _import_candidates_for(source_id: str) -> list[Path]:
