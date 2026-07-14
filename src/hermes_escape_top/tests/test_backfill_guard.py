@@ -197,6 +197,127 @@ def test_backfill_market_admission_appends_matching_candidate(tmp_path):
     assert session.canonical_files["QQQ.csv"]["latest_as_of"] == "2026-07-13"
 
 
+def test_btc_spot_witness_fetches_and_admits_weekend_calendar_days(tmp_path):
+    path = tmp_path / "BTC_USD.csv"
+    path.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-10,99,101,98,100,100,1000\n",
+        encoding="utf-8",
+    )
+    incoming = pd.DataFrame(
+        {
+            "Open": [100.0, 101.0],
+            "High": [102.0, 103.0],
+            "Low": [99.0, 100.0],
+            "Close": [101.0, 102.0],
+            "Adj Close": [101.0, 102.0],
+            "Volume": [9e9, 8e9],
+        },
+        index=pd.to_datetime(["2026-07-11", "2026-07-12"]),
+    )
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={
+            "BTC-USD": [
+                {"t": "2026-07-11T00:00:00Z", "c": 101.0},
+                {"t": "2026-07-12T00:00:00Z", "c": 102.0},
+            ]
+        },
+        btc_spot_witness_enabled=True,
+        btc_completed_through="2026-07-12",
+        requested_start="2026-07-11",
+        requested_end="2026-07-13",
+    )
+    calls = []
+
+    result = backfill(
+        ["BTC-USD"],
+        start="2026-07-10",
+        end="2026-07-13",
+        store_dir=tmp_path,
+        downloader=lambda *args: calls.append(args) or incoming,
+        admission_session=session,
+    )
+
+    assert len(calls) == 1
+    assert result["BTC-USD"].updated is True
+    assert pd.read_csv(path)["date"].tolist() == [
+        "2026-07-10",
+        "2026-07-11",
+        "2026-07-12",
+    ]
+
+
+def test_btc_spot_witness_weekend_mismatch_preserves_canonical(tmp_path):
+    path = tmp_path / "BTC_USD.csv"
+    path.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-10,99,101,98,100,100,1000\n",
+        encoding="utf-8",
+    )
+    before = path.read_bytes()
+    incoming = pd.DataFrame(
+        {
+            "Open": [119.0],
+            "High": [121.0],
+            "Low": [118.0],
+            "Close": [120.0],
+            "Adj Close": [120.0],
+            "Volume": [9e9],
+        },
+        index=pd.to_datetime(["2026-07-11"]),
+    )
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"BTC-USD": [{"t": "2026-07-11T00:00:00Z", "c": 100.0}]},
+        btc_spot_witness_enabled=True,
+        btc_completed_through="2026-07-11",
+        requested_start="2026-07-11",
+        requested_end="2026-07-12",
+    )
+
+    result = backfill(
+        ["BTC-USD"],
+        start="2026-07-10",
+        end="2026-07-12",
+        store_dir=tmp_path,
+        downloader=lambda *_args: incoming,
+        admission_session=session,
+    )
+
+    assert path.read_bytes() == before
+    assert result["BTC-USD"].updated is False
+    assert session.payload()["status"] == "BLOCKED"
+
+
+def test_btc_weekend_interval_keeps_legacy_skip_when_spot_witness_is_off(tmp_path):
+    path = tmp_path / "BTC_USD.csv"
+    path.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-10,99,101,98,100,100,1000\n",
+        encoding="utf-8",
+    )
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={},
+        btc_spot_witness_enabled=False,
+    )
+    calls = []
+
+    result = backfill(
+        ["BTC-USD"],
+        start="2026-07-10",
+        end="2026-07-12",
+        store_dir=tmp_path,
+        downloader=lambda *args: calls.append(args) or pd.DataFrame(),
+        admission_session=session,
+    )
+
+    assert calls == []
+    assert result["BTC-USD"].updated is False
+    assert path.read_text(encoding="utf-8").endswith("2026-07-10,99,101,98,100,100,1000\n")
+
+
 def test_backfill_market_admission_flag_prefetches_and_writes_evidence(tmp_path, monkeypatch):
     from hermes_escape_top.scripts import backfill_history as module
 
@@ -222,8 +343,8 @@ def test_backfill_market_admission_flag_prefetches_and_writes_evidence(tmp_path,
     prepared = []
     written = []
 
-    def prepare(symbols, start, end):
-        prepared.append((list(symbols), start, end))
+    def prepare(symbols, start, end, **kwargs):
+        prepared.append((list(symbols), start, end, kwargs))
         return MarketAdmissionSession(
             enabled=True,
             witness_bars={
@@ -246,7 +367,10 @@ def test_backfill_market_admission_flag_prefetches_and_writes_evidence(tmp_path,
         module,
         "load_config",
         lambda: {
-            "features": {"use_market_admission_gate": True},
+            "features": {
+                "use_market_admission_gate": True,
+                "use_btc_spot_witness": True,
+            },
             "paths": {"archive_dir": str(archive)},
         },
     )
@@ -267,7 +391,14 @@ def test_backfill_market_admission_flag_prefetches_and_writes_evidence(tmp_path,
     )
 
     assert result["QQQ"].updated is True
-    assert prepared == [(["QQQ"], "2026-07-01", "2026-07-14")]
+    assert prepared == [
+        (
+            ["QQQ"],
+            "2026-07-01",
+            "2026-07-14",
+            {"btc_spot_witness_enabled": True},
+        )
+    ]
     assert written[0][0] == archive
     assert written[0][1]["status"] == "OK"
 
@@ -767,3 +898,9 @@ def test_market_admission_gate_defaults_off():
     from hermes_escape_top.config import load_config
 
     assert load_config()["features"]["use_market_admission_gate"] is False
+
+
+def test_btc_spot_witness_defaults_off():
+    from hermes_escape_top.config import load_config
+
+    assert load_config()["features"]["use_btc_spot_witness"] is False

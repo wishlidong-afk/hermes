@@ -107,17 +107,27 @@ def backfill(
     admission_archive_path = Path(admission_archive) if admission_archive is not None else None
     if active_admission is None and downloader is None:
         if bool((config.get("features") or {}).get("use_market_admission_gate", False)):
+            btc_spot_witness_enabled = bool(
+                (config.get("features") or {}).get("use_btc_spot_witness", False)
+            )
             admission_start = _market_admission_start(
                 symbols,
                 store,
                 start,
                 repair_overlap_days,
+                btc_spot_witness_enabled=btc_spot_witness_enabled,
             )
             admission_end = str(end)[:10] if end else (date.today() + timedelta(days=1)).isoformat()
+            admission_kwargs = (
+                {"btc_spot_witness_enabled": True}
+                if btc_spot_witness_enabled
+                else {}
+            )
             active_admission = prepare_market_admission_session(
                 symbols,
                 admission_start,
                 admission_end,
+                **admission_kwargs,
             )
             admission_archive_path = resolve_path(config, "archive_dir")
     out: Dict[str, BackfillResult] = {}
@@ -206,11 +216,15 @@ def _market_admission_start(
     store_dir: Path,
     configured_start: str,
     repair_overlap_days: int,
+    *,
+    btc_spot_witness_enabled: bool = False,
 ) -> str:
     floor = pd.Timestamp(configured_start).date()
     starts: list[date] = []
     for symbol in symbols:
-        if not is_alpaca_supported_symbol(symbol):
+        if not is_alpaca_supported_symbol(symbol) and not (
+            btc_spot_witness_enabled and str(symbol).upper() == "BTC-USD"
+        ):
             continue
         existing = _read_existing(store_dir / f"{safe_symbol(symbol)}.csv")
         if existing.empty:
@@ -275,7 +289,15 @@ def _backfill_one(
     downloaded_frames: list[pd.DataFrame] = []
     reasons: list[str] = []
     for fetch_start, fetch_end in intervals:
-        if not existing.empty and not _interval_has_probable_trading_day(fetch_start, fetch_end):
+        calendar_days = bool(
+            admission_session is not None
+            and admission_session.uses_calendar_days(symbol)
+        )
+        if not existing.empty and not _interval_has_probable_trading_day(
+            fetch_start,
+            fetch_end,
+            calendar_days=calendar_days,
+        ):
             reasons.append(f"{fetch_start}->{fetch_end or 'latest'} skipped no trading days")
             continue
         try:
@@ -316,7 +338,12 @@ def _backfill_one(
     return _result(symbol, path, combined, updated=not normalized.empty, source_symbol=_yf_symbol(symbol), reason="; ".join(reasons))
 
 
-def _interval_has_probable_trading_day(start: str, end: Optional[str]) -> bool:
+def _interval_has_probable_trading_day(
+    start: str,
+    end: Optional[str],
+    *,
+    calendar_days: bool = False,
+) -> bool:
     if end is None:
         return True
     try:
@@ -326,6 +353,8 @@ def _interval_has_probable_trading_day(start: str, end: Optional[str]) -> bool:
         return True
     if start_ts >= end_ts:
         return False
+    if calendar_days:
+        return True
     business_days = pd.bdate_range(start_ts, end_ts - pd.Timedelta(days=1))
     if business_days.empty:
         return False
