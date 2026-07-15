@@ -79,6 +79,11 @@ def test_provenance_commit_ignores_docs_only_commits(tmp_path, monkeypatch) -> N
     docs.write_text("evidence\n", encoding="utf-8")
     _git(tmp_path, "add", docs.relative_to(tmp_path).as_posix())
     _git(tmp_path, "commit", "-q", "-m", "record evidence")
+    test_file = tmp_path / "src" / "hermes_escape_top" / "tests" / "test_model.py"
+    test_file.parent.mkdir(parents=True)
+    test_file.write_text("def test_value(): assert True\n", encoding="utf-8")
+    _git(tmp_path, "add", test_file.relative_to(tmp_path).as_posix())
+    _git(tmp_path, "commit", "-q", "-m", "add gate test")
     monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
 
     assert mod._git_commit() == code_commit

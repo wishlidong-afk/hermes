@@ -41,6 +41,7 @@ CURRENT_BASELINE_CONFIG_PATH = (
 )
 GATE_CODE_GIT_PATHS = (
     ":(glob)src/hermes_escape_top/**/*.py",
+    ":(exclude,glob)src/hermes_escape_top/tests/**/*.py",
     "src/hermes_escape_top/config/config.json",
     "src/pyproject.toml",
     "scripts/backtest_flag_sweep.py",

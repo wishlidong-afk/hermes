@@ -115,7 +115,7 @@ def test_flag_gate_report_cannot_emit_pass(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(
         mod,
         "artifact_freshness",
-        lambda variant: {"status": "STALE", "mismatches": ["cache_key"]},
+        lambda variant, **window: {"status": "STALE", "mismatches": ["cache_key"]},
     )
     _write_equity(tmp_path / "baseline_equity.json", [100.0, 101.0, 102.0, 103.0])
     _write_equity(tmp_path / "candidate_equity.json", [100.0, 102.0, 104.0, 106.0])
