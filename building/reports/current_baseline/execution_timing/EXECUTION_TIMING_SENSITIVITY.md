@@ -41,7 +41,7 @@ Live effect: `none`
 
 - Mismatches: `none`
 - Source artifact: `/Users/liweishi/Documents/github/hermes/building/reports/current_baseline/CURRENT_BASELINE_FULL.json`
-- Source SHA256: `b970a8ac1ca31f1a6d8e07912a2f3ca1d75653620443a294bd70f72b9e28e514`
+- Source SHA256: `4b3cdd5972ed386f420d74a1af248cc909ba97b52df59aecd6c16fca75c8e51a`
 
 ## Notes
 
