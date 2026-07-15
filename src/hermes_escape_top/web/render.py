@@ -386,8 +386,20 @@ def render_dashboard(
       background: #f8fafc;
       margin-bottom: 10px;
     }}
+    .trust-compact-head {{
+      display:grid;
+      grid-template-columns:minmax(190px, .7fr) minmax(0, 1.8fr);
+      gap:14px;
+      align-items:center;
+    }}
+    .trust-verdict {{ display:flex; flex-direction:column; gap:6px; align-items:flex-start; }}
+    .trust-verdict .action {{ font-size:22px; font-weight:900; line-height:1.15; }}
+    .trust-context {{ min-width:0; }}
+    .trust-meta {{ display:flex; flex-wrap:wrap; gap:5px 12px; font-size:12px; color:var(--muted); margin-bottom:5px; }}
+    .trust-meta b {{ color:#0f172a; }}
     .trust-headline {{ font-size: 18px; font-weight: 900; margin: 4px 0; }}
-    .trust-layer-grid {{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }}
+    .trust-layer-grid {{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }}
+    .trust-status-lanes .mini-note {{ margin-top:5px; }}
     .trust-layer-card {{
       border:1px solid #e5e7eb;
       border-radius:8px;
@@ -408,7 +420,10 @@ def render_dashboard(
     }}
     .trust-warning.warn {{ border-color:#fed7aa; background:#fff7ed; }}
     .trust-warning.danger {{ border-color:#fecaca; background:#fef2f2; }}
-    .trust-evidence-grid {{ display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }}
+    .trust-primary-issue {{ margin-bottom:10px; }}
+    .trust-primary-issue .issue-head {{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px; }}
+    .trust-primary-issue.ok {{ border-color:#bbf7d0; background:#f0fdf4; }}
+    .trust-evidence-grid {{ display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:10px; }}
     .trust-evidence {{
       border:1px solid #e5e7eb;
       border-radius:7px;
@@ -426,6 +441,11 @@ def render_dashboard(
       margin:0 0 10px;
     }}
     .precheck-evidence-head {{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap; }}
+    .trust-diagnostics {{ border-top:1px solid #dbe3ee; padding-top:8px; margin-top:2px; }}
+    .trust-diagnostics > summary {{ cursor:pointer; font-weight:850; color:#1d4ed8; padding:4px 0; }}
+    .trust-diagnostics[open] > summary {{ margin-bottom:10px; }}
+    .trust-diagnostics-body {{ padding-top:2px; }}
+    .trust-diagnostics-title {{ font-size:13px; font-weight:850; margin:4px 0 7px; }}
     .precheck-report-raw summary {{ cursor:pointer; font-weight:850; margin-top:8px; }}
     .precheck-report-raw pre {{
       white-space:pre-wrap;
@@ -540,12 +560,15 @@ def render_dashboard(
       .flow-grid {{ grid-template-columns: 1fr; }}
       .tape-flow-grid {{ grid-template-columns: 1fr; }}
       .workbench-grid {{ grid-template-columns: 1fr; }}
-      .strategy-card-grid, .strategy-metrics, .flow-heat-grid, .position-summary-grid, .health-strip, .risk-routing-grid, .trust-layer-grid, .trust-evidence-grid {{ grid-template-columns: 1fr; }}
+      .strategy-card-grid, .strategy-metrics, .flow-heat-grid, .position-summary-grid, .health-strip, .risk-routing-grid {{ grid-template-columns: 1fr; }}
+      .trust-compact-head {{ grid-template-columns:1fr; }}
+      .trust-layer-grid, .trust-evidence-grid {{ grid-template-columns:repeat(2, minmax(0, 1fr)); }}
     }}
     @media (max-width: 720px) {{
       .shell {{ padding: 10px; }}
       .kpis, .facts, .mini-grid, .module-row {{ grid-template-columns: 1fr; }}
       .valve-grid, .stress-grid {{ grid-template-columns: 1fr; }}
+      .trust-layer-grid, .trust-evidence-grid {{ grid-template-columns:1fr; }}
       .macro-summary, .macro-factors {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       h1 {{ font-size: 22px; }}
     }}
@@ -645,15 +668,13 @@ def _render_strategy_console(payload: Dict[str, Any], health: Dict[str, Any]) ->
 def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, Any], health: Dict[str, Any]) -> str:
     dq = payload.get("data_quality") or {}
     ibkr = payload.get("ibkr") or {}
-    state = payload.get("state") or {}
-    risk = payload.get("portfolio_risk") or {}
-    regime = payload.get("regime") or {}
     external_text, external_kind = _external_precheck_metric(payload)
     receipt = payload.get("run_receipt") or {}
     health_level = str((health or {}).get("level") or "OK")
-    strategy_usable = health_level != "CRITICAL" and str(dq.get("level") or "") not in {"BLOCKED", "NO_CACHE"}
+    strategy_layer = ((health or {}).get("layers") or {}).get("strategy_data") or {}
+    strategy_level = str(strategy_layer.get("level") or health_level)
+    strategy_usable = strategy_level != "CRITICAL" and str(dq.get("level") or "") not in {"BLOCKED", "NO_CACHE"}
     action_mode = "STOP" if not strategy_usable else ("READY" if health_level == "OK" else "REVIEW ONLY")
-    summary_kind = "danger" if not strategy_usable else ("ok" if health_level == "OK" else "warn")
     summary_text = (
         "策略链路正常；当前黄灯来自可解释的外部/日历/对账因素。"
         if strategy_usable and health_level != "OK"
@@ -665,62 +686,71 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
     health_report_text = _health_report_evidence_text(payload)
     sip_text = _sip_evidence_text(payload)
     warnings = _trust_warning_rows(health)
+    latest_market = _latest_certified_market_date(payload)
     return f"""
     <section class="trust-health">
       <h2>今日可信度与系统状态 / Trust &amp; System Health</h2>
-      <div class="trust-summary">
-        <div>
+      <div class="trust-summary trust-compact-head">
+        <div class="trust-verdict">
           {_badge('策略可用' if strategy_usable else '策略不可用', 'ok' if strategy_usable else 'danger')}
-          {_badge('今日操作：' + action_mode, summary_kind)}
-          {_badge('官方 run ' + receipt_text, 'ok' if receipt.get('ok') and str(receipt.get('status')) == 'OK' else 'warn')}
+          <div class="action">今日操作：{esc(action_mode)}</div>
         </div>
-        <div class="trust-headline">
-          as_of={esc(str(payload.get('as_of') or 'NA'))}
-          · 数据质量 {esc(str(dq.get('level', 'NA')))} {_fmt_num(dq.get('overall_score'))}
-          · run={esc(state.get('score_run_id', 'NA'))}
+        <div class="trust-context">
+          <div class="trust-meta">
+            <span><b>官方</b> {esc(receipt_text)}</span>
+            <span><b>as_of</b> {esc(str(payload.get('as_of') or 'NA'))}</span>
+            <span><b>认证行情</b> {esc(latest_market)}</span>
+            <span><b>质量</b> {esc(str(dq.get('level', 'NA')))} {_fmt_num(dq.get('overall_score'))}</span>
+          </div>
+          <div class="trust-headline">{esc(summary_text)}</div>
+          <div class="mini-note">质量分描述输入完整性；策略可用性由策略数据链单独决定。</div>
         </div>
-        <div class="mini-note">{esc(summary_text)}</div>
       </div>
 
-      {_render_quality_dimensions(payload)}
-
-      <div class="trust-layer-grid health-strip">
+      <div class="trust-layer-grid trust-status-lanes">
         {_trust_layer_card('策略数据链', _health_layer_metric(health, 'strategy_data'), _health_layer_kind(health, 'strategy_data'), [
-            f"score_run={state.get('score_run_id', 'NA')}",
-            f"input_hash={str(payload.get('input_hash', 'NA'))[:12]}",
-            f"manifest={manifest_status.get('status', 'NA')}",
-            f"factor evidence={_factor_symbol_count_text(payload)}",
-            f"Portfolio Risk vol={_fmt_pct(risk.get('forecast_portfolio_vol'))} · regime={regime.get('current', 'NA')}",
+            f"as_of={payload.get('as_of', 'NA')} · manifest={manifest_status.get('status', 'NA')} · 阻断策略：{'否' if strategy_usable else '是'}",
         ])}
         {_trust_layer_card('外部数据链', external_text, external_kind, [
-            _external_precheck_freshness_text(payload),
-            _external_official_evidence_text(payload),
-            _external_due_text(payload),
-            '数据信任区可展开逐源审计',
+            f"{_external_due_text(payload)} · {_external_precheck_freshness_text(payload)} · 阻断策略：否",
         ])}
-        {_trust_layer_card('持仓/执行链', _health_layer_metric(health, 'position_reconciliation'), _health_layer_kind(health, 'position_reconciliation'), [
-            f"IBKR={ibkr.get('source', 'disabled')}{' / STALE' if ibkr.get('snapshot_stale') else ''}",
-            '影响：金额/股数差额' if ibkr.get('snapshot_stale') else '影响：持仓对账可用',
-            '不影响：策略评分',
+        {_trust_layer_card('持仓对账', _health_layer_metric(health, 'position_reconciliation'), _health_layer_kind(health, 'position_reconciliation'), [
+            f"IBKR={ibkr.get('source', 'disabled')}{' / STALE' if ibkr.get('snapshot_stale') else ''} · 不影响策略评分",
+        ])}
+        {_trust_layer_card('辅助资金流', _health_layer_metric(health, 'auxiliary_flows'), _health_layer_kind(health, 'auxiliary_flows'), [
+            f"SIP={sip_text} · 只作辅助",
         ])}
       </div>
 
-      <div class="trust-warning-list">
-        {warnings}
-      </div>
+      {_render_trust_primary_issue(health, strategy_usable)}
 
-      <div class="trust-evidence-grid">
-        {_trust_evidence('官方回执', receipt_text)}
-        {_trust_evidence('Health 报告', health_report_text)}
-        {_trust_evidence('Manifest', str(manifest_status.get('status', 'NA')))}
-        {_trust_evidence('External Run', external_text)}
-        {_trust_evidence('SIP Flow', sip_text)}
-        {_trust_evidence('OHLCV 见证', _market_witness_evidence_text(payload))}
-      </div>
+      <details class="trust-diagnostics">
+        <summary>展开诊断、质量与运行证据</summary>
+        <div class="trust-diagnostics-body">
+          <div class="trust-diagnostics-title">完整告警清单</div>
+          <div class="trust-warning-list">
+            {warnings}
+          </div>
 
-      {_render_due_external_source_actions(payload)}
-      {_render_quality_penalty_summary(payload)}
-      {_render_external_precheck_evidence_card(payload)}
+          <div class="trust-diagnostics-title">质量拆分</div>
+          {_render_quality_dimensions(payload)}
+
+          <div class="trust-diagnostics-title">运行证据</div>
+          <div class="trust-evidence-grid">
+            {_trust_evidence('官方回执', receipt_text)}
+            {_trust_evidence('Health 报告', health_report_text)}
+            {_trust_evidence('Manifest', str(manifest_status.get('status', 'NA')))}
+            {_trust_evidence('External Run', external_text)}
+            {_trust_evidence('SIP Flow', sip_text)}
+            {_trust_evidence('OHLCV 见证', _market_witness_evidence_text(payload))}
+          </div>
+
+          {_render_due_external_source_actions(payload)}
+          {_render_quality_penalty_summary(payload)}
+          {_render_external_precheck_evidence_card(payload)}
+        </div>
+      </details>
+
       {_render_data_trust_zone(payload)}
     </section>
     """
@@ -966,6 +996,100 @@ def _external_precheck_freshness_text(payload: Dict[str, Any]) -> str:
     if precheck.get("mtime_date"):
         return f"预检报告：今日（{precheck.get('mtime_date')}）"
     return "预检报告：已挂载"
+
+
+def _latest_certified_market_date(payload: Dict[str, Any]) -> str:
+    admission = payload.get("market_admission_status")
+    canonical = admission.get("canonical_files") if isinstance(admission, dict) else None
+    dates = [
+        str(row.get("latest_as_of") or "")[:10]
+        for row in (canonical or {}).values()
+        if isinstance(row, dict) and row.get("latest_as_of")
+    ]
+    return max(dates) if dates else str(payload.get("as_of") or "NA")[:10]
+
+
+def _render_trust_primary_issue(health: Dict[str, Any], strategy_usable: bool) -> str:
+    layers = (health or {}).get("layers") or {}
+    candidates: List[Dict[str, Any]] = []
+    strategy_candidates: List[Dict[str, Any]] = []
+    seen = set()
+    strategy_seen = set()
+
+    strategy_rows = list((layers.get("strategy_data") or {}).get("checks") or [])
+    strategy_rows.extend(
+        check
+        for check in ((health or {}).get("checks") or [])
+        if isinstance(check, dict) and str(check.get("layer") or "") == "strategy_data"
+    )
+    for check in strategy_rows:
+        if not isinstance(check, dict):
+            continue
+        key = (
+            str(check.get("level") or "INFO"),
+            str(check.get("label") or ""),
+            str(check.get("detail") or ""),
+        )
+        if key not in strategy_seen:
+            strategy_seen.add(key)
+            strategy_candidates.append(check)
+
+    sources = [((layers.get("strategy_data") or {}).get("checks") or [])]
+    sources.append((health or {}).get("checks") or [])
+    sources.extend(
+        (row or {}).get("checks") or []
+        for name, row in layers.items()
+        if name != "strategy_data"
+    )
+    for rows in sources:
+        for check in rows:
+            if not isinstance(check, dict):
+                continue
+            key = (
+                str(check.get("level") or "INFO"),
+                str(check.get("label") or ""),
+                str(check.get("detail") or ""),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            candidates.append(check)
+
+    priority = {"CRITICAL": 0, "DEGRADED": 1, "INFO": 2, "OK": 3}
+    candidates.sort(key=lambda row: priority.get(str(row.get("level") or "INFO"), 2))
+    strategy_candidates.sort(key=lambda row: priority.get(str(row.get("level") or "INFO"), 2))
+    if not strategy_usable and not strategy_candidates:
+        return (
+            "<div class='trust-warning trust-primary-issue danger'>"
+            "<div class='issue-head'><b>当前阻断</b>"
+            f"{_badge('STOP', 'danger')}</div>"
+            "<div class='mini-note'>策略数据链不可用；展开诊断查看完整证据。</div>"
+            "</div>"
+        )
+    if strategy_usable and not candidates:
+        return (
+            "<div class='trust-warning trust-primary-issue ok'>"
+            "<div class='issue-head'><b>当前无阻断</b>"
+            f"{_badge('READY', 'ok')}</div>"
+            "<div class='mini-note'>策略数据链证据齐备。</div>"
+            "</div>"
+        )
+
+    check = strategy_candidates[0] if not strategy_usable else candidates[0]
+    level = str(check.get("level") or "INFO")
+    label = str(check.get("label") or "检查项")
+    detail = str(check.get("detail") or "")
+    blocks = not strategy_usable
+    kind = "danger" if blocks else ("warn" if level in {"CRITICAL", "DEGRADED", "INFO"} else "ok")
+    heading = "当前阻断" if blocks else "当前关注"
+    impact = "影响：阻断策略" if blocks else "影响：不阻断策略，按需复核"
+    return (
+        f"<div class='trust-warning trust-primary-issue {kind}'>"
+        f"<div class='issue-head'><b>{esc(heading)}</b>{_badge(level, _health_level_kind(level))}</div>"
+        f"<div><b>{esc(label)}</b>{(' — ' + esc(detail)) if detail else ''}</div>"
+        f"<div class='mini-note'>{esc(impact)}</div>"
+        "</div>"
+    )
 
 
 def _trust_warning_rows(health: Dict[str, Any]) -> str:
@@ -2191,7 +2315,7 @@ def _factor_current_score_text(factor_id: str, observed: Dict[str, Dict[str, Dic
 def _render_p3_visuals(payload: Dict[str, Any]) -> str:
     return f"""
       <div class="risk-routing-block">
-        <h3>风险与路由解释 <span class='subtle'>Risk contribution / stress / DEFCON</span></h3>
+        <h3>风险与路由解释 <span class='subtle'>Portfolio Risk / stress / DEFCON</span></h3>
         <div class="risk-routing-grid">
           {_render_risk_contribution_panel(payload)}
           {_render_stress_scenario_panel(payload)}

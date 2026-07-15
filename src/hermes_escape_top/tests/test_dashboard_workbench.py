@@ -313,8 +313,8 @@ def test_strategy_console_prioritizes_strategy_positions_and_underlying_flow():
 
     assert "今日可信度与系统状态" in html
     assert "Trust &amp; System Health" in html
-    assert "health-strip" in html
-    assert "策略数据链" in html and "外部数据链" in html and "持仓/执行链" in html
+    assert "trust-status-lanes" in html
+    assert "策略数据链" in html and "外部数据链" in html and "持仓对账" in html and "辅助资金流" in html
     assert html.count("health-pill") >= 3
     assert "刷新全部外部源" in html
     assert "IBKR Live 验收" not in html
@@ -414,6 +414,118 @@ def test_trust_health_section_explains_degraded_without_old_loud_banner():
     assert "阻断下单？需复核" in html
     assert "Health 报告" in html and "hash 匹配" in html
     assert "运行降级 / DEGRADED" not in html
+
+
+def test_trust_health_defaults_to_compact_summary_with_diagnostics_folded():
+    payload = _payload()
+    health = {
+        "level": "CRITICAL",
+        "layers": {
+            "strategy_data": {
+                "level": "CRITICAL",
+                "checks": [
+                    {
+                        "level": "CRITICAL",
+                        "label": "官方评分已有更新行情待重跑",
+                        "detail": "as_of=2026-07-13 latest=2026-07-14",
+                    }
+                ],
+            },
+            "position_reconciliation": {
+                "level": "INFO",
+                "checks": [{"level": "INFO", "label": "IBKR 快照陈旧", "detail": "age=20h"}],
+            },
+            "auxiliary_flows": {
+                "level": "DEGRADED",
+                "checks": [{"level": "DEGRADED", "label": "SIP 资金流陈旧", "detail": "stale=1d"}],
+            },
+        },
+        "checks": [
+            {
+                "level": "CRITICAL",
+                "label": "官方评分已有更新行情待重跑",
+                "detail": "as_of=2026-07-13 latest=2026-07-14",
+                "layer": "strategy_data",
+            }
+        ],
+    }
+
+    html = render_mod.render_dashboard(payload, health=health, manifest_status={"status": "OK"})
+    trust_section = html[html.index("今日可信度与系统状态"):html.index("今日操作台")]
+
+    assert "trust-compact-head" in trust_section
+    assert "trust-status-lanes" in trust_section
+    for label in ("策略数据链", "外部数据链", "持仓对账", "辅助资金流"):
+        assert label in trust_section
+    assert "当前阻断" in trust_section
+    assert trust_section.index("当前阻断") < trust_section.index("<details class=\"trust-diagnostics\"")
+    assert "<details class=\"trust-diagnostics\" open" not in trust_section
+    assert "展开诊断、质量与运行证据" in trust_section
+    assert trust_section.index("展开诊断、质量与运行证据") < trust_section.index("行情完整度")
+    assert trust_section.index("行情完整度") < trust_section.index("数据质量扣分账本")
+    assert trust_section.index("数据质量扣分账本") < trust_section.index("区域 5 · 数据信任区")
+
+
+def test_trust_health_strategy_usability_comes_from_strategy_layer():
+    payload = _payload()
+    health = {
+        "level": "CRITICAL",
+        "layers": {
+            "strategy_data": {"level": "OK", "checks": []},
+            "position_reconciliation": {
+                "level": "CRITICAL",
+                "checks": [{"level": "CRITICAL", "label": "IBKR 对账不可用", "detail": "snapshot missing"}],
+            },
+            "auxiliary_flows": {"level": "OK", "checks": []},
+        },
+        "checks": [],
+    }
+
+    html = render_mod.render_dashboard(payload, health=health, manifest_status={"status": "OK"})
+    trust_section = html[html.index("今日可信度与系统状态"):html.index("今日操作台")]
+
+    assert "策略可用" in trust_section
+    assert "今日操作：REVIEW ONLY" in trust_section
+    assert "今日操作：STOP" not in trust_section
+
+
+def test_trust_health_primary_blocker_comes_from_strategy_layer():
+    payload = _payload()
+    health = {
+        "level": "CRITICAL",
+        "layers": {
+            "strategy_data": {
+                "level": "CRITICAL",
+                "checks": [
+                    {
+                        "level": "DEGRADED",
+                        "label": "官方行情证据不完整",
+                        "detail": "certified market witness missing",
+                    }
+                ],
+            },
+            "position_reconciliation": {
+                "level": "CRITICAL",
+                "checks": [
+                    {
+                        "level": "CRITICAL",
+                        "label": "IBKR 对账不可用",
+                        "detail": "snapshot missing",
+                    }
+                ],
+            },
+        },
+        "checks": [],
+    }
+
+    html = render_mod.render_dashboard(payload, health=health, manifest_status={"status": "OK"})
+    trust_section = html[html.index("今日可信度与系统状态"):html.index("今日操作台")]
+    compact_section = trust_section[:trust_section.index('<details class="trust-diagnostics"')]
+    primary_issue = compact_section[compact_section.index("trust-primary-issue"):]
+
+    assert "当前阻断" in primary_issue
+    assert "官方行情证据不完整" in primary_issue
+    assert "IBKR 对账不可用" not in primary_issue
 
 
 def test_trust_health_section_summarizes_data_quality_penalties():
