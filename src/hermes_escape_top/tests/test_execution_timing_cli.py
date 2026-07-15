@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -92,6 +93,21 @@ def test_source_window_prefers_provenance_and_falls_back_to_requested_dates() ->
         "2019-01-01",
         "2025-12-31",
     )
+
+
+def test_execution_repricing_uses_explicit_deployment_config(tmp_path: Path) -> None:
+    mod = _load_module()
+    source = REPO_ROOT / "src" / "hermes_escape_top" / "config" / "config.json"
+    config = json.loads(source.read_text(encoding="utf-8"))
+    config["features"]["use_market_admission_gate"] = True
+    config["features"]["use_indicator_cache"] = False
+    custom = tmp_path / "live-config.json"
+    custom.write_text(json.dumps(config), encoding="utf-8")
+
+    loaded = mod.build_execution_config(custom)
+
+    assert loaded["features"]["use_market_admission_gate"] is True
+    assert loaded["features"]["use_indicator_cache"] is True
 
 
 def test_markdown_keeps_legacy_demoted_and_blocks_unverified_headline() -> None:

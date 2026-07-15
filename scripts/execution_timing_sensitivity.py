@@ -15,6 +15,7 @@ import subprocess
 import sys
 from typing import Any, Mapping
 
+from hermes_escape_top.config import load_config
 from hermes_escape_top.core.backtest.execution import execution_timing_sensitivity
 from hermes_escape_top.core.backtest.run_full import _load_histories
 from hermes_escape_top.core.backtest.simulator import DayDecision
@@ -40,6 +41,12 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 from backtest_flag_sweep import build_config, cache_evidence  # noqa: E402
+
+
+def build_execution_config(config_path: Path | None = None) -> dict[str, Any]:
+    cfg = load_config(config_path) if config_path is not None else build_config("baseline")
+    cfg.setdefault("features", {})["use_indicator_cache"] = True
+    return cfg
 
 
 def classify_source_provenance(source: Mapping[str, Any], current: Mapping[str, Any]) -> dict[str, object]:
@@ -238,6 +245,7 @@ def run(
     *,
     stress_slippage_bps: float = 25.0,
     gate_artifacts_dir: Path | None = None,
+    config_path: Path | None = None,
 ) -> dict[str, Any]:
     source_path = backtest_path.resolve()
     source = json.loads(source_path.read_text(encoding="utf-8"))
@@ -245,7 +253,7 @@ def run(
     dates = [item.date for item in decisions]
     legs = sorted({leg for item in decisions for leg in item.target_weights})
 
-    cfg = build_config("baseline")
+    cfg = build_execution_config(config_path)
     store = LocalStore(cfg)
     histories = _load_histories(store, cfg)
     for leg in legs:
@@ -352,12 +360,14 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--stress-slippage-bps", type=float, default=25.0)
     parser.add_argument("--gate-artifacts-dir", type=Path, default=None)
+    parser.add_argument("--config", type=Path, default=None)
     args = parser.parse_args()
     run(
         args.backtest,
         args.output_dir,
         stress_slippage_bps=args.stress_slippage_bps,
         gate_artifacts_dir=args.gate_artifacts_dir,
+        config_path=args.config,
     )
     return 0
 
