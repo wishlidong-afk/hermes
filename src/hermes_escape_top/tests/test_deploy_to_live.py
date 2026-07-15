@@ -79,7 +79,9 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(repo / "ops/serve_dashboard.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/refresh_external_precheck.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/hermes_watchdog.py", "#!/usr/bin/env python3\nprint('new watchdog')\n", 0o644)
+    _write(repo / "ops/prune_runtime_artifacts.py", "#!/usr/bin/env python3\nprint('new retention')\n", 0o644)
     _write(repo / "ops/launchagents/com.hermes.external-precheck.plist", "<plist><dict><key>new</key><true/></dict></plist>\n")
+    _write(repo / "ops/launchagents/com.hermes.runtime-retention.plist", "<plist><dict><key>new-retention</key><true/></dict></plist>\n")
     _write(repo / "ops/run_daily.py", "print('new entry')\n", 0o755)
     _init_git(repo)
 
@@ -98,7 +100,9 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(bin_dir / "serve_dashboard.sh", "#!/bin/sh\nexit 11\n", 0o740)
     _write(bin_dir / "refresh_external_precheck.sh", "#!/bin/sh\nexit 12\n", 0o730)
     _write(bin_dir / "hermes_watchdog.py", "#!/usr/bin/env python3\nprint('old watchdog')\n", 0o640)
+    _write(bin_dir / "prune_runtime_artifacts.py", "#!/usr/bin/env python3\nprint('old retention')\n", 0o640)
     _write(launchagents_dir / "com.hermes.external-precheck.plist", "<plist><dict><key>old</key><true/></dict></plist>\n")
+    _write(launchagents_dir / "com.hermes.runtime-retention.plist", "<plist><dict><key>old-retention</key><true/></dict></plist>\n")
     # Replicate the real ~/.hermes/.gitignore: it ignores bin/ and tests/, so the
     # allowlist entry scripts are untracked+ignored and the commit step must
     # `git add -f`. The old fixture had no .gitignore (git add . tracked bin/), so
@@ -145,6 +149,9 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
             ),
             "HERMES_DEPLOY_EXTERNAL_PRECHECK_RELOAD_CMD": (
                 f"echo external-reload-${{HERMES_PIPELINE_LOCK_FD:+locked}} >> '{quoted_events}'"
+            ),
+            "HERMES_DEPLOY_RETENTION_RELOAD_CMD": (
+                f"echo retention-reload-${{HERMES_PIPELINE_LOCK_FD:+locked}} >> '{quoted_events}'"
             ),
             "HERMES_DEPLOY_VERIFY_CMD": (
                 f"echo verify-${{HERMES_PIPELINE_LOCK_FD:+locked}} >> '{quoted_events}'"
@@ -210,6 +217,7 @@ def test_deploy_script_exposes_isolated_fixture_contract() -> None:
         "HERMES_DEPLOY_DASHBOARD_STOP_CMD",
         "HERMES_DEPLOY_DASHBOARD_RESTART_CMD",
         "HERMES_DEPLOY_EXTERNAL_PRECHECK_RELOAD_CMD",
+        "HERMES_DEPLOY_RETENTION_RELOAD_CMD",
         "HERMES_DEPLOY_FAIL_AT",
         "--locked-swap",
         "--locked-rollback",
@@ -226,6 +234,7 @@ def test_deploy_script_exposes_isolated_fixture_contract() -> None:
         ("post_sync", 1),
         ("smoke", 2),
         ("external_precheck_reload", 2),
+        ("runtime_retention_reload", 2),
         ("dashboard_restart", 2),
         ("verify_live", 3),
         ("hermes_commit", 3),
@@ -315,6 +324,7 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         "bin/serve_dashboard.sh",
         "bin/refresh_external_precheck.sh",
         "bin/hermes_watchdog.py",
+        "bin/prune_runtime_artifacts.py",
         "skills/investment/escape-top/current",
         f"{release_prefix}/data",
         f"{release_prefix}/hermes_escape_top/config",
@@ -334,9 +344,15 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
     assert (
         Path(deploy_fixture["launchagents"]) / "com.hermes.external-precheck.plist"
     ).read_text(encoding="utf-8") == "<plist><dict><key>new</key><true/></dict></plist>\n"
+    assert (
+        Path(deploy_fixture["launchagents"]) / "com.hermes.runtime-retention.plist"
+    ).read_text(encoding="utf-8") == "<plist><dict><key>new-retention</key><true/></dict></plist>\n"
     watchdog = Path(deploy_fixture["bin"]) / "hermes_watchdog.py"
     assert watchdog.read_text(encoding="utf-8") == "#!/usr/bin/env python3\nprint('new watchdog')\n"
     assert watchdog.stat().st_mode & stat.S_IXUSR
+    retention = Path(deploy_fixture["bin"]) / "prune_runtime_artifacts.py"
+    assert retention.read_text(encoding="utf-8") == "#!/usr/bin/env python3\nprint('new retention')\n"
+    assert retention.stat().st_mode & stat.S_IXUSR
     assert "999" in runtime.read_text(encoding="utf-8")
     assert _snapshot(("repo-soft", Path(deploy_fixture["repo"]) / "src/hermes_escape_top/data/soft_history")) == {
         key: value
@@ -350,6 +366,7 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         "smoke-import-locked",
         "smoke-locked",
         "external-reload-",
+        "retention-reload-",
         "restart-",
         "health-",
         "verify-",

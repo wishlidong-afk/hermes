@@ -24,6 +24,7 @@ if [ "$TEST_MODE" = "1" ]; then
   DASHBOARD_RESTART_CMD="${HERMES_DEPLOY_DASHBOARD_RESTART_CMD:-}"
   DASHBOARD_HEALTH_CMD="${HERMES_DEPLOY_DASHBOARD_HEALTH_CMD:-}"
   EXTERNAL_PRECHECK_RELOAD_CMD="${HERMES_DEPLOY_EXTERNAL_PRECHECK_RELOAD_CMD:-}"
+  RETENTION_RELOAD_CMD="${HERMES_DEPLOY_RETENTION_RELOAD_CMD:-}"
   SMOKE_IMPORT_CMD="${HERMES_DEPLOY_SMOKE_IMPORT_CMD:-}"
   SMOKE_CMD="${HERMES_DEPLOY_SMOKE_CMD:-}"
   VERIFY_CMD="${HERMES_DEPLOY_VERIFY_CMD:-}"
@@ -45,6 +46,7 @@ else
   DASHBOARD_RESTART_CMD=""
   DASHBOARD_HEALTH_CMD=""
   EXTERNAL_PRECHECK_RELOAD_CMD=""
+  RETENTION_RELOAD_CMD=""
   SMOKE_IMPORT_CMD=""
   SMOKE_CMD=""
   VERIFY_CMD=""
@@ -71,6 +73,7 @@ RELEASE_ID="${HASH}_${STAMP}"
 NEW_RELEASE="$RELEASES/$RELEASE_ID"
 NEW_PKG="$NEW_RELEASE/hermes_escape_top"
 EXTERNAL_PRECHECK_LAUNCHAGENT="$LAUNCHAGENTS_DIR/com.hermes.external-precheck.plist"
+RETENTION_LAUNCHAGENT="$LAUNCHAGENTS_DIR/com.hermes.runtime-retention.plist"
 
 if [ -d "$CURRENT/hermes_escape_top" ]; then
   ACTIVE_BASE="$CURRENT"
@@ -103,6 +106,7 @@ validate_test_contract() {
     HERMES_DEPLOY_GUARD_CMD HERMES_DEPLOY_DASHBOARD_STOP_CMD \
     HERMES_DEPLOY_DASHBOARD_RESTART_CMD HERMES_DEPLOY_DASHBOARD_HEALTH_CMD \
     HERMES_DEPLOY_EXTERNAL_PRECHECK_RELOAD_CMD \
+    HERMES_DEPLOY_RETENTION_RELOAD_CMD \
     HERMES_DEPLOY_SMOKE_IMPORT_CMD HERMES_DEPLOY_SMOKE_CMD \
     HERMES_DEPLOY_VERIFY_CMD; do
     [ -n "${!name:-}" ] || die "!! test mode requires $name" 64
@@ -226,6 +230,19 @@ reload_external_precheck_launchagent() {
     launchctl bootout "$target" >/dev/null 2>&1 || return 1
   fi
   launchctl bootstrap "$domain" "$EXTERNAL_PRECHECK_LAUNCHAGENT" >/dev/null 2>&1
+}
+
+reload_runtime_retention_launchagent() {
+  if [ "$TEST_MODE" = "1" ]; then
+    run_override "$RETENTION_RELOAD_CMD"
+    return
+  fi
+  local domain="gui/$(id -u)"
+  local target="$domain/com.hermes.runtime-retention"
+  if launchctl print "$target" >/dev/null 2>&1; then
+    launchctl bootout "$target" >/dev/null 2>&1 || return 1
+  fi
+  launchctl bootstrap "$domain" "$RETENTION_LAUNCHAGENT" >/dev/null 2>&1
 }
 
 dashboard_is_healthy() {
@@ -416,7 +433,9 @@ create_backup() {
   backup_entry "$BIN/serve_dashboard.sh" serve_dashboard.sh || return 1
   backup_entry "$BIN/refresh_external_precheck.sh" refresh_external_precheck.sh || return 1
   backup_entry "$BIN/hermes_watchdog.py" hermes_watchdog.py || return 1
+  backup_entry "$BIN/prune_runtime_artifacts.py" prune_runtime_artifacts.py || return 1
   backup_entry "$EXTERNAL_PRECHECK_LAUNCHAGENT" external_precheck_launchagent.plist || return 1
+  backup_entry "$RETENTION_LAUNCHAGENT" runtime_retention_launchagent.plist || return 1
   backup_link_state "$CURRENT" current || return 1
   backup_link_state "$PREVIOUS" previous || return 1
   backup_shared_state || return 1
@@ -448,7 +467,9 @@ rollback_locked() {
   restore_entry "$BIN/serve_dashboard.sh" serve_dashboard.sh || failed=1
   restore_entry "$BIN/refresh_external_precheck.sh" refresh_external_precheck.sh || failed=1
   restore_entry "$BIN/hermes_watchdog.py" hermes_watchdog.py || failed=1
+  restore_entry "$BIN/prune_runtime_artifacts.py" prune_runtime_artifacts.py || failed=1
   restore_entry "$EXTERNAL_PRECHECK_LAUNCHAGENT" external_precheck_launchagent.plist || failed=1
+  restore_entry "$RETENTION_LAUNCHAGENT" runtime_retention_launchagent.plist || failed=1
   restore_link_state "$CURRENT" current || failed=1
   restore_link_state "$PREVIOUS" previous || failed=1
   rm -rf "$NEW_RELEASE" || failed=1
@@ -490,8 +511,12 @@ sync_entries() {
   cp "$src" "$BIN/refresh_external_precheck.sh" || return 1
   src="$REPO/ops/hermes_watchdog.py"
   cp "$src" "$BIN/hermes_watchdog.py" || return 1
+  src="$REPO/ops/prune_runtime_artifacts.py"
+  cp "$src" "$BIN/prune_runtime_artifacts.py" || return 1
   src="$REPO/ops/launchagents/com.hermes.external-precheck.plist"
   cp "$src" "$EXTERNAL_PRECHECK_LAUNCHAGENT" || return 1
+  src="$REPO/ops/launchagents/com.hermes.runtime-retention.plist"
+  cp "$src" "$RETENTION_LAUNCHAGENT" || return 1
   src="$REPO/ops/run_daily.py"
   cp "$src" "$NEW_RELEASE/scripts/run_daily.py" || return 1
   cp "$src" "$LIVE/scripts/run_daily.py" || return 1
@@ -499,7 +524,8 @@ sync_entries() {
     "$NEW_RELEASE/scripts/run_daily.py" "$LIVE/scripts/run_daily.py" \
     2>/dev/null || true
   chmod +x "$BIN/hermes_watchdog.py" || return 1
-  chmod 0644 "$EXTERNAL_PRECHECK_LAUNCHAGENT" 2>/dev/null || true
+  chmod +x "$BIN/prune_runtime_artifacts.py" || return 1
+  chmod 0644 "$EXTERNAL_PRECHECK_LAUNCHAGENT" "$RETENTION_LAUNCHAGENT" 2>/dev/null || true
 }
 
 prepare_shared_runtime() {
@@ -571,7 +597,9 @@ sync_entries_legacy() {
     "serve_dashboard.sh:$BIN/serve_dashboard.sh" \
     "refresh_external_precheck.sh:$BIN/refresh_external_precheck.sh" \
     "hermes_watchdog.py:$BIN/hermes_watchdog.py" \
+    "prune_runtime_artifacts.py:$BIN/prune_runtime_artifacts.py" \
     "launchagents/com.hermes.external-precheck.plist:$EXTERNAL_PRECHECK_LAUNCHAGENT" \
+    "launchagents/com.hermes.runtime-retention.plist:$RETENTION_LAUNCHAGENT" \
     "run_daily.py:$LIVE/scripts/run_daily.py"; do
     src="$REPO/ops/${pair%%:*}"
     dst="${pair##*:}"
@@ -580,6 +608,7 @@ sync_entries_legacy() {
   chmod +x "$BIN/run_daily.sh" "$BIN/serve_dashboard.sh" "$BIN/refresh_external_precheck.sh" "$LIVE/scripts/run_daily.py" \
     2>/dev/null || true
   chmod +x "$BIN/hermes_watchdog.py" || return 1
+  chmod +x "$BIN/prune_runtime_artifacts.py" || return 1
 }
 
 run_locked_swap() {
@@ -628,7 +657,8 @@ deploy_git_pathspecs() {
     'bin/run_daily.sh' \
     'bin/serve_dashboard.sh' \
     'bin/refresh_external_precheck.sh' \
-    'bin/hermes_watchdog.py'
+    'bin/hermes_watchdog.py' \
+    'bin/prune_runtime_artifacts.py'
   [ -L "$PREVIOUS" ] && printf '%s\n' 'skills/investment/escape-top/previous'
 }
 
@@ -665,6 +695,8 @@ rollback_after_release() {
   fi
   reload_external_precheck_launchagent \
     || die "!! DOUBLE FAILURE: $message; rollback restored plist but external precheck reload failed; dashboard remains stopped; backup: $BACKUP" 90
+  reload_runtime_retention_launchagent \
+    || die "!! DOUBLE FAILURE: $message; rollback restored plist but runtime retention reload failed; dashboard remains stopped; backup: $BACKUP" 90
   restart_dashboard
   restart_rc=$?
   [ "$restart_rc" -eq 0 ] \
@@ -712,6 +744,11 @@ maybe_fail external_precheck_reload \
   || rollback_after_release "!! external precheck LaunchAgent reload failed" 2
 reload_external_precheck_launchagent \
   || rollback_after_release "!! external precheck LaunchAgent reload failed" 2
+
+maybe_fail runtime_retention_reload \
+  || rollback_after_release "!! runtime retention LaunchAgent reload failed" 2
+reload_runtime_retention_launchagent \
+  || rollback_after_release "!! runtime retention LaunchAgent reload failed" 2
 
 maybe_fail dashboard_restart \
   || rollback_after_release "!! dashboard restart failed" 2

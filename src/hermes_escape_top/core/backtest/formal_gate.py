@@ -284,7 +284,7 @@ def split_objective(equity: pd.Series, indices: np.ndarray) -> float:
         raise FormalGateError("split index outside equity range")
     selected[unique] = True
     valid_return = selected & np.r_[False, selected[:-1]]
-    returns = pd.to_numeric(equity, errors="coerce").pct_change().to_numpy(dtype=float)
+    returns = pd.to_numeric(equity, errors="coerce").pct_change(fill_method=None).to_numpy(dtype=float)
     segment_returns = returns[valid_return]
     segment_returns = segment_returns[np.isfinite(segment_returns)]
     if len(segment_returns) < 3:
@@ -419,7 +419,7 @@ def evaluate_formal_gate(
     baseline_equity = equities[manifest.baseline]
     target_metrics = compute_metrics(target_equity)
     baseline_metrics = compute_metrics(baseline_equity)
-    target_returns = pd.to_numeric(target_equity, errors="coerce").pct_change().dropna()
+    target_returns = pd.to_numeric(target_equity, errors="coerce").pct_change(fill_method=None).dropna()
     skew = float(target_returns.skew())
     kurtosis = float(target_returns.kurt() + 3.0)
     shape_fallback = not math.isfinite(skew) or not math.isfinite(kurtosis)

@@ -27,7 +27,7 @@ def returns_from(values: pd.Series) -> pd.Series:
     # Equity prices in this system are far above return magnitudes. If the
     # input already looks like returns, keep it as-is.
     if float(valid.abs().median()) > 2.0:
-        return series.pct_change()
+        return series.pct_change(fill_method=None)
     return series
 
 

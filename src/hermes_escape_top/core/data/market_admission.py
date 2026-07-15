@@ -482,6 +482,7 @@ def validate_market_admission_evidence(
         return out
     canonical_files = out.get("canonical_files") or {}
     root = Path(history_dir)
+    superseded_files: list[str] = []
     for name, expected in sorted(canonical_files.items()):
         if Path(name).name != name or not isinstance(expected, Mapping):
             out["status"] = "EVIDENCE_DRIFT"
@@ -500,6 +501,13 @@ def validate_market_admission_evidence(
             return out
         actual = hashlib.sha256(path.read_bytes()).hexdigest()
         if actual != expected_sha:
+            if _is_strict_append_only_extension(
+                path,
+                expected_sha=expected_sha,
+                expected_latest_as_of=str(expected.get("latest_as_of") or "")[:10],
+            ):
+                superseded_files.append(name)
+                continue
             out["status"] = "EVIDENCE_DRIFT"
             out["evidence_detail"] = f"{name} sha256 mismatch"
             return out
@@ -509,7 +517,62 @@ def validate_market_admission_evidence(
             out["status"] = "EVIDENCE_DRIFT"
             out["evidence_detail"] = detail
             return out
+    if superseded_files and str(out.get("status") or "") in {"OK", "BLOCKED"}:
+        out["status"] = "SUPERSEDED_BY_NEWER_DATA"
+        out["superseded_files"] = superseded_files
+        out["evidence_detail"] = (
+            "new certified rows appended after this run: "
+            + ", ".join(superseded_files)
+        )
     return out
+
+
+def _is_strict_append_only_extension(
+    path: Path,
+    *,
+    expected_sha: str,
+    expected_latest_as_of: str,
+) -> bool:
+    """Return true only when the old canonical bytes are an exact CSV prefix."""
+    if not expected_latest_as_of:
+        return False
+    data = path.read_bytes()
+    digest = hashlib.sha256()
+    prefix_end = 0
+    matched = False
+    for line in data.splitlines(keepends=True):
+        digest.update(line)
+        prefix_end += len(line)
+        if digest.hexdigest() == expected_sha:
+            matched = True
+            break
+    if not matched or prefix_end >= len(data):
+        return False
+
+    prefix_dates = _csv_first_column_dates(data[:prefix_end])
+    appended_dates = _csv_first_column_dates(data[prefix_end:])
+    return bool(
+        prefix_dates
+        and appended_dates
+        and prefix_dates[-1] == expected_latest_as_of
+        and all(day > expected_latest_as_of for day in appended_dates)
+    )
+
+
+def _csv_first_column_dates(data: bytes) -> list[str]:
+    dates: list[str] = []
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return dates
+    for raw_line in text.splitlines():
+        value = raw_line.split(",", 1)[0].strip().strip('"')
+        try:
+            date.fromisoformat(value)
+        except ValueError:
+            continue
+        dates.append(value)
+    return dates
 
 
 def _validate_market_admission_v2(payload: Mapping[str, Any]) -> str | None:

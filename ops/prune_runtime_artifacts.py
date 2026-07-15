@@ -14,7 +14,9 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Optional
 
@@ -301,7 +303,29 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-audit-mb", type=int, default=2048)
     parser.add_argument("--max-transaction-mb", type=int, default=64)
     parser.add_argument("--apply", action="store_true", help="delete planned entries; default is dry-run")
+    parser.add_argument("--report-dir", type=Path, help="write dated/latest JSON execution evidence")
     return parser
+
+
+def _write_execution_report(report: dict[str, Any], report_dir: Path) -> None:
+    root = Path(report_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    day = str(report["generated_at"])[:10]
+    payload = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    for path in (
+        root / f"runtime_retention_{day}.json",
+        root / "runtime_retention_latest.json",
+    ):
+        fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=root)
+        temp = Path(temp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp, path)
+        finally:
+            temp.unlink(missing_ok=True)
 
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
@@ -323,14 +347,42 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     if not args.apply:
         print(json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
+    lock_path = Path(archive) / ".pipeline.lock"
     try:
-        with _pipeline_lock(Path(archive) / ".pipeline.lock"):
+        with _pipeline_lock(lock_path):
             result = apply_prune_plan(plan)
     except RuntimeError as exc:
-        print(str(exc), file=sys.stderr)
+        result = {
+            "schema_version": SCHEMA_VERSION,
+            "mode": "NOT_APPLIED",
+            "deleted_count": 0,
+            "deleted": [],
+            "skipped": [{"path": "", "reason": str(exc)}],
+        }
+        report = {
+            "schema_version": SCHEMA_VERSION,
+            "status": "BUSY",
+            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "lock_path": str(lock_path),
+            "plan": plan,
+            "result": result,
+        }
+        if args.report_dir:
+            _write_execution_report(report, args.report_dir)
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True), file=sys.stderr)
         return 2
-    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-    return 0 if not result["skipped"] else 1
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "status": "PASS" if not result["skipped"] else "FAIL",
+        "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+        "lock_path": str(lock_path),
+        "plan": plan,
+        "result": result,
+    }
+    if args.report_dir:
+        _write_execution_report(report, args.report_dir)
+    print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0 if report["status"] == "PASS" else 1
 
 
 if __name__ == "__main__":

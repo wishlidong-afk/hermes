@@ -275,7 +275,7 @@ def _underlying_returns(spec: Dict[str, Any], store: LocalStore, cfg: Dict[str, 
     history = store.load_history(preferred)
     target_start = pd.Timestamp(spec.get("target_start", "2018-01-01"))
     if not history.empty and "Close" in history and history.index.min() <= target_start + pd.Timedelta(days=7):
-        return pd.to_numeric(history["Close"], errors="coerce").pct_change().fillna(0.0), preferred
+        return pd.to_numeric(history["Close"], errors="coerce").pct_change(fill_method=None).fillna(0.0), preferred
 
     key = str(spec.get("fallback_components_key") or "")
     components = {
@@ -289,7 +289,7 @@ def _short_rate_series(store: LocalStore) -> pd.Series:
     bil = store.load_history("BIL")
     if bil.empty or "Close" not in bil:
         return pd.Series(dtype=float)
-    returns = pd.to_numeric(bil["Close"], errors="coerce").pct_change()
+    returns = pd.to_numeric(bil["Close"], errors="coerce").pct_change(fill_method=None)
     return returns.rolling(21, min_periods=5).mean().mul(252.0).clip(lower=0.0, upper=0.08).fillna(0.0)
 
 

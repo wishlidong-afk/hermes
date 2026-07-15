@@ -10,6 +10,7 @@
   ],
   "end": "2026-07-10",
   "equity_timing": "next_open",
+  "evidence_status": "STALE",
   "execution_open_quality": {
     "by_leg": {
       "BOXX": {

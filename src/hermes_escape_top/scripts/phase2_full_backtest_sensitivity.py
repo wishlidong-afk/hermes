@@ -283,7 +283,7 @@ def _simulate_scenario(
     simulation = _simulate_fast_decisions(decisions, return_frame, base_cfg)
     metrics = simulation.get("metrics", {})
     equity = pd.Series(simulation.get("equity_curve", {}), dtype=float)
-    returns = equity.pct_change().dropna()
+    returns = equity.pct_change(fill_method=None).dropna()
     dsr = deflated_sharpe(
         returns,
         n_trials=max(1, int(scenario_count)),
@@ -341,7 +341,7 @@ def _returns_from_price_panel(price_panel: Dict[str, pd.Series]) -> pd.DataFrame
         return pd.DataFrame()
     frame = pd.DataFrame({leg: pd.to_numeric(series, errors="coerce") for leg, series in price_panel.items()})
     frame = frame.sort_index().ffill().bfill()
-    return frame.pct_change().fillna(0.0)
+    return frame.pct_change(fill_method=None).fillna(0.0)
 
 
 def _simulate_fast_decisions(

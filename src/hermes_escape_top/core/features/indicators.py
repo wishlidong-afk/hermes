@@ -39,10 +39,10 @@ def indicator_frame(df: pd.DataFrame, atr_multiplier: float = 4.5, chandelier_pe
     ema26 = close.ewm(span=26, adjust=False).mean()
     out["macd"] = ema12 - ema26
     out["macd_signal"] = out["macd"].ewm(span=9, adjust=False).mean()
-    out["return_1d"] = close.pct_change(1)
-    out["return_2d"] = close.pct_change(2)
-    out["return_10d"] = close.pct_change(10)
-    out["realized_vol20"] = close.pct_change().rolling(20).std() * math.sqrt(252)
+    out["return_1d"] = close.pct_change(1, fill_method=None)
+    out["return_2d"] = close.pct_change(2, fill_method=None)
+    out["return_10d"] = close.pct_change(10, fill_method=None)
+    out["realized_vol20"] = close.pct_change(fill_method=None).rolling(20).std() * math.sqrt(252)
     out["high_60d"] = close.rolling(60).max()
     out["drawdown_60d_high_pct"] = close / out["high_60d"] - 1
     if {"High", "Low", "Close"}.issubset(out.columns):

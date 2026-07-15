@@ -49,6 +49,7 @@ FRESHNESS_FIELDS = (
     "end",
     "enable",
     "equity_timing",
+    "evidence_status",
 )
 
 # Recommended F8 euphoria-tail tightening (the documented backtest-gated flip).
@@ -225,6 +226,7 @@ def cache_evidence(
     identity = _cache_identity(variant, cfg, start=start, end=end, enable=enable)
     return {
         "variant": variant,
+        "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
         "cache_schema": CACHE_SCHEMA,
         "cache_key": _sha256_text(_stable_json(identity)),
         "manifest_id": identity["data_manifest_id"],

@@ -18,12 +18,23 @@ reviewer can see the *whole* execution path, not just the package.
 |---|---|---|
 | `run_daily.sh` | `~/.hermes/bin/run_daily.sh` | launchd `com.hermes.daily` ExecStart; `$HOME`-relative (portable) |
 | `refresh_external_precheck.sh` | `~/.hermes/bin/refresh_external_precheck.sh` | launchd `com.hermes.external-precheck` ExecStart; runs external source readiness before daily, no scoring/official run write |
+| `prune_runtime_artifacts.py` | `~/.hermes/bin/prune_runtime_artifacts.py` | launchd `com.hermes.runtime-retention`; weekly bounded cleanup under the pipeline lock |
 | `run_daily.py` | `~/.hermes/skills/investment/escape-top/scripts/run_daily.py` | runs the package via `-m` (single engine) |
 | `serve_dashboard.sh` | `~/.hermes/bin/serve_dashboard.sh` | launchd `com.hermes.dashboard` ExecStart; `$HOME`-relative |
 | `launchagents/com.hermes.*.plist` | `~/Library/LaunchAgents/` | **machine-specific** (absolute `/Users/...` paths) — reference/backup, edit paths before reuse on another machine |
 
-The Python package itself deploys via `scripts/deploy_to_live.sh`; these ops files
-change rarely and are synced/restored by hand from here when they do.
+The Python package itself deploys via `scripts/deploy_to_live.sh`; the deploy
+transaction also syncs, backs up, restores, and reloads these ops entrypoints.
+
+## Runtime retention
+
+`com.hermes.runtime-retention` runs Sundays at 08:30 CST. It keeps the newest
+12 releases, 10 deploy backups, 12 compressed audit archives, and 50 completed
+score transactions, with independent byte caps. `current`, `previous`, and the
+active score transaction are always protected. Apply mode acquires the same
+nonblocking `.pipeline.lock` as scoring and deployment; a busy lock records
+`BUSY` and deletes nothing. Dated/latest evidence is written to
+`~/.hermes/logs/retention/runtime_retention_*.json`.
 
 ## External precheck severity
 

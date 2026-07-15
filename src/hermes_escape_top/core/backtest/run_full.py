@@ -305,7 +305,7 @@ def _signal_quality(rows: list[Dict[str, Any]], histories: Dict[str, pd.DataFram
 
 def _simulation_deflated_sharpe(simulation: Dict[str, Any]) -> float:
     equity = pd.Series(simulation.get("equity_curve", {}), dtype=float)
-    returns = equity.pct_change().dropna()
+    returns = equity.pct_change(fill_method=None).dropna()
     if returns.empty:
         return 0.0
     return round(float(deflated_sharpe(returns, n_trials=1, skew=float(returns.skew()), kurt=float(returns.kurt() + 3))), 6)

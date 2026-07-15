@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import fcntl
 import json
 import os
 import sys
@@ -137,3 +138,90 @@ def test_capacity_limit_can_prune_beyond_count_limit(tmp_path: Path):
     selected = {Path(row["path"]).name for row in plan["delete"] if row["kind"] == "release"}
     assert selected == {paths[0].name, paths[1].name}
     assert all(row["reason"] == "capacity" for row in plan["delete"] if row["kind"] == "release")
+
+
+def test_apply_mode_writes_dated_and_latest_retention_evidence(tmp_path: Path):
+    module = _module()
+    live = tmp_path / "live"
+    releases = live / "releases"
+    old = _dir(releases / "aaaaaaa_20260701_071000", 10, 1)
+    current = _dir(releases / "bbbbbbb_20260702_071000", 10, 2)
+    (live / "current").symlink_to(Path("releases") / current.name)
+    archive = live / "shared" / "hermes_escape_top" / "data" / "archive"
+    archive.mkdir(parents=True)
+    reports = tmp_path / "retention-reports"
+
+    rc = module.main(
+        [
+            "--live-root",
+            str(live),
+            "--backup-root",
+            str(tmp_path / "backups"),
+            "--archive-dir",
+            str(archive),
+            "--keep-releases",
+            "1",
+            "--keep-backups",
+            "0",
+            "--keep-audit-archives",
+            "0",
+            "--keep-transactions",
+            "0",
+            "--apply",
+            "--report-dir",
+            str(reports),
+        ]
+    )
+
+    assert rc == 0
+    assert not old.exists()
+    assert current.exists()
+    latest = json.loads((reports / "runtime_retention_latest.json").read_text(encoding="utf-8"))
+    dated = list(reports.glob("runtime_retention_????-??-??.json"))
+    assert len(dated) == 1
+    assert json.loads(dated[0].read_text(encoding="utf-8")) == latest
+    assert latest["schema_version"] == "hermes-runtime-retention-v1"
+    assert latest["status"] == "PASS"
+    assert latest["plan"]["mode"] == "DRY_RUN"
+    assert latest["result"]["mode"] == "APPLIED"
+    assert latest["result"]["deleted_count"] == 1
+    assert latest["lock_path"] == str(archive / ".pipeline.lock")
+
+
+def test_apply_mode_records_busy_and_deletes_nothing_when_pipeline_locked(tmp_path: Path):
+    module = _module()
+    live = tmp_path / "live"
+    releases = live / "releases"
+    old = _dir(releases / "aaaaaaa_20260701_071000", 10, 1)
+    current = _dir(releases / "bbbbbbb_20260702_071000", 10, 2)
+    (live / "current").symlink_to(Path("releases") / current.name)
+    archive = live / "shared" / "hermes_escape_top" / "data" / "archive"
+    archive.mkdir(parents=True)
+    lock_path = archive / ".pipeline.lock"
+    lock_path.touch()
+    reports = tmp_path / "retention-reports"
+
+    with lock_path.open("r+") as held:
+        fcntl.flock(held.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        rc = module.main(
+            [
+                "--live-root",
+                str(live),
+                "--backup-root",
+                str(tmp_path / "backups"),
+                "--archive-dir",
+                str(archive),
+                "--keep-releases",
+                "1",
+                "--apply",
+                "--report-dir",
+                str(reports),
+            ]
+        )
+
+    latest = json.loads((reports / "runtime_retention_latest.json").read_text(encoding="utf-8"))
+    assert rc == 2
+    assert old.exists() and current.exists()
+    assert latest["status"] == "BUSY"
+    assert latest["result"]["deleted_count"] == 0
+    assert "pipeline busy" in latest["result"]["skipped"][0]["reason"]

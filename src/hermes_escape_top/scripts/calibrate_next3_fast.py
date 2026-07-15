@@ -199,8 +199,8 @@ def build_replay_cache(
     corr_window = int(cfg.get("routing", {}).get("defcon2", {}).get("brkb_corr_window", 60))
     corr_thr = float(cfg.get("routing", {}).get("defcon2", {}).get("brkb_corr_threshold", 0.85))
     if not brkb_h.empty and not spy_h.empty:
-        brkb_ret = pd.to_numeric(brkb_h["Close"], errors="coerce").pct_change()
-        spy_ret = pd.to_numeric(spy_h["Close"], errors="coerce").pct_change()
+        brkb_ret = pd.to_numeric(brkb_h["Close"], errors="coerce").pct_change(fill_method=None)
+        spy_ret = pd.to_numeric(spy_h["Close"], errors="coerce").pct_change(fill_method=None)
         common_ret = pd.concat({"B": brkb_ret, "S": spy_ret}, axis=1).dropna()
         for idx in common_ret.index:
             ds = pd.Timestamp(idx).strftime("%Y-%m-%d")

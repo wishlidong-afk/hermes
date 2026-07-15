@@ -309,6 +309,23 @@ def test_market_admission_evidence_drift_is_critical() -> None:
     )
 
 
+def test_superseded_market_admission_is_degraded_not_critical() -> None:
+    payload = _payload()
+    payload["market_admission_status"] = {
+        "mode": "enforce_consensus",
+        "status": "SUPERSEDED_BY_NEWER_DATA",
+        "evidence_detail": "new certified rows appended after official run: QQQ.csv",
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "DEGRADED"
+    assert any(
+        check["label"] == "官方评分已有更新行情待重跑"
+        for check in health["checks"]
+    )
+
+
 def test_external_source_evidence_drift_is_critical_even_when_runner_status_is_ok():
     payload = _payload()
     payload["external_source_status"] = {

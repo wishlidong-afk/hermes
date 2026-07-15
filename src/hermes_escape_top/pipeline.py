@@ -12,6 +12,7 @@ import pandas as pd
 
 from .config import CONFIG_PATH, load_config, resolve_path, trade_symbols
 from .core.data.base import Field, SymbolSnapshot
+from .core.data.decision_as_of import resolve_decision_as_of
 from .core.data.flow import basket_flow, money_flow_metrics
 from .core.data.flow_store import write_flow_snapshot
 from .core.data.run_transaction import recover_incomplete_score_run, score_run_transaction
@@ -171,6 +172,7 @@ def _score_pipeline_locked(
     # the UI just took the latest record. With this tag the UI pins the latest
     # SCHEDULED run as official and shows manual re-runs as non-official preview.
     config = load_config(config_path)
+    as_of = resolve_decision_as_of(as_of, config)
     assert_pipeline_lease(
         _lease,
         path=resolve_path(config, "archive_dir") / ".pipeline.lock",
@@ -803,7 +805,7 @@ def _optimize_sizing(
     for symbol, hist in histories.items():
         if hist is not None and not hist.empty:
             close = hist["Close"] if "Close" in hist.columns else hist.iloc[:, 0]
-            leg_returns[symbol] = close.pct_change().dropna()
+            leg_returns[symbol] = close.pct_change(fill_method=None).dropna()
 
     # ── E12 liquidity data from histories ─────────────────────────────────────
     netliq = float(config.get("portfolio", {}).get("netliq", 100_000.0))
@@ -1209,7 +1211,7 @@ def _stress_block(risk_state, target_weights: Dict[str, float], histories) -> li
             sh = histories.get(shock_sym)
             if sh is None or sh.empty or "Close" not in sh:
                 continue
-            r_shock = pd.to_numeric(sh["Close"], errors="coerce").pct_change().dropna().tail(60)
+            r_shock = pd.to_numeric(sh["Close"], errors="coerce").pct_change(fill_method=None).dropna().tail(60)
             var_s = float(r_shock.var())
             pnl = 0.0
             for i, sym in enumerate(legs):
@@ -1221,7 +1223,7 @@ def _stress_block(risk_state, target_weights: Dict[str, float], histories) -> li
                     h = histories.get(sym)
                     if h is None or h.empty or "Close" not in h:
                         continue
-                    r = pd.to_numeric(h["Close"], errors="coerce").pct_change().dropna()
+                    r = pd.to_numeric(h["Close"], errors="coerce").pct_change(fill_method=None).dropna()
                     joined = pd.concat({"a": r, "s": r_shock}, axis=1, sort=True).dropna().tail(60)
                     beta = float(joined["a"].cov(joined["s"]) / var_s) if var_s > 0 and len(joined) >= 20 else 0.0
                 pnl += float(w[i]) * beta * shock
@@ -1286,8 +1288,8 @@ def _routing_context(bundles, snapshots, histories, config) -> Dict[str, Any]:
         bh, sph = histories.get("BRK.B"), histories.get("SPY")
         if bh is not None and sph is not None and not bh.empty and not sph.empty:
             joined = pd.concat(
-                {"b": pd.to_numeric(bh["Close"], errors="coerce").pct_change(),
-                 "s": pd.to_numeric(sph["Close"], errors="coerce").pct_change()},
+                {"b": pd.to_numeric(bh["Close"], errors="coerce").pct_change(fill_method=None),
+                 "s": pd.to_numeric(sph["Close"], errors="coerce").pct_change(fill_method=None)},
                 axis=1,
                 sort=True,
             ).dropna()

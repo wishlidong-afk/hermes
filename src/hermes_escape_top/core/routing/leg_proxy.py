@@ -149,7 +149,7 @@ def _trend_synth_series(dates: pd.DatetimeIndex, histories: Dict[str, pd.DataFra
     frame = qqq.loc[qqq.index <= dates.max()].copy()
     close = pd.to_numeric(frame["Close"], errors="coerce")
     ma200 = close.rolling(200, min_periods=60).mean()
-    returns = close.pct_change().fillna(0.0)
+    returns = close.pct_change(fill_method=None).fillna(0.0)
     synth_returns = returns.where(close >= ma200, -0.25 * returns.abs())
     synth = (1.0 + synth_returns).cumprod() * 100.0
     out = []

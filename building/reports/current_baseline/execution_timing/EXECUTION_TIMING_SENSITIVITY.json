@@ -11,7 +11,7 @@
     "start": "2018-01-01",
     "worktree_clean": true
   },
-  "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
+  "evidence_status": "STALE",
   "generated_at": "2026-07-11T06:47:41.939511+00:00",
   "headline_eligible": true,
   "headline_scenario": "next_open",

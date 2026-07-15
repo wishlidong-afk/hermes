@@ -97,6 +97,29 @@ def test_external_precheck_launchagent_runs_before_daily():
     assert data["StandardErrorPath"].endswith("/logs/external_precheck.launchd.err.log")
 
 
+def test_runtime_retention_launchagent_runs_weekly_with_audited_apply():
+    plist_path = REPO_ROOT / "ops" / "launchagents" / "com.hermes.runtime-retention.plist"
+    assert plist_path.exists(), "weekly runtime-retention LaunchAgent is not implemented"
+    data = plistlib.loads(plist_path.read_bytes())
+
+    assert data["Label"] == "com.hermes.runtime-retention"
+    assert data["ProgramArguments"] == [
+        "/usr/bin/python3",
+        "/Users/liweishi/.hermes/bin/prune_runtime_artifacts.py",
+        "--apply",
+        "--report-dir",
+        "/Users/liweishi/.hermes/logs/retention",
+    ]
+    assert data["StartCalendarInterval"] == {
+        "Weekday": 0,
+        "Hour": 8,
+        "Minute": 30,
+    }
+    assert data["RunAtLoad"] is False
+    assert data["StandardOutPath"].endswith("/logs/retention.launchd.out.log")
+    assert data["StandardErrorPath"].endswith("/logs/retention.launchd.err.log")
+
+
 def test_watchdog_prefers_current_release_audit_over_shared_and_legacy(tmp_path):
     module = _load_watchdog_module()
     home = tmp_path / "home"

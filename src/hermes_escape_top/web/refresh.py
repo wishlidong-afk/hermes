@@ -13,6 +13,7 @@ import pandas as pd
 
 from ..config import load_config, resolve_path, trade_symbols
 from ..core.data.base import SymbolSnapshot
+from ..core.data.decision_as_of import decision_gating_symbols, latest_common_history_date
 from ..core.data.manifest import verify_manifest, write_manifest
 from ..core.data.market_admission import read_market_admission_evidence
 from ..core.safe_io import assert_pipeline_lease, pipeline_lock
@@ -652,24 +653,7 @@ def manifest_status(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
 
 def latest_history_date(config: Optional[Dict[str, Any]] = None, symbols: Optional[Iterable[str]] = None) -> Optional[str]:
     cfg = config or load_config()
-    history_dir = resolve_path(cfg, "history_dir")
-    candidates = []
-    for symbol in symbols or _critical_symbols(cfg):
-        path = history_dir / f"{safe_symbol(symbol)}.csv"
-        if not path.exists():
-            continue
-        try:
-            frame = pd.read_csv(path, usecols=["date"])
-        except Exception:
-            continue
-        if frame.empty or "date" not in frame:
-            continue
-        dates = pd.to_datetime(frame["date"], errors="coerce").dropna()
-        if not dates.empty:
-            candidates.append(dates.max().date())
-    if not candidates:
-        return None
-    return min(candidates).isoformat()
+    return latest_common_history_date(cfg, symbols or _critical_symbols(cfg))
 
 
 def latest_cached_as_of() -> Optional[str]:
@@ -692,9 +676,7 @@ def latest_cached_as_of() -> Optional[str]:
 
 
 def _critical_symbols(config: Dict[str, Any]) -> set[str]:
-    symbols = set(trade_symbols(config))
-    symbols.update({"QQQ", "SOXX", "SPY", "^VIX"})
-    return symbols
+    return set(decision_gating_symbols(config))
 
 
 def _flow_symbols(config: Dict[str, Any]) -> set[str]:

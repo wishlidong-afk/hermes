@@ -168,8 +168,8 @@ def lead_lag_signal(
     if d_leader.empty or d_target.empty:
         return Field(name="lead_lag", value=None, source=f"{leader}->{target}", as_of=None)
 
-    ret_l = d_leader["close"].pct_change().dropna()
-    ret_t = d_target["close"].pct_change().dropna()
+    ret_l = d_leader["close"].pct_change(fill_method=None).dropna()
+    ret_t = d_target["close"].pct_change(fill_method=None).dropna()
     common = ret_l.index.intersection(ret_t.index)
     if len(common) < 30:
         return Field(name="lead_lag", value=None, source=f"{leader}->{target}", as_of=None)

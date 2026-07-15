@@ -48,7 +48,7 @@ def equal_weight_basket(component_dfs: dict[str, pd.DataFrame], rebalance: str =
         normalized = _normalize_history(frame)
         if normalized.empty or "Close" not in normalized:
             continue
-        returns.append(pd.to_numeric(normalized["Close"], errors="coerce").pct_change().rename(symbol))
+        returns.append(pd.to_numeric(normalized["Close"], errors="coerce").pct_change(fill_method=None).rename(symbol))
     if not returns:
         return pd.Series(dtype=float, name="equal_weight_basket_ret")
 
@@ -147,8 +147,8 @@ def validate_synth(real_df: pd.DataFrame, synth_df: pd.DataFrame, overlap: tuple
     if len(common) < 3:
         return SynthValidation(None, None, None, None, None, 0, False, False).to_dict()
 
-    real_ret = real_close.loc[common].pct_change().dropna()
-    synth_ret = synth_close.loc[common].pct_change().dropna()
+    real_ret = real_close.loc[common].pct_change(fill_method=None).dropna()
+    synth_ret = synth_close.loc[common].pct_change(fill_method=None).dropna()
     ret_common = real_ret.index.intersection(synth_ret.index)
     if len(ret_common) < 2:
         return SynthValidation(None, None, None, None, None, 0, False, False).to_dict()

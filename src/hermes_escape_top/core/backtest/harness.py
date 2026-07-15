@@ -313,7 +313,7 @@ def run_validation(
             if not math.isnan(pbo_value):
                 pbo = pbo_value
 
-    returns = data.iloc[:, 0].pct_change().dropna().values if len(data.columns) > 0 else np.array([])
+    returns = data.iloc[:, 0].pct_change(fill_method=None).dropna().values if len(data.columns) > 0 else np.array([])
     bootstrap = stationary_block_bootstrap(returns, n_bootstrap=bootstrap_n) if len(returns) >= 30 else {}
 
     return {

@@ -114,6 +114,12 @@ def compute_health(
             "双源行情准入证据过期",
             str(market_admission.get("evidence_detail") or "market admission evidence is stale")[:160],
         )
+    elif admission_mode == "enforce_consensus" and admission_status == "SUPERSEDED_BY_NEWER_DATA":
+        add(
+            "DEGRADED",
+            "官方评分已有更新行情待重跑",
+            str(market_admission.get("evidence_detail") or "newer certified market data is available")[:160],
+        )
     elif admission_mode == "enforce_consensus" and admission_status == "EVIDENCE_DRIFT":
         add(
             "CRITICAL",

@@ -6,6 +6,7 @@
   "baseline": {
     "effective_end": "2026-07-10",
     "equity_timing": "next_open",
+    "evidence_status": "STALE",
     "git_commit": "517043c2659de4a5d6d263ffd9f6b15e0a1c2ed9"
   },
   "config_version": "escape-top-v3.0-greenfield",
@@ -358,18 +359,18 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 11. 当前性能基线
 
-> **CURRENT EXECUTION EVIDENCE：**当前 baseline 绑定 commit `517043c`、cache v4、live 等效配置、history manifest、soft-history hash 与 `next_open` 执行口径。它是未来正式实验的对照基线，不是候选 PASS，也不授权翻闸。
+> **STALE HISTORICAL EVIDENCE：**baseline 仍绑定旧 commit `517043c`、旧 live 等效配置与旧数据指纹。它只保留 next-open 历史语境；当前禁止作为正式实验对照，最终代码冻结后重建。
 
 | 当前场景 | CAGR | MaxDD | Sharpe | 定位 |
 |---|---:|---:|---:|---|
-| **next_open** | **15.90%** | **-19.07%** | **1.069** | 当前 headline / formal-gate baseline equity |
+| **next_open** | **15.90%** | **-19.07%** | **1.069** | STALE 历史 headline，不可进入新 gate |
 | legacy_close | 17.13% | -16.76% | 1.135 | 历史/理论上界 shadow |
 | next_close | 17.59% | -16.80% | 1.164 | 延迟一交易日敏感性 |
 | next_open + 25bps | 8.12% | -24.78% | 0.601 | 执行压力场景 |
 
 - 窗口：2018-01-01→2026-07-10，有效 2,141 个交易日。
 - 开盘覆盖：89.81% 观测、2,182 行显式建模、缺失 0。
-- `building/reports/flag_sweep/baseline.json` freshness=`FRESH`、mismatches=`[]`、`equity_timing=next_open`。
+- `building/reports/flag_sweep/baseline.json` 已显式标记 `STALE`；最终代码冻结后必须按当前 live config 重建，重建前不得进入 formal gate。
 - 完整证据与路径见 `docs/BASELINE_CURRENT.md`。
 
 ### 历史参照（STALE）

@@ -151,8 +151,8 @@ def evaluate_brkb_defense(
         return BrkbDefenseState(False, "BRK.B beta monitor unavailable")
     common = pd.concat(
         {
-            "BRK.B": pd.to_numeric(brkb_hist["Close"], errors="coerce").pct_change(),
-            "SPY": pd.to_numeric(spy_hist["Close"], errors="coerce").pct_change(),
+            "BRK.B": pd.to_numeric(brkb_hist["Close"], errors="coerce").pct_change(fill_method=None),
+            "SPY": pd.to_numeric(spy_hist["Close"], errors="coerce").pct_change(fill_method=None),
         },
         axis=1,
     ).dropna().tail(corr_window)

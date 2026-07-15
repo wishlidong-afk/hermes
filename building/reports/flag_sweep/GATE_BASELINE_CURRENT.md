@@ -1,6 +1,10 @@
 # Current Formal-Gate Baseline
 
-Status: **FRESH**
+Status: **STALE**
+
+This artifact is a historical next-open reference and is blocked from new
+formal gates pending a rebuild against the current code, live configuration,
+history manifest and soft-history fingerprint.
 
 | Field | Value |
 |---|---|
@@ -15,11 +19,12 @@ Status: **FRESH**
 | Sortino | 1.358 |
 | Turnover | 235.720287 |
 
-Machine freshness result: `FRESH`, mismatches `[]`.
+Machine freshness result: `STALE`; the deployment has advanced beyond the
+provenance shown below.
 
-This is the baseline input for future pre-registered formal gates. It is not a
-candidate PASS and grants no configuration authorization. Candidate artifacts
-must use the same cache v4 provenance dimensions and next-open execution timing.
+This is not an eligible baseline input for future pre-registered formal gates.
+It grants no configuration authorization. The replacement must use the same
+cache v4 provenance dimensions and next-open execution timing.
 
 The same-close shadow is retained at
 `building/reports/flag_sweep/baseline_legacy_close_equity.json`; it must not be

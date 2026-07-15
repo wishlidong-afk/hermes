@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 from datetime import datetime, timezone
+import hashlib
 
 import pandas as pd
 
@@ -446,6 +447,67 @@ def test_market_admission_v2_validator_checks_provenance_and_row_consistency(tmp
             as_of="2026-07-13",
         )
         assert checked["status"] == "EVIDENCE_DRIFT"
+
+
+def test_market_admission_append_only_history_marks_old_evidence_superseded(tmp_path) -> None:
+    history = tmp_path / "history"
+    history.mkdir()
+    canonical = history / "QQQ.csv"
+    canonical.write_text("date,close\n2026-07-13,100\n", encoding="utf-8")
+    evidence = {
+        "mode": "enforce_consensus",
+        "status": "OK",
+        "generated_at": "2026-07-14T00:05:00+00:00",
+        "completed_through": "2026-07-13",
+        "operation_id": "official-run",
+        "canonical_files": {
+            "QQQ.csv": {
+                "sha256": hashlib.sha256(canonical.read_bytes()).hexdigest(),
+                "latest_as_of": "2026-07-13",
+            }
+        },
+    }
+    canonical.write_text(
+        "date,close\n2026-07-13,100\n2026-07-14,101\n",
+        encoding="utf-8",
+    )
+
+    checked = validate_market_admission_evidence(
+        evidence,
+        history,
+        as_of="2026-07-13",
+    )
+
+    assert checked["status"] == "SUPERSEDED_BY_NEWER_DATA"
+    assert checked["superseded_files"] == ["QQQ.csv"]
+
+
+def test_market_admission_changed_history_remains_evidence_drift(tmp_path) -> None:
+    history = tmp_path / "history"
+    history.mkdir()
+    canonical = history / "QQQ.csv"
+    canonical.write_text("date,close\n2026-07-13,100\n", encoding="utf-8")
+    evidence = {
+        "mode": "enforce_consensus",
+        "status": "OK",
+        "generated_at": "2026-07-14T00:05:00+00:00",
+        "completed_through": "2026-07-13",
+        "operation_id": "official-run",
+        "canonical_files": {
+            "QQQ.csv": {
+                "sha256": hashlib.sha256(canonical.read_bytes()).hexdigest(),
+                "latest_as_of": "2026-07-13",
+            }
+        },
+    }
+    canonical.write_text(
+        "date,close\n2026-07-13,999\n2026-07-14,101\n",
+        encoding="utf-8",
+    )
+
+    checked = validate_market_admission_evidence(evidence, history, as_of="2026-07-13")
+
+    assert checked["status"] == "EVIDENCE_DRIFT"
 
 
 def test_market_admission_rejects_unfinalized_market_session() -> None:

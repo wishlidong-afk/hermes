@@ -123,7 +123,7 @@ def _detect_bad_ticks(df: pd.DataFrame, cfg: Dict[str, Any]) -> List[Anomaly]:
     if len(df) and float((df["volume"] == 0).mean()) > max_zero_frac:
         return anomalies
 
-    ret = df["close"].pct_change()
+    ret = df["close"].pct_change(fill_method=None)
     for i in range(1, len(df)):
         vol = df["volume"].iloc[i]
         r = abs(ret.iloc[i]) if pd.notna(ret.iloc[i]) else 0.0
@@ -190,7 +190,7 @@ def _detect_outliers(df: pd.DataFrame, cfg: Dict[str, Any]) -> List[Anomaly]:
     if "close" not in df.columns or len(df) < 30:
         return anomalies
 
-    ret = df["close"].pct_change().dropna()
+    ret = df["close"].pct_change(fill_method=None).dropna()
     mu = ret.mean()
     sigma = ret.std()
     if sigma < 1e-8:

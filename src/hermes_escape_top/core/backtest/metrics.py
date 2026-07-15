@@ -30,7 +30,7 @@ def equity_metrics(equity: pd.Series, periods_per_year: int = 252) -> Performanc
     series = pd.to_numeric(equity, errors="coerce").dropna()
     if series.empty:
         return PerformanceMetrics(0.0, None, 0.0, None, None, None, None)
-    returns = series.pct_change().dropna()
+    returns = series.pct_change(fill_method=None).dropna()
     cagr = _cagr(series, periods_per_year)
     dd, start, end = max_drawdown(series)
     sharpe = _sharpe(returns, periods_per_year)

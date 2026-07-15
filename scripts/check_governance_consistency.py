@@ -43,6 +43,7 @@ def governance_snapshot(config: dict[str, Any], baseline: dict[str, Any]) -> dic
             "git_commit": baseline.get("git_commit"),
             "equity_timing": baseline.get("equity_timing"),
             "effective_end": baseline.get("effective_end"),
+            "evidence_status": baseline.get("evidence_status"),
         },
     }
 
@@ -146,6 +147,9 @@ def _baseline_errors(baseline: dict[str, Any], baseline_doc_path: Path, gate_doc
     commit = str(baseline.get("git_commit") or "")
     timing = str(baseline.get("equity_timing") or "")
     metrics = baseline.get("metrics") or {}
+    evidence_status = str(baseline.get("evidence_status") or "")
+    if evidence_status not in {"CURRENT_EXECUTION_EVIDENCE", "STALE"}:
+        errors.append(f"unsupported evidence_status: {evidence_status or 'missing'}")
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
         errors.append("git_commit is not a full SHA")
     if timing != "next_open":
@@ -162,6 +166,9 @@ def _baseline_errors(baseline: dict[str, Any], baseline_doc_path: Path, gate_doc
             errors.append(f"missing {path.name}")
             continue
         text = path.read_text(encoding="utf-8")
+        required_label = "Status: **STALE**" if evidence_status == "STALE" else "CURRENT EXECUTION EVIDENCE"
+        if required_label not in text:
+            errors.append(f"{path.name} missing {required_label}")
         for expected in expected_text:
             if expected not in text:
                 errors.append(f"{path.name} missing {expected}")

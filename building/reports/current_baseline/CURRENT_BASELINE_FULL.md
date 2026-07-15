@@ -1,5 +1,7 @@
 # Current Baseline Full Source
 
+Status: **STALE** pending a current-code/current-live-config rebuild.
+
 Evidence schema: `current-baseline-source-v1`
 Commit: `517043c2659de4a5d6d263ffd9f6b15e0a1c2ed9`
 Window: `2018-01-02` to `2026-07-10`

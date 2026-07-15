@@ -147,6 +147,7 @@ def test_artifact_freshness_rejects_any_provenance_mismatch(monkeypatch) -> None
 
     cfg = mod.build_config("baseline")
     current = mod.cache_evidence("baseline", cfg)
+    assert current["evidence_status"] == "CURRENT_EXECUTION_EVIDENCE"
     assert mod.assess_artifact_freshness("baseline", current, cfg)["status"] == "FRESH"
 
     for field in (
@@ -161,6 +162,7 @@ def test_artifact_freshness_rejects_any_provenance_mismatch(monkeypatch) -> None
         "end",
         "enable",
         "equity_timing",
+        "evidence_status",
     ):
         stale = dict(current)
         stale[field] = "different"

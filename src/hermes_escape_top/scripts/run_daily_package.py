@@ -103,6 +103,7 @@ from hermes_escape_top.core.data.external_sources.ledger import (
     CANONICAL_EVIDENCE_CRITICAL_STATUSES,
     canonical_evidence_issue,
 )
+from hermes_escape_top.core.data.decision_as_of import last_bar_dates as decision_last_bar_dates
 from hermes_escape_top.core.data.store import LocalStore, safe_symbol
 from hermes_escape_top.core.safe_io import assert_pipeline_lease
 from hermes_escape_top.scripts.backfill_history import (
@@ -129,13 +130,7 @@ def _last_bar_dates() -> Dict[str, date]:
     out: Dict[str, date] = {}
     try:
         config = load_config()
-        store = LocalStore(config)
-        for symbol in ["QQQ", "SPY", *TRADE_SYMBOLS]:
-            hist = store.load_history(symbol)
-            if hist is None or getattr(hist, "empty", True):
-                continue
-            last = hist.index[-1]
-            out[symbol] = last.date() if hasattr(last, "date") else date.fromisoformat(str(last)[:10])
+        out.update(decision_last_bar_dates(config))
     except Exception as exc:
         print(f"[M4-1] WARNING: last-bar detection failed: {exc!r}")
     return out

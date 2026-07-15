@@ -281,6 +281,69 @@ class Phase14WebTest(unittest.TestCase):
             "EVIDENCE_DRIFT",
         )
 
+    def test_market_admission_attachment_marks_append_only_old_run_superseded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "archive"
+            history = root / "history"
+            archive.mkdir()
+            history.mkdir()
+            canonical = history / "QQQ.csv"
+            canonical.write_text("date,close\n2026-07-13,100\n", encoding="utf-8")
+            old_hash = hashlib.sha256(canonical.read_bytes()).hexdigest()
+            old_evidence = {
+                "mode": "enforce_consensus",
+                "status": "OK",
+                "generated_at": "2026-07-14T00:05:00+00:00",
+                "completed_through": "2026-07-13",
+                "operation_id": "official-run",
+                "canonical_files": {
+                    "QQQ.csv": {"sha256": old_hash, "latest_as_of": "2026-07-13"},
+                },
+            }
+            canonical.write_text(
+                "date,close\n2026-07-13,100\n2026-07-14,101\n",
+                encoding="utf-8",
+            )
+            latest_evidence = {
+                **old_evidence,
+                "generated_at": "2026-07-15T01:51:00+00:00",
+                "completed_through": "2026-07-14",
+                "operation_id": "manual-refresh",
+                "canonical_files": {
+                    "QQQ.csv": {
+                        "sha256": hashlib.sha256(canonical.read_bytes()).hexdigest(),
+                        "latest_as_of": "2026-07-14",
+                    },
+                },
+            }
+            (archive / "market_admission_latest.json").write_text(
+                json.dumps(latest_evidence),
+                encoding="utf-8",
+            )
+            payload = {
+                "as_of": "2026-07-13",
+                "run_receipt": {"started_at": "2026-07-14T00:00:00+00:00"},
+                "market_admission_status": old_evidence,
+            }
+            with mock.patch(
+                "hermes_escape_top.web.server.load_config",
+                return_value={
+                    "features": {"use_market_admission_gate": True},
+                    "paths": {
+                        "archive_dir": str(archive),
+                        "history_dir": str(history),
+                    },
+                },
+            ):
+                _attach_market_admission_status(payload)
+
+        self.assertEqual(
+            payload["market_admission_status"]["status"],
+            "SUPERSEDED_BY_NEWER_DATA",
+        )
+        self.assertEqual(payload["market_admission_status"]["latest_operation_id"], "manual-refresh")
+
     def test_market_admission_attachment_preserves_current_run_error_over_old_ok(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

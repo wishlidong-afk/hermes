@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.hermes.runtime-retention</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/liweishi/.hermes/bin/prune_runtime_artifacts.py</string>
+        <string>--apply</string>
+        <string>--report-dir</string>
+        <string>/Users/liweishi/.hermes/logs/retention</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>StandardOutPath</key>
+    <string>/Users/liweishi/.hermes/logs/retention.launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/liweishi/.hermes/logs/retention.launchd.err.log</string>
+</dict>
+</plist>

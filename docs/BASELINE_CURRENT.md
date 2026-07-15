@@ -2,9 +2,16 @@
 
 Generated: 2026-07-11
 
+Status: **STALE**
+
+The figures below remain a historical next-open reference. They are not valid
+evidence for the current deployment because code, effective live data-source
+flags, history and soft-history have advanced beyond commit `517043c`. No new
+formal gate may use these artifacts until the final current-state rebuild.
+
 ## Evidence Status
 
-**CURRENT EXECUTION EVIDENCE**. This baseline is bound to committed code, the
+**HISTORICAL EXECUTION EVIDENCE**. This baseline was bound to committed code, the
 effective live configuration, frozen history and soft-history fingerprints, and
 an explicit execution convention. It is a reference baseline only; it does not
 authorize a feature or routing flip and is not a candidate gate result.
@@ -64,6 +71,6 @@ with a non-positive-price guard, and the full baseline was rerun afterward.
 - Gate equity: `building/reports/flag_sweep/baseline_equity.json`
 - Same-close shadow: `building/reports/flag_sweep/baseline_legacy_close_equity.json`
 
-`baseline.json` is machine-verified `FRESH` with zero mismatches. Formal gates
-must use cache v4 artifacts whose `equity_timing` is `next_open`; all prior v3
-and same-close gate reports remain historical and stale.
+`baseline.json` is explicitly `STALE`. Formal gates must refuse it until a new
+cache v4 artifact is rebuilt from the current effective live configuration with
+`equity_timing=next_open`; all prior v3 and same-close reports remain historical.

@@ -1,5 +1,7 @@
 # Execution Timing Sensitivity
 
+Status: **STALE** pending a current-code/current-live-config rebuild.
+
 Evidence status: **CURRENT_EXECUTION_EVIDENCE**
 Source provenance: `CURRENT_SOURCE`
 Headline scenario: `next_open`

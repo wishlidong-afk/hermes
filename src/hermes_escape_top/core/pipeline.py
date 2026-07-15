@@ -163,7 +163,7 @@ def score_pipeline(
     for sym in symbols:
         d = clean_store.get(sym, pd.DataFrame())
         if not d.empty and "close" in d.columns:
-            leg_returns[sym] = d["close"].pct_change().dropna()
+            leg_returns[sym] = d["close"].pct_change(fill_method=None).dropna()
 
     target_weights = {sym: v.rule_target_weight for sym, v in verdicts.items()}
     risk_state = build_risk_state(leg_returns, target_weights, factor_returns, cfg)
