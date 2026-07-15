@@ -21,7 +21,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from hermes_escape_top.config import load_config
+from hermes_escape_top.config import CONFIG_PATH, load_config
 from hermes_escape_top.core.backtest.execution import execution_timing_sensitivity
 from hermes_escape_top.core.data.manifest import freeze_manifest
 from hermes_escape_top.core.data.store import LocalStore
@@ -36,6 +36,19 @@ BACKTEST_END = "2026-07-10"
 ENABLE = ["costs"]
 CACHE_SCHEMA = "flag-sweep-cache-v4"
 GATE_EQUITY_TIMING = "next_open"
+CURRENT_BASELINE_CONFIG_PATH = (
+    REPO_ROOT / "building" / "reports" / "current_baseline" / "CURRENT_BASELINE_CONFIG.json"
+)
+GATE_CODE_GIT_PATHS = (
+    ":(glob)src/hermes_escape_top/**/*.py",
+    "src/hermes_escape_top/config/config.json",
+    "src/pyproject.toml",
+    "scripts/backtest_flag_sweep.py",
+    "scripts/flag_gate.py",
+    "scripts/formal_gate.py",
+    "scripts/execution_timing_sensitivity.py",
+    "scripts/build_current_baseline.py",
+)
 FRESHNESS_FIELDS = (
     "variant",
     "cache_schema",
@@ -57,12 +70,20 @@ F8_NAAIM = {"score2_exposure": 90, "score2_pctl": 90, "score1_exposure": 80, "sc
 F8_PCR = {"score2_pcr": 0.52, "score2_pctl": 8, "score1_pcr": 0.58, "score1_pctl": 12}
 
 
-def build_config(variant: str) -> dict:
-    cfg = copy.deepcopy(load_config())
+def normalize_gate_config(config: dict[str, Any]) -> dict[str, Any]:
+    cfg = copy.deepcopy(config)
     feats = cfg.setdefault("features", {})
-    # Backtest/gate runs opt into the indicator-frame cache after byte-identical
-    # proof; production config remains default-OFF until a human flip.
     feats["use_indicator_cache"] = True
+    feats.setdefault("use_fred_vintage_pit", False)
+    return cfg
+
+
+def build_config(variant: str, *, config_path: Path | None = None) -> dict:
+    selected = config_path
+    if selected is None:
+        selected = CURRENT_BASELINE_CONFIG_PATH if CURRENT_BASELINE_CONFIG_PATH.exists() else CONFIG_PATH
+    cfg = normalize_gate_config(load_config(selected))
+    feats = cfg["features"]
     if variant == "baseline":
         pass
     elif variant == "continuous_sell_fraction":
@@ -161,12 +182,15 @@ def _git_commit() -> str:
     try:
         import subprocess
 
-        return subprocess.check_output(
-            ["git", "rev-parse", "HEAD"],
+        # Evidence/report-only commits must not invalidate their own baseline.
+        # This is the latest commit that touched gate-affecting code or repo config.
+        commit = subprocess.check_output(
+            ["git", "log", "-1", "--format=%H", "HEAD", "--", *GATE_CODE_GIT_PATHS],
             cwd=REPO_ROOT,
             text=True,
             stderr=subprocess.DEVNULL,
         ).strip()
+        return commit or "unknown"
     except Exception:
         return "unknown"
 
@@ -290,8 +314,15 @@ def cache_key(
     return str(cache_evidence(variant, cfg, start=start, end=end, enable=enable)["cache_key"])
 
 
-def assess_artifact_freshness(variant: str, cached: dict[str, Any], cfg: dict) -> dict[str, Any]:
-    expected = cache_evidence(variant, cfg)
+def assess_artifact_freshness(
+    variant: str,
+    cached: dict[str, Any],
+    cfg: dict,
+    *,
+    start: str = BACKTEST_START,
+    end: str = BACKTEST_END,
+) -> dict[str, Any]:
+    expected = cache_evidence(variant, cfg, start=start, end=end)
     mismatches = [field for field in FRESHNESS_FIELDS if cached.get(field) != expected.get(field)]
     return {
         "variant": variant,
@@ -314,16 +345,46 @@ def _cache_is_fresh(variant: str, expected: dict[str, Any]) -> bool:
     return all(cached.get(field) == expected.get(field) for field in FRESHNESS_FIELDS)
 
 
+def current_gate_window() -> tuple[str, str]:
+    path = OUT_DIR / "baseline.json"
+    try:
+        baseline = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return BACKTEST_START, BACKTEST_END
+    start = baseline.get("start")
+    end = baseline.get("end")
+    if (
+        baseline.get("evidence_status") == "CURRENT_EXECUTION_EVIDENCE"
+        and isinstance(start, str)
+        and isinstance(end, str)
+        and start
+        and end
+    ):
+        return start, end
+    return BACKTEST_START, BACKTEST_END
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run one flag-sweep backtest variant")
     parser.add_argument("variant")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="explicit base config; defaults to the committed current-baseline config snapshot",
+    )
+    parser.add_argument("--start", default=None)
+    parser.add_argument("--end", default=None)
     parser.add_argument("--reuse-if-fresh", action="store_true",
                         help="reuse existing metrics/equity files when the cache key matches")
     args = parser.parse_args()
     variant = args.variant
-    cfg = build_config(variant)
+    baseline_start, baseline_end = current_gate_window()
+    start = str(args.start or baseline_start)
+    end = str(args.end or baseline_end)
+    cfg = build_config(variant, config_path=args.config)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    evidence = cache_evidence(variant, cfg)
+    evidence = cache_evidence(variant, cfg, start=start, end=end)
     if args.reuse_if_fresh and _cache_is_fresh(variant, evidence):
         path = OUT_DIR / f"{variant}.json"
         cached = json.loads(path.read_text())
@@ -333,7 +394,7 @@ def main() -> None:
         return
 
     t = time.time()
-    report = run_full_backtest(start=BACKTEST_START, end=BACKTEST_END, cfg=cfg, enable=set(ENABLE))
+    report = run_full_backtest(start=start, end=end, cfg=cfg, enable=set(ENABLE))
     timing = reprice_report_for_gate(report, cfg)
     selected = select_gate_equity(timing)
     dt = time.time() - t

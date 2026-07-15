@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -88,3 +89,41 @@ def test_run_refuses_dirty_research_code_before_backtest(tmp_path, monkeypatch) 
     with pytest.raises(RuntimeError, match="committed and clean"):
         mod.run(output_dir=tmp_path)
     assert called["backtest"] is False
+
+
+def test_run_writes_effective_config_snapshot(tmp_path, monkeypatch) -> None:
+    mod = _load_module()
+    config = {"features": {"use_indicator_cache": True, "use_fred_vintage_pit": False}}
+    report = SimpleNamespace(
+        to_dict=lambda: {
+            "schema_version": "escape-top-greenfield-full-backtest-v1",
+            "data_manifest_id": "manifest-a",
+            "requested_start": "2018-01-01",
+            "requested_end": "2026-07-10",
+            "effective_start": "2018-01-02",
+            "effective_end": "2026-07-10",
+            "simulation": {
+                "metrics": {"cagr": 0.1},
+                "turnover": 2.0,
+                "equity_curve": {"2018-01-02": 100.0},
+            },
+            "rows": [],
+        }
+    )
+    monkeypatch.setattr(mod, "research_worktree_clean", lambda repo_root=mod.REPO_ROOT: True)
+    monkeypatch.setattr(mod, "build_baseline_config", lambda path: config)
+    monkeypatch.setattr(
+        mod,
+        "LocalStore",
+        lambda cfg: SimpleNamespace(
+            load_history=lambda symbol: pd.DataFrame(
+                {"Close": [100.0]}, index=pd.to_datetime(["2026-07-10"])
+            )
+        ),
+    )
+    monkeypatch.setattr(mod, "cache_evidence", lambda *args, **kwargs: _evidence())
+    monkeypatch.setattr(mod, "run_full_backtest", lambda **kwargs: report)
+
+    mod.run(output_dir=tmp_path, end="2026-07-10")
+
+    assert json.loads((tmp_path / "CURRENT_BASELINE_CONFIG.json").read_text()) == config

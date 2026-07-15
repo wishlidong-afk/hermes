@@ -26,7 +26,7 @@ ENABLE = ["costs"]
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
-from backtest_flag_sweep import cache_evidence  # noqa: E402
+from backtest_flag_sweep import cache_evidence, normalize_gate_config  # noqa: E402
 
 
 def research_worktree_clean(repo_root: Path = REPO_ROOT) -> bool:
@@ -51,9 +51,7 @@ def research_worktree_clean(repo_root: Path = REPO_ROOT) -> bool:
 
 
 def build_baseline_config(config_path: Path) -> dict[str, Any]:
-    cfg = load_config(config_path)
-    cfg.setdefault("features", {})["use_indicator_cache"] = True
-    return cfg
+    return normalize_gate_config(load_config(config_path))
 
 
 def latest_history_date(frame: pd.DataFrame) -> str:
@@ -81,6 +79,7 @@ def build_source_payload(
             "evidence_schema": "current-baseline-source-v1",
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "config_source": str(config_source),
+            "config_snapshot": "CURRENT_BASELINE_CONFIG.json",
             "provenance": {**dict(evidence), "worktree_clean": True},
             "authorization": "NO_CONFIG_FLIP",
         }
@@ -102,6 +101,7 @@ def render_summary(payload: Mapping[str, Any]) -> str:
             f"Requested window: `{payload.get('requested_start')}` to `{payload.get('requested_end')}`",
             f"Manifest: `{payload.get('data_manifest_id')}`",
             f"Config source: `{payload.get('config_source')}`",
+            f"Config snapshot: `{payload.get('config_snapshot')}`",
             "Authorization: `NO_CONFIG_FLIP`",
             "",
             "| Metric | Legacy close source |",
@@ -139,11 +139,14 @@ def run(
     source_path = output_dir / "CURRENT_BASELINE_FULL.json"
     summary_path = output_dir / "CURRENT_BASELINE_FULL.md"
     equity_path = output_dir / "CURRENT_BASELINE_EQUITY.json"
+    config_snapshot_path = output_dir / "CURRENT_BASELINE_CONFIG.json"
+    _atomic_write_json(config_snapshot_path, cfg)
     _atomic_write_json(source_path, payload)
     _atomic_write_json(equity_path, payload.get("simulation", {}).get("equity_curve", {}))
     _atomic_write_text(summary_path, render_summary(payload))
     print(f"Current baseline source: {source_path}")
     print(f"Current baseline summary: {summary_path}")
+    print(f"Current baseline config: {config_snapshot_path}")
     print(f"Commit: {payload['provenance']['git_commit']}")
     print(f"Window: {payload['requested_start']} to {payload['requested_end']}")
     return payload

@@ -42,6 +42,7 @@ GATE_CODE_PATHS = (
     "scripts/formal_gate.py",
     "scripts/execution_timing_sensitivity.py",
     "scripts/build_current_baseline.py",
+    "building/reports/current_baseline/CURRENT_BASELINE_CONFIG.json",
 )
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -186,6 +187,18 @@ def load_artifacts(
     equities: dict[str, pd.Series] = {}
     statuses: dict[str, dict[str, Any]] = {}
     missing_equities: list[str] = []
+    gate_start: str | None = None
+    gate_end: str | None = None
+    baseline_metrics = artifact_dir / f"{manifest.baseline}.json"
+    try:
+        baseline_cached = json.loads(baseline_metrics.read_text(encoding="utf-8"))
+        if isinstance(baseline_cached.get("start"), str) and isinstance(
+            baseline_cached.get("end"), str
+        ):
+            gate_start = baseline_cached["start"]
+            gate_end = baseline_cached["end"]
+    except (OSError, json.JSONDecodeError):
+        pass
     for variant in manifest.variants:
         equity_path = artifact_dir / f"{variant}_equity.json"
         metrics_path = artifact_dir / f"{variant}.json"
@@ -199,7 +212,8 @@ def load_artifacts(
         try:
             cached = json.loads(metrics_path.read_text(encoding="utf-8"))
             cfg = build_config(variant)
-            statuses[variant] = assess_artifact_freshness(variant, cached, cfg)
+            window = {"start": gate_start, "end": gate_end} if gate_start and gate_end else {}
+            statuses[variant] = assess_artifact_freshness(variant, cached, cfg, **window)
         except (OSError, json.JSONDecodeError, SystemExit) as exc:
             statuses[variant] = {
                 "status": "STALE",

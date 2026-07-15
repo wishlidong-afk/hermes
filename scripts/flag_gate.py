@@ -35,7 +35,7 @@ MAXDD_TOLERANCE = 0.01  # allow ≤1pp worse MaxDD before failing the defense ga
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
-from backtest_flag_sweep import assess_artifact_freshness, build_config  # noqa: E402
+from backtest_flag_sweep import assess_artifact_freshness, build_config, current_gate_window  # noqa: E402
 
 
 def load_equity(variant: str) -> pd.Series:
@@ -51,7 +51,7 @@ def fold_objective(equity: pd.Series, idx: np.ndarray) -> float:
     return objective_from_metrics(equity_metrics(sl).to_dict())
 
 
-def artifact_freshness(variant: str) -> dict:
+def artifact_freshness(variant: str, *, start: str, end: str) -> dict:
     path = DIR / f"{variant}.json"
     if not path.exists():
         return {
@@ -71,7 +71,13 @@ def artifact_freshness(variant: str) -> dict:
             "expected": {},
             "actual": {},
         }
-    return assess_artifact_freshness(variant, cached, build_config(variant))
+    return assess_artifact_freshness(
+        variant,
+        cached,
+        build_config(variant),
+        start=start,
+        end=end,
+    )
 
 
 def main(argv: List[str] | None = None) -> None:
@@ -82,7 +88,11 @@ def main(argv: List[str] | None = None) -> None:
     variants = [v for v in variants if v in equities]
     if BASELINE not in variants:
         raise SystemExit("Missing baseline equity artifact.")
-    evidence = {v: artifact_freshness(v) for v in variants}
+    gate_start, gate_end = current_gate_window()
+    evidence = {
+        v: artifact_freshness(v, start=gate_start, end=gate_end)
+        for v in variants
+    }
     stale_variants = [v for v in variants if evidence[v]["status"] != "FRESH"]
     dates = list(equities[BASELINE].index)
     folds = walk_forward_splits([d.isoformat() for d in dates])

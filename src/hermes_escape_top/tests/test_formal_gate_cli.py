@@ -110,18 +110,37 @@ def test_gate_code_must_be_committed_while_report_outputs_may_be_dirty(tmp_path)
     source = tmp_path / "src" / "hermes_escape_top" / "core" / "model.py"
     source.parent.mkdir(parents=True)
     source.write_text("VALUE = 1\n", encoding="utf-8")
+    baseline_config = (
+        tmp_path
+        / "building"
+        / "reports"
+        / "current_baseline"
+        / "CURRENT_BASELINE_CONFIG.json"
+    )
+    baseline_config.parent.mkdir(parents=True)
+    baseline_config.write_text("{}\n", encoding="utf-8")
     reports = tmp_path / "building" / "reports"
-    reports.mkdir(parents=True)
+    reports.mkdir(parents=True, exist_ok=True)
     (reports / "result.json").write_text("{}\n", encoding="utf-8")
     soft_data = tmp_path / "src" / "hermes_escape_top" / "data" / "soft_history" / "source.csv"
     soft_data.parent.mkdir(parents=True)
     soft_data.write_text("date,value\n2026-07-10,1\n", encoding="utf-8")
-    _git(tmp_path, "add", "src/hermes_escape_top/core/model.py")
+    _git(
+        tmp_path,
+        "add",
+        "src/hermes_escape_top/core/model.py",
+        "building/reports/current_baseline/CURRENT_BASELINE_CONFIG.json",
+    )
     _git(tmp_path, "commit", "-q", "-m", "add gate code")
 
     assert mod.require_gate_code_clean(tmp_path) == _git(tmp_path, "rev-parse", "HEAD")
 
     source.write_text("VALUE = 2\n", encoding="utf-8")
+    with pytest.raises(FormalGateError, match="gate code and config must be committed"):
+        mod.require_gate_code_clean(tmp_path)
+
+    source.write_text("VALUE = 1\n", encoding="utf-8")
+    baseline_config.write_text('{"changed": true}\n', encoding="utf-8")
     with pytest.raises(FormalGateError, match="gate code and config must be committed"):
         mod.require_gate_code_clean(tmp_path)
 
@@ -189,6 +208,39 @@ def test_artifact_snapshot_sources_collects_each_variant_without_touching_baseli
 
     assert set(sources) == {f"artifacts/{name}" for name in expected}
     assert {path.name for path in sources.values()} == expected
+
+
+def test_load_artifacts_uses_baseline_window_for_every_variant(tmp_path, monkeypatch) -> None:
+    mod = _load_module()
+    manifest = _manifest()
+    artifact_dir = tmp_path / manifest.artifacts_dir
+    artifact_dir.mkdir(parents=True)
+    for variant in manifest.variants:
+        (artifact_dir / f"{variant}.json").write_text(
+            json.dumps({"start": "2018-01-01", "end": "2026-07-14"}),
+            encoding="utf-8",
+        )
+        (artifact_dir / f"{variant}_equity.json").write_text(
+            json.dumps({"2026-07-14": 100.0}),
+            encoding="utf-8",
+        )
+    seen: dict[str, tuple[str, str]] = {}
+    monkeypatch.setattr(mod, "build_config", lambda variant: {"variant": variant})
+
+    def assess(variant, cached, cfg, *, start, end):
+        seen[variant] = (start, end)
+        return {"status": "FRESH"}
+
+    monkeypatch.setattr(mod, "assess_artifact_freshness", assess)
+
+    _, statuses, missing = mod.load_artifacts(tmp_path, manifest)
+
+    assert missing == []
+    assert statuses == {"baseline": {"status": "FRESH"}, "alpha": {"status": "FRESH"}}
+    assert seen == {
+        "baseline": ("2018-01-01", "2026-07-14"),
+        "alpha": ("2018-01-01", "2026-07-14"),
+    }
 
 
 def test_run_rechecks_manifest_and_code_before_final_commit(tmp_path, monkeypatch) -> None:

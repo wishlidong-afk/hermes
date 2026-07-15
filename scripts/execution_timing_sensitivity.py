@@ -40,13 +40,13 @@ PROVENANCE_FIELDS = (
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
-from backtest_flag_sweep import build_config, cache_evidence  # noqa: E402
+from backtest_flag_sweep import build_config, cache_evidence, normalize_gate_config  # noqa: E402
 
 
 def build_execution_config(config_path: Path | None = None) -> dict[str, Any]:
-    cfg = load_config(config_path) if config_path is not None else build_config("baseline")
-    cfg.setdefault("features", {})["use_indicator_cache"] = True
-    return cfg
+    if config_path is None:
+        return build_config("baseline")
+    return normalize_gate_config(load_config(config_path))
 
 
 def headline_open_quality_ok(quality: Mapping[str, Any]) -> bool:
