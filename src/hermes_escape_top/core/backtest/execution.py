@@ -59,7 +59,7 @@ def execution_timing_sensitivity(
     return {
         "schema_version": "execution-timing-sensitivity-v1",
         "headline_scenario": "next_open",
-        "open_quality": summarize_open_quality(price_frames),
+        "open_quality": summarize_open_quality(price_frames, decisions),
         "scenarios": scenarios,
         "notes": [
             "legacy_close is retained only as the historical/theoretical upper-bound convention.",
@@ -70,7 +70,10 @@ def execution_timing_sensitivity(
     }
 
 
-def summarize_open_quality(price_frames: Dict[str, pd.DataFrame]) -> Dict[str, object]:
+def summarize_open_quality(
+    price_frames: Dict[str, pd.DataFrame],
+    decisions: Optional[list[DayDecision]] = None,
+) -> Dict[str, object]:
     counts: Dict[str, int] = {}
     by_leg: Dict[str, Dict[str, int]] = {}
     for leg, frame in sorted(price_frames.items()):
@@ -85,7 +88,7 @@ def summarize_open_quality(price_frames: Dict[str, pd.DataFrame]) -> Dict[str, o
     observed = counts.get("OBSERVED", 0)
     missing = counts.get("MISSING", 0)
     modeled = sum(count for label, count in counts.items() if label.startswith("MODELED_"))
-    return {
+    summary = {
         "total_rows": total,
         "observed_rows": observed,
         "modeled_rows": modeled,
@@ -93,6 +96,56 @@ def summarize_open_quality(price_frames: Dict[str, pd.DataFrame]) -> Dict[str, o
         "observed_share": round(observed / total, 8) if total else 0.0,
         "counts": dict(sorted(counts.items())),
         "by_leg": by_leg,
+    }
+    if decisions is not None:
+        summary.update(_required_open_quality(price_frames, decisions))
+    return summary
+
+
+def _required_open_quality(
+    price_frames: Dict[str, pd.DataFrame],
+    decisions: list[DayDecision],
+) -> Dict[str, object]:
+    frames = _normalize_price_frames(price_frames)
+    ordered = sorted(decisions, key=lambda item: item.date)
+    counts: Dict[str, int] = {}
+    by_leg: Dict[str, Dict[str, int]] = {}
+    for index in range(1, len(ordered)):
+        day = pd.Timestamp(ordered[index].date)
+        required_legs: set[str] = set()
+        for source_index in (index - 2, index - 1):
+            if source_index < 0:
+                continue
+            required_legs.update(
+                leg
+                for leg, weight in ordered[source_index].target_weights.items()
+                if float(weight) > 1e-12
+            )
+        for leg in sorted(required_legs):
+            frame = frames.get(leg)
+            label = "MISSING"
+            if frame is not None and day in frame.index:
+                open_value = pd.to_numeric(
+                    pd.Series([frame.at[day, "Open"] if "Open" in frame else None]),
+                    errors="coerce",
+                ).iloc[0]
+                if pd.notna(open_value) and float(open_value) > 0:
+                    raw_label = frame.at[day, "open_quality"] if "open_quality" in frame else "UNLABELED"
+                    label = str(raw_label or "UNLABELED")
+            counts[label] = counts.get(label, 0) + 1
+            local = by_leg.setdefault(leg, {})
+            local[label] = local.get(label, 0) + 1
+    total = sum(counts.values())
+    observed = counts.get("OBSERVED", 0)
+    modeled = sum(count for label, count in counts.items() if label.startswith("MODELED_"))
+    return {
+        "required_total_rows": total,
+        "required_observed_rows": observed,
+        "required_modeled_rows": modeled,
+        "required_missing_rows": counts.get("MISSING", 0),
+        "required_observed_share": round(observed / total, 8) if total else 0.0,
+        "required_counts": dict(sorted(counts.items())),
+        "required_by_leg": by_leg,
     }
 
 

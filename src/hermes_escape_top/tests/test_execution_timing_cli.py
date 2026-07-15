@@ -110,6 +110,18 @@ def test_execution_repricing_uses_explicit_deployment_config(tmp_path: Path) -> 
     assert loaded["features"]["use_indicator_cache"] is True
 
 
+def test_headline_open_gate_uses_execution_required_missing_rows() -> None:
+    mod = _load_module()
+
+    assert mod.headline_open_quality_ok(
+        {"missing_rows": 1, "required_missing_rows": 0}
+    ) is True
+    assert mod.headline_open_quality_ok(
+        {"missing_rows": 1, "required_missing_rows": 1}
+    ) is False
+    assert mod.headline_open_quality_ok({"missing_rows": 1}) is False
+
+
 def test_markdown_keeps_legacy_demoted_and_blocks_unverified_headline() -> None:
     mod = _load_module()
     artifact = {

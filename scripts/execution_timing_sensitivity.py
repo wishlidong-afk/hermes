@@ -49,6 +49,13 @@ def build_execution_config(config_path: Path | None = None) -> dict[str, Any]:
     return cfg
 
 
+def headline_open_quality_ok(quality: Mapping[str, Any]) -> bool:
+    missing = quality.get("required_missing_rows")
+    if missing is None:
+        missing = quality.get("missing_rows", 0)
+    return int(missing or 0) == 0
+
+
 def classify_source_provenance(source: Mapping[str, Any], current: Mapping[str, Any]) -> dict[str, object]:
     provenance = source.get("provenance")
     if not isinstance(provenance, Mapping):
@@ -180,6 +187,8 @@ def render_report(artifact: Mapping[str, Any]) -> str:
             f"- Observed: `{quality.get('observed_rows', 0)}` ({_pct(quality.get('observed_share'))})",
             f"- Modeled synthetic/proxy: `{quality.get('modeled_rows', 0)}`",
             f"- Missing: `{quality.get('missing_rows', 0)}`",
+            f"- Execution-required rows: `{quality.get('required_total_rows', 'n/a')}`",
+            f"- Execution-required missing: `{quality.get('required_missing_rows', 'n/a')}`",
             "",
             "| Leg | Observed | Modeled | Missing |",
             "|---|---:|---:|---:|",
@@ -272,10 +281,10 @@ def run(
         stress_slippage_bps=stress_slippage_bps,
     )
     legacy_parity = compare_legacy_source(source, artifact)
-    missing_open = int(artifact.get("open_quality", {}).get("missing_rows", 0) or 0)
+    open_quality = artifact.get("open_quality", {})
     headline_eligible = bool(
         source_status["headline_eligible"]
-        and missing_open == 0
+        and headline_open_quality_ok(open_quality)
         and legacy_parity["status"] == "MATCH"
     )
     artifact.update(

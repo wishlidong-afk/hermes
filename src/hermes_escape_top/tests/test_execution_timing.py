@@ -170,6 +170,43 @@ class ExecutionTimingTests(unittest.TestCase):
         self.assertEqual(summary["missing_rows"], 1)
         self.assertAlmostEqual(summary["observed_share"], 1.0 / 3.0)
 
+    def test_open_quality_separates_unused_panel_gap_from_execution_requirements(self) -> None:
+        frames = {
+            "A": _bars([100.0, 100.0, 100.0], [100.0, 100.0, 100.0]).assign(
+                open_quality="OBSERVED"
+            ),
+            "BTC-USD": _bars(
+                [float("nan"), 100.0, 101.0], [100.0, 100.0, 101.0]
+            ).assign(open_quality=["MISSING", "OBSERVED", "OBSERVED"]),
+        }
+        decisions = [
+            DayDecision("2026-01-05", {"A": 1.0}),
+            DayDecision("2026-01-06", {"BTC-USD": 1.0}),
+            DayDecision("2026-01-07", {"BTC-USD": 1.0}),
+        ]
+
+        summary = summarize_open_quality(frames, decisions)
+
+        self.assertEqual(summary["missing_rows"], 1)
+        self.assertEqual(summary["required_missing_rows"], 0)
+        self.assertEqual(summary["required_total_rows"], 3)
+
+    def test_open_quality_counts_missing_open_when_target_needs_it(self) -> None:
+        frames = {
+            "A": _bars([100.0, float("nan"), 100.0], [100.0, 100.0, 100.0]).assign(
+                open_quality=["OBSERVED", "MISSING", "OBSERVED"]
+            )
+        }
+        decisions = [
+            DayDecision("2026-01-05", {"A": 1.0}),
+            DayDecision("2026-01-06", {"A": 1.0}),
+            DayDecision("2026-01-07", {"A": 1.0}),
+        ]
+
+        summary = summarize_open_quality(frames, decisions)
+
+        self.assertEqual(summary["required_missing_rows"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
