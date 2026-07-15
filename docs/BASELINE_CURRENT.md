@@ -1,37 +1,36 @@
 # Hermes Current Baseline
 
-Generated: 2026-07-11
+Generated: 2026-07-15
 
-Status: **STALE**
+Status: **CURRENT EXECUTION EVIDENCE**
 
-The figures below remain a historical next-open reference. They are not valid
-evidence for the current deployment because code, effective live data-source
-flags, history and soft-history have advanced beyond commit `517043c`. No new
-formal gate may use these artifacts until the final current-state rebuild.
+This baseline was rebuilt after code freeze from the effective live
+configuration and an isolated clone of current live history/soft-history. It is
+the eligible comparator for future pre-registered formal gates.
 
 ## Evidence Status
 
-**HISTORICAL EXECUTION EVIDENCE**. This baseline was bound to committed code, the
+**CURRENT EXECUTION EVIDENCE**. This baseline is bound to committed code, the
 effective live configuration, frozen history and soft-history fingerprints, and
-an explicit execution convention. It is a reference baseline only; it does not
+an explicit execution convention. It is a comparator only; it does not
 authorize a feature or routing flip and is not a candidate gate result.
 
 | Field | Value |
 |---|---|
-| Commit | `517043c2659de4a5d6d263ffd9f6b15e0a1c2ed9` |
+| Commit | `80c64b71280f554c36a34f892af5788dc6c94b60` |
 | Cache schema | `flag-sweep-cache-v4` |
 | Gate equity timing | `next_open` |
-| Requested window | `2018-01-01` to `2026-07-10` |
-| Effective window | `2018-01-02` to `2026-07-10` (2,141 trading days) |
-| History manifest | `38525f67be5d4beb6c353b8313551ae53c476f566a75a79ede8a9e590e73653c` |
-| Code SHA256 | `a04ba61e041bf6ca9b5efffd3acc5acd854eb6062dc41a238f2e37ac2e654a07` |
-| Config SHA256 | `a7770b049c4b90bf88cd74fb1eab66841258921d40235f4cbce6f278828e90ea` |
-| Soft-history SHA256 | `a30cf53c426656ca133f9dafe52cb4360984fafa919d1ecf3abf304fe4575e2f` |
+| Requested window | `2018-01-01` to `2026-07-14` |
+| Effective window | `2018-01-02` to `2026-07-14` (2,143 trading days) |
+| History manifest | `24cf3da83b7fc6fb09d17546922d1d3d4d7ec874f84cbf4b75119739dafe54bc` |
+| Code SHA256 | `6eb9eb9a6c87593e872b9ce9dbab88c209c83876642158be81e65cdb0094a2fe` |
+| Config SHA256 | `e4946ed97efd0167dcdb1e7fde4f819c7109f53b29eb942f3041db4a9470f8df` |
+| Soft-history SHA256 | `02afefadd8474119d8a0209b63e747de94ee3c35e45441d4c50c2c8bcb0fdd19` |
 | Authorization | `NO_CONFIG_FLIP` |
 
-The live config and repo config differ only by an explicit versus missing
-`use_indicator_cache=false`; both normalize to the same effective backtest
-config after the proven byte-identical cache is enabled.
+The evidence uses the effective live config as its explicit source. The proven
+byte-identical indicator cache is enabled only for replay performance; all
+other live feature states remain unchanged.
 
 ## Headline
 
@@ -39,22 +38,25 @@ The current headline is **next-open**, not same-close.
 
 | Scenario | Role | CAGR | MaxDD | Sharpe | Sortino | Final value |
 |---|---|---:|---:|---:|---:|---:|
-| `next_open` | **Current baseline headline** | **15.90%** | **-19.07%** | **1.069** | **1.358** | **$350,116** |
-| `legacy_close` | Historical/theoretical upper-bound shadow | 17.13% | -16.76% | 1.135 | 1.477 | $382,473 |
-| `next_close` | One-trading-day delay sensitivity | 17.59% | -16.80% | 1.164 | 1.521 | $395,937 |
-| `next_open_stress` | Next-open plus 25 bps per unit turnover | 8.12% | -24.78% | 0.601 | 0.758 | $194,091 |
+| `next_open` | **Current baseline headline** | **15.58%** | **-20.83%** | **1.064** | **1.336** | **$342,337** |
+| `legacy_close` | Historical/theoretical upper-bound shadow | 16.61% | -18.83% | 1.121 | 1.443 | $368,899 |
+| `next_close` | One-trading-day delay sensitivity | 16.71% | -16.05% | 1.128 | 1.468 | $371,937 |
+| `next_open_stress` | Next-open plus 25 bps per unit turnover | 7.77% | -26.36% | 0.585 | 0.729 | $188,919 |
 
 Relative to same-close, realistic next-open execution reduces CAGR by about
-1.23 percentage points and deepens MaxDD by about 2.31 percentage points. The
+1.03 percentage points and deepens MaxDD by about 2.00 percentage points. The
 delay scenario improving in this sample is path-dependent sensitivity, not an
 instruction to delay trading.
 
 ## Open Coverage
 
-- Observed opens: 19,228 / 21,410 rows (89.81%).
+- Observed opens: 19,247 / 21,430 rows (89.81%).
 - Modeled opens: 2,182 rows, concentrated in pre-inception FNGU (1,793) and
   DBMF (387), plus two proxy-switch rows.
-- Missing opens: 0.
+- Full-panel missing opens: 1 (BTC-USD on the first replay date, before BTC had
+  any old or pending target weight).
+- Execution-required opens: 10,033; missing: 0. Headline eligibility uses this
+  stricter executable set, while the full-panel gap remains visible.
 - Synthetic opens use an explicitly labeled geometric midpoint; they are not
   described as observed market prints.
 
@@ -71,6 +73,6 @@ with a non-positive-price guard, and the full baseline was rerun afterward.
 - Gate equity: `building/reports/flag_sweep/baseline_equity.json`
 - Same-close shadow: `building/reports/flag_sweep/baseline_legacy_close_equity.json`
 
-`baseline.json` is explicitly `STALE`. Formal gates must refuse it until a new
-cache v4 artifact is rebuilt from the current effective live configuration with
-`equity_timing=next_open`; all prior v3 and same-close reports remain historical.
+`baseline.json` is explicitly `CURRENT_EXECUTION_EVIDENCE` with
+`equity_timing=next_open`. Formal gates may use it as the comparator; all prior
+v3, same-close, and mismatched-provenance reports remain historical.
