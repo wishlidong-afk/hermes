@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import hashlib
 
 import pandas as pd
+import pytest
 
 from hermes_escape_top.core.data.market_admission import MarketAdmissionSession
 from hermes_escape_top.core.data.market_admission import (
@@ -504,6 +505,42 @@ def test_market_admission_changed_history_remains_evidence_drift(tmp_path) -> No
         "date,close\n2026-07-13,999\n2026-07-14,101\n",
         encoding="utf-8",
     )
+
+    checked = validate_market_admission_evidence(evidence, history, as_of="2026-07-13")
+
+    assert checked["status"] == "EVIDENCE_DRIFT"
+
+
+@pytest.mark.parametrize(
+    "appended",
+    [
+        "date,close\n2026-07-14,101\n",
+        "2026-07-15,102\n2026-07-14,101\n",
+    ],
+)
+def test_market_admission_rejects_noncanonical_append_segments(
+    tmp_path,
+    appended: str,
+) -> None:
+    history = tmp_path / "history"
+    history.mkdir()
+    canonical = history / "QQQ.csv"
+    original = "date,close\n2026-07-13,100\n"
+    canonical.write_text(original, encoding="utf-8")
+    evidence = {
+        "mode": "enforce_consensus",
+        "status": "OK",
+        "generated_at": "2026-07-14T00:05:00+00:00",
+        "completed_through": "2026-07-13",
+        "operation_id": "official-run",
+        "canonical_files": {
+            "QQQ.csv": {
+                "sha256": hashlib.sha256(canonical.read_bytes()).hexdigest(),
+                "latest_as_of": "2026-07-13",
+            }
+        },
+    }
+    canonical.write_text(original + appended, encoding="utf-8")
 
     checked = validate_market_admission_evidence(evidence, history, as_of="2026-07-13")
 

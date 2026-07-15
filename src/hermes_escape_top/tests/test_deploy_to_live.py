@@ -264,6 +264,27 @@ def test_failure_injection_restores_paths_hashes_and_modes(
         assert _git(hermes_home, "diff", "--cached", "--name-only").stdout == ""
 
 
+def test_first_retention_install_can_roll_back_to_absent_launchagent(
+    deploy_fixture: dict[str, object],
+) -> None:
+    retention_plist = (
+        Path(deploy_fixture["launchagents"]) / "com.hermes.runtime-retention.plist"
+    )
+    retention_plist.unlink()
+    deploy_fixture["env"]["HERMES_DEPLOY_RETENTION_RELOAD_CMD"] = (
+        f"test -e '{retention_plist}'"
+    )
+    deploy_fixture["before"] = _snapshot(*deploy_fixture["roots"])
+
+    result = _run(deploy_fixture, "dashboard_restart")
+
+    assert result.returncode == 2
+    assert "ROLLBACK" in result.stderr
+    assert "DOUBLE FAILURE" not in result.stderr
+    assert not retention_plist.exists()
+    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
+
+
 def test_rollback_failure_is_loud_and_retains_backup(deploy_fixture: dict[str, object]) -> None:
     env = dict(deploy_fixture["env"])
     env["HERMES_DEPLOY_FAIL_AT"] = "smoke"

@@ -549,29 +549,37 @@ def _is_strict_append_only_extension(
     if not matched or prefix_end >= len(data):
         return False
 
-    prefix_dates = _csv_first_column_dates(data[:prefix_end])
-    appended_dates = _csv_first_column_dates(data[prefix_end:])
+    prefix_dates = _csv_first_column_dates(data[:prefix_end], allow_header=True)
+    appended_dates = _csv_first_column_dates(data[prefix_end:], allow_header=False)
+    ordered_dates = [expected_latest_as_of, *appended_dates]
     return bool(
         prefix_dates
         and appended_dates
         and prefix_dates[-1] == expected_latest_as_of
-        and all(day > expected_latest_as_of for day in appended_dates)
+        and all(left < right for left, right in zip(ordered_dates, ordered_dates[1:]))
     )
 
 
-def _csv_first_column_dates(data: bytes) -> list[str]:
+def _csv_first_column_dates(data: bytes, *, allow_header: bool) -> list[str]:
     dates: list[str] = []
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
         return dates
+    nonempty_rows = 0
     for raw_line in text.splitlines():
+        if not raw_line.strip():
+            continue
         value = raw_line.split(",", 1)[0].strip().strip('"')
         try:
             date.fromisoformat(value)
         except ValueError:
-            continue
+            if allow_header and nonempty_rows == 0:
+                nonempty_rows += 1
+                continue
+            return []
         dates.append(value)
+        nonempty_rows += 1
     return dates
 
 

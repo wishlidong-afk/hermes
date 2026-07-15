@@ -234,6 +234,7 @@ reload_external_precheck_launchagent() {
 
 reload_runtime_retention_launchagent() {
   if [ "$TEST_MODE" = "1" ]; then
+    [ -e "$RETENTION_LAUNCHAGENT" ] || return 0
     run_override "$RETENTION_RELOAD_CMD"
     return
   fi
@@ -242,6 +243,7 @@ reload_runtime_retention_launchagent() {
   if launchctl print "$target" >/dev/null 2>&1; then
     launchctl bootout "$target" >/dev/null 2>&1 || return 1
   fi
+  [ -e "$RETENTION_LAUNCHAGENT" ] || return 0
   launchctl bootstrap "$domain" "$RETENTION_LAUNCHAGENT" >/dev/null 2>&1
 }
 
