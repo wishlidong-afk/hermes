@@ -7,7 +7,7 @@
     "effective_end": "2026-07-14",
     "equity_timing": "next_open",
     "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
-    "git_commit": "80c64b71280f554c36a34f892af5788dc6c94b60"
+    "git_commit": "07f438d0976c9e0f489ab43a7e13c8c9a7549dad"
   },
   "config_version": "escape-top-v3.0-greenfield",
   "disabled_features": [
@@ -359,7 +359,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 11. 当前性能基线
 
-> **CURRENT EXECUTION EVIDENCE：**baseline 绑定 commit `80c64b7`、有效 live config、当前 history manifest 与 soft-history 指纹；可作为预注册 formal gate 的 next-open 对照，但不授权任何配置翻闸。
+> **CURRENT EXECUTION EVIDENCE：**baseline 绑定 gate-code commit `07f438d`、已提交的有效 live-config 快照、当前 history manifest 与 soft-history 指纹；可作为预注册 formal gate 的 next-open 对照，但不授权任何配置翻闸。
 
 | 当前场景 | CAGR | MaxDD | Sharpe | 定位 |
 |---|---:|---:|---:|---|

@@ -7,7 +7,7 @@ pre-registered formal gates. It grants no configuration authorization.
 
 | Field | Value |
 |---|---|
-| Commit | `80c64b71280f554c36a34f892af5788dc6c94b60` |
+| Gate-code commit | `07f438d0976c9e0f489ab43a7e13c8c9a7549dad` |
 | Cache schema | `flag-sweep-cache-v4` |
 | Equity timing | `next_open` |
 | Window | `2018-01-01` to `2026-07-14` |
@@ -20,7 +20,8 @@ pre-registered formal gates. It grants no configuration authorization.
 
 Machine freshness result: `CURRENT_EXECUTION_EVIDENCE`; source provenance is
 `CURRENT_SOURCE`, legacy parity is `MATCH`, and execution-required open missing
-rows are zero.
+rows are zero. A direct post-build `assess_artifact_freshness` check returned
+`FRESH` with no mismatches using the committed baseline config snapshot.
 
 This is an eligible baseline input for future pre-registered formal gates. It
 does not by itself authorize a feature or routing flip.

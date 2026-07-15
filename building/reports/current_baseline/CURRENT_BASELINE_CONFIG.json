@@ -1,0 +1,464 @@
+{
+  "_flag_review_calibration": {
+    "approved_by": "human-gate-2026-06-09",
+    "enabled_at": "2026-06-09",
+    "enabled_flags": [
+      "use_scored_missing_weight",
+      "use_suspect_valve_guard",
+      "use_partial_factor_eval"
+    ],
+    "gate_report": "building/reports/flag_sweep/GATE_REPORT.md",
+    "note": "Line-review fixes (F5/F6, F3, F4) enabled after the walk-forward/PBO gate. F5/F6 (scored_missing_weight) PASSED: 13-fold median OOS objective +0.062 vs baseline, PBO 0.31, MaxDD unchanged (-14.04%), DSR up. F3 (suspect_valve_guard) + F4 (partial_factor_eval) are verified backtest no-ops on clean history (F3: 0 suspect bars after the zero-volume bad-tick fix; F4: constituents always present) — enabled for live robustness with zero backtest footprint. REJECTED (kept OFF): use_decision_stabilizer + use_status_hysteresis + use_close_confirmation (F1/F2 FAILED gate: median OOS objective below baseline, full stabilizer also +1.18pp MaxDD — the sweep CAGR gain was in-sample/regime-specific); NAAIM/PCR tightening (worse on every metric). Evidence: building/reports/flag_sweep/GATE_REPORT.md + SWEEP_SUMMARY.md. Rollback = set the 3 flags false."
+  },
+  "_full_confidence_spine_flip": {
+    "approved_by": "human-gate-2026-06-12",
+    "enabled_at": "2026-06-12",
+    "evidence": "building/reports/flag_sweep/GATE_REPORT_spine_only.md — 13-fold WF PASS: median OOS obj 1.076 vs baseline 1.044 (dELTA +0.032, second-largest OOS gain after combo routing), PBO 0.38, DSR 1.188. Full-window: 16.96% CAGR / -13.58% MaxDD vs 17.38%/-13.77% — accepts -0.41pp CAGR for knife-edge-day position shrinkage (fragility->confidence->sizing). First conservative mechanism ever to pass (stabilizer/hysteresis/H-M2 all failed OOS).",
+    "rollback": "set features.use_full_confidence_spine=false"
+  },
+  "_module_caps_note": "B cap is nominally 25 but only 21 pts are currently achievable: B5 social (4 pts) is a stub that always returns 0, and B6 valuation (5 pts) is unwired (no live mNAV pipeline). Effective B cap = 16 pts until B5/B6 are wired. Regime multipliers (CRISIS A×1.25/C×1.25/B×0.8, HIGH_VOL A×1.15/C×1.15/B×0.9, LOW_VOL_TREND B×1.15) are gated by features.use_regime_multipliers (default true = active, matching pre-2026-06-10 unconditional behaviour; the old use_regime_weights flag was inert and was removed).",
+  "_no_advice_flip": "2026-06-14: use_no_advice_state ON. Proven no-op on all historical data (close zero-missing 2018-2026) + behavioral test (complete data ON==OFF; critical-missing -> NO_ADVICE/sell0/no valves instead of fake-100 EXIT). Rollback: use_no_advice_state=false.",
+  "_risk_calibration": {
+    "approved_by": "human-gate-2026-06-08",
+    "combo": "E75_D70_R50",
+    "enabled_factors": [
+      "A10_real_rate",
+      "A11_dollar",
+      "A15_defensive_rotation"
+    ],
+    "note": "Enabled A10 real_rate + A11 dollar + A15 defensive_rotation; recalibrated DEFENSIVE_EXIT 65->70. NEXT-3 v2 PASS: deployment PBO 0.1538, train-greedy PBO 0.4615, real-only rank 0.65, next3_pass=true. Full-window 2018-2026 MaxDD -27.6%->-14.2%, Sharpe 0.88->1.11 (CAGR 18.1%->15.3%). Other 5 risk factors (A9/A12/A13/A14/A16) stay OFF -- standalone screen showed them weak/counterproductive.",
+    "swept_at": "2026-06-08"
+  },
+  "_sell_fraction_mode_note": "2026-06-09 human-approved: continuous interpolates the sell fraction by score between rung anchors, removing the 69→70 cliff where a 1-pt score move jumped the position ~35pp. Gate: performance-NEUTRAL (median OOS obj -0.006 = tie, PBO 0.31 robust, MaxDD -13.92% slightly better, DSR flat) — enabled for the operational cliff-removal, not for returns. Rollback = 'step'. Evidence: building/reports/flag_sweep/GATE_REPORT_continuous_sell_fraction.md",
+  "_soft_data_max_age_flip": {
+    "approved_by": "human-gate-2026-06-11",
+    "enabled_at": "2026-06-11",
+    "evidence": "building/reports/flag_sweep/slo_only.json — equity byte-identical to baseline (true no-op on complete history); live-robustness flip, F3/F4 class. Attribution: spine_only carries the full slo_spine footprint.",
+    "rollback": "set features.use_soft_data_max_age=false"
+  },
+  "arm_then_fire": {
+    "_note": "Leading macro factors in risk zone ease status thresholds (earlier fire) only while armed. OFF by default; calibrate relief_cap via PBO before enabling. arm_high/low_fields list the SOFT percentile fields used for arming — fields not collected (data_* flag OFF) return None and are skipped automatically. Fields shared with additive A-factors (e.g. move_pctl↔A18, nfci_pctl↔A17) create a coupling: enabling that data_* flag means the signal is both additive and arming; run PBO gate on the combination, not each in isolation.",
+    "arm_high_fields": [
+      "move_pctl",
+      "nfci_pctl"
+    ],
+    "arm_low_fields": [
+      "yield_curve_10y3m_pctl",
+      "ndx_concentration_pctl",
+      "concentration_rsp_spy_pctl",
+      "credit_etf_ratio_pctl"
+    ],
+    "high_pctl": 75,
+    "low_pctl": 25,
+    "relief_cap": 8.0,
+    "relief_per_factor": 2.0
+  },
+  "atr": {
+    "chandelier_period": 22,
+    "multiplier": 4.5
+  },
+  "component_proxies": {
+    "FNGU": [
+      "NVDA",
+      "AAPL",
+      "MSFT",
+      "AMZN",
+      "META",
+      "GOOGL",
+      "TSLA",
+      "NFLX",
+      "AVGO"
+    ],
+    "SOXL": [
+      "NVDA",
+      "AVGO",
+      "AMD",
+      "TSM",
+      "ASML",
+      "AMAT",
+      "LRCX",
+      "KLAC",
+      "QCOM",
+      "MU"
+    ]
+  },
+  "features": {
+    "data_aaii": true,
+    "data_cboe_pcr": true,
+    "data_cnn_fgi": false,
+    "data_component_breadth": true,
+    "data_concentration": false,
+    "data_cot_nq": false,
+    "data_credit_etf": false,
+    "data_defensive_rotation": true,
+    "data_dollar": true,
+    "data_financial_stress": false,
+    "data_gex": false,
+    "data_hy_oas": false,
+    "data_move": false,
+    "data_mstr_mnav": false,
+    "data_naaim": true,
+    "data_ndx_concentration": false,
+    "data_net_liquidity": true,
+    "data_nfci": false,
+    "data_onchain_mstr": false,
+    "data_real_rate": true,
+    "data_skew_vvix": true,
+    "data_yield_curve": false,
+    "use_arm_then_fire": false,
+    "use_b6_mnav_valuation": false,
+    "use_btc_spot_witness": true,
+    "use_cboe_official_indices": true,
+    "use_close_confirmation": false,
+    "use_decision_stabilizer": false,
+    "use_fred_vintage_pit": false,
+    "use_full_confidence_spine": true,
+    "use_hm2_buffer": false,
+    "use_indicator_cache": true,
+    "use_market_admission_gate": true,
+    "use_meta_label": false,
+    "use_no_advice_state": true,
+    "use_partial_factor_eval": true,
+    "use_portfolio_risk_budget": false,
+    "use_regime_multipliers": true,
+    "use_scored_missing_weight": true,
+    "use_soft_data_max_age": true,
+    "use_status_hysteresis": false,
+    "use_suspect_valve_guard": true
+  },
+  "hard_valves": {
+    "_hm2_note": "⑤ When use_hm2_buffer on, a LONE H-M2 (single -15% day below EMA10, no other valve) is downgraded from instant 100% EXIT to this status floor (DEFENSIVE_EXIT=75% for MSTR). Diagnostic: H-M2 is near-pure whipsaw (0% crash-hit, median fwd20 +18%); a real continuation fires H-M1/H-M4/H-M6 to force full exit. Default OFF.",
+    "hm2_buffer_status": "DEFENSIVE_EXIT"
+  },
+  "hysteresis": {
+    "enter": {
+      "REDUCE": 50,
+      "TRIM": 35,
+      "WATCH": 20
+    },
+    "exit": {
+      "REDUCE": 42,
+      "TRIM": 28,
+      "WATCH": 15
+    }
+  },
+  "ibkr": {
+    "client_id": 992,
+    "client_id_retry_count": 8,
+    "enabled": true,
+    "executions": {
+      "auto_confirm_lookback_days": 7,
+      "auto_confirm_sources": [
+        "tws"
+      ],
+      "cache_max_age_seconds": 21600,
+      "client_id": 1042,
+      "enabled": true,
+      "lookback_days": 21
+    },
+    "host": "127.0.0.1",
+    "ports": [
+      4001,
+      4002,
+      7496,
+      7497
+    ],
+    "readonly": true
+  },
+  "market_symbols": [
+    "QQQ",
+    "SPY",
+    "^VIX",
+    "^VIX3M",
+    "^VIX9D",
+    "^SKEW",
+    "^VVIX",
+    "IAU"
+  ],
+  "missing": {
+    "blind_spot_threshold": 30,
+    "critical_fields": [
+      "history",
+      "close",
+      "ma200"
+    ],
+    "weights": {
+      "A10 real_rate": 4,
+      "A11 dollar": 4,
+      "A12 yield_curve": 4,
+      "A13 credit_etf": 4,
+      "A14 concentration": 4,
+      "A15 defensive_rotation": 4,
+      "A16 financial_stress": 4,
+      "A17 nfci": 4,
+      "A18 move": 4,
+      "A19 ndx_concentration": 4,
+      "A2 aaii_bull": 2,
+      "A2 cboe_equity_pcr": 4,
+      "A2 cnn_fear_greed": 2,
+      "A2 naaim": 4,
+      "A20 cot_nq": 4,
+      "A3 NDX breadth": 4,
+      "A5": 4,
+      "A6 fund flow": 4,
+      "A7 VIX term structure": 2,
+      "A8 market distribution": 4,
+      "A9 hy_oas": 4,
+      "B4 options": 6,
+      "B5 social": 4,
+      "B6 valuation": 5,
+      "C7 AVWAP/platform support": 4,
+      "D-F4": 3,
+      "D-M1": 5,
+      "D-M3": 4,
+      "D-M4": 4,
+      "D-M5": 3,
+      "D-S4": 3,
+      "close": 100,
+      "history": 100,
+      "ma200": 100
+    }
+  },
+  "module_caps": {
+    "A": 20,
+    "B": 25,
+    "C": 35,
+    "D": 20
+  },
+  "naaim": {
+    "_recommendation": "F8: values above = current behaviour (byte-identical). Autopsy 2026-06-08: defaults fire ~63% of days (low discrimination). Recommended tightening after a backtest gate: score1_pctl 75->85, score1_exposure 70->80 (push score-1 into the euphoria tail, ~2x forward-return edge).",
+    "score1_exposure": 70,
+    "score1_pctl": 75,
+    "score2_exposure": 90,
+    "score2_pctl": 90
+  },
+  "normalize": {
+    "min_periods": 60,
+    "window": 252
+  },
+  "paths": {
+    "aaii_sentiment_xls": "data/sentiment.xls",
+    "archive_dir": "data/archive",
+    "history_dir": "data/history",
+    "legacy_history_dir": "../data/history",
+    "soft_history_dir": "data/soft_history"
+  },
+  "pcr": {
+    "_recommendation": "F8: values above = current behaviour (byte-identical). Equity PCR score-1 also fires broadly; candidate tightening after a backtest gate: score1_pctl 20->12, score1_pcr 0.62->0.58. Calibrate before flipping.",
+    "score1_pcr": 0.62,
+    "score1_pctl": 20,
+    "score2_pcr": 0.52,
+    "score2_pctl": 8
+  },
+  "portfolio": {
+    "_calibration": {
+      "approved_by": "human-gate-2026-06-02",
+      "note": "P10 APPROVED 2026-06-02: threshold=110/penalty=0.90; human-confirmed 1.85pp MaxDD trade-off accepted",
+      "prev_extreme": 92,
+      "prev_penalty": 0.7,
+      "swept_at": "2026-06-02"
+    },
+    "corr_regime_pct": {
+      "elevated": 80,
+      "extreme": 110
+    },
+    "corr_window": 60,
+    "cov_estimator": "ledoit_wolf",
+    "ewma_lambda": 0.94,
+    "extreme_corr_penalty": 0.9,
+    "min_periods": 40,
+    "vol_budget_annual": 0.35,
+    "vol_history_per_leg": "max",
+    "vol_window": 20
+  },
+  "radars": {
+    "FNGU": [
+      "QQQ",
+      "FNGS",
+      "^NYFANG"
+    ],
+    "MSTR": [
+      "BTC-USD"
+    ],
+    "SOXL": [
+      "QQQ",
+      "SOXX",
+      "SMH",
+      "^SOX"
+    ]
+  },
+  "reentry": {
+    "_t3_note": "① capital efficiency: market_252d_high = current (parks 40% until QQQ/SPY new 252D high). Candidates after backtest: ma200_reclaim (above MA200 + >=t3_off_low_pct off 60D low) or shorter_high (fresh high over t3_high_lookback days). Default unchanged.",
+    "c_module_unlock": 5,
+    "score_unlock": 19,
+    "t3_gate_mode": "market_252d_high",
+    "t3_high_lookback": 63,
+    "t3_off_low_pct": 0.1,
+    "time_lock_days": 11,
+    "tranches": [
+      0.3,
+      0.3,
+      0.4
+    ]
+  },
+  "regime": {
+    "enter": {
+      "CRISIS": 90,
+      "HIGH_VOL": 70
+    },
+    "exit": {
+      "CRISIS": 75,
+      "HIGH_VOL": 55
+    },
+    "min_dwell_days_on_exit": 3,
+    "multipliers": {
+      "CRISIS": {
+        "A": 1.25,
+        "B": 0.8,
+        "C": 1.25
+      },
+      "HIGH_VOL": {
+        "A": 1.15,
+        "B": 0.9,
+        "C": 1.15
+      },
+      "LOW_VOL_TREND": {
+        "B": 1.15
+      }
+    },
+    "weight_change_cap_per_refresh": 0.15
+  },
+  "routing": {
+    "_defcon3_note": "④ SOXL/FNGU are clean 3x→1x same-thesis de-levers. MSTR→BTC-USD: drops mNAV premium+single-name risk, keeps crypto thesis (live equiv: IBIT). Gate-approved 2026-06-10: combo variant, 13-fold WF PBO=0.31, OOS Δ+0.117, CAGR +1.90pp vs baseline. DEFCON1: BOXX50/DBMF30/GLD20 — gold adds inflation-hedge leg orthogonal to cash+trend (gate PBO=0.31, CAGR +1.59pp standalone). Rollback: MSTR→QQQ, DEFCON1 BOXX0.7/TREND0.3, remove extra_legs. 2026-06-12 gold leg execution swap GLD→IAU (same underlying, corr≈0.999, ER 0.25% vs 0.40%): display+reconciliation symbol only, gate evidence inherited from the GLD combo run, human-approved, no re-gate. Rollback IAU→GLD.",
+    "defcon1": {
+      "BOXX": 0.5,
+      "TREND": 0.3,
+      "extra_legs": {
+        "IAU": 0.2
+      },
+      "trend_symbol": "DBMF"
+    },
+    "defcon2": {
+      "brkb_corr_threshold": 0.85,
+      "brkb_corr_window": 60,
+      "fallback": "BOXX",
+      "primary": "BRK.B"
+    },
+    "defcon3": {
+      "FNGU": "QQQ",
+      "MSTR": "BTC-USD",
+      "SOXL": "SOXX"
+    }
+  },
+  "runtime": {
+    "as_of": null,
+    "offline_replay_mode": false
+  },
+  "sell_fraction_mode": "continuous",
+  "sell_fractions": {
+    "MSTR": {
+      "DEFENSIVE_EXIT": 0.75,
+      "EXIT": 1.0,
+      "REDUCE": 0.5,
+      "TRIM": 0.25
+    },
+    "default": {
+      "DEFENSIVE_EXIT": 0.85,
+      "EXIT": 1.0,
+      "REDUCE": 0.6,
+      "TRIM": 0.35
+    }
+  },
+  "sizing": {
+    "_capeff_note": "③ vol_gross_floor>0 caps how far confidence×risk-gross can cut below the status rule target (anti over-derisk/cash-drag). vol_weighted_caps shrinks high-vol sleeves' upper bound toward the calmest sleeve (factor in [cap_vol_floor,1], never raises). Both default-inert.",
+    "cap_vol_floor": 0.4,
+    "dd_aversion": 3.0,
+    "exec_slices": 3,
+    "kelly": {
+      "ci_width": 0.0,
+      "enabled": false,
+      "frac": 0.3,
+      "payoff_ratio": 2.0
+    },
+    "leverage_L": {
+      "FNGU": 3,
+      "MSTR": 1,
+      "SOXL": 3
+    },
+    "liquidity": {
+      "max_liquidation_days": 3,
+      "participation_rate": 0.1
+    },
+    "mu_mode": "proxy",
+    "solver": "slsqp_or_grid",
+    "vol_gross_floor": 0.0,
+    "vol_weighted_caps": false
+  },
+  "soft_data_slo": {
+    "_note": "T9: when features.use_soft_data_max_age is on, soft records whose latency_days (each source's own staleness measure, the same one data_quality consumes) exceeds max_age are degraded to missing so they flow through missing_weight instead of scoring with stale percentiles. Thresholds are long-weekend-safe (daily ~6 covers a holiday weekend; weekly 13 covers one skipped release). Default OFF; flip is an F4-class live-robustness gate (expected backtest no-op on complete history).",
+    "default_max_age_days": 13,
+    "max_age_days": {
+      "btc_funding_basis": 6,
+      "cboe_indices": 6,
+      "cboe_pcr": 6,
+      "defensive_rotation": 6,
+      "dollar": 6,
+      "net_liquidity": 6,
+      "real_rate": 6
+    }
+  },
+  "state_retention": {
+    "calibration_logs": 1000,
+    "execution_confirmations": 500,
+    "ibkr_snapshots": 200,
+    "refresh_runs": 200,
+    "score_runs": 500
+  },
+  "status_thresholds": {
+    "DEFENSIVE_EXIT": 70,
+    "EXIT": 75,
+    "REDUCE": 50,
+    "TRIM": 35,
+    "WATCH": 20
+  },
+  "symbols": {
+    "FNGU": {
+      "module_weights": {
+        "A": 1.1,
+        "B": 0.9,
+        "C": 1.1,
+        "D": 1.05
+      },
+      "sleeve_cap": 0.2
+    },
+    "MSTR": {
+      "module_weights": {
+        "A": 0.9,
+        "B": 0.95,
+        "C": 1.0,
+        "D": 1.25
+      },
+      "sleeve_cap": 0.15
+    },
+    "SOXL": {
+      "module_weights": {
+        "A": 0.9,
+        "B": 0.95,
+        "C": 1.15,
+        "D": 1.25
+      },
+      "sleeve_cap": 0.3
+    }
+  },
+  "version": "escape-top-v3.0-greenfield",
+  "vol_target": {
+    "baseline_stat": "median_20d_realized",
+    "baseline_window": 252,
+    "floor": 0.25,
+    "forecast": "ewma",
+    "mode": "relative_to_baseline"
+  },
+  "web": {
+    "confirm_execution_token_env": "HERMES_CONFIRM_TOKEN"
+  }
+}

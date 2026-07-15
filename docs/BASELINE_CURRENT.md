@@ -17,20 +17,26 @@ authorize a feature or routing flip and is not a candidate gate result.
 
 | Field | Value |
 |---|---|
-| Commit | `80c64b71280f554c36a34f892af5788dc6c94b60` |
+| Gate-code commit | `07f438d0976c9e0f489ab43a7e13c8c9a7549dad` |
 | Cache schema | `flag-sweep-cache-v4` |
 | Gate equity timing | `next_open` |
 | Requested window | `2018-01-01` to `2026-07-14` |
 | Effective window | `2018-01-02` to `2026-07-14` (2,143 trading days) |
 | History manifest | `24cf3da83b7fc6fb09d17546922d1d3d4d7ec874f84cbf4b75119739dafe54bc` |
-| Code SHA256 | `6eb9eb9a6c87593e872b9ce9dbab88c209c83876642158be81e65cdb0094a2fe` |
-| Config SHA256 | `e4946ed97efd0167dcdb1e7fde4f819c7109f53b29eb942f3041db4a9470f8df` |
+| Code SHA256 | `21631c1f212f2c0a72d5fd40550373a68bd60701c4dfbd116406ca4dd2b63e98` |
+| Config SHA256 | `7de18c09ee2d245851fbf8dc682abc5eac521e5312508b09155307bdb26a6e56` |
 | Soft-history SHA256 | `02afefadd8474119d8a0209b63e747de94ee3c35e45441d4c50c2c8bcb0fdd19` |
 | Authorization | `NO_CONFIG_FLIP` |
 
 The evidence uses the effective live config as its explicit source. The proven
 byte-identical indicator cache is enabled only for replay performance; all
 other live feature states remain unchanged.
+
+The normalized config is committed at
+`building/reports/current_baseline/CURRENT_BASELINE_CONFIG.json`. Candidate
+sweeps and formal-gate freshness checks use this snapshot by default. The
+`git_commit` field means the latest commit touching gate-affecting code or repo
+config, so committing evidence documents cannot invalidate their own baseline.
 
 ## Headline
 
