@@ -17,13 +17,13 @@ authorize a feature or routing flip and is not a candidate gate result.
 
 | Field | Value |
 |---|---|
-| Gate-code commit | `07f438d0976c9e0f489ab43a7e13c8c9a7549dad` |
+| Gate-code commit | `360aceda45087216124565fbcfaceca6f9d7dca2` |
 | Cache schema | `flag-sweep-cache-v4` |
 | Gate equity timing | `next_open` |
 | Requested window | `2018-01-01` to `2026-07-14` |
 | Effective window | `2018-01-02` to `2026-07-14` (2,143 trading days) |
 | History manifest | `24cf3da83b7fc6fb09d17546922d1d3d4d7ec874f84cbf4b75119739dafe54bc` |
-| Code SHA256 | `21631c1f212f2c0a72d5fd40550373a68bd60701c4dfbd116406ca4dd2b63e98` |
+| Code SHA256 | `8bdbf531c449fc0d739cd0e6446b8dc2088d3259d2aed95d2fc26e15bf3fc5e9` |
 | Config SHA256 | `7de18c09ee2d245851fbf8dc682abc5eac521e5312508b09155307bdb26a6e56` |
 | Soft-history SHA256 | `02afefadd8474119d8a0209b63e747de94ee3c35e45441d4c50c2c8bcb0fdd19` |
 | Authorization | `NO_CONFIG_FLIP` |

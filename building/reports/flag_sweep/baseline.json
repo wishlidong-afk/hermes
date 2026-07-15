@@ -1,7 +1,7 @@
 {
-  "cache_key": "d3dfbd99baa1a9bcf01db496021d8c411cb7edd4b3d7017c815328cfbf4e0e81",
+  "cache_key": "e31248c65b2c5c34f10d4f5cf117a567659aab17d25b25959e462bf070700773",
   "cache_schema": "flag-sweep-cache-v4",
-  "code_sha256": "21631c1f212f2c0a72d5fd40550373a68bd60701c4dfbd116406ca4dd2b63e98",
+  "code_sha256": "8bdbf531c449fc0d739cd0e6446b8dc2088d3259d2aed95d2fc26e15bf3fc5e9",
   "config_sha256": "7de18c09ee2d245851fbf8dc682abc5eac521e5312508b09155307bdb26a6e56",
   "effective_end": "2026-07-14",
   "effective_start": "2018-01-02",
@@ -107,7 +107,7 @@
     "required_total_rows": 10033,
     "total_rows": 21430
   },
-  "git_commit": "07f438d0976c9e0f489ab43a7e13c8c9a7549dad",
+  "git_commit": "360aceda45087216124565fbcfaceca6f9d7dca2",
   "legacy_close_metrics": {
     "cagr": 0.166128,
     "final_value": 368898.95571,

@@ -1,18 +1,18 @@
 {
   "authorization": "NO_CONFIG_FLIP",
   "current_provenance": {
-    "code_sha256": "21631c1f212f2c0a72d5fd40550373a68bd60701c4dfbd116406ca4dd2b63e98",
+    "code_sha256": "8bdbf531c449fc0d739cd0e6446b8dc2088d3259d2aed95d2fc26e15bf3fc5e9",
     "config_sha256": "7de18c09ee2d245851fbf8dc682abc5eac521e5312508b09155307bdb26a6e56",
     "end": "2026-07-14",
     "equity_timing": "next_open",
-    "git_commit": "07f438d0976c9e0f489ab43a7e13c8c9a7549dad",
+    "git_commit": "360aceda45087216124565fbcfaceca6f9d7dca2",
     "manifest_id": "24cf3da83b7fc6fb09d17546922d1d3d4d7ec874f84cbf4b75119739dafe54bc",
     "soft_history_sha256": "02afefadd8474119d8a0209b63e747de94ee3c35e45441d4c50c2c8bcb0fdd19",
     "start": "2018-01-01",
     "worktree_clean": true
   },
   "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
-  "generated_at": "2026-07-15T03:48:56.795471+00:00",
+  "generated_at": "2026-07-15T04:12:17.715896+00:00",
   "headline_eligible": true,
   "headline_scenario": "next_open",
   "legacy_source_parity": {
@@ -8786,7 +8786,7 @@
     "path": "/Users/liweishi/Documents/github/hermes/building/reports/current_baseline/CURRENT_BASELINE_FULL.json",
     "rows": 2143,
     "schema_version": "escape-top-greenfield-full-backtest-v1",
-    "sha256": "08ce3a18dacc40b091eff816fe08fecbec89b0711a3a2ccb331eb4c72b657b91",
+    "sha256": "b970a8ac1ca31f1a6d8e07912a2f3ca1d75653620443a294bd70f72b9e28e514",
     "start": "2018-01-02"
   },
   "source_provenance": {
