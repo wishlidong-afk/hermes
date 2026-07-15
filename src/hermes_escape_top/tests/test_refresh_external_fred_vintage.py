@@ -38,7 +38,11 @@ def test_fred_vintage_flag_off_keeps_legacy_source_order_and_adapters(tmp_path) 
     )
 
 
-def test_fred_vintage_flag_on_registers_event_store_before_exact_derivatives(tmp_path) -> None:
+def test_fred_vintage_flag_on_registers_event_store_before_exact_derivatives(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.delenv("FRED_API_KEY", raising=False)
     config = _config(tmp_path, enabled=True)
 
     assert refresh_external.configured_source_ids(config)[:4] == (
