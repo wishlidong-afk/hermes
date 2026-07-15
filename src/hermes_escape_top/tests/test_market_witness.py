@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from threading import Barrier
 
@@ -152,6 +153,26 @@ def test_fetch_alpaca_daily_bar_range_uses_requested_window() -> None:
     assert "timeframe=1Day" in seen["url"]
     assert "feed=sip" in seen["url"]
     assert "adjustment=raw" in seen["url"]
+
+
+def test_fetch_alpaca_daily_bar_range_clips_future_end_behind_free_sip_delay() -> None:
+    seen = {}
+
+    def transport(url, _headers):
+        seen["url"] = url
+        return {"bars": {"MSTR": [_alpaca()]}, "next_page_token": None}
+
+    rows = fetch_alpaca_daily_bar_range(
+        ["MSTR"],
+        "2026-07-10",
+        "2026-07-15",
+        {"key": "key", "secret": "secret"},
+        request_json=transport,
+        now=datetime(2026, 7, 14, 23, 10, tzinfo=timezone.utc),
+    )
+
+    assert rows["MSTR"][0]["c"] == 100.1
+    assert "end=2026-07-14T22%3A50%3A00Z" in seen["url"]
 
 
 def test_fetch_alpaca_daily_bar_range_rejects_repeated_page_token() -> None:

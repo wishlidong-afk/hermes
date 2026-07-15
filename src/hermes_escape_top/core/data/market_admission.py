@@ -349,6 +349,7 @@ def prepare_market_admission_session(
                 end,
                 auth,
                 request_json=request_json,
+                now=now,
             )
             return MarketAdmissionSession(
                 enabled=True,
@@ -382,6 +383,7 @@ def prepare_market_admission_session(
                     end,
                     auth,
                     request_json=request_json,
+                    now=now,
                 )
             )
         except Exception as exc:

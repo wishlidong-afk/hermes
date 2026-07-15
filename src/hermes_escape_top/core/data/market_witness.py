@@ -23,6 +23,8 @@ PRICE_MATCH_PCT = 0.5
 PRICE_WARN_PCT = 1.0
 VOLUME_MATCH_PCT = 10.0
 VOLUME_WARN_PCT = 25.0
+# Free historical SIP requires end >=15 minutes old; keep 5 minutes for clock skew.
+FREE_SIP_QUERY_DELAY = timedelta(minutes=20)
 _US_EQUITY_SYMBOL = re.compile(r"^[A-Z][A-Z0-9.]{0,9}$")
 
 
@@ -50,6 +52,7 @@ def fetch_alpaca_daily_bar_range(
     credentials: Mapping[str, str],
     *,
     request_json: Callable[[str, Mapping[str, str]], dict[str, Any]] | None = None,
+    now: datetime | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     ordered = sorted({str(symbol).upper() for symbol in symbols if is_alpaca_supported_symbol(symbol)})
     if not ordered:
@@ -58,11 +61,20 @@ def fetch_alpaca_daily_bar_range(
     end_day = date.fromisoformat(str(end)[:10])
     if end_day <= start_day:
         raise ValueError("Alpaca daily bar range end must be after start")
+    requested_end = datetime.combine(end_day, datetime.min.time(), tzinfo=timezone.utc)
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    safe_end = current.astimezone(timezone.utc) - FREE_SIP_QUERY_DELAY
+    effective_end = min(requested_end, safe_end).replace(microsecond=0)
+    start_at = datetime.combine(start_day, datetime.min.time(), tzinfo=timezone.utc)
+    if effective_end <= start_at:
+        raise ValueError("Alpaca daily bar range has no safely queryable SIP window")
     params = {
         "symbols": ",".join(ordered),
         "timeframe": "1Day",
         "start": f"{start_day.isoformat()}T00:00:00Z",
-        "end": f"{end_day.isoformat()}T00:00:00Z",
+        "end": effective_end.isoformat().replace("+00:00", "Z"),
         "limit": "10000",
         "feed": "sip",
         "adjustment": "raw",
