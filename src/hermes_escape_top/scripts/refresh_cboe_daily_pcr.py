@@ -84,7 +84,7 @@ def append(rec: dict, dry_run: bool = False) -> None:
     if dry_run:
         print(f"DRY RUN — would append: {rec}")
         return
-    frame.to_csv(OUT, index=False)
+    _promote_frame(frame)
     print(f"appended {rec['date']} pcr={rec['ratio']} "
           f"(cross-check {rec['put_volume']}/{rec['call_volume']}) -> {OUT.name}")
 
@@ -142,9 +142,29 @@ def backfill_range(start: str, end: str, sleep_s: float = 1.5) -> int:
             frame["equity_pcr"].rolling(PCTL_WINDOW, min_periods=60)
             .apply(lambda w: float((w <= w.iloc[-1]).mean() * 100.0), raw=False)
         )
-        frame.to_csv(OUT, index=False)
+        _promote_frame(frame)
     print(f"backfill done: +{len(rows)} real rows, {fails} failures, total {len(frame)}")
     return 0 if fails < max(5, len(days) // 10) else 1
+
+
+def _promote_frame(frame: pd.DataFrame) -> None:
+    from hermes_escape_top.config import load_config, resolve_path
+    from hermes_escape_top.core.data.external_sources import (
+        PreparedFrameAdapter,
+        cboe_pcr_spec,
+        run_external_source_refresh,
+    )
+
+    config = load_config()
+    target = resolve_path(config, "soft_history_dir") / "cboe_equity_pcr.csv"
+    archive = resolve_path(config, "archive_dir")
+    result = run_external_source_refresh(
+        cboe_pcr_spec(target_path=target),
+        PreparedFrameAdapter(frame, source_channel="legacy_cboe_history_backfill"),
+        archive,
+    )
+    if result.status != "OK":
+        raise RuntimeError(f"ExternalSourceRunner rejected CBOE PCR promotion: {result.error_message}")
 
 
 def main() -> int:

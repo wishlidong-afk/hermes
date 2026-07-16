@@ -418,6 +418,21 @@ def _report_matches_input_hash(report: dict, payload_hash: str) -> bool:
     return str(report.get("input_hash") or "") == payload_hash
 
 
+def _system_health_report_paths(root: Path, requested: str | None = None) -> list[Path]:
+    pattern = f"system_health_{requested}_*.json" if requested else "system_health_*.json"
+    paths = []
+    if requested:
+        compatibility = root / f"system_health_{requested}.json"
+        if compatibility.exists():
+            paths.append(compatibility)
+    elif root.exists():
+        paths.extend(root.glob("system_health_*.json"))
+    run_dir = root / "system_health_runs"
+    if run_dir.exists():
+        paths.extend(run_dir.glob(pattern))
+    return paths
+
+
 def _attach_system_health_report(payload: dict) -> dict:
     """Attach the daily 20-dimension health report for dashboard evidence.
 
@@ -431,11 +446,8 @@ def _attach_system_health_report(payload: dict) -> dict:
     exact_paths = []
     all_paths = []
     for root in _system_health_report_roots():
-        exact = root / f"system_health_{requested}.json"
-        if exact.exists():
-            exact_paths.append(exact)
-        if root.exists():
-            all_paths.extend(root.glob("system_health_*.json"))
+        exact_paths.extend(_system_health_report_paths(root, requested))
+        all_paths.extend(_system_health_report_paths(root))
 
     payload_hash = str(payload.get("input_hash") or "")
     report = None
@@ -495,7 +507,7 @@ def _attach_system_health_history(payload: dict, limit: int = 7) -> dict:
     for root in _system_health_report_roots():
         if not root.exists():
             continue
-        for path in root.glob("system_health_*.json"):
+        for path in _system_health_report_paths(root):
             report = _read_system_health_report(path)
             if report is None:
                 continue

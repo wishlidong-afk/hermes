@@ -28,6 +28,7 @@ _ISSUE_DATE_RE = re.compile(r"(?<!\d)(20\d{2}-\d{2}-\d{2})(?!\d)")
 
 FetchText = Callable[[str], str]
 FetchBytes = Callable[[str], bytes]
+FetchAuthenticated = Callable[[str, dict[str, str]], bytes]
 
 
 def discover_naaim_xlsx_url(html: str, base_url: str = NAAIM_INDEX_URL) -> str | None:
@@ -110,6 +111,52 @@ class NaaimExposureAdapter:
 
 
 @dataclass(frozen=True)
+class NaaimSubscriberAdapter:
+    """Authorized NAAIM workbook download without persisting credentials."""
+
+    download_url: str
+    bearer_token: str = ""
+    session_cookie: str = ""
+    percentile_window: int = 252
+    min_periods: int = 20
+    fetch_authenticated: FetchAuthenticated = lambda url, headers: _fetch_authenticated(
+        url, headers
+    )
+
+    def fetch_raw(self) -> dict[str, Any]:
+        parsed = urlparse(self.download_url)
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme != "https" or (host != "naaim.org" and not host.endswith(".naaim.org")):
+            raise ValueError("NAAIM subscriber URL must use https on naaim.org")
+        headers = {"User-Agent": USER_AGENT}
+        if self.bearer_token:
+            headers["Authorization"] = f"Bearer {self.bearer_token}"
+            auth_mode = "bearer"
+        elif self.session_cookie:
+            headers["Cookie"] = self.session_cookie
+            auth_mode = "session_cookie"
+        else:
+            raise ValueError("NAAIM subscriber credentials are not configured")
+        content = self.fetch_authenticated(self.download_url, headers)
+        if not content:
+            raise ValueError("downloaded empty NAAIM subscriber workbook")
+        return {
+            "source": "naaim_subscriber",
+            "auth_mode": auth_mode,
+            "xlsx_url": self.download_url,
+            "xlsx_sha256": hashlib.sha256(content).hexdigest(),
+            "xlsx_base64": base64.b64encode(content).decode("ascii"),
+        }
+
+    def parse(self, raw: dict[str, Any]) -> pd.DataFrame:
+        content = base64.b64decode(str((raw or {}).get("xlsx_base64") or ""))
+        records = _naaim_records(_xlsx_rows(content))
+        if not records:
+            raise ValueError("NAAIM subscriber workbook contained no usable exposure rows")
+        return _records_frame(records, self.percentile_window, self.min_periods)
+
+
+@dataclass(frozen=True)
 class NaaimExposureImportAdapter:
     import_path: Path
     percentile_window: int = 252
@@ -160,6 +207,12 @@ def _fetch_text(url: str) -> str:
 
 def _fetch_bytes(url: str) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(req, timeout=30) as response:
+        return response.read()
+
+
+def _fetch_authenticated(url: str, headers: dict[str, str]) -> bytes:
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=30) as response:
         return response.read()
 

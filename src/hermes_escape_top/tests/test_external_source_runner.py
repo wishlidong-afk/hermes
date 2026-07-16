@@ -3,18 +3,24 @@ from __future__ import annotations
 from pathlib import Path
 import hashlib
 import stat
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
 
 from hermes_escape_top.core.data.external_sources.ledger import (
     append_source_run,
+    iter_source_runs,
+    ledger_path,
     latest_source_run,
     source_reliability,
     source_status,
 )
 from hermes_escape_top.core.data.external_sources.registry import ExternalSourceSpec
-from hermes_escape_top.core.data.external_sources.runner import run_external_source_refresh
+from hermes_escape_top.core.data.external_sources.runner import (
+    PreparedFrameAdapter,
+    run_external_source_refresh,
+)
 
 
 class FakeAdapter:
@@ -113,6 +119,26 @@ class RowTimestampAdapter:
         return pd.DataFrame(raw["rows"])[["date", "value"]]
 
 
+def test_prepared_frame_adapter_still_promotes_only_through_runner(tmp_path):
+    archive = tmp_path / "archive"
+    target = tmp_path / "soft_history" / "legacy.csv"
+    spec = ExternalSourceSpec(
+        source_id="legacy_compat",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+    adapter = PreparedFrameAdapter(
+        pd.DataFrame([{"date": "2026-07-15", "value": 1.5}]),
+        source_channel="legacy_compatibility_entrypoint",
+    )
+
+    result = run_external_source_refresh(spec, adapter, archive)
+
+    assert result.status == "OK"
+    assert result.source_channel == "legacy_compatibility_entrypoint"
+    assert pd.read_csv(target).to_dict("records") == [{"date": "2026-07-15", "value": 1.5}]
+
+
 def _ledger_record(source_id: str, status: str, when: str) -> dict:
     return {
         "source_id": source_id,
@@ -120,6 +146,22 @@ def _ledger_record(source_id: str, status: str, when: str) -> dict:
         "started_at": when,
         "finished_at": when,
     }
+
+
+def test_ledger_append_repairs_interrupted_tail_before_new_record(tmp_path):
+    archive = tmp_path / "archive"
+    first = _ledger_record("dollar", "OK", "2026-07-10T06:45:00+08:00")
+    second = _ledger_record("aaii_sentiment", "OK", "2026-07-10T07:05:00+08:00")
+    append_source_run(archive, first)
+    path = ledger_path(archive)
+    with path.open("ab") as handle:
+        handle.write(b'{"source_id":"interrupted"')
+
+    append_source_run(archive, second)
+
+    rows = list(iter_source_runs(archive))
+    assert [row["source_id"] for row in rows] == ["dollar", "aaii_sentiment"]
+    assert path.read_bytes().endswith(b"\n")
 
 
 def test_source_reliability_deduplicates_same_day_retries(tmp_path):
@@ -138,6 +180,140 @@ def test_source_reliability_deduplicates_same_day_retries(tmp_path):
     assert reliability["samples_90d"] == 3
     assert reliability["consecutive_failures"] == 0
     assert reliability["last_success_at"] == "2026-07-12T06:45:00+08:00"
+
+
+def test_runner_records_stage_outcomes_and_canonical_advancement(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+
+    fetch_error = run_external_source_refresh(spec, FetchBoomAdapter(), tmp_path / "archive")
+    parse_error = run_external_source_refresh(spec, ParseBoomAdapter(), tmp_path / "archive")
+    validation_error = run_external_source_refresh(spec, MissingColumnAdapter(), tmp_path / "archive")
+    first_ok = run_external_source_refresh(spec, FakeAdapter(), tmp_path / "archive")
+    second_ok = run_external_source_refresh(spec, FakeAdapter(), tmp_path / "archive")
+
+    assert (
+        fetch_error.transport_status,
+        fetch_error.parse_status,
+        fetch_error.validation_status,
+        fetch_error.promotion_status,
+    ) == ("ERROR", "NOT_RUN", "NOT_RUN", "NOT_RUN")
+    assert (
+        parse_error.transport_status,
+        parse_error.parse_status,
+        parse_error.validation_status,
+        parse_error.promotion_status,
+    ) == ("OK", "ERROR", "NOT_RUN", "NOT_RUN")
+    assert (
+        validation_error.transport_status,
+        validation_error.parse_status,
+        validation_error.validation_status,
+        validation_error.promotion_status,
+    ) == ("OK", "OK", "ERROR", "NOT_RUN")
+    assert (
+        first_ok.transport_status,
+        first_ok.parse_status,
+        first_ok.validation_status,
+        first_ok.promotion_status,
+    ) == ("OK", "OK", "OK", "OK")
+    assert first_ok.previous_promoted_as_of is None
+    assert first_ok.advanced is True
+    assert second_ok.previous_promoted_as_of == "2026-06-30"
+    assert second_ok.advanced is False
+
+
+def test_source_reliability_reports_stage_rates_recovery_and_advancement(tmp_path):
+    archive = tmp_path / "archive"
+    first = _ledger_record("aaii_sentiment", "FETCH_ERROR", "2026-07-10T06:45:00+08:00")
+    first.update(
+        transport_status="ERROR",
+        parse_status="NOT_RUN",
+        validation_status="NOT_RUN",
+        promotion_status="NOT_RUN",
+        advanced=None,
+    )
+    recovered = _ledger_record("aaii_sentiment", "OK", "2026-07-11T06:45:00+08:00")
+    recovered.update(
+        transport_status="OK",
+        parse_status="OK",
+        validation_status="OK",
+        promotion_status="OK",
+        advanced=True,
+        latest_promoted_as_of="2026-07-10",
+    )
+    unchanged = _ledger_record("aaii_sentiment", "OK", "2026-07-12T06:45:00+08:00")
+    unchanged.update(
+        transport_status="OK",
+        parse_status="OK",
+        validation_status="OK",
+        promotion_status="OK",
+        advanced=False,
+        latest_promoted_as_of="2026-07-10",
+    )
+    for row in (first, recovered, unchanged):
+        append_source_run(archive, row)
+
+    reliability = source_reliability(
+        archive,
+        "aaii_sentiment",
+        today=pd.Timestamp("2026-07-12").date(),
+    )
+
+    assert reliability["stage_reliability"]["transport"] == {
+        "success_rate_30d": 66.67,
+        "success_rate_90d": 66.67,
+        "samples_30d": 3,
+        "samples_90d": 3,
+        "consecutive_failures": 0,
+    }
+    assert reliability["stage_reliability"]["parse"]["success_rate_30d"] == 100.0
+    assert reliability["stage_reliability"]["parse"]["samples_30d"] == 2
+    assert reliability["last_recovery_at"] == "2026-07-11T06:45:00+08:00"
+    assert reliability["advancement_rate_30d"] == 50.0
+    assert reliability["advancement_samples_30d"] == 2
+    assert reliability["last_advanced_at"] == "2026-07-11T06:45:00+08:00"
+    assert reliability["expected_release_samples_30d"] == 1
+    assert reliability["expected_release_advanced_30d"] == 1
+    assert reliability["expected_release_advance_rate_30d"] == 100.0
+    assert reliability["latest_expected_release_date"] == "2026-07-10"
+    assert reliability["latest_expected_release_status"] == "ADVANCED"
+
+
+def test_source_reliability_separates_primary_fallback_and_manual_channels(tmp_path):
+    archive = tmp_path / "archive"
+    primary = _ledger_record("aaii_sentiment", "OK", "2026-07-10T06:45:00+08:00")
+    primary.update(source_channel="public_html", fallback_used=False, primary_failure=None)
+    rescued = _ledger_record("aaii_sentiment", "OK", "2026-07-11T06:45:00+08:00")
+    rescued.update(
+        source_channel="official_insights_rss",
+        fallback_used=True,
+        primary_failure="blocked",
+    )
+    manual = _ledger_record("aaii_sentiment", "OK", "2026-07-12T06:45:00+08:00")
+    manual.update(source_channel="manual_official_file", fallback_used=False, primary_failure=None)
+    for row in (primary, rescued, manual):
+        append_source_run(archive, row)
+
+    reliability = source_reliability(
+        archive,
+        "aaii_sentiment",
+        today=pd.Timestamp("2026-07-12").date(),
+    )
+
+    assert reliability["channel_successes_30d"] == {
+        "manual_official_file": 1,
+        "official_insights_rss": 1,
+        "public_html": 1,
+    }
+    assert reliability["fallback_rescues_7d"] == 1
+    assert reliability["primary_success_rate_30d"] == 33.33
+    assert reliability["primary_samples_30d"] == 3
+    assert reliability["latest_source_channel"] == "manual_official_file"
+    assert reliability["latest_fallback_used"] is False
 
 
 def test_source_status_exposes_daily_reliability_metrics(tmp_path):
@@ -190,6 +366,36 @@ def test_success_writes_staging_promotes_target_and_records_ledger(tmp_path):
     assert run.raw_path and Path(run.raw_path).exists()
     assert run.normalized_path and Path(run.normalized_path).exists()
     assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "OK"
+
+
+def test_identical_run_evidence_uses_content_addressed_hardlinks(tmp_path):
+    archive = tmp_path / "archive"
+    target = tmp_path / "soft_history" / "dollar.csv"
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+    start = datetime(2026, 7, 16, 1, 0, tzinfo=timezone.utc)
+
+    first = run_external_source_refresh(spec, FakeAdapter(), archive, now=start)
+    second = run_external_source_refresh(
+        spec,
+        FakeAdapter(),
+        archive,
+        now=start + timedelta(seconds=1),
+    )
+
+    assert first.raw_path != second.raw_path
+    assert first.normalized_path != second.normalized_path
+    assert first.raw_sha256 == second.raw_sha256
+    assert first.normalized_sha256 == second.normalized_sha256
+    assert first.raw_blob_path == second.raw_blob_path
+    assert first.normalized_blob_path == second.normalized_blob_path
+    assert Path(first.raw_path).stat().st_ino == Path(second.raw_path).stat().st_ino
+    assert Path(first.normalized_path).stat().st_ino == Path(second.normalized_path).stat().st_ino
+    blobs = [path for path in (archive / "external_sources/blobs/sha256").rglob("*") if path.is_file()]
+    assert len(blobs) == 2
 
 
 def test_source_input_hash_keeps_row_level_fetched_at_business_field(tmp_path):

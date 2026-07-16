@@ -124,6 +124,13 @@ def _add_pit_and_percentile(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def run(dry_run: bool = False) -> Dict[str, Any]:
+    if not dry_run:
+        from hermes_escape_top.scripts.refresh_external import refresh_source
+
+        result = refresh_source("naaim_exposure", auto_import=True)
+        result["legacy_entrypoint"] = "backfill_naaim"
+        return result
+
     SOFT_HISTORY.mkdir(parents=True, exist_ok=True)
 
     print("Discovering NAAIM xlsx URL from naaim.org ...")
@@ -144,24 +151,11 @@ def run(dry_run: bool = False) -> Dict[str, Any]:
         return {"error": "parsed empty DataFrame", "url": xlsx_url, "rows": 0}
     print(f"  Parsed {len(df)} rows, date range: {df.date.min()} → {df.date.max()}")
 
-    if dry_run:
-        return {
-            "dry_run": True, "rows": len(df),
-            "date_range": [str(df.date.min()), str(df.date.max())],
-            "url": xlsx_url,
-        }
-
-    df = _add_pit_and_percentile(df)
-    df["date"] = df["date"].astype(str)
-    df["publish_date"] = df["publish_date"].astype(str)
-    df.to_csv(OUT_CSV, index=False)
-
     return {
-        "out_csv": str(OUT_CSV),
+        "dry_run": True,
         "rows": len(df),
         "date_range": [str(df.date.min()), str(df.date.max())],
         "url": xlsx_url,
-        "is_proxy": False,
     }
 
 

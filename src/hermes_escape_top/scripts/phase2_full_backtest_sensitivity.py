@@ -23,7 +23,7 @@ from hermes_escape_top.core.backtest.run_full import _load_histories, _price_pan
 from hermes_escape_top.core.backtest.simulator import DayDecision
 from hermes_escape_top.core.backtest.validation import deflated_sharpe, walk_forward_splits
 from hermes_escape_top.core.data.store import LocalStore
-from hermes_escape_top.core.pipeline import score_pipeline
+from hermes_escape_top.core.research.integration_pipeline import score_pipeline
 from hermes_escape_top.core.portfolio.sizing_optimizer import optimize_targets
 from hermes_escape_top.scripts.phase2_shadow_compare import (
     _load_store,

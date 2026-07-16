@@ -139,6 +139,9 @@ def test_aaii_adapter_merges_public_rows_with_seed_history(tmp_path):
     assert ledger["official_issue_as_of"] == "2026-06-25"
     assert ledger["pit_rule"] == "official_publish_date_or_reported_plus_one_day"
     assert ledger["source_url"] == "https://www.aaii.com/sentimentsurvey/sent_results"
+    assert ledger["source_channel"] == "public_html"
+    assert ledger["fallback_used"] is False
+    assert ledger["primary_failure"] is None
 
 
 @pytest.mark.parametrize(
@@ -251,6 +254,9 @@ def test_aaii_adapter_falls_back_to_official_insights_rss(tmp_path):
     assert raw["primary_failure"] == "blocked"
     assert run.official_file_name == "aaii_insights_feed.xml"
     assert run.source_url == AAII_INSIGHTS_FEED_URL
+    assert run.source_channel == "official_insights_rss"
+    assert run.fallback_used is True
+    assert run.primary_failure == "blocked"
 
 
 def test_aaii_invalid_public_rows_fall_back_to_official_insights_rss(tmp_path):
@@ -326,6 +332,9 @@ def test_aaii_import_adapter_promotes_official_file_through_ledger(tmp_path):
     assert ledger["official_file_name"] == "sentiment.csv"
     assert ledger["official_file_sha256"] == raw["content_sha256"]
     assert ledger["official_issue_as_of"] == "2026-07-02"
+    assert ledger["source_channel"] == "manual_official_file"
+    assert ledger["fallback_used"] is False
+    assert ledger["primary_failure"] is None
 
 
 def test_aaii_import_adapter_rejects_import_older_than_seed(tmp_path):

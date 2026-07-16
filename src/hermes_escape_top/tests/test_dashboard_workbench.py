@@ -800,6 +800,20 @@ def test_trust_zone_uses_external_source_ledger_status():
             "success_rate_90d": 80.0,
             "samples_30d": 4,
             "consecutive_failures": 2,
+            "stage_reliability": {
+                "transport": {"success_rate_30d": 75.0, "samples_30d": 4},
+                "parse": {"success_rate_30d": 100.0, "samples_30d": 3},
+                "validation": {"success_rate_30d": 66.67, "samples_30d": 3},
+                "promotion": {"success_rate_30d": 100.0, "samples_30d": 2},
+            },
+            "advancement_rate_30d": 50.0,
+            "advancement_samples_30d": 2,
+            "latest_expected_release_date": "2026-07-10",
+            "latest_expected_release_status": "ADVANCED",
+            "latest_source_channel": "official_insights_rss",
+            "fallback_rescues_7d": 2,
+            "primary_success_rate_30d": 25.0,
+            "primary_samples_30d": 4,
             "migration_status": "ACTION_REQUIRED",
         },
     }
@@ -831,6 +845,12 @@ def test_trust_zone_uses_external_source_ledger_status():
     assert "refreshExternalSource('aaii_sentiment')" in html
     assert "30d 92.86% (n=7)" in html
     assert "连续失败 2" in html
+    assert "渠道 official_insights_rss" in html
+    assert "7d fallback 救回 2" in html
+    assert "主源 30d 25.00%" in html
+    assert "四段 T75.00(n=4)/P100.00(n=3)/V66.67(n=3)/R100.00(n=2)" in html
+    assert "推进 50.00% (n=2)" in html
+    assert "应发 2026-07-10 ADVANCED" in html
     assert "MIGRATION_DUE" in html
     assert "ACTION_REQUIRED" in html
     assert "--source aaii_sentiment --import-file ~/.hermes/external_imports/sentiment.xls" in html
@@ -1288,6 +1308,31 @@ def test_system_health_report_loader_prefers_matching_input_hash_over_newer_exac
 
     assert payload["system_health_report"]["input_hash"] == "payload-hash"
     assert "matching" in payload["system_health_report"]["source_path"]
+
+
+def test_system_health_report_loader_finds_matching_immutable_run(monkeypatch, tmp_path):
+    report_dir = tmp_path / "system_health_runs"
+    _write_health_report(
+        tmp_path,
+        as_of="2026-07-02",
+        input_hash="later-preview",
+        generated_at="2026-07-02T09:00:00+08:00",
+    )
+    immutable = _system_health_report("2026-07-02")
+    immutable["input_hash"] = "scheduled-hash"
+    immutable["generated_at"] = "2026-07-02T07:11:00+08:00"
+    report_dir.mkdir(parents=True)
+    (report_dir / "system_health_2026-07-02_run_scheduled-hash.json").write_text(
+        json.dumps(immutable), encoding="utf-8"
+    )
+    monkeypatch.setattr(server_mod, "_system_health_report_roots", lambda: [tmp_path], raising=False)
+
+    payload = server_mod._attach_system_health_report(
+        {"as_of": "2026-07-02", "input_hash": "scheduled-hash"}
+    )
+
+    assert payload["system_health_report"]["input_hash"] == "scheduled-hash"
+    assert "system_health_runs" in payload["system_health_report"]["source_path"]
 
 
 def test_system_health_report_loader_attaches_newest_as_stale(monkeypatch, tmp_path):

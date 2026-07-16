@@ -25,17 +25,33 @@ from .market_soft import (
     cot_nq_spec,
     occ_pcr_spec,
 )
-from .naaim import NaaimExposureAdapter, NaaimExposureImportAdapter, naaim_exposure_spec
+from .naaim import (
+    NaaimExposureAdapter,
+    NaaimExposureImportAdapter,
+    NaaimSubscriberAdapter,
+    naaim_exposure_spec,
+)
 from .profiles import (
     ExternalSourceProfile,
+    all_source_ids,
+    configured_refresh_source_ids,
+    display_source_ids,
     effective_source_profile,
     enrich_source_status,
     import_files,
+    import_source_ids,
     latest_import_file,
     profile_for,
 )
 from .registry import ExternalSourceSpec
-from .runner import ExternalSourceRun, run_external_source_refresh
+from .runner import ExternalSourceRun, PreparedFrameAdapter, run_external_source_refresh
+from .import_queue import (
+    finalize_import,
+    import_origin,
+    queue_import_candidates,
+    queued_import_files,
+    terminal_import_hashes,
+)
 
 __all__ = [
     "AaiiSentimentAdapter",
@@ -47,8 +63,12 @@ __all__ = [
     "CboeVolatilityIndexAdapter",
     "CotNqAdapter",
     "ExternalSourceRun",
+    "PreparedFrameAdapter",
     "ExternalSourceSpec",
     "ExternalSourceProfile",
+    "all_source_ids",
+    "configured_refresh_source_ids",
+    "display_source_ids",
     "FredNetLiquidityAdapter",
     "FredPercentileAdapter",
     "FredVintageAdapter",
@@ -56,6 +76,7 @@ __all__ = [
     "FredVintagePercentileAdapter",
     "NaaimExposureAdapter",
     "NaaimExposureImportAdapter",
+    "NaaimSubscriberAdapter",
     "OccPcrAdapter",
     "aaii_sentiment_spec",
     "btc_micro_spec",
@@ -73,8 +94,14 @@ __all__ = [
     "effective_source_profile",
     "enrich_source_status",
     "import_files",
+    "import_source_ids",
     "latest_import_file",
     "profile_for",
     "run_external_source_refresh",
+    "finalize_import",
+    "import_origin",
+    "queue_import_candidates",
+    "queued_import_files",
+    "terminal_import_hashes",
     "source_status",
 ]

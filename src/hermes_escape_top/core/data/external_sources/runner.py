@@ -41,9 +41,43 @@ class ExternalSourceRun:
     fetched_at: str | None = None
     pit_rule: str | None = None
     source_url: str | None = None
+    source_channel: str | None = None
+    fallback_used: bool | None = None
+    primary_failure: str | None = None
+    raw_sha256: str | None = None
+    normalized_sha256: str | None = None
+    raw_blob_path: str | None = None
+    normalized_blob_path: str | None = None
+    transport_status: str = "NOT_RUN"
+    parse_status: str = "NOT_RUN"
+    validation_status: str = "NOT_RUN"
+    promotion_status: str = "NOT_RUN"
+    previous_promoted_as_of: str | None = None
+    advanced: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class PreparedFrameAdapter:
+    """Compatibility adapter for validated legacy collectors.
+
+    The caller may prepare rows, but only ``run_external_source_refresh`` can
+    validate and promote them into a canonical CSV.
+    """
+
+    frame: pd.DataFrame
+    source_channel: str = "prepared_frame"
+
+    def fetch_raw(self) -> dict[str, Any]:
+        return {
+            "source": self.source_channel,
+            "rows": self.frame.to_dict("records"),
+        }
+
+    def parse(self, raw: dict[str, Any]) -> pd.DataFrame:
+        return pd.DataFrame(raw.get("rows") or [], columns=list(self.frame.columns))
 
 
 def run_external_source_refresh(
@@ -74,11 +108,17 @@ def run_external_source_refresh(
             error_message=str(exc),
             pit_rule=spec.pit_rule,
             source_url=spec.source_url,
+            transport_status="ERROR",
         )
 
     raw_text = json.dumps(raw, ensure_ascii=False, sort_keys=True, default=str)
-    raw_path.write_text(raw_text + "\n", encoding="utf-8")
+    _write_content_addressed_evidence(
+        archive_dir,
+        raw_path,
+        (raw_text + "\n").encode("utf-8"),
+    )
     input_hash = _sha256(_stable_raw_text(raw))
+    channel_metadata = _source_channel_metadata(raw)
 
     try:
         frame = adapter.parse(raw)
@@ -99,12 +139,16 @@ def run_external_source_refresh(
             fetched_at=started,
             pit_rule=spec.pit_rule,
             source_url=_source_url(raw) or spec.source_url,
+            transport_status="OK",
+            parse_status="ERROR",
+            **channel_metadata,
         )
     if not isinstance(frame, pd.DataFrame):
         frame = pd.DataFrame(frame)
 
-    atomic_write_csv(frame, normalized_path, index=False)
-    output_hash = _sha256(normalized_path.read_text(encoding="utf-8"))
+    normalized_content = frame.to_csv(index=False).encode("utf-8")
+    _write_content_addressed_evidence(archive_dir, normalized_path, normalized_content)
+    output_hash = _sha256_bytes(normalized_content)
     validation_error = validate_normalized_frame(spec, frame)
     validation_payload = {
         "source_id": spec.source_id,
@@ -140,10 +184,45 @@ def run_external_source_refresh(
             fetched_at=started,
             pit_rule=spec.pit_rule,
             source_url=_source_url(raw) or spec.source_url,
+            transport_status="OK",
+            parse_status="OK",
+            validation_status="ERROR",
+            **channel_metadata,
         )
 
     previous = _canonical_snapshot(spec.target_path)
-    atomic_write_csv(frame, spec.target_path, index=False)
+    previous_promoted_as_of = _canonical_latest_as_of(spec)
+    try:
+        atomic_write_csv(frame, spec.target_path, index=False)
+    except Exception as exc:
+        _restore_canonical(spec.target_path, previous)
+        official = _official_metadata(raw, latest_frame_date(spec, frame))
+        return _record(
+            archive_dir,
+            spec,
+            run_id,
+            started,
+            "PROMOTION_ERROR",
+            raw_path=raw_path,
+            normalized_path=normalized_path,
+            validation_path=validation_path,
+            error_type=exc.__class__.__name__,
+            error_message=str(exc),
+            input_hash=input_hash,
+            output_hash=output_hash,
+            official_issue_as_of=official["official_issue_as_of"],
+            official_file_name=official["official_file_name"],
+            official_file_sha256=official["official_file_sha256"],
+            fetched_at=started,
+            pit_rule=spec.pit_rule,
+            source_url=_source_url(raw) or spec.source_url,
+            transport_status="OK",
+            parse_status="OK",
+            validation_status="OK",
+            promotion_status="ERROR",
+            previous_promoted_as_of=previous_promoted_as_of,
+            **channel_metadata,
+        )
     try:
         latest_as_of = latest_frame_date(spec, frame)
         canonical_sha256 = _sha256_file(spec.target_path)
@@ -168,6 +247,18 @@ def run_external_source_refresh(
             fetched_at=started,
             pit_rule=spec.pit_rule,
             source_url=_source_url(raw) or spec.source_url,
+            transport_status="OK",
+            parse_status="OK",
+            validation_status="OK",
+            promotion_status="OK",
+            previous_promoted_as_of=previous_promoted_as_of,
+            advanced=(
+                None
+                if latest_as_of is None
+                else previous_promoted_as_of is None
+                or latest_as_of > previous_promoted_as_of
+            ),
+            **channel_metadata,
         )
     except BaseException as exc:
         try:
@@ -202,7 +293,18 @@ def _record(
     fetched_at: str | None = None,
     pit_rule: str | None = None,
     source_url: str | None = None,
+    source_channel: str | None = None,
+    fallback_used: bool | None = None,
+    primary_failure: str | None = None,
+    transport_status: str = "NOT_RUN",
+    parse_status: str = "NOT_RUN",
+    validation_status: str = "NOT_RUN",
+    promotion_status: str = "NOT_RUN",
+    previous_promoted_as_of: str | None = None,
+    advanced: bool | None = None,
 ) -> ExternalSourceRun:
+    raw_sha256 = _sha256_file(raw_path) if raw_path else None
+    normalized_sha256 = _sha256_file(normalized_path) if normalized_path else None
     run = ExternalSourceRun(
         run_id=run_id,
         source_id=spec.source_id,
@@ -226,6 +328,27 @@ def _record(
         fetched_at=fetched_at,
         pit_rule=pit_rule,
         source_url=source_url,
+        source_channel=source_channel,
+        fallback_used=fallback_used,
+        primary_failure=primary_failure,
+        raw_sha256=raw_sha256,
+        normalized_sha256=normalized_sha256,
+        raw_blob_path=(
+            str(_content_blob_path(archive_dir, raw_sha256, raw_path.suffix))
+            if raw_path is not None and raw_sha256 is not None
+            else None
+        ),
+        normalized_blob_path=(
+            str(_content_blob_path(archive_dir, normalized_sha256, normalized_path.suffix))
+            if normalized_path is not None and normalized_sha256 is not None
+            else None
+        ),
+        transport_status=transport_status,
+        parse_status=parse_status,
+        validation_status=validation_status,
+        promotion_status=promotion_status,
+        previous_promoted_as_of=previous_promoted_as_of,
+        advanced=advanced,
     )
     append_source_run(archive_dir, run.to_dict())
     return run
@@ -240,6 +363,10 @@ def _iso(now: datetime | None = None) -> str:
 
 def _sha256(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
 
 
 def _stable_raw_text(raw: Any) -> str:
@@ -262,6 +389,52 @@ def _stable_raw_text(raw: Any) -> str:
 
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _write_content_addressed_evidence(
+    archive_dir: Path,
+    run_path: Path,
+    content: bytes,
+) -> Path:
+    digest = _sha256_bytes(content)
+    blob = _content_blob_path(archive_dir, digest, run_path.suffix)
+    blob.parent.mkdir(parents=True, exist_ok=True)
+    if blob.exists():
+        if blob.read_bytes() != content:
+            raise RuntimeError(f"content-addressed evidence collision: {blob}")
+    else:
+        fd, temp_name = tempfile.mkstemp(prefix=f".{blob.name}.", dir=blob.parent)
+        temp = Path(temp_name)
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(content)
+                handle.flush()
+                os.fsync(handle.fileno())
+            try:
+                os.link(temp, blob)
+            except FileExistsError:
+                if blob.read_bytes() != content:
+                    raise RuntimeError(f"content-addressed evidence collision: {blob}")
+        finally:
+            temp.unlink(missing_ok=True)
+    run_path.parent.mkdir(parents=True, exist_ok=True)
+    os.link(blob, run_path)
+    return blob
+
+
+def _content_blob_path(
+    archive_dir: Path,
+    digest: str,
+    suffix: str,
+) -> Path:
+    return (
+        Path(archive_dir)
+        / "external_sources"
+        / "blobs"
+        / "sha256"
+        / digest[:2]
+        / f"{digest}{suffix}"
+    )
 
 
 def _canonical_snapshot(path: Path) -> tuple[bool, bytes, int | None]:
@@ -305,6 +478,22 @@ def _source_url(raw: Any) -> str | None:
     return None
 
 
+def _source_channel_metadata(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        return {
+            "source_channel": None,
+            "fallback_used": None,
+            "primary_failure": None,
+        }
+    channel = str(raw.get("source") or "").strip() or None
+    primary_failure = str(raw.get("primary_failure") or "").strip() or None
+    return {
+        "source_channel": channel,
+        "fallback_used": bool(primary_failure) if channel else None,
+        "primary_failure": primary_failure,
+    }
+
+
 def _official_metadata(raw: Any, latest_as_of: str | None) -> dict[str, str | None]:
     if not isinstance(raw, dict):
         return {
@@ -337,3 +526,13 @@ def _stale_target_error(spec: ExternalSourceSpec, frame: pd.DataFrame) -> str | 
     if incoming_latest and existing_latest and incoming_latest < existing_latest:
         return f"source latest {incoming_latest} is older than existing target latest {existing_latest}"
     return None
+
+
+def _canonical_latest_as_of(spec: ExternalSourceSpec) -> str | None:
+    target = Path(spec.target_path)
+    if not target.exists():
+        return None
+    try:
+        return latest_frame_date(spec, pd.read_csv(target))
+    except Exception:
+        return None

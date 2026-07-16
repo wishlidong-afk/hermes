@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
 import tempfile
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Tuple
 from urllib.request import Request, urlopen
@@ -48,6 +49,26 @@ def render_markdown(report: Mapping[str, Any]) -> str:
                 evidence=_markdown_cell(row.get("evidence")),
             )
         )
+    observations = report.get("operational_observations") or {}
+    if observations:
+        lines.extend(
+            [
+                "",
+                "## Operational Observations",
+                "",
+                "| Observation | Status | Detail | Evidence |",
+                "|---|---|---|---|",
+            ]
+        )
+        for name, row in observations.items():
+            lines.append(
+                "| {name} | {status} | {detail} | {evidence} |".format(
+                    name=_markdown_cell(name),
+                    status=_markdown_cell((row or {}).get("status")),
+                    detail=_markdown_cell((row or {}).get("detail")),
+                    evidence=_markdown_cell((row or {}).get("evidence")),
+                )
+            )
     lines.extend(
         [
             "",
@@ -119,8 +140,17 @@ def collect_acceptance(
     watchdog_check = _collect_watchdog(root, acceptance_date)
     checks.append(watchdog_check)
 
+    operational_observations, operational_warnings = _collect_operational_observations(
+        root,
+        base,
+        archive,
+        observed_at,
+    )
+
     failures = [row for row in checks if row["status"] == "FAIL"]
-    warning_details = _unique(health_warnings + dashboard_warnings)
+    warning_details = _unique(
+        health_warnings + dashboard_warnings + operational_warnings
+    )
     status = "FAIL" if failures else "PASS"
     if failures:
         summary = "FAIL: " + ", ".join(row["id"] for row in failures)
@@ -141,6 +171,7 @@ def collect_acceptance(
             "run_ts": audit.get("run_ts"),
         },
         "checks": checks,
+        "operational_observations": operational_observations,
     }
 
 
@@ -163,11 +194,39 @@ def _collect_release(base: Path) -> Tuple[Dict[str, str], Dict[str, str]]:
             raise ValueError(
                 f"VERSION hash {version_hash} does not match release {expected_hash}"
             )
-        detail = f"{release_name} VERSION={version_hash} {version_stamp}"
-        return _check("release_identity", "PASS", detail, version_path), {
+        attestation_path = current / "hermes_escape_top/LIVE_CONFIG_ATTESTATION.json"
+        attestation = _read_json(attestation_path)
+        if attestation.get("schema_version") != "hermes-live-config-attestation-v1":
+            raise ValueError(f"invalid live config attestation: {attestation_path}")
+        if str(attestation.get("release_id") or "") != release_name:
+            raise ValueError(
+                f"attestation release {attestation.get('release_id')} does not match {release_name}"
+            )
+        if str(attestation.get("release_hash") or "") != version_hash:
+            raise ValueError(
+                f"attestation hash {attestation.get('release_hash')} does not match {version_hash}"
+            )
+        config_path = current / "hermes_escape_top/config/config.json"
+        observed_config_hash = hashlib.sha256(config_path.read_bytes()).hexdigest()
+        attested_config_hash = str(attestation.get("live_config_sha256") or "")
+        if observed_config_hash != attested_config_hash:
+            raise ValueError(
+                "live config sha256 mismatch "
+                f"observed={observed_config_hash} attested={attested_config_hash}"
+            )
+        feature_diff = attestation.get("feature_diff")
+        if not isinstance(feature_diff, dict):
+            raise ValueError("live config attestation feature_diff is not an object")
+        detail = (
+            f"{release_name} VERSION={version_hash} {version_stamp} "
+            f"config={observed_config_hash[:12]} feature_diff={len(feature_diff)}"
+        )
+        return _check("release_identity", "PASS", detail, attestation_path), {
             "name": release_name,
             "hash": version_hash,
             "stamp": version_stamp,
+            "live_config_sha256": observed_config_hash,
+            "feature_diff_count": str(len(feature_diff)),
         }
     except Exception as exc:
         return _check("release_identity", "FAIL", str(exc), current), {}
@@ -285,9 +344,35 @@ def _collect_bound_health(
     acceptance_date: date,
 ) -> Tuple[Dict[str, str], list[str]]:
     as_of = str(audit.get("as_of") or receipt.get("as_of") or "")[:10]
-    path = base / "current/reports" / f"system_health_{as_of}.json"
+    report_root = base / "current/reports"
+    compatibility = report_root / f"system_health_{as_of}.json"
+    immutable = sorted(
+        (report_root / "system_health_runs").glob(f"system_health_{as_of}_*.json")
+    )
+    candidate_paths = immutable + ([compatibility] if compatibility.exists() else [])
+    path = compatibility
     try:
-        report = _read_json(path)
+        reports = []
+        for candidate in candidate_paths:
+            try:
+                reports.append((candidate, _read_json(candidate)))
+            except Exception:
+                continue
+        expected_hash = str(audit.get("input_hash") or "")
+        matching = [
+            item
+            for item in reports
+            if str(item[1].get("input_hash") or "") == expected_hash
+        ]
+        if matching:
+            path, report = max(
+                matching,
+                key=lambda item: str(item[1].get("generated_at") or ""),
+            )
+        elif reports:
+            path, report = reports[-1]
+        else:
+            raise FileNotFoundError(f"no system health report candidates for {as_of}")
         generated_at = _parse_timestamp(report.get("generated_at"))
         failures = []
         if generated_at is None or _local_datetime(generated_at).date() != acceptance_date:
@@ -304,6 +389,14 @@ def _collect_bound_health(
         if str(report_receipt.get("run_type") or "") != "scheduled":
             failures.append(
                 f"embedded receipt run_type={report_receipt.get('run_type')}"
+            )
+        expected_finished = str(receipt.get("finished_at") or receipt.get("run_at") or "")
+        observed_finished = str(
+            report_receipt.get("finished_at") or report_receipt.get("run_at") or ""
+        )
+        if expected_finished and observed_finished != expected_finished:
+            failures.append(
+                f"embedded receipt finished_at={observed_finished} expected={expected_finished}"
             )
         health_failures, warnings = _health_policy(report.get("health") or {})
         failures.extend(health_failures)
@@ -376,6 +469,161 @@ def _collect_watchdog(root: Path, acceptance_date: date) -> Dict[str, str]:
         )
     except Exception as exc:
         return _check("watchdog", "FAIL", str(exc), path)
+
+
+def _collect_operational_observations(
+    root: Path,
+    base: Path,
+    archive: Path,
+    observed_at: datetime,
+) -> Tuple[Dict[str, Dict[str, Any]], list[str]]:
+    attestation_path = base / "current/hermes_escape_top/LIVE_CONFIG_ATTESTATION.json"
+    try:
+        attestation = _read_json(attestation_path)
+    except Exception:
+        attestation = {}
+    retention = _retention_observation(root, attestation, observed_at)
+    market_admission = _market_admission_observation(
+        archive,
+        attestation,
+    )
+    warnings = []
+    if retention["status"] == "WARN":
+        warnings.append(f"runtime retention: {retention['detail']}")
+    if market_admission["status"] == "WARN":
+        warnings.append(f"market admission: {market_admission['detail']}")
+    return {
+        "runtime_retention": retention,
+        "market_admission": market_admission,
+    }, warnings
+
+
+def _retention_observation(
+    root: Path,
+    attestation: Mapping[str, Any],
+    observed_at: datetime,
+) -> Dict[str, Any]:
+    path = root / ".hermes/logs/retention/runtime_retention_latest.json"
+    expected_at = _parse_timestamp(attestation.get("retention_first_expected_at"))
+    observed = _local_datetime(observed_at)
+    if not path.exists():
+        if expected_at is not None and observed < _local_datetime(expected_at):
+            return {
+                "status": "PENDING",
+                "detail": f"first APPLY evidence expected after {_local_datetime(expected_at).isoformat(timespec='minutes')}",
+                "evidence": str(path),
+            }
+        return {
+            "status": "WARN",
+            "detail": "retention APPLY evidence missing after its first expected window",
+            "evidence": str(path),
+        }
+    try:
+        report = _read_json(path)
+        generated_at = _parse_timestamp(report.get("generated_at"))
+        if generated_at is None:
+            raise ValueError("generated_at missing or invalid")
+        age = observed - _local_datetime(generated_at)
+        report_status = str(report.get("status") or "")
+        result_mode = str((report.get("result") or {}).get("mode") or "")
+        if report_status != "PASS" or result_mode != "APPLIED":
+            return {
+                "status": "WARN",
+                "detail": f"retention result status={report_status or 'MISSING'} mode={result_mode or 'MISSING'}",
+                "evidence": str(path),
+            }
+        if age > timedelta(days=8):
+            return {
+                "status": "WARN",
+                "detail": f"retention APPLY evidence is older than 8 days: age={age.total_seconds() / 86400:.1f}d",
+                "evidence": str(path),
+            }
+        deleted = int((report.get("result") or {}).get("deleted_count") or 0)
+        return {
+            "status": "PASS",
+            "detail": f"latest APPLY passed age={age.total_seconds() / 86400:.1f}d deleted={deleted}",
+            "evidence": str(path),
+        }
+    except Exception as exc:
+        return {
+            "status": "WARN",
+            "detail": f"retention evidence unreadable: {exc}",
+            "evidence": str(path),
+        }
+
+
+def _market_admission_observation(
+    archive: Path,
+    attestation: Mapping[str, Any],
+) -> Dict[str, Any]:
+    enabled = set(attestation.get("live_enabled_features") or [])
+    diff = attestation.get("feature_diff") or {}
+    market_diff = diff.get("use_market_admission_gate") if isinstance(diff, dict) else None
+    gate_enabled = (
+        "use_market_admission_gate" in enabled
+        or bool((market_diff or {}).get("live"))
+    )
+    paths = sorted(Path(archive).glob("market_admission_????-??-??.json"))
+    if not gate_enabled:
+        return {
+            "status": "NOT_APPLICABLE",
+            "detail": "use_market_admission_gate is not enabled in live attestation",
+            "evidence": str(archive),
+            "consecutive_ok": 0,
+            "mature": False,
+        }
+    rows = []
+    for path in paths:
+        try:
+            rows.append((path, _read_json(path)))
+        except Exception as exc:
+            rows.append((path, {"status": "ERROR", "error": str(exc)}))
+    if not rows:
+        return {
+            "status": "WARN",
+            "detail": "no dated market-admission evidence",
+            "evidence": str(archive),
+            "consecutive_ok": 0,
+            "mature": False,
+        }
+    consecutive = 0
+    completed_dates: set[str] = set()
+    previous_run_day: Optional[date] = None
+    for path, row in reversed(rows):
+        try:
+            run_day = date.fromisoformat(path.stem.rsplit("_", 1)[-1])
+        except ValueError:
+            break
+        if previous_run_day is not None and run_day != previous_run_day - timedelta(days=1):
+            break
+        completed = str(row.get("completed_through") or "")[:10]
+        if str(row.get("status") or "") != "OK" or not completed:
+            break
+        previous_run_day = run_day
+        if completed in completed_dates:
+            continue
+        completed_dates.add(completed)
+        consecutive += 1
+    latest_path, latest = rows[-1]
+    latest_status = str(latest.get("status") or "MISSING")
+    if latest_status != "OK":
+        status = "WARN"
+        detail = f"latest market-admission status={latest_status}"
+    elif consecutive < 3:
+        status = "OBSERVING"
+        detail = f"consecutive OK evidence {consecutive}/3 minimum; 5-day target"
+    else:
+        status = "PASS"
+        detail = f"consecutive OK evidence {consecutive}; 3-day minimum met, 5-day target"
+    return {
+        "status": status,
+        "detail": detail,
+        "evidence": str(latest_path),
+        "consecutive_ok": consecutive,
+        "mature": consecutive >= 3,
+        "target_days": 5,
+        "latest_completed_through": str(latest.get("completed_through") or "")[:10],
+    }
 
 
 def _health_policy(health: Mapping[str, Any]) -> Tuple[list[str], list[str]]:

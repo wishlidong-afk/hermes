@@ -3,11 +3,16 @@ from __future__ import annotations
 import copy
 import unittest
 from datetime import date
+from pathlib import Path
+
+import pandas as pd
 
 from hermes_escape_top.config import load_config
 from hermes_escape_top.core.data.base import Field, SymbolSnapshot
 from hermes_escape_top.core.scoring.registry import FactorContext
 from hermes_escape_top.core.scoring.scorer import build_registry
+from hermes_escape_top.core.data.external_sources.ledger import latest_source_run
+from hermes_escape_top.scripts.backfill_cnn_fgi import build
 
 
 def _on():
@@ -48,6 +53,27 @@ class CnnFgiFactorTest(unittest.TestCase):
     def test_percentile_alone_can_trigger(self) -> None:
         # Raw value mild but percentile extreme → still fires.
         self.assertEqual(_factor(_on(), 60.0, pctl=95.0).score, 2.0)
+
+
+def test_cnn_research_backfill_promotes_only_through_external_runner(tmp_path: Path) -> None:
+    source = tmp_path / "fear-greed.csv"
+    target = tmp_path / "soft_history" / "cnn_fear_greed.csv"
+    archive = tmp_path / "archive"
+    pd.DataFrame(
+        {
+            "Date": pd.date_range("2026-07-01", periods=3, freq="D"),
+            "Fear Greed": [42.0, 55.0, 61.0],
+        }
+    ).to_csv(source, index=False)
+
+    result = build(str(source), target, archive_dir=archive)
+
+    assert result == target
+    assert target.exists()
+    ledger = latest_source_run(archive, "cnn_fear_greed_research")
+    assert ledger is not None
+    assert ledger["status"] == "OK"
+    assert ledger["canonical_sha256"]
 
 
 if __name__ == "__main__":

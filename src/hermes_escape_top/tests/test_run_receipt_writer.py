@@ -266,8 +266,12 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
 
     assert out["json"] == tmp_path / "reports" / "system_health_2026-06-17.json"
     assert out["markdown"] == tmp_path / "reports" / "system_health_2026-06-17.md"
+    assert out["run_json"].parent == tmp_path / "reports" / "system_health_runs"
+    assert out["run_markdown"].parent == tmp_path / "reports" / "system_health_runs"
     assert out["json"].exists()
     assert out["markdown"].exists()
+    assert out["run_json"].exists()
+    assert out["run_markdown"].exists()
     data = json.loads(out["json"].read_text(encoding="utf-8"))
     assert data["health"]["layers"]["position_reconciliation"]["level"] == "INFO"
     assert data["decision_input_coverage"]["coverage_score"] == 96.0
@@ -295,6 +299,19 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     assert "策略数据" in markdown
     assert "## 20 维自检" in markdown
     assert "| external_file_evidence | PASS |" in markdown
+
+    second_payload = dict(payload, input_hash="second-input-hash")
+    second_receipt = dict(receipt, finished_at="2026-06-17T08:12:00+08:00")
+    second = rdp._write_system_health_report(
+        second_payload,
+        "2026-06-17",
+        second_receipt,
+    )
+
+    assert second["run_json"] != out["run_json"]
+    assert len(list((tmp_path / "reports" / "system_health_runs").glob("*.json"))) == 2
+    current = json.loads(out["json"].read_text(encoding="utf-8"))
+    assert current["input_hash"] == "second-input-hash"
 
 
 def test_system_health_audit_fails_external_runner_when_canonical_evidence_drifted():

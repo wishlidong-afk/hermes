@@ -3,14 +3,15 @@
 CSV schema (btc_funding_basis.csv):
   date               — measurement date
   publish_date       — same-day (exchange data)
-  btc_funding_8h_avg — average 8-hour funding rate (proxy: momentum-derived)
+  btc_funding_8h_avg — average 8-hour funding rate
   btc_funding_pctl   — rolling 252-day percentile (0-100)
   btc_basis_annual   — annualised futures basis (proxy)
   btc_basis_pctl     — rolling 252-day percentile (0-100)
 
-Source note: fields are momentum-derived proxies from BTC-USD price history.
-quality_penalty = 2 per BUILD_TICKETS N1-T07/T08 (no deep history fallback).
-is_proxy = True. All values tagged in SoftDataRecord.
+Source note: historical funding rows can be momentum-derived proxies; current
+funding rows can be certified exchange observations. ``btc_basis_annual`` is
+still funding multiplied by three sessions and 365 days, so it is not a traded
+futures basis and always retains proxy provenance and penalty.
 
 Usage:
   from hermes_escape_top.core.data.crypto import CryptoFundingSource
@@ -69,11 +70,7 @@ def annualized_basis(
 
 
 class CryptoFundingSource:
-    """BTC funding rate + basis adapter backed by local proxy CSV (N1-T07/T08).
-
-    The CSV contains momentum-derived proxies. quality_penalty=2 per spec.
-    is_proxy=True. Offline-safe: no network calls.
-    """
+    """BTC funding rate + basis adapter backed by the certified local CSV."""
 
     name = "btc_funding_basis"
     feature_flag = "data_btc_funding"
@@ -122,14 +119,21 @@ class CryptoFundingSource:
             "btc_basis_pctl": _finite(picked.get("btc_basis_pctl")),
         }
         available = fields["btc_funding_8h_avg"] is not None
+        funding_source, funding_is_proxy = _funding_provenance(picked)
+        field_provenance = _field_provenance(
+            funding_source=funding_source,
+            funding_is_proxy=funding_is_proxy,
+        )
+        record_source = "BTC_FUNDING_PROXY" if funding_is_proxy else "BTC_MICRO_MIXED"
 
         return SoftDataRecord(
-            self.name, day, fields["btc_funding_8h_avg"], "BTC_FUNDING_PROXY",
+            self.name, day, fields["btc_funding_8h_avg"], record_source,
             data_available=available,
             is_proxy=True,
-            quality_penalty=_FUNDING_QUALITY_PENALTY if available else _FUNDING_QUALITY_PENALTY + 1,
+            quality_penalty=_FUNDING_QUALITY_PENALTY if available else _FUNDING_QUALITY_PENALTY + 1.0,
             latency_days=0,
             fields={k: v for k, v in fields.items() if v is not None},
+            field_provenance=field_provenance,
         )
 
     @staticmethod
@@ -147,3 +151,34 @@ def _finite(val: Any) -> Optional[float]:
         return f if (f == f) else None  # NaN check
     except (TypeError, ValueError):
         return None
+
+
+def _funding_provenance(row: Dict[str, Any]) -> tuple[str, bool]:
+    raw_marker = row.get("is_proxy")
+    marker = "" if pd.isna(raw_marker) else str(raw_marker).strip().lower()
+    raw_source = row.get("funding_source")
+    source = "" if pd.isna(raw_source) else str(raw_source).strip()
+    invalid_sources = {"", "proxy", "unknown", "none", "nan"}
+    if marker in {"false", "0", "no"} and source.lower() not in invalid_sources:
+        return source.upper(), False
+    return "BTC_FUNDING_PROXY", True
+
+
+def _field_provenance(*, funding_source: str, funding_is_proxy: bool) -> Dict[str, Dict[str, Any]]:
+    funding_penalty = _FUNDING_QUALITY_PENALTY if funding_is_proxy else 0.0
+    funding = {
+        "source": funding_source,
+        "is_proxy": funding_is_proxy,
+        "quality_penalty": funding_penalty,
+    }
+    basis = {
+        "source": "BTC_BASIS_FROM_FUNDING_PROXY",
+        "is_proxy": True,
+        "quality_penalty": _FUNDING_QUALITY_PENALTY,
+    }
+    return {
+        "btc_funding_8h_avg": dict(funding),
+        "btc_funding_pctl": dict(funding),
+        "btc_basis_annual": dict(basis),
+        "btc_basis_pctl": dict(basis),
+    }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from pathlib import Path
 import stat
@@ -75,6 +76,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(repo / "src/hermes_escape_top/core/data/keep.py", "DATA_CODE = True\n")
     _write(repo / "src/hermes_escape_top/config/config.json", "{}\n")
     _write(repo / "src/hermes_escape_top/data/soft_history/source.csv", "date,value\n2026-06-18,2\n")
+    _write(repo / "requirements.lock", "numpy==2.0.2 --hash=sha256:fixture\n")
     _write(repo / "ops/run_daily.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/serve_dashboard.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/refresh_external_precheck.sh", "#!/bin/sh\nexit 0\n", 0o755)
@@ -152,6 +154,9 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
             ),
             "HERMES_DEPLOY_RETENTION_RELOAD_CMD": (
                 f"echo retention-reload-${{HERMES_PIPELINE_LOCK_FD:+locked}} >> '{quoted_events}'"
+            ),
+            "HERMES_DEPLOY_RUNTIME_PREP_CMD": (
+                f"echo runtime-prep >> '{quoted_events}'"
             ),
             "HERMES_DEPLOY_VERIFY_CMD": (
                 f"echo verify-${{HERMES_PIPELINE_LOCK_FD:+locked}} >> '{quoted_events}'"
@@ -255,7 +260,7 @@ def test_failure_injection_restores_paths_hashes_and_modes(
     ) == "#!/usr/bin/env python3\nprint('old watchdog')\n"
     events = Path(deploy_fixture["events"]).read_text(encoding="utf-8").splitlines()
     assert "restart-locked" not in events
-    assert events[0:2] == ["guard", "stop"]
+    assert events[0:3] == ["runtime-prep", "guard", "stop"]
     assert events[-1] == "restart-"
     if fail_at == "hermes_commit":
         hermes_home = Path(deploy_fixture["hermes_home"])
@@ -323,6 +328,14 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
     assert not (release / "hermes_escape_top/core/removed.py").exists()
     assert (release / "hermes_escape_top/data").is_symlink()
     assert (release / "hermes_escape_top/config").is_symlink()
+    attestation_path = release / "hermes_escape_top/LIVE_CONFIG_ATTESTATION.json"
+    assert attestation_path.is_file()
+    attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+    assert attestation["schema_version"] == "hermes-live-config-attestation-v1"
+    assert attestation["release_hash"] == release.name.split("_", 1)[0]
+    assert attestation["live_config_sha256"] == hashlib.sha256(
+        (release / "hermes_escape_top/config/config.json").read_bytes()
+    ).hexdigest()
     assert (release / "data").is_symlink()
     assert (release / "reports").is_symlink()
     assert (release / "orders").is_symlink()
@@ -351,6 +364,8 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         f"{release_prefix}/hermes_escape_top/config",
         f"{release_prefix}/hermes_escape_top/data",
         f"{release_prefix}/hermes_escape_top/VERSION",
+        f"{release_prefix}/hermes_escape_top/RUNTIME_LOCK_SHA256",
+        f"{release_prefix}/hermes_escape_top/LIVE_CONFIG_ATTESTATION.json",
         f"{release_prefix}/hermes_escape_top/core/added.py",
         f"{release_prefix}/hermes_escape_top/core/data/keep.py",
         f"{release_prefix}/hermes_escape_top/core/keep.py",
@@ -382,6 +397,7 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
     }
     events = Path(deploy_fixture["events"]).read_text(encoding="utf-8").splitlines()
     assert events == [
+        "runtime-prep",
         "guard",
         "stop",
         "smoke-import-locked",
@@ -392,6 +408,45 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         "health-",
         "verify-",
     ]
+
+
+def test_live_config_attestation_contains_only_hashes_and_boolean_feature_diff(
+    deploy_fixture: dict[str, object],
+) -> None:
+    repo_config = {
+        "features": {"use_market_admission_gate": False, "repo_only": True},
+        "fred": {"api_key": "repo-secret"},
+    }
+    live_config = {
+        "features": {"use_market_admission_gate": True, "live_only": True},
+        "fred": {"api_key": "live-secret"},
+    }
+    _write(
+        Path(deploy_fixture["repo"]) / "src/hermes_escape_top/config/config.json",
+        json.dumps(repo_config) + "\n",
+    )
+    _write(
+        Path(deploy_fixture["package"]) / "config/config.json",
+        json.dumps(live_config) + "\n",
+        0o640,
+    )
+
+    result = _run(deploy_fixture)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    current = Path(deploy_fixture["live"]) / "current/hermes_escape_top"
+    path = current / "LIVE_CONFIG_ATTESTATION.json"
+    text = path.read_text(encoding="utf-8")
+    payload = json.loads(text)
+    assert "repo-secret" not in text
+    assert "live-secret" not in text
+    assert payload["feature_diff"] == {
+        "live_only": {"live": True, "repo": False},
+        "repo_only": {"live": False, "repo": True},
+        "use_market_admission_gate": {"live": True, "repo": False},
+    }
+    assert payload["retention_policy_active_since"]
+    assert payload["retention_first_expected_at"]
 
 
 def test_existing_r6_success_switches_current_and_preserves_old_as_previous(
@@ -513,5 +568,5 @@ def test_pre_staged_allowlist_file_aborts_before_dashboard_stop(
     assert result.returncode == 4
     assert "pre-staged deploy-allowlist" in result.stderr
     events = Path(deploy_fixture["events"]).read_text(encoding="utf-8").splitlines()
-    assert events == ["guard"]
+    assert events == ["runtime-prep", "guard"]
     assert not list(Path(deploy_fixture["backup"]).glob("hermes_escape_top.predeploy_backup_*"))

@@ -198,6 +198,14 @@ def build_unified(real_funding: pd.DataFrame, real_dvol: pd.DataFrame,
 # ---------------------------------------------------------------------------
 
 def run(full: bool = False, dry_run: bool = False) -> Dict[str, Any]:
+    if not dry_run:
+        from hermes_escape_top.scripts.refresh_external import refresh_source
+
+        result = refresh_source("btc_funding_basis")
+        result["legacy_entrypoint"] = "backfill_crypto_micro"
+        result["full_requested"] = bool(full)
+        return result
+
     SOFT_HISTORY.mkdir(parents=True, exist_ok=True)
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
 
@@ -232,23 +240,7 @@ def run(full: bool = False, dry_run: bool = False) -> Dict[str, Any]:
         source = "okx_failover"
     print(f"    funding rows: {len(funding)} (source={source})")
 
-    if dry_run:
-        return {"dry_run": True, "dvol_rows": len(dvol), "funding_rows": len(funding), "source": source}
-
-    unified = build_unified(funding, dvol, existing)
-    unified["is_proxy"] = unified["is_proxy"].fillna(True).astype(bool)
-    real_count = int((unified["is_proxy"] == False).sum())
-    unified.to_csv(OUT_CSV, index=False)
-
-    return {
-        "out_csv": str(OUT_CSV),
-        "total_rows": len(unified),
-        "real_rows": real_count,
-        "proxy_rows": len(unified) - real_count,
-        "funding_source": source,
-        "dvol_rows": len(dvol),
-        "date_range": [str(unified["date"].min().date()), str(unified["date"].max().date())],
-    }
+    return {"dry_run": True, "dvol_rows": len(dvol), "funding_rows": len(funding), "source": source}
 
 
 def main() -> None:

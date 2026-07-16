@@ -9,7 +9,6 @@ from typing import Dict, Optional
 import pandas as pd
 
 from ...config import resolve_path
-from ..safe_io import atomic_write_csv
 from .adapters import SoftDataRecord
 from .pit import asof_pick
 
@@ -63,21 +62,13 @@ class FredNetLiquiditySource:
                 quality_penalty=5.0,
                 reason="FRED exact-vintage net-liquidity canonical missing",
             )
-        if not path.exists() and not config.get("runtime", {}).get("offline_replay_mode", False):
-            try:
-                self.backfill(config=config)
-            except Exception as exc:
-                return SoftDataRecord(self.name, day, None, "FRED", False, quality_penalty=5.0, reason=f"FRED backfill failed: {exc}")
         return self.fetch(as_of, config)
 
     def backfill(self, start: str = "2015-01-01", end: Optional[str] = None, config: Optional[Dict[str, Any]] = None) -> Path:
-        cfg = config or {}
-        series = {name: fetch_fred_graph_csv(series_id, start=start, end=end) for name, series_id in self.fred_ids.items()}
-        frame = fred_net_liquidity_frame(series["walcl"], series["wtregen"], series["rrp"])
-        path = self.history_path(cfg)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write_csv(frame, path, index=False)
-        return path
+        raise RuntimeError(
+            "external canonical promotion is owned by ExternalSourceRunner; "
+            "run refresh_external --source fred_net_liquidity"
+        )
 
     def fetch(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:
         day = date.fromisoformat(str(as_of)[:10])

@@ -22,16 +22,17 @@ LOG_DIR="$HOME/.hermes/logs/daily"
 mkdir -p "$LOG_DIR"
 LOG="${HERMES_RUN_LOG:-$LOG_DIR/daily_$(date +%F).log}"
 
-# System python3 verified to import numpy/pandas/scipy (3.9.6).
-# The normal path is --live --commit-state. --deploy-verify traverses the same
-# entry as a non-official manual preview without committing state or receipt.
-PY=/usr/bin/python3
+MARKER="$RUNTIME/hermes_escape_top/RUNTIME_LOCK_SHA256"
+[ -r "$MARKER" ] || { echo "Hermes runtime marker missing: $MARKER" >&2; exit 65; }
+LOCK_SHA="$(tr -d '[:space:]' < "$MARKER")"
+PY="$BASE/runtime/$LOCK_SHA/.venv/bin/python"
+[ -x "$PY" ] || { echo "Hermes managed Python missing: $PY" >&2; exit 65; }
 DEPLOY_VERIFY=0
 [ "${1:-}" = "--deploy-verify" ] && DEPLOY_VERIFY=1
 
 {
   echo "=== hermes daily run start $(date '+%F %T %Z') ==="
-  "$PY" -c 'import numpy, pandas, scipy' || echo "WARNING: $PY lacks scientific deps"
+  "$PY" -c 'import ssl, numpy, pandas, scipy; assert ssl.OPENSSL_VERSION.startswith("OpenSSL ")'
   if [ "${1:-}" = "--deploy-verify" ]; then
     HERMES_RUNTIME_ROOT="$RUNTIME" "$PY" "$RUNTIME/scripts/run_daily.py" --deploy-verify
   else

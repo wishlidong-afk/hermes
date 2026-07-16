@@ -1078,14 +1078,17 @@ def _soft_snapshot(soft_data: Dict[str, Any], as_of: str) -> SymbolSnapshot:
             quality_penalty=float(record.get("quality_penalty", 0.0) or 0.0),
         )
         for field_name, value in record.get("fields", {}).items():
+            provenance = (record.get("field_provenance") or {}).get(field_name) or {}
             fields[field_name] = Field(
                 name=field_name,
                 value=value,
-                source=source,
+                source=str(provenance.get("source") or source),
                 as_of=record_date,
-                is_proxy=bool(record.get("is_proxy", False)),
+                is_proxy=bool(provenance.get("is_proxy", record.get("is_proxy", False))),
                 latency_days=int(record.get("latency_days", 0) or 0),
-                quality_penalty=float(record.get("quality_penalty", 0.0) or 0.0),
+                quality_penalty=float(
+                    provenance.get("quality_penalty", record.get("quality_penalty", 0.0)) or 0.0
+                ),
             )
     return SymbolSnapshot("SOFT", day, fields)
 

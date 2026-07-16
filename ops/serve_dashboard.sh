@@ -12,10 +12,15 @@ fi
 export HERMES_RUNTIME_ROOT="$RUNTIME"
 export PYTHONPATH="$RUNTIME"
 export HERMES_DATA_DIR="$RUNTIME/hermes_escape_top"
+MARKER="$RUNTIME/hermes_escape_top/RUNTIME_LOCK_SHA256"
+[ -r "$MARKER" ] || { echo "Hermes runtime marker missing: $MARKER" >&2; exit 65; }
+LOCK_SHA="$(tr -d '[:space:]' < "$MARKER")"
+PY="$BASE/runtime/$LOCK_SHA/.venv/bin/python"
+[ -x "$PY" ] || { echo "Hermes managed Python missing: $PY" >&2; exit 65; }
 # Enables the fail-secure write-endpoint auth (golive/refresh/confirm). The
 # token is provided to the browser out-of-band via localStorage — never
 # injected into page HTML, or a DNS-rebinding read would defeat the guard.
 TOKEN_FILE="$HOME/.hermes/hermes_confirm_token.txt"
 [ -f "$TOKEN_FILE" ] && export HERMES_CONFIRM_TOKEN="$(cat "$TOKEN_FILE")"
 cd "$RUNTIME" || exit 1
-exec /usr/bin/python3 -u -m hermes_escape_top.cli serve --as-of latest --host 127.0.0.1 --port 8766
+exec "$PY" -u -m hermes_escape_top.cli serve --as-of latest --host 127.0.0.1 --port 8766

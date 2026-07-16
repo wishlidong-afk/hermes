@@ -72,6 +72,24 @@ def main() -> int:
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
 
+    if not args.dry_run:
+        from hermes_escape_top.config import load_config, resolve_path
+        from hermes_escape_top.core.data.external_sources import (
+            OccPcrAdapter,
+            occ_pcr_spec,
+            run_external_source_refresh,
+        )
+
+        config = load_config()
+        target = resolve_path(config, "soft_history_dir") / "occ_equity_pcr.csv"
+        result = run_external_source_refresh(
+            occ_pcr_spec(target_path=target),
+            OccPcrAdapter(seed_path=target, weeks=args.weeks),
+            resolve_path(config, "archive_dir"),
+        )
+        print(result.to_dict())
+        return 0 if result.status == "OK" else 1
+
     existing: dict[str, dict] = {}
     if OUT.exists():
         with OUT.open() as fh:
@@ -98,13 +116,6 @@ def main() -> int:
             print(f"{d} no data")
         time.sleep(0.4)
 
-    if not args.dry_run and fetched:
-        OUT.parent.mkdir(parents=True, exist_ok=True)
-        with OUT.open("w", newline="") as fh:
-            w = csv.DictWriter(fh, fieldnames=FIELDS)
-            w.writeheader()
-            for k in sorted(existing):
-                w.writerow(existing[k])
     print(f"done: +{fetched} rows, {errors} errors, total {len(existing)} -> {OUT}")
     # The current week's report doesn't exist until Friday's close is
     # published; one failing week is normal, not an error condition.

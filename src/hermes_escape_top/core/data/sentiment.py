@@ -7,7 +7,6 @@ from typing import Any, Dict, Optional
 import pandas as pd
 
 from ...config import resolve_path
-from ..safe_io import atomic_write_csv
 from .adapters import SoftDataRecord
 from .pit import asof_pick
 
@@ -21,22 +20,13 @@ class AaiiSource:
         if not bool(config.get("features", {}).get(self.feature_flag, False)):
             return SoftDataRecord(self.name, day, None, "AAII", False, reason=f"feature disabled: {self.feature_flag}")
         csv_path = self.history_path(config)
-        if not csv_path.exists() and not config.get("runtime", {}).get("offline_replay_mode", False):
-            try:
-                self.backfill(config=config)
-            except Exception as exc:
-                return SoftDataRecord(self.name, day, None, "AAII", False, quality_penalty=5.0, reason=f"AAII parse/backfill failed: {exc}")
         return self.fetch(as_of, config)
 
     def backfill(self, config: Dict[str, Any]) -> Path:
-        xls_path = self.source_path(config)
-        if not xls_path.exists():
-            raise FileNotFoundError(str(xls_path))
-        frame = parse_aaii_sentiment_xls(xls_path)
-        path = self.history_path(config)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write_csv(frame, path, index=False)
-        return path
+        raise RuntimeError(
+            "external canonical promotion is owned by ExternalSourceRunner; "
+            "run refresh_external --source aaii_sentiment --auto-import"
+        )
 
     def fetch(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:
         day = date.fromisoformat(str(as_of)[:10])

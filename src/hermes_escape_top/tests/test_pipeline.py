@@ -18,7 +18,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from hermes_escape_top.core.pipeline import score_pipeline, PipelineResult
+from hermes_escape_top.core.research.integration_pipeline import PipelineResult, score_pipeline
 from hermes_escape_top.core.contracts import Verdict
 
 

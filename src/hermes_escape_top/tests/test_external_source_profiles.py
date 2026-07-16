@@ -1,5 +1,6 @@
 from datetime import date
 
+from hermes_escape_top.config import load_config
 from hermes_escape_top.core.data.external_sources import profiles
 
 
@@ -31,7 +32,7 @@ def test_naaim_profile_declares_subscription_migration_deadline():
     profile = _effective_source_profile({}, "naaim_exposure")
 
     assert profile is not None
-    assert profile.automation_mode == "official_file"
+    assert profile.automation_mode == "subscriber_or_official_file"
     assert profile.migration_deadline == "2026-08-01"
     assert profile.pit_rule == "issue_date_plus_one_day"
 
@@ -151,3 +152,46 @@ def test_aaii_requires_action_only_when_overdue_without_official_artifact():
     assert fresh["migration_status"] == "MONITORED"
     assert overdue["migration_status"] == "ACTION_REQUIRED"
     assert staged["migration_status"] == "OFFICIAL_FILE_READY"
+
+
+def test_registry_is_the_single_source_for_refresh_sets_and_policy_fields():
+    config = load_config()
+    legacy = profiles.configured_refresh_source_ids(config)
+
+    assert legacy[:3] == ("dollar", "real_rate", "fred_net_liquidity")
+    assert "fred_vintages" not in legacy
+    assert "aaii_sentiment" in legacy
+    assert "naaim_exposure" in legacy
+
+    exact_config = {**config, "features": {**config["features"], "use_fred_vintage_pit": True}}
+    exact = profiles.configured_refresh_source_ids(exact_config)
+    assert exact[:4] == (
+        "fred_vintages",
+        "dollar_vintage",
+        "real_rate_vintage",
+        "fred_net_liquidity_vintage",
+    )
+    assert "dollar" not in exact
+    assert "real_rate" not in exact
+    assert "fred_net_liquidity" not in exact
+
+    for source_id in profiles.all_source_ids():
+        profile = profiles.profile_for(source_id)
+        assert profile is not None
+        assert profile.label
+        assert profile.cadence
+        assert profile.publication_schedule
+        assert profile.grace_days >= 0
+        assert profile.max_age_days >= profile.warn_age_days
+        assert profile.primary
+        assert profile.fallback
+        assert profile.pit_rule
+        assert profile.refresh_group in {"legacy_fred", "exact_fred", "common", "cboe_indices"}
+        assert profile.refresh_order >= 0
+
+
+def test_registry_drives_import_and_display_metadata():
+    assert set(profiles.import_source_ids()) == {"aaii_sentiment", "naaim_exposure"}
+    display = profiles.display_source_ids()
+    assert display.index("fred_vintages") < display.index("aaii_sentiment")
+    assert profiles.profile_for("cboe_skew").label == "CBOE SKEW"

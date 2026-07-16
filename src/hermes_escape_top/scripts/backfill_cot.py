@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import ssl
 import urllib.parse
 import urllib.request
@@ -154,12 +153,23 @@ def run(dry_run: bool = False, start_year: int = 2006) -> Dict[str, Any]:
         print("  [dry-run] not writing CSV")
         return {"rows": rows, "date_range": date_range, "dry_run": True}
 
-    SOFT_HISTORY.mkdir(parents=True, exist_ok=True)
-    if OUT_CSV.exists():
-        shutil.copyfile(OUT_CSV, OUT_CSV.with_suffix(".csv.bak"))
-    df.to_csv(OUT_CSV, index=False)
-    print(f"  Written: {OUT_CSV}")
-    return {"rows": rows, "date_range": date_range, "path": str(OUT_CSV)}
+    from hermes_escape_top.config import load_config, resolve_path
+    from hermes_escape_top.core.data.external_sources import (
+        CotNqAdapter,
+        cot_nq_spec,
+        run_external_source_refresh,
+    )
+
+    config = load_config()
+    target = resolve_path(config, "soft_history_dir") / "cot_nq.csv"
+    promoted = run_external_source_refresh(
+        cot_nq_spec(target_path=target),
+        CotNqAdapter(fetch_frame=lambda: raw),
+        resolve_path(config, "archive_dir"),
+    )
+    result = promoted.to_dict()
+    result["legacy_entrypoint"] = "backfill_cot"
+    return result
 
 
 def main() -> int:

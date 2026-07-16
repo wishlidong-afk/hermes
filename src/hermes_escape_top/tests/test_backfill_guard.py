@@ -394,7 +394,7 @@ def test_backfill_market_admission_flag_prefetches_and_writes_evidence(tmp_path,
     assert prepared == [
         (
             ["QQQ"],
-            "2026-07-01",
+            "2026-07-07",
             "2026-07-14",
             {"btc_spot_witness_enabled": True},
         )
@@ -403,7 +403,7 @@ def test_backfill_market_admission_flag_prefetches_and_writes_evidence(tmp_path,
     assert written[0][1]["status"] == "OK"
 
 
-def test_market_admission_witness_range_includes_missing_history_head(tmp_path):
+def test_market_admission_daily_range_uses_tail_even_when_head_is_missing(tmp_path):
     (tmp_path / "QQQ.csv").write_text(
         "date,open,high,low,close,adj_close,volume\n"
         "2026-07-10,99,101,98,100,100,1000\n",
@@ -417,7 +417,59 @@ def test_market_admission_witness_range_includes_missing_history_head(tmp_path):
         repair_overlap_days=3,
     )
 
+    assert start == "2026-07-07"
+
+
+def test_market_admission_explicit_repair_includes_missing_history_head(tmp_path):
+    (tmp_path / "QQQ.csv").write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-10,99,101,98,100,100,1000\n",
+        encoding="utf-8",
+    )
+
+    start = _market_admission_start(
+        ["QQQ"],
+        tmp_path,
+        "2026-07-01",
+        repair_overlap_days=3,
+        repair_history_head=True,
+    )
+
     assert start == "2026-07-01"
+
+
+def test_backfill_daily_tail_does_not_request_prelisting_head(tmp_path, monkeypatch):
+    from hermes_escape_top.scripts import backfill_history as module
+
+    history = tmp_path / "history"
+    history.mkdir()
+    (history / "BOXX.csv").write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-10,99,101,98,100,100,1000\n",
+        encoding="utf-8",
+    )
+    calls = []
+
+    monkeypatch.setattr(
+        module,
+        "load_config",
+        lambda: {"features": {"use_market_admission_gate": False}},
+    )
+
+    def download(symbol, start, end):
+        calls.append((symbol, start, end))
+        return pd.DataFrame()
+
+    backfill(
+        ["BOXX"],
+        start="2018-01-01",
+        end="2026-07-14",
+        store_dir=history,
+        downloader=download,
+        repair_overlap_days=3,
+    )
+
+    assert calls == [("BOXX", "2026-07-07", "2026-07-14")]
 
 
 def test_backfill_market_admission_flag_off_does_not_fetch_witness(tmp_path, monkeypatch):
@@ -649,6 +701,7 @@ def test_backfill_skips_initial_holiday_gap_before_first_cached_bar(tmp_path):
         store_dir=tmp_path,
         downloader=downloader,
         repair_overlap_days=0,
+        repair_history_head=True,
     )
 
     assert calls == []
@@ -676,6 +729,7 @@ def test_backfill_does_not_skip_federal_holidays_when_market_usually_opens(tmp_p
         store_dir=tmp_path,
         downloader=downloader,
         repair_overlap_days=0,
+        repair_history_head=True,
     )
 
     assert calls == [("QQQ", "2026-11-11", "2026-11-12")]

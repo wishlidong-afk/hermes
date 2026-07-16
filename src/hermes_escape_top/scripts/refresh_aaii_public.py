@@ -100,16 +100,19 @@ def append(rows: list[dict], dry_run: bool = False) -> int:
     if dry_run:
         print(f"DRY RUN — would append {len(new)} rows: {[str(r['date'].date()) for r in new]}")
         return 0
-    frame.to_csv(OUT, index=False)
-    for r in new:
-        print(f"appended {r['date'].date()} bull={r['aaii_bull']} bear={r['aaii_bear']}")
-    return 0
+    raise RuntimeError("AAII canonical promotion is owned by ExternalSourceRunner")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if not args.dry_run:
+        from hermes_escape_top.scripts.refresh_external import refresh_source
+
+        result = refresh_source("aaii_sentiment", auto_import=True)
+        print(result)
+        return 0 if str(result.get("status") or "") == "OK" else 1
     try:
         rows = parse_rows(fetch())
         if not rows:

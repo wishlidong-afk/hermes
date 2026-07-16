@@ -35,9 +35,16 @@ def _ssl_ctx() -> ssl.SSLContext:
 # ── CBOE Equity PCR ─────────────────────────────────────────────────────────
 
 def backfill_pcr(raw_csv: Path | None = None) -> Path:
-    """Parse CBOE equity PCR CSV and write normalised cache."""
-    out = SOFT_HISTORY / "cboe_equity_pcr.csv"
-    SOFT_HISTORY.mkdir(parents=True, exist_ok=True)
+    """Parse CBOE equity PCR CSV and promote it through ExternalSourceRunner."""
+    from hermes_escape_top.config import load_config, resolve_path
+    from hermes_escape_top.core.data.external_sources import (
+        PreparedFrameAdapter,
+        cboe_pcr_spec,
+        run_external_source_refresh,
+    )
+
+    config = load_config()
+    out = resolve_path(config, "soft_history_dir") / "cboe_equity_pcr.csv"
 
     if raw_csv and raw_csv.exists():
         frame = _parse_cboe_pcr_csv(raw_csv)
@@ -48,13 +55,19 @@ def backfill_pcr(raw_csv: Path | None = None) -> Path:
         if out.exists():
             print(f"PCR: no new data obtained. Keeping existing cache at {out}")
             return out
-        print("PCR: no data obtained. Initialising empty skeleton.")
-        frame = pd.DataFrame(columns=["date", "publish_date", "equity_pcr", "equity_pcr_pctl"])
+        raise RuntimeError("PCR: no validated data obtained; certified canonical retained")
     else:
         frame = _add_pctl(frame, "equity_pcr", "equity_pcr_pctl")
-
-    frame.to_csv(out, index=False)
-    print(f"PCR: wrote {len(frame)} rows to {out}")
+    frame["source"] = "CBOE_LEGACY_IMPORT"
+    frame["is_proxy"] = False
+    promoted = run_external_source_refresh(
+        cboe_pcr_spec(target_path=out, min_rows=1),
+        PreparedFrameAdapter(frame, source_channel="legacy_cboe_csv_import"),
+        resolve_path(config, "archive_dir"),
+    )
+    if promoted.status != "OK":
+        raise RuntimeError(f"PCR promotion rejected: {promoted.error_message}")
+    print(f"PCR: promoted {len(frame)} rows through ExternalSourceRunner to {out}")
     return out
 
 
@@ -108,9 +121,16 @@ def _try_fetch_cboe_pcr() -> pd.DataFrame | None:
 # ── NAAIM Exposure ───────────────────────────────────────────────────────────
 
 def backfill_naaim(raw_csv: Path | None = None) -> Path:
-    """Parse NAAIM exposure CSV and write normalised cache."""
-    out = SOFT_HISTORY / "naaim_exposure.csv"
-    SOFT_HISTORY.mkdir(parents=True, exist_ok=True)
+    """Parse NAAIM exposure CSV and promote it through ExternalSourceRunner."""
+    from hermes_escape_top.config import load_config, resolve_path
+    from hermes_escape_top.core.data.external_sources import (
+        PreparedFrameAdapter,
+        naaim_exposure_spec,
+        run_external_source_refresh,
+    )
+
+    config = load_config()
+    out = resolve_path(config, "soft_history_dir") / "naaim_exposure.csv"
 
     if raw_csv and raw_csv.exists():
         frame = _parse_naaim_csv(raw_csv)
@@ -118,13 +138,18 @@ def backfill_naaim(raw_csv: Path | None = None) -> Path:
         frame = _try_fetch_naaim()
 
     if frame is None or frame.empty:
-        print("NAAIM: no data obtained. Initialising empty skeleton.")
-        frame = pd.DataFrame(columns=["date", "publish_date", "naaim_exposure", "naaim_pctl"])
+        raise RuntimeError("NAAIM: no validated data obtained; certified canonical retained")
     else:
         frame = _add_pctl(frame, "naaim_exposure", "naaim_pctl", window=156)
-
-    frame.to_csv(out, index=False)
-    print(f"NAAIM: wrote {len(frame)} rows to {out}")
+    frame["is_proxy"] = False
+    promoted = run_external_source_refresh(
+        naaim_exposure_spec(target_path=out, min_rows=1),
+        PreparedFrameAdapter(frame, source_channel="legacy_naaim_csv_import"),
+        resolve_path(config, "archive_dir"),
+    )
+    if promoted.status != "OK":
+        raise RuntimeError(f"NAAIM promotion rejected: {promoted.error_message}")
+    print(f"NAAIM: promoted {len(frame)} rows through ExternalSourceRunner to {out}")
     return out
 
 

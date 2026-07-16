@@ -27,10 +27,23 @@ class ExternalSourceProfile:
     slo_key: str | None = None
     active: bool = True
     feature_default: bool = False
+    publication_schedule: str = "publisher schedule; checked by the 06:45/07:05 pre-daily jobs"
+    refresh_group: str = "common"
+    refresh_order: int = 100
+    warn_only_stale_after_refresh: bool = False
+    depends_on: str | None = None
+    expected_release_weekdays: tuple[int, ...] = ()
+    expected_advance_grace_days: int = 1
+
+    @property
+    def grace_days(self) -> int:
+        return max(0, int(self.max_age_days) - int(self.warn_age_days))
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
         payload["import_globs"] = list(self.import_globs)
+        payload["expected_release_weekdays"] = list(self.expected_release_weekdays)
+        payload["grace_days"] = self.grace_days
         return payload
 
 
@@ -46,6 +59,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         feature_flag="use_fred_vintage_pit",
         decision_weight=0.0,
         pit_rule="exact_realtime_start_vintage",
+        publication_schedule="daily ALFRED vintage events available after the source release",
+        refresh_group="exact_fred",
+        refresh_order=10,
     ),
     "dollar_vintage": ExternalSourceProfile(
         source_id="dollar_vintage",
@@ -59,6 +75,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=4.0,
         pit_rule="exact_realtime_start_vintage",
         slo_key="dollar",
+        publication_schedule="after the parent ALFRED event-store promotion",
+        refresh_group="exact_fred",
+        refresh_order=11,
+        depends_on="fred_vintages",
     ),
     "real_rate_vintage": ExternalSourceProfile(
         source_id="real_rate_vintage",
@@ -72,6 +92,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=4.0,
         pit_rule="exact_realtime_start_vintage",
         slo_key="real_rate",
+        publication_schedule="after the parent ALFRED event-store promotion",
+        refresh_group="exact_fred",
+        refresh_order=12,
+        depends_on="fred_vintages",
     ),
     "fred_net_liquidity_vintage": ExternalSourceProfile(
         source_id="fred_net_liquidity_vintage",
@@ -85,6 +109,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=4.0,
         pit_rule="exact_realtime_start_vintage",
         slo_key="net_liquidity",
+        publication_schedule="after the parent ALFRED event-store promotion",
+        refresh_group="exact_fred",
+        refresh_order=13,
+        depends_on="fred_vintages",
     ),
     "dollar": ExternalSourceProfile(
         source_id="dollar",
@@ -97,6 +125,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         feature_flag="data_dollar",
         decision_weight=4.0,
         pit_rule="observation_date_plus_one_day",
+        publication_schedule="FRED DTWEXBGS weekly publisher calendar",
+        refresh_group="legacy_fred",
+        refresh_order=20,
+        warn_only_stale_after_refresh=True,
     ),
     "real_rate": ExternalSourceProfile(
         source_id="real_rate",
@@ -109,6 +141,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         feature_flag="data_real_rate",
         decision_weight=4.0,
         pit_rule="observation_date_plus_one_day",
+        publication_schedule="FRED DFII10 on US business days",
+        refresh_group="legacy_fred",
+        refresh_order=21,
     ),
     "fred_net_liquidity": ExternalSourceProfile(
         source_id="fred_net_liquidity",
@@ -122,6 +157,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=4.0,
         pit_rule="observation_date_plus_one_day",
         slo_key="net_liquidity",
+        publication_schedule="daily RRP plus weekly WALCL and WTREGEN releases",
+        refresh_group="legacy_fred",
+        refresh_order=22,
     ),
     "naaim_exposure": ExternalSourceProfile(
         source_id="naaim_exposure",
@@ -129,13 +167,16 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         cadence="weekly",
         max_age_days=13,
         warn_age_days=10,
-        primary="NAAIM official XLSX",
+        primary="NAAIM authorized subscriber XLSX, then public official XLSX",
         fallback="official workbook import",
         feature_flag="data_naaim",
         decision_weight=2.0,
-        automation_mode="official_file",
+        automation_mode="subscriber_or_official_file",
         pit_rule="issue_date_plus_one_day",
         migration_deadline="2026-08-01",
+        publication_schedule="weekly NAAIM issue, normally Wednesday US time",
+        expected_release_weekdays=(3,),
+        refresh_order=45,
         import_globs=(
             "~/.hermes/external_imports/*naaim*.xlsx",
             "~/.hermes/external_imports/*NAAIM*.xlsx",
@@ -157,6 +198,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=2.0,
         automation_mode="official_rss_with_file_fallback",
         pit_rule="official_publish_date_or_reported_plus_one_day",
+        publication_schedule="weekly AAII issue, normally Thursday US time",
+        expected_release_weekdays=(4,),
+        refresh_order=46,
         import_globs=(
             "~/.hermes/external_imports/sentiment*.xls",
             "~/.hermes/external_imports/sentiment*.xlsx",
@@ -178,6 +222,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=4.0,
         pit_rule="completed_us_session_plus_yahoo_witness",
         slo_key="cboe_indices",
+        publication_schedule="after each completed US options session",
+        expected_release_weekdays=(1, 2, 3, 4, 5),
+        refresh_group="cboe_indices",
+        refresh_order=50,
     ),
     "cboe_vix3m": ExternalSourceProfile(
         source_id="cboe_vix3m",
@@ -191,6 +239,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=4.0,
         pit_rule="completed_us_session_plus_yahoo_witness",
         slo_key="cboe_indices",
+        publication_schedule="after each completed US options session",
+        expected_release_weekdays=(1, 2, 3, 4, 5),
+        refresh_group="cboe_indices",
+        refresh_order=51,
     ),
     "cboe_vix9d": ExternalSourceProfile(
         source_id="cboe_vix9d",
@@ -204,6 +256,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=0.0,
         pit_rule="completed_us_session_plus_yahoo_witness",
         slo_key="cboe_indices",
+        publication_schedule="after each completed US options session",
+        expected_release_weekdays=(1, 2, 3, 4, 5),
+        refresh_group="cboe_indices",
+        refresh_order=52,
     ),
     "cboe_skew": ExternalSourceProfile(
         source_id="cboe_skew",
@@ -217,6 +273,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=6.0,
         pit_rule="completed_us_session_plus_yahoo_witness",
         slo_key="cboe_indices",
+        publication_schedule="after each completed US options session",
+        expected_release_weekdays=(1, 2, 3, 4, 5),
+        refresh_group="cboe_indices",
+        refresh_order=53,
     ),
     "cboe_vvix": ExternalSourceProfile(
         source_id="cboe_vvix",
@@ -230,6 +290,10 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=6.0,
         pit_rule="completed_us_session_plus_yahoo_witness",
         slo_key="cboe_indices",
+        publication_schedule="after each completed US options session",
+        expected_release_weekdays=(1, 2, 3, 4, 5),
+        refresh_group="cboe_indices",
+        refresh_order=54,
     ),
     "cboe_equity_pcr": ExternalSourceProfile(
         source_id="cboe_equity_pcr",
@@ -243,6 +307,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=2.0,
         pit_rule="observation_date_plus_one_day",
         slo_key="cboe_pcr",
+        publication_schedule="after each completed US options session",
+        expected_release_weekdays=(1, 2, 3, 4, 5),
+        refresh_order=40,
     ),
     "cot_nq": ExternalSourceProfile(
         source_id="cot_nq",
@@ -255,6 +322,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         feature_flag="data_cot_nq",
         decision_weight=4.0,
         pit_rule="tuesday_observation_friday_publication",
+        publication_schedule="Friday publication for Tuesday CFTC positions",
+        expected_release_weekdays=(5,),
+        refresh_order=41,
     ),
     "occ_equity_pcr": ExternalSourceProfile(
         source_id="occ_equity_pcr",
@@ -267,6 +337,9 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=0.0,
         pit_rule="week_ending_friday_plus_one_day",
         active=False,
+        publication_schedule="weekly after the Friday OCC volume report",
+        expected_release_weekdays=(5,),
+        refresh_order=42,
     ),
     "btc_funding_basis": ExternalSourceProfile(
         source_id="btc_funding_basis",
@@ -280,8 +353,47 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         decision_weight=0.0,
         pit_rule="exchange_timestamp_utc_day",
         feature_default=True,
+        publication_schedule="continuous exchange feed, certified once per UTC day",
+        expected_release_weekdays=(0, 1, 2, 3, 4, 5, 6),
+        refresh_order=43,
     ),
 }
+
+
+def all_source_ids() -> tuple[str, ...]:
+    return tuple(
+        profile.source_id
+        for profile in sorted(
+            PROFILES.values(),
+            key=lambda value: (value.refresh_order, value.source_id),
+        )
+    )
+
+
+def configured_refresh_source_ids(config: dict[str, Any]) -> tuple[str, ...]:
+    features = (config or {}).get("features") or {}
+    fred_group = "exact_fred" if bool(features.get("use_fred_vintage_pit", False)) else "legacy_fred"
+    include_cboe = bool(features.get("use_cboe_official_indices", False))
+    allowed_groups = {fred_group, "common"}
+    if include_cboe:
+        allowed_groups.add("cboe_indices")
+    return tuple(
+        source_id
+        for source_id in all_source_ids()
+        if PROFILES[source_id].refresh_group in allowed_groups
+    )
+
+
+def import_source_ids() -> tuple[str, ...]:
+    return tuple(
+        source_id
+        for source_id in all_source_ids()
+        if PROFILES[source_id].import_globs
+    )
+
+
+def display_source_ids() -> tuple[str, ...]:
+    return all_source_ids()
 
 
 def profile_for(source_id: str) -> ExternalSourceProfile | None:

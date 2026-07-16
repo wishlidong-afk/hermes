@@ -92,6 +92,7 @@ def backfill(
     repair_overlap_days: int = 0,
     admission_session: MarketAdmissionSession | None = None,
     admission_archive: str | Path | None = None,
+    repair_history_head: bool = False,
 ) -> Dict[str, BackfillResult]:
     config = load_config()
     if bool((config.get("features") or {}).get("use_cboe_official_indices", False)):
@@ -116,6 +117,7 @@ def backfill(
                 start,
                 repair_overlap_days,
                 btc_spot_witness_enabled=btc_spot_witness_enabled,
+                repair_history_head=repair_history_head,
             )
             admission_end = str(end)[:10] if end else (date.today() + timedelta(days=1)).isoformat()
             admission_kwargs = (
@@ -147,6 +149,7 @@ def backfill(
                 downloader or _download_yfinance,
                 repair_overlap_days=repair_overlap_days,
                 admission_session=active_admission,
+                repair_history_head=repair_history_head,
             )
         if active_admission is not None:
             active_admission.bind_canonical_files(store, symbols)
@@ -218,6 +221,7 @@ def _market_admission_start(
     repair_overlap_days: int,
     *,
     btc_spot_witness_enabled: bool = False,
+    repair_history_head: bool = False,
 ) -> str:
     floor = pd.Timestamp(configured_start).date()
     starts: list[date] = []
@@ -233,7 +237,11 @@ def _market_admission_start(
         first = existing.index.min().date()
         last = existing.index.max().date()
         tail_start = max(floor, last - timedelta(days=max(0, int(repair_overlap_days))))
-        starts.append(floor if floor < first else tail_start)
+        starts.append(
+            floor
+            if repair_history_head and floor < first
+            else tail_start
+        )
     return min(starts, default=floor).isoformat()
 
 
@@ -267,6 +275,7 @@ def _backfill_one(
     downloader: Downloader,
     repair_overlap_days: int = 0,
     admission_session: MarketAdmissionSession | None = None,
+    repair_history_head: bool = False,
 ) -> BackfillResult:
     path = store_dir / f"{safe_symbol(symbol)}.csv"
     existing = _read_existing(path)
@@ -274,7 +283,7 @@ def _backfill_one(
     if not existing.empty:
         first = existing.index.min().date()
         last = existing.index.max().date()
-        if pd.Timestamp(start).date() < first:
+        if repair_history_head and pd.Timestamp(start).date() < first:
             intervals.append((start, first.isoformat()))
         tail_date = last + timedelta(days=1)
         if repair_overlap_days > 0:

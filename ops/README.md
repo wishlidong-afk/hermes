@@ -83,6 +83,15 @@ Stale Dollar data remains a visible permitted WARN, and stale/unavailable IBKR
 remains a visible nonblocking INFO. Other strategy or auxiliary-flow
 degradation fails acceptance.
 
+The seven primary checks remain stable for automation consumers. A separate
+`operational_observations` block tracks weekly retention APPLY evidence and
+dated market-admission evidence. Retention is PENDING before its first expected
+Sunday window, WARN when missing afterward or older than eight days, and PASS
+only for a recent successful APPLY report. Market admission is OBSERVING for
+one or two consecutive OK dates and mature after three (with five as the
+operational target). Only WARN observations are added to the summary; they do
+not change the seven-check schema.
+
 This command is an observer, not a repair command. It never runs daily, scores,
 refreshes data, or connects to IBKR. On FAIL, inspect the cited evidence and
 follow the production runbook separately.

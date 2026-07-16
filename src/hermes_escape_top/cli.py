@@ -30,6 +30,11 @@ def main() -> None:
     p_backfill_history.add_argument("--store-dir", default=None)
     p_backfill_history.add_argument("--report", default="reports/N0_history_coverage.md")
     p_backfill_history.add_argument("--repair-overlap-days", type=int, default=0)
+    p_backfill_history.add_argument(
+        "--repair-history-head",
+        action="store_true",
+        help="explicitly fetch missing history before the first canonical row",
+    )
     p_manifest = sub.add_parser("freeze-manifest", help="Freeze a sha256 data manifest for a directory")
     p_manifest.add_argument("--store-dir", default="data/history")
     p_manifest.add_argument("--output", default="data/archive/data_manifest_latest.json")
@@ -90,7 +95,14 @@ def main() -> None:
         with pipeline_lock(blocking=True, timeout=600):
             symbols = args.symbols or all_backfill_symbols()
             store_dir = Path(args.store_dir) if args.store_dir else default_store_dir()
-            results = backfill(symbols, start=args.start, end=args.end, store_dir=store_dir, repair_overlap_days=args.repair_overlap_days)
+            results = backfill(
+                symbols,
+                start=args.start,
+                end=args.end,
+                store_dir=store_dir,
+                repair_overlap_days=args.repair_overlap_days,
+                repair_history_head=args.repair_history_head,
+            )
             report_path = write_coverage_report(results, args.report)
         payload = {"schema_version": "escape-top-greenfield-history-backfill-v1", "report": str(report_path), "results": {k: v.to_dict() for k, v in results.items()}}
     elif args.command == "freeze-manifest":

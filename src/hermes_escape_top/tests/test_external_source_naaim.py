@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 from io import BytesIO
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -10,11 +11,13 @@ from hermes_escape_top.core.data.external_sources.ledger import latest_source_ru
 from hermes_escape_top.core.data.external_sources.naaim import (
     NaaimExposureAdapter,
     NaaimExposureImportAdapter,
+    NaaimSubscriberAdapter,
     discover_naaim_xlsx_url,
     naaim_exposure_spec,
 )
 from hermes_escape_top.core.data.external_sources.profiles import latest_import_file, profile_for
 from hermes_escape_top.core.data.external_sources.runner import run_external_source_refresh
+from hermes_escape_top.scripts.refresh_external import naaim_exposure_source
 
 
 def _naaim_xlsx() -> bytes:
@@ -140,6 +143,64 @@ def test_naaim_adapter_promotes_existing_soft_history_shape(tmp_path):
     ledger = latest_source_run(tmp_path / "archive", "naaim_exposure")
     assert ledger["latest_promoted_as_of"] == "2026-06-24"
     assert ledger["source_url"] == xlsx_url
+
+
+def test_naaim_subscriber_adapter_uses_auth_without_persisting_secret(tmp_path):
+    captured = {}
+
+    def fetch(url, headers):
+        captured.update({"url": url, "headers": headers})
+        return _naaim_xlsx()
+
+    adapter = NaaimSubscriberAdapter(
+        download_url="https://www.naaim.org/member-downloads/latest.xlsx",
+        bearer_token="top-secret-token",
+        fetch_authenticated=fetch,
+        percentile_window=3,
+        min_periods=1,
+    )
+    target = tmp_path / "soft_history/naaim_exposure.csv"
+
+    run = run_external_source_refresh(
+        naaim_exposure_spec(target_path=target, min_rows=4),
+        adapter,
+        tmp_path / "archive",
+    )
+
+    assert run.status == "OK"
+    assert captured["headers"]["Authorization"] == "Bearer top-secret-token"
+    raw_json = next((tmp_path / "archive/external_sources/naaim_exposure").rglob("raw.json"))
+    assert "top-secret-token" not in raw_json.read_text(encoding="utf-8")
+    assert json.loads(raw_json.read_text(encoding="utf-8"))["auth_mode"] == "bearer"
+
+
+def test_naaim_subscriber_adapter_rejects_non_naaim_credential_target():
+    adapter = NaaimSubscriberAdapter(
+        download_url="https://example.com/latest.xlsx",
+        bearer_token="secret",
+        fetch_authenticated=lambda _url, _headers: _naaim_xlsx(),
+    )
+
+    try:
+        adapter.fetch_raw()
+    except ValueError as exc:
+        assert "naaim.org" in str(exc)
+    else:
+        raise AssertionError("subscriber credentials must not be sent to another host")
+
+
+def test_naaim_source_factory_selects_subscriber_only_when_configured(monkeypatch, tmp_path):
+    monkeypatch.setenv(
+        "NAAIM_SUBSCRIBER_URL",
+        "https://www.naaim.org/member-downloads/latest.xlsx",
+    )
+    monkeypatch.setenv("NAAIM_SUBSCRIBER_BEARER_TOKEN", "secret")
+
+    _spec, adapter = naaim_exposure_source(
+        {"paths": {"soft_history_dir": str(tmp_path / "soft_history")}}
+    )
+
+    assert isinstance(adapter, NaaimSubscriberAdapter)
 
 
 def test_naaim_fetch_failure_preserves_certified_canonical(tmp_path):

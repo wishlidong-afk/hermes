@@ -1468,11 +1468,43 @@ def _write_system_health_report(
     report_dir.mkdir(parents=True, exist_ok=True)
     json_path = report_dir / f"system_health_{as_of}.json"
     md_path = report_dir / f"system_health_{as_of}.md"
+    run_dir = report_dir / "system_health_runs"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    run_stem = _system_health_run_stem(as_of, receipt, report)
+    run_json_path = run_dir / f"{run_stem}.json"
+    run_md_path = run_dir / f"{run_stem}.md"
+    markdown = _render_system_health_markdown(report)
+    _atomic_write_json(run_json_path, report)
+    _atomic_write_text(run_md_path, markdown)
     _atomic_write_json(json_path, report)
-    _atomic_write_text(md_path, _render_system_health_markdown(report))
+    _atomic_write_text(md_path, markdown)
+    print(f"[health] written: {run_json_path}")
+    print(f"[health] written: {run_md_path}")
     print(f"[health] written: {json_path}")
     print(f"[health] written: {md_path}")
-    return {"json": json_path, "markdown": md_path}
+    return {
+        "json": json_path,
+        "markdown": md_path,
+        "run_json": run_json_path,
+        "run_markdown": run_md_path,
+    }
+
+
+def _system_health_run_stem(
+    as_of: str,
+    receipt: Dict[str, Any],
+    report: Dict[str, Any],
+) -> str:
+    raw_timestamp = str(
+        receipt.get("finished_at")
+        or receipt.get("run_at")
+        or report.get("generated_at")
+        or "unknown"
+    )
+    timestamp = "".join(char for char in raw_timestamp if char.isalnum()) or "unknown"
+    raw_hash = str(report.get("input_hash") or "no-input-hash")
+    input_hash = "".join(char for char in raw_hash if char.isalnum() or char in {"-", "_"})
+    return f"system_health_{as_of}_{timestamp}_{input_hash or 'no-input-hash'}"
 
 
 def _factor_score_symbol_count(payload: Dict[str, Any]) -> int:

@@ -8,6 +8,7 @@ from typing import Any, Iterable
 
 import pandas as pd
 
+from ..jsonl import append_jsonl_records
 from .registry import latest_frame_date
 from .clock import shanghai_today, timestamp_to_shanghai_date
 
@@ -15,6 +16,12 @@ from .clock import shanghai_today, timestamp_to_shanghai_date
 LEDGER_NAME = "external_source_runs.jsonl"
 CANONICAL_EVIDENCE_OK_STATUSES = frozenset({"", "MATCH"})
 CANONICAL_EVIDENCE_CRITICAL_STATUSES = frozenset({"EVIDENCE_DRIFT", "MISSING_CANONICAL"})
+STAGE_FIELDS = {
+    "transport": "transport_status",
+    "parse": "parse_status",
+    "validation": "validation_status",
+    "promotion": "promotion_status",
+}
 
 
 def canonical_evidence_issue(row: dict[str, Any]) -> str:
@@ -31,9 +38,7 @@ def ledger_path(archive_dir: Path) -> Path:
 
 def append_source_run(archive_dir: Path, record: dict[str, Any]) -> Path:
     path = ledger_path(archive_dir)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True, default=str) + "\n")
+    append_jsonl_records(path, [record])
     return path
 
 
@@ -97,10 +102,11 @@ def source_reliability(
             continue
         daily_rows.setdefault(operating_day, []).append(row)
 
-    outcomes = sorted(
-        (operating_day, _day_succeeded(rows))
+    daily_successes = sorted(
+        (operating_day, _successful_day_row(rows))
         for operating_day, rows in daily_rows.items()
     )
+    outcomes = [(operating_day, row is not None) for operating_day, row in daily_successes]
     latest_ok = latest_successful_source_run(archive_dir, source_id)
     last_success_at = None
     if latest_ok is not None:
@@ -112,26 +118,254 @@ def source_reliability(
         if ok:
             break
         consecutive_failures += 1
-    return {
+    last_recovery_at = None
+    previous_ok: bool | None = None
+    for _day_value, successful_row in daily_successes:
+        current_ok = successful_row is not None
+        if current_ok and previous_ok is False:
+            last_recovery_at = str(
+                successful_row.get("finished_at")
+                or successful_row.get("started_at")
+                or ""
+            ) or None
+        previous_ok = current_ok
+
+    stage_reliability: dict[str, dict[str, Any]] = {}
+    for stage, field in STAGE_FIELDS.items():
+        stage_outcomes = [
+            (operating_day, outcome)
+            for operating_day, rows in sorted(daily_rows.items())
+            if (outcome := _stage_day_outcome(rows, field)) is not None
+        ]
+        stage_rate_30, stage_samples_30 = _window_success_rate(
+            stage_outcomes,
+            day - timedelta(days=29),
+        )
+        stage_rate_90, stage_samples_90 = _window_success_rate(
+            stage_outcomes,
+            day - timedelta(days=89),
+        )
+        stage_failures = 0
+        for _outcome_day, ok in reversed(stage_outcomes):
+            if ok:
+                break
+            stage_failures += 1
+        stage_reliability[stage] = {
+            "success_rate_30d": stage_rate_30,
+            "success_rate_90d": stage_rate_90,
+            "samples_30d": stage_samples_30,
+            "samples_90d": stage_samples_90,
+            "consecutive_failures": stage_failures,
+        }
+
+    advancement_outcomes = [
+        (operating_day, bool(row.get("advanced")))
+        for operating_day, row in daily_successes
+        if row is not None and isinstance(row.get("advanced"), bool)
+    ]
+    advancement_rate_30, advancement_samples_30 = _window_success_rate(
+        advancement_outcomes,
+        day - timedelta(days=29),
+    )
+    advancement_rate_90, advancement_samples_90 = _window_success_rate(
+        advancement_outcomes,
+        day - timedelta(days=89),
+    )
+    last_advanced_at = None
+    for _day_value, row in reversed(daily_successes):
+        if row is not None and row.get("advanced") is True:
+            last_advanced_at = str(row.get("finished_at") or row.get("started_at") or "") or None
+            break
+    expected_release = _expected_release_metrics(
+        source_id,
+        daily_rows,
+        daily_successes,
+        day,
+    )
+    start_30 = day - timedelta(days=29)
+    channel_successes: dict[str, int] = {}
+    for operating_day, row in daily_successes:
+        if operating_day < start_30 or row is None:
+            continue
+        channel = str(row.get("source_channel") or "").strip()
+        if channel:
+            channel_successes[channel] = channel_successes.get(channel, 0) + 1
+    fallback_rescues_7d = sum(
+        1
+        for operating_day, row in daily_successes
+        if operating_day >= day - timedelta(days=6)
+        and row is not None
+        and row.get("fallback_used") is True
+    )
+    primary_rate = None
+    primary_samples = 0
+    if source_id == "aaii_sentiment":
+        instrumented = [
+            (operating_day, row)
+            for operating_day, row in daily_successes
+            if operating_day >= start_30
+            and any("source_channel" in attempt for attempt in daily_rows[operating_day])
+        ]
+        primary_samples = len(instrumented)
+        if primary_samples:
+            primary_rate = round(
+                sum(
+                    1
+                    for _day_value, row in instrumented
+                    if row is not None and row.get("source_channel") == "public_html"
+                )
+                / primary_samples
+                * 100.0,
+                2,
+            )
+    result = {
         "success_rate_30d": rate_30,
         "success_rate_90d": rate_90,
         "samples_30d": samples_30,
         "samples_90d": samples_90,
         "consecutive_failures": consecutive_failures,
         "last_success_at": last_success_at,
+        "last_recovery_at": last_recovery_at,
+        "stage_reliability": stage_reliability,
+        "advancement_rate_30d": advancement_rate_30,
+        "advancement_rate_90d": advancement_rate_90,
+        "advancement_samples_30d": advancement_samples_30,
+        "advancement_samples_90d": advancement_samples_90,
+        "last_advanced_at": last_advanced_at,
+        "channel_successes_30d": dict(sorted(channel_successes.items())),
+        "fallback_rescues_7d": fallback_rescues_7d,
+        "primary_success_rate_30d": primary_rate,
+        "primary_samples_30d": primary_samples,
+        "latest_source_channel": (
+            str(latest_ok.get("source_channel") or "") or None
+            if latest_ok is not None
+            else None
+        ),
+        "latest_fallback_used": (
+            latest_ok.get("fallback_used")
+            if latest_ok is not None and "fallback_used" in latest_ok
+            else None
+        ),
     }
+    result.update(expected_release)
+    for stage, metrics in stage_reliability.items():
+        for key, value in metrics.items():
+            result[f"{stage}_{key}"] = value
+    return result
 
 
 def _day_succeeded(rows: list[dict[str, Any]]) -> bool:
+    return _successful_day_row(rows) is not None
+
+
+def _successful_day_row(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     invalidated_inputs: set[str] = set()
     for row in reversed(rows):
         input_hash = str(row.get("input_hash") or "")
         if str(row.get("status") or "").upper() == "OK":
             if not input_hash or input_hash not in invalidated_inputs:
-                return True
+                return row
         elif input_hash:
             invalidated_inputs.add(input_hash)
-    return False
+    return None
+
+
+def _stage_day_outcome(rows: list[dict[str, Any]], field: str) -> bool | None:
+    statuses = [str(row.get(field) or "").upper() for row in rows]
+    attempted = [status for status in statuses if status not in {"", "NOT_RUN"}]
+    if not attempted:
+        return None
+    return "OK" in attempted
+
+
+def _expected_release_metrics(
+    source_id: str,
+    daily_rows: dict[date, list[dict[str, Any]]],
+    daily_successes: list[tuple[date, dict[str, Any] | None]],
+    day: date,
+) -> dict[str, Any]:
+    from .profiles import profile_for
+
+    profile = profile_for(source_id)
+    weekdays = tuple(getattr(profile, "expected_release_weekdays", ()) or ())
+    instrumented_days = sorted(
+        operating_day
+        for operating_day, rows in daily_rows.items()
+        if any("advanced" in row for row in rows)
+    )
+    empty = {
+        "expected_release_samples_30d": 0,
+        "expected_release_samples_90d": 0,
+        "expected_release_advanced_30d": 0,
+        "expected_release_advanced_90d": 0,
+        "expected_release_advance_rate_30d": None,
+        "expected_release_advance_rate_90d": None,
+        "latest_expected_release_date": None,
+        "latest_expected_release_status": "UNINSTRUMENTED",
+    }
+    if profile is None or not weekdays or not instrumented_days:
+        return empty
+
+    start = instrumented_days[0]
+    expected_days: list[date] = []
+    cursor = start
+    while cursor <= day:
+        if cursor.weekday() in weekdays:
+            expected_days.append(cursor)
+        cursor += timedelta(days=1)
+    if not expected_days:
+        return empty
+
+    grace_days = max(0, int(getattr(profile, "expected_advance_grace_days", 0)))
+    advanced_days = {
+        operating_day
+        for operating_day, row in daily_successes
+        if row is not None and row.get("advanced") is True
+    }
+    matches: dict[date, date] = {}
+    unused_advanced = set(advanced_days)
+    for expected_day in expected_days:
+        candidates = sorted(
+            advanced_day
+            for advanced_day in unused_advanced
+            if expected_day <= advanced_day <= expected_day + timedelta(days=grace_days)
+        )
+        if candidates:
+            matches[expected_day] = candidates[0]
+            unused_advanced.remove(candidates[0])
+
+    matured = [
+        expected_day
+        for expected_day in expected_days
+        if expected_day + timedelta(days=grace_days) <= day
+    ]
+
+    def window(days: int) -> tuple[int, int, float | None]:
+        lower = day - timedelta(days=days - 1)
+        selected = [expected_day for expected_day in matured if expected_day >= lower]
+        advanced = sum(1 for expected_day in selected if expected_day in matches)
+        rate = round(advanced / len(selected) * 100.0, 2) if selected else None
+        return len(selected), advanced, rate
+
+    samples_30, advanced_30, rate_30 = window(30)
+    samples_90, advanced_90, rate_90 = window(90)
+    latest_expected = expected_days[-1]
+    if latest_expected in matches:
+        latest_status = "ADVANCED"
+    elif latest_expected + timedelta(days=grace_days) > day:
+        latest_status = "PENDING"
+    else:
+        latest_status = "MISSED"
+    return {
+        "expected_release_samples_30d": samples_30,
+        "expected_release_samples_90d": samples_90,
+        "expected_release_advanced_30d": advanced_30,
+        "expected_release_advanced_90d": advanced_90,
+        "expected_release_advance_rate_30d": rate_30,
+        "expected_release_advance_rate_90d": rate_90,
+        "latest_expected_release_date": latest_expected.isoformat(),
+        "latest_expected_release_status": latest_status,
+    }
 
 
 def source_status(

@@ -19,7 +19,7 @@ import pandas as pd
 from hermes_escape_top.config import CONFIG_PATH, load_config
 from hermes_escape_top.core.contracts import Verdict
 from hermes_escape_top.core.data.store import LocalStore
-from hermes_escape_top.core.pipeline import score_pipeline
+from hermes_escape_top.core.research.integration_pipeline import score_pipeline
 from hermes_escape_top.integration_config import default_integration_config, phase_ii_overrides
 
 

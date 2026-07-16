@@ -4,6 +4,7 @@ import json
 import hashlib
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -286,7 +287,11 @@ def test_refresh_external_all_sources_keeps_going_on_single_failure(monkeypatch,
 def test_retry_needed_only_runs_failed_same_day_sources(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
     calls = []
-    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("dollar", "aaii_sentiment"))
+    monkeypatch.setattr(
+        refresh_external,
+        "configured_source_ids",
+        lambda _config: ("dollar", "aaii_sentiment"),
+    )
     monkeypatch.setattr(
         refresh_external,
         "status",
@@ -324,7 +329,7 @@ def test_retry_needed_only_runs_failed_same_day_sources(monkeypatch, tmp_path):
 
 def test_daily_source_check_reuses_utc_ledger_row_from_same_shanghai_day(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
-    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("dollar",))
+    monkeypatch.setattr(refresh_external, "configured_source_ids", lambda _config: ("dollar",))
     monkeypatch.setattr(
         refresh_external,
         "status",
@@ -354,7 +359,7 @@ def test_refresh_retry_sources_defaults_to_shanghai_operating_day(monkeypatch, t
     cfg = _config(tmp_path)
     expected = date(2026, 7, 13)
     seen = []
-    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("dollar",))
+    monkeypatch.setattr(refresh_external, "configured_source_ids", lambda _config: ("dollar",))
     monkeypatch.setattr(refresh_external, "shanghai_today", lambda: expected)
     monkeypatch.setattr(
         refresh_external,
@@ -371,7 +376,11 @@ def test_refresh_retry_sources_defaults_to_shanghai_operating_day(monkeypatch, t
 
 def test_daily_source_check_retries_failed_0645_attempt_when_0705_was_missed(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
-    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("aaii_sentiment",))
+    monkeypatch.setattr(
+        refresh_external,
+        "configured_source_ids",
+        lambda _config: ("aaii_sentiment",),
+    )
     monkeypatch.setattr(
         refresh_external,
         "status",
@@ -407,7 +416,11 @@ def test_daily_source_check_retries_failed_0645_attempt_when_0705_was_missed(mon
 
 def test_daily_source_check_reuses_recent_0705_failed_retry(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
-    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("aaii_sentiment",))
+    monkeypatch.setattr(
+        refresh_external,
+        "configured_source_ids",
+        lambda _config: ("aaii_sentiment",),
+    )
     monkeypatch.setattr(
         refresh_external,
         "status",
@@ -441,7 +454,11 @@ def test_daily_source_check_reuses_recent_0705_failed_retry(monkeypatch, tmp_pat
 
 def test_daily_source_check_ignores_inactive_sources_for_same_day_reuse(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
-    monkeypatch.setattr(refresh_external, "SOURCE_IDS", ("dollar", "occ_equity_pcr"))
+    monkeypatch.setattr(
+        refresh_external,
+        "configured_source_ids",
+        lambda _config: ("dollar", "occ_equity_pcr"),
+    )
     monkeypatch.setattr(
         refresh_external,
         "status",
@@ -942,7 +959,7 @@ def test_refresh_external_auto_import_does_not_reuse_successful_file_hash(monkey
     assert result["fallback_import_skip_reason"] == "official file hash already processed"
 
 
-def test_pending_import_retries_successful_legacy_file_without_canonical_binding(monkeypatch, tmp_path):
+def test_pending_import_treats_successful_legacy_file_as_processed(monkeypatch, tmp_path):
     archive = tmp_path / "archive"
     candidate = tmp_path / "sentiment-current.xls"
     candidate.write_bytes(b"current official file")
@@ -958,7 +975,7 @@ def test_pending_import_retries_successful_legacy_file_without_canonical_binding
     monkeypatch.setattr(refresh_external, "latest_import_file", lambda _profile: candidate)
     monkeypatch.setattr(refresh_external, "import_files", lambda _profile: [candidate])
 
-    assert refresh_external.pending_import_file("aaii_sentiment", archive) == candidate
+    assert refresh_external.pending_import_file("aaii_sentiment", archive) is None
 
 
 def test_pending_import_selects_older_unprocessed_official_file(monkeypatch, tmp_path):
@@ -979,6 +996,17 @@ def test_pending_import_selects_older_unprocessed_official_file(monkeypatch, tmp
     monkeypatch.setattr(refresh_external, "import_files", lambda _profile: [newest, older])
 
     assert refresh_external.pending_import_file("aaii_sentiment", archive) == older
+
+
+def test_pending_import_discovery_is_read_only(monkeypatch, tmp_path):
+    archive = tmp_path / "archive"
+    candidate = tmp_path / "sentiment.xls"
+    candidate.write_bytes(b"new official workbook")
+    monkeypatch.setattr(refresh_external, "latest_import_file", lambda _profile: candidate)
+    monkeypatch.setattr(refresh_external, "import_files", lambda _profile: [candidate])
+
+    assert refresh_external.pending_import_file("aaii_sentiment", archive) == candidate
+    assert not (archive / "external_import_queue").exists()
 
 
 def test_pending_import_uses_ledger_hash_after_raw_artifact_is_removed(monkeypatch, tmp_path):
@@ -1100,7 +1128,10 @@ def test_refresh_external_cli_accepts_aaii_import_file(monkeypatch, tmp_path, ca
     assert rc == 0
     assert out["source_id"] == "aaii_sentiment"
     assert out["status"] == "OK"
-    assert calls["adapter"].import_path == import_path
+    assert calls["adapter"].import_path.parent.name == "inbox"
+    assert out["import_source_file"] == str(import_path)
+    assert Path(out["import_queue_path"]).parent.name == "processed"
+    assert import_path.exists()
 
 
 def test_refresh_external_cli_accepts_naaim_import_file(monkeypatch, tmp_path, capsys):
@@ -1123,7 +1154,10 @@ def test_refresh_external_cli_accepts_naaim_import_file(monkeypatch, tmp_path, c
     assert out["source_id"] == "naaim_exposure"
     assert out["status"] == "OK"
     assert calls["spec"].source_id == "naaim_exposure"
-    assert calls["adapter"].import_path == import_path
+    assert calls["adapter"].import_path.parent.name == "inbox"
+    assert out["import_source_file"] == str(import_path)
+    assert Path(out["import_queue_path"]).parent.name == "processed"
+    assert import_path.exists()
 
 
 def test_refresh_external_cli_rejects_import_file_without_source(capsys):

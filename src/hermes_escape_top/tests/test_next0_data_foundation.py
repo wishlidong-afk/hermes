@@ -83,7 +83,14 @@ class Next0DataFoundationTest(unittest.TestCase):
                 "date,open,high,low,close,adj_close,volume\n2026-01-05,100,101,99,100,100,10\n",
                 encoding="utf-8",
             )
-            result = backfill(["AAA"], start="2026-01-01", end="2026-01-05", store_dir=tmp, downloader=downloader)
+            result = backfill(
+                ["AAA"],
+                start="2026-01-01",
+                end="2026-01-05",
+                store_dir=tmp,
+                downloader=downloader,
+                repair_history_head=True,
+            )
             self.assertTrue(result["AAA"].updated)
             self.assertEqual(calls[0][1], "2026-01-01")
             self.assertEqual(calls[0][2], "2026-01-05")

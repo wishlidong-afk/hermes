@@ -32,7 +32,6 @@ import pandas as pd
 from ...config import load_config, resolve_path
 from .adapters import SoftDataRecord
 from .macro import fetch_fred_graph_csv
-from ..safe_io import atomic_write_csv
 from .pit import asof_pick
 from .store import LocalStore, safe_symbol
 
@@ -291,11 +290,10 @@ class FredPercentileSource:
         return out[["date", "publish_date", self.field, f"{self.field}_pctl"]]
 
     def backfill(self, config: Dict[str, Any], end: Optional[str] = None) -> Path:
-        frame = self.build_frame(end=end, config=config)
-        path = self.history_path(config)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write_csv(frame, path, index=False)
-        return path
+        raise RuntimeError(
+            "external canonical promotion is owned by ExternalSourceRunner; "
+            f"run refresh_external --source {self.name}"
+        )
 
     def collect(self, as_of: str, config: Dict[str, Any]) -> SoftDataRecord:
         day = date.fromisoformat(str(as_of)[:10])
@@ -315,12 +313,6 @@ class FredPercentileSource:
                 quality_penalty=5.0,
                 reason=f"{self.name} exact-vintage canonical missing",
             )
-        if not path.exists() and not config.get("runtime", {}).get("offline_replay_mode", False):
-            try:
-                self.backfill(config)
-            except Exception as exc:  # noqa: BLE001
-                return SoftDataRecord(self.name, day, None, "FRED", False, quality_penalty=5.0,
-                                      reason=f"{self.series_id} backfill failed: {exc}")
         if not path.exists():
             return SoftDataRecord(self.name, day, None, "FRED", False, quality_penalty=5.0,
                                   reason=f"{self.name} history missing")

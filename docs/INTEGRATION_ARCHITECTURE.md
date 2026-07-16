@@ -282,8 +282,10 @@ class ChampionChallenger:                                                       
 
 ## 9. 集成接线（改造每日 pipeline）
 
+> 生产评分入口唯一属于 `hermes_escape_top/pipeline.py`。下列整合架构的组件级 harness 已隔离到 `core/research/integration_pipeline.py`；`core/pipeline.py` 仅为退役兼容 shim，不得作为 daily/Web/CLI 生产入口。
+
 ```python
-# pipeline.py::score_pipeline(as_of)
+# core/research/integration_pipeline.py::score_pipeline(as_of)  # research only
 ctx   = MarketContext(as_of, store, cfg)                       # 引擎3
 snaps = build_snapshots(as_of, store, cfg)                     # 含 E1 净化 + E30 故障转移 → data_conf
 scores= score_all(snaps, ctx, factorlab_calib)                # 评分(FactorLab 校准+去冗余权重)

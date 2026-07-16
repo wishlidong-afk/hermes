@@ -129,6 +129,8 @@ python3 hermes_escape_top/scripts/run_daily.py
 
 ### 4.3 Phase II Shadow 回放
 
+该命令使用 `core/research/integration_pipeline.py` 的研究 harness；生产 daily 始终使用 package 根 `pipeline.py`。
+
 ```bash
 python3 hermes_escape_top/scripts/phase2_shadow_compare.py --days 20
 ```

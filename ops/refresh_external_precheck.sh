@@ -27,7 +27,11 @@ OUT_MD="$LOG_DIR/external_precheck_latest.md"
 DATED_MD="$LOG_DIR/external_precheck_${DATE_STAMP}.md"
 TMP_JSON="$LOG_DIR/.external_precheck_${DATE_STAMP}.$$.json"
 TMP_MD="$LOG_DIR/.external_precheck_${DATE_STAMP}.$$.md"
-PY=/usr/bin/python3
+MARKER="$RUNTIME/hermes_escape_top/RUNTIME_LOCK_SHA256"
+[ -r "$MARKER" ] || { echo "Hermes runtime marker missing: $MARKER" >&2; exit 65; }
+LOCK_SHA="$(tr -d '[:space:]' < "$MARKER")"
+PY="$BASE/runtime/$LOCK_SHA/.venv/bin/python"
+[ -x "$PY" ] || { echo "Hermes managed Python missing: $PY" >&2; exit 65; }
 MODE="${HERMES_EXTERNAL_PRECHECK_MODE:-auto}"
 if [ "$MODE" = "auto" ]; then
   HHMM="$(date +%H%M)"
@@ -42,6 +46,18 @@ if [ "$MODE" = "retry_needed" ]; then
 else
   REFRESH_ARG="--pre-daily-check"
 fi
+RUN_STAMP="$(date +%Y%m%dT%H%M%S%z)_${MODE}_$$"
+IMMUTABLE_JSON="$LOG_DIR/external_precheck_${DATE_STAMP}_${RUN_STAMP}.json"
+IMMUTABLE_MD="$LOG_DIR/external_precheck_${DATE_STAMP}_${RUN_STAMP}.md"
+
+publish_copy() {
+  source_path="$1"
+  target_path="$2"
+  temp_path="${target_path}.tmp.$$"
+  rm -f "$temp_path"
+  cp "$source_path" "$temp_path" || return 1
+  mv "$temp_path" "$target_path"
+}
 
 {
   echo "=== hermes external precheck start $(date '+%F %T %Z') ==="
@@ -53,9 +69,15 @@ fi
 rc=$?
 
 if [ "$rc" -eq 0 ]; then
-  cp "$TMP_JSON" "$DATED_JSON"
-  mv "$TMP_JSON" "$OUT_JSON"
-  "$PY" - "$OUT_JSON" "$TMP_MD" >>"$LOG" 2>&1 <<'PY'
+  if [ -e "$IMMUTABLE_JSON" ] || ! mv "$TMP_JSON" "$IMMUTABLE_JSON"; then
+    rc=1
+  elif ! publish_copy "$IMMUTABLE_JSON" "$DATED_JSON" || ! publish_copy "$IMMUTABLE_JSON" "$OUT_JSON"; then
+    rc=1
+  fi
+fi
+
+if [ "$rc" -eq 0 ]; then
+  "$PY" - "$IMMUTABLE_JSON" "$TMP_MD" >>"$LOG" 2>&1 <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -144,8 +166,11 @@ raise SystemExit(0 if ready else 3)
 PY
   rc=$?
   if [ -f "$TMP_MD" ]; then
-    cp "$TMP_MD" "$DATED_MD"
-    mv "$TMP_MD" "$OUT_MD"
+    if [ -e "$IMMUTABLE_MD" ] || ! mv "$TMP_MD" "$IMMUTABLE_MD"; then
+      rc=1
+    elif ! publish_copy "$IMMUTABLE_MD" "$DATED_MD" || ! publish_copy "$IMMUTABLE_MD" "$OUT_MD"; then
+      rc=1
+    fi
   else
     rm -f "$TMP_MD"
   fi

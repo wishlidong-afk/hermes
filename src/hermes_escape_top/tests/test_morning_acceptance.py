@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
@@ -39,12 +40,29 @@ def _acceptance_fixture(tmp_path: Path) -> tuple[Path, datetime, dict]:
     release = base / "releases" / release_name
     package = release / "hermes_escape_top"
     archive = base / "shared/hermes_escape_top/data/archive"
+    shared_config = base / "shared/hermes_escape_top/config/config.json"
     reports = base / "reports"
     package.mkdir(parents=True)
     archive.mkdir(parents=True)
     reports.mkdir(parents=True)
     (package / "VERSION").write_text("d9ec486 20260712_184620\n", encoding="utf-8")
+    _write_json(shared_config, {"features": {"use_market_admission_gate": True}})
     (package / "data").symlink_to(base / "shared/hermes_escape_top/data", target_is_directory=True)
+    (package / "config").symlink_to(base / "shared/hermes_escape_top/config", target_is_directory=True)
+    _write_json(
+        package / "LIVE_CONFIG_ATTESTATION.json",
+        {
+            "schema_version": "hermes-live-config-attestation-v1",
+            "generated_at": "2026-07-12T18:46:20+08:00",
+            "release_id": release_name,
+            "release_hash": "d9ec486",
+            "live_config_sha256": hashlib.sha256(shared_config.read_bytes()).hexdigest(),
+            "repo_config_sha256": "repo-config-hash",
+            "feature_diff": {"use_market_admission_gate": {"repo": False, "live": True}},
+            "retention_policy_active_since": "2026-07-12T18:46:20+08:00",
+            "retention_first_expected_at": "2026-07-19T08:35:00+08:00",
+        },
+    )
     (release / "reports").symlink_to(reports, target_is_directory=True)
     (base / "current").symlink_to(Path("releases") / release_name, target_is_directory=True)
 
@@ -143,6 +161,22 @@ def _acceptance_fixture(tmp_path: Path) -> tuple[Path, datetime, dict]:
         },
     )
 
+    for run_day, completed_through in (
+        ("2026-07-11", "2026-07-08"),
+        ("2026-07-12", "2026-07-09"),
+        ("2026-07-13", "2026-07-10"),
+    ):
+        _write_json(
+            archive / f"market_admission_{run_day}.json",
+            {
+                "schema_version": "hermes-market-admission-v2",
+                "generated_at": f"{run_day}T07:10:30+08:00",
+                "status": "OK",
+                "mode": "enforce_consensus",
+                "completed_through": completed_through,
+            },
+        )
+
     watchdog = home / ".hermes/logs/watchdog.log"
     watchdog.parent.mkdir(parents=True, exist_ok=True)
     watchdog.write_text(
@@ -174,6 +208,87 @@ def test_clean_morning_acceptance_passes_with_visible_expected_warnings(tmp_path
     }
     assert "dollar" in report["summary"]
     assert "IBKR" in report["summary"]
+    assert len(report["checks"]) == 7
+    assert report["operational_observations"]["runtime_retention"]["status"] == "PENDING"
+    assert report["operational_observations"]["market_admission"]["status"] == "PASS"
+    assert report["operational_observations"]["market_admission"]["consecutive_ok"] == 3
+
+
+def test_retention_missing_warns_only_after_first_expected_window(tmp_path):
+    module = _load_module()
+    home, _now, _dashboard_health = _acceptance_fixture(tmp_path)
+    base = home / ".hermes/skills/investment/escape-top"
+    archive = base / "current/hermes_escape_top/data/archive"
+
+    before, before_warnings = module._collect_operational_observations(
+        home,
+        base,
+        archive,
+        datetime(2026, 7, 18, 9, 5, tzinfo=ZoneInfo("Asia/Shanghai")),
+    )
+    after, after_warnings = module._collect_operational_observations(
+        home,
+        base,
+        archive,
+        datetime(2026, 7, 19, 9, 5, tzinfo=ZoneInfo("Asia/Shanghai")),
+    )
+
+    assert before["runtime_retention"]["status"] == "PENDING"
+    assert before_warnings == []
+    assert after["runtime_retention"]["status"] == "WARN"
+    assert "retention" in " ".join(after_warnings).lower()
+
+
+def test_retention_apply_evidence_older_than_eight_days_warns(tmp_path):
+    module = _load_module()
+    home, _now, _dashboard_health = _acceptance_fixture(tmp_path)
+    base = home / ".hermes/skills/investment/escape-top"
+    archive = base / "current/hermes_escape_top/data/archive"
+    report_path = home / ".hermes/logs/retention/runtime_retention_latest.json"
+    _write_json(
+        report_path,
+        {
+            "schema_version": "hermes-runtime-retention-v1",
+            "generated_at": "2026-07-07T08:30:00+08:00",
+            "status": "PASS",
+            "result": {"mode": "APPLIED", "deleted_count": 12},
+        },
+    )
+
+    observations, warnings = module._collect_operational_observations(
+        home,
+        base,
+        archive,
+        datetime(2026, 7, 16, 9, 5, tzinfo=ZoneInfo("Asia/Shanghai")),
+    )
+
+    assert observations["runtime_retention"]["status"] == "WARN"
+    assert "older than 8 days" in observations["runtime_retention"]["detail"]
+    assert warnings
+
+
+def test_market_admission_maturity_stops_at_a_missing_run_day(tmp_path):
+    module = _load_module()
+    archive = tmp_path / "archive"
+    for run_day, completed_through in (
+        ("2026-07-10", "2026-07-09"),
+        ("2026-07-12", "2026-07-10"),
+    ):
+        _write_json(
+            archive / f"market_admission_{run_day}.json",
+            {
+                "status": "OK",
+                "completed_through": completed_through,
+            },
+        )
+
+    observation = module._market_admission_observation(
+        archive,
+        {"live_enabled_features": ["use_market_admission_gate"]},
+    )
+
+    assert observation["status"] == "OBSERVING"
+    assert observation["consecutive_ok"] == 1
 
 
 def test_duplicate_scheduled_run_fails_acceptance(tmp_path):
@@ -194,6 +309,23 @@ def test_duplicate_scheduled_run_fails_acceptance(tmp_path):
     assert "expected 1" in row["detail"]
 
 
+def test_live_config_hash_drift_fails_release_identity(tmp_path):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    config = home / ".hermes/skills/investment/escape-top/current/hermes_escape_top/config/config.json"
+    _write_json(config, {"features": {"use_market_admission_gate": False}})
+
+    report = module.collect_acceptance(
+        home=home,
+        now=now,
+        dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    row = next(item for item in report["checks"] if item["id"] == "release_identity")
+    assert row["status"] == "FAIL"
+    assert "live config sha256" in row["detail"]
+
+
 def test_health_report_hash_mismatch_fails_acceptance(tmp_path):
     module = _load_module()
     home, now, dashboard_health = _acceptance_fixture(tmp_path)
@@ -212,6 +344,28 @@ def test_health_report_hash_mismatch_fails_acceptance(tmp_path):
     assert report["status"] == "FAIL"
     assert row["status"] == "FAIL"
     assert "input_hash" in row["detail"]
+
+
+def test_immutable_health_report_wins_when_compatibility_file_was_overwritten(tmp_path):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    reports = home / ".hermes/skills/investment/escape-top/current/reports"
+    compatibility = reports / "system_health_2026-07-10.json"
+    matching = json.loads(compatibility.read_text(encoding="utf-8"))
+    run_path = reports / "system_health_runs/system_health_2026-07-10_run_input-hash-1.json"
+    _write_json(run_path, matching)
+    overwritten = dict(matching, input_hash="later-preview-hash")
+    _write_json(compatibility, overwritten)
+
+    report = module.collect_acceptance(
+        home=home,
+        now=now,
+        dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    row = next(item for item in report["checks"] if item["id"] == "bound_health_report")
+    assert row["status"] == "WARN"
+    assert "system_health_runs" in row["evidence"]
 
 
 def test_residual_active_transaction_fails_acceptance(tmp_path):

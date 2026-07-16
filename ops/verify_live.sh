@@ -19,7 +19,11 @@ else
     BASE="$LIVE_ROOT/current"
   fi
   RUN_DAILY="$HOME/.hermes/bin/run_daily.sh"
-  PYTHON=/usr/bin/python3
+  MARKER="$BASE/hermes_escape_top/RUNTIME_LOCK_SHA256"
+  [ -r "$MARKER" ] || { echo "FAIL: runtime marker missing: $MARKER"; exit 1; }
+  LOCK_SHA="$(tr -d '[:space:]' < "$MARKER")"
+  PYTHON="$LIVE_ROOT/runtime/$LOCK_SHA/.venv/bin/python"
+  [ -x "$PYTHON" ] || { echo "FAIL: managed Python missing: $PYTHON"; exit 1; }
 fi
 PKG="$BASE/hermes_escape_top"
 

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from ..core.data.external_sources.ledger import canonical_evidence_issue
+from ..core.data.external_sources.profiles import display_source_ids, profile_for
 from ..core.scoring.explain_registry import explain_factor
 from ..core.scoring.module_a import module_a_factors
 from ..core.scoring.module_b import module_b_factors
@@ -41,58 +42,11 @@ TRUST_SOURCE_ORDER = [
     "aaii",
     "naaim",
 ]
-TRUST_SOURCE_CADENCE = {
-    "aaii": "weekly",
-    "cot_nq": "weekly",
-    "dollar": "weekly",
-    "naaim": "weekly",
-    "occ_equity_pcr": "weekly",
-}
-TRUST_SOURCE_MAX_AGE_DAYS = {
-    "aaii": 13,
-    "btc_funding_basis": 6,
-    "cboe_indices": 6,
-    "cboe_pcr": 6,
-    "cot_nq": 13,
-    "defensive_rotation": 6,
-    "dollar": 13,
-    "naaim": 13,
-    "net_liquidity": 6,
-    "occ_equity_pcr": 13,
-    "real_rate": 6,
-}
-
-EXTERNAL_SOURCE_ORDER = [
-    "fred_vintages",
-    "dollar_vintage",
-    "real_rate_vintage",
-    "fred_net_liquidity_vintage",
-    "dollar",
-    "real_rate",
-    "fred_net_liquidity",
-    "naaim_exposure",
-    "aaii_sentiment",
-    "cboe_vix",
-    "cboe_vix3m",
-    "cboe_vix9d",
-    "cboe_skew",
-    "cboe_vvix",
-]
+EXTERNAL_SOURCE_ORDER = list(display_source_ids())
 EXTERNAL_SOURCE_LABELS = {
-    "fred_vintages": "FRED/ALFRED Vintage Events",
-    "dollar_vintage": "DXY / Dollar · exact vintage",
-    "real_rate_vintage": "10Y Real Rate · exact vintage",
-    "fred_net_liquidity_vintage": "FRED Net Liquidity · exact vintage",
-    "dollar": "DXY / Dollar",
-    "real_rate": "10Y Real Rate",
-    "fred_net_liquidity": "FRED Net Liquidity",
-    "naaim_exposure": "NAAIM Exposure",
-    "aaii_sentiment": "AAII Sentiment",
-    "cboe_vix": "CBOE VIX",
-    "cboe_vix3m": "CBOE VIX3M",
-    "cboe_vix9d": "CBOE VIX9D",
-    "cboe_skew": "CBOE SKEW",
-    "cboe_vvix": "CBOE VVIX",
+    source_id: profile_for(source_id).label
+    for source_id in EXTERNAL_SOURCE_ORDER
+    if profile_for(source_id) is not None
 }
 
 RUNBOOK_REFS = {
@@ -3806,8 +3760,45 @@ def _external_reliability_text(row: Dict[str, Any]) -> str:
     failures = int(row.get("consecutive_failures") or 0)
     if rate_30 is None and rate_90 is None:
         return "可靠性：尚无日级样本"
-    text = f"30d {_fmt_num(rate_30)}% (n={samples}) · 90d {_fmt_num(rate_90)}%"
-    return f"{text} · 连续失败 {failures}"
+    parts = [
+        f"30d {_fmt_num(rate_30)}% (n={samples})",
+        f"90d {_fmt_num(rate_90)}%",
+        f"连续失败 {failures}",
+    ]
+    channel = str(row.get("latest_source_channel") or "").strip()
+    if channel:
+        parts.append(f"渠道 {channel}")
+    rescues = int(row.get("fallback_rescues_7d") or 0)
+    if rescues:
+        parts.append(f"7d fallback 救回 {rescues}")
+    primary_rate = row.get("primary_success_rate_30d")
+    if primary_rate is not None:
+        parts.append(f"主源 30d {_fmt_num(primary_rate)}%")
+    stages = row.get("stage_reliability")
+    if isinstance(stages, dict):
+        labels = (("transport", "T"), ("parse", "P"), ("validation", "V"), ("promotion", "R"))
+        stage_parts = []
+        for stage, label in labels:
+            metrics = stages.get(stage)
+            if not isinstance(metrics, dict) or metrics.get("success_rate_30d") is None:
+                continue
+            stage_parts.append(
+                f"{label}{_fmt_num(metrics.get('success_rate_30d'))}"
+                f"(n={int(metrics.get('samples_30d') or 0)})"
+            )
+        if stage_parts:
+            parts.append("四段 " + "/".join(stage_parts))
+    advancement_rate = row.get("advancement_rate_30d")
+    if advancement_rate is not None:
+        parts.append(
+            f"推进 {_fmt_num(advancement_rate)}% "
+            f"(n={int(row.get('advancement_samples_30d') or 0)})"
+        )
+    expected_date = str(row.get("latest_expected_release_date") or "").strip()
+    expected_status = str(row.get("latest_expected_release_status") or "").strip()
+    if expected_date and expected_status:
+        parts.append(f"应发 {expected_date} {expected_status}")
+    return " · ".join(parts)
 
 
 def _external_migration_badge(status: Any) -> str:
@@ -3911,7 +3902,8 @@ def _normalize_trust_row(canonical: str, row: Dict[str, Any], payload: Dict[str,
     source = str(row.get("source") or row.get("provider") or "").strip()
     if "feature disabled" in reason.lower():
         source = reason
-    cadence = str(row.get("cadence") or TRUST_SOURCE_CADENCE.get(canonical) or "daily")
+    profile = _trust_profile(canonical)
+    cadence = str(row.get("cadence") or (profile.cadence if profile else "daily"))
     slo_text, slo_kind = _trust_slo_status(canonical, row, payload)
     if "feature disabled" in reason.lower():
         # A disabled candidate factor isn't scored, so its staleness is moot — show
@@ -3937,6 +3929,10 @@ def _trust_canonical_name(name: Any) -> str:
 
 def _trust_display_name(name: str) -> str:
     return TRUST_SOURCE_LABELS.get(name, name)
+
+
+def _trust_profile(name: str):
+    return profile_for(TRUST_SOURCE_LABELS.get(name, name))
 
 
 def _trust_date_text(value: Any) -> str:
@@ -3978,8 +3974,9 @@ def _trust_max_age(canonical: str, row: Dict[str, Any], payload: Dict[str, Any])
     for key in {canonical, _trust_display_name(canonical)}:
         if key in max_age_map:
             return _float_or_none(max_age_map.get(key))
-    if canonical in TRUST_SOURCE_MAX_AGE_DAYS:
-        return float(TRUST_SOURCE_MAX_AGE_DAYS[canonical])
+    profile = _trust_profile(canonical)
+    if profile is not None:
+        return float(profile.max_age_days)
     default = slo.get("default_max_age_days")
     if default is not None:
         return _float_or_none(default)

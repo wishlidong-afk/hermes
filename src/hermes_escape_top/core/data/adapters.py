@@ -19,6 +19,7 @@ class SoftDataRecord:
     quality_penalty: float = 0.0
     reason: str = ""
     fields: Dict[str, float | None] = field(default_factory=dict)
+    field_provenance: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         payload = asdict(self)

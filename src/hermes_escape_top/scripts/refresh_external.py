@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import time
@@ -29,7 +30,9 @@ from hermes_escape_top.core.data.external_sources import (
     FredVintagePercentileAdapter,
     NaaimExposureAdapter,
     NaaimExposureImportAdapter,
+    NaaimSubscriberAdapter,
     OccPcrAdapter,
+    all_source_ids,
     aaii_sentiment_spec,
     btc_micro_spec,
     cboe_pcr_spec,
@@ -43,12 +46,19 @@ from hermes_escape_top.core.data.external_sources import (
     fred_vintage_spec,
     enrich_source_status,
     import_files,
+    import_origin,
+    import_source_ids,
+    finalize_import,
     latest_import_file,
     naaim_exposure_spec,
     occ_pcr_spec,
     profile_for,
+    queue_import_candidates,
+    queued_import_files,
+    configured_refresh_source_ids,
     run_external_source_refresh,
     source_status,
+    terminal_import_hashes,
 )
 from hermes_escape_top.core.data.risk_signals import fred_api_key
 from hermes_escape_top.core.data.external_sources.ledger import (
@@ -60,33 +70,24 @@ from hermes_escape_top.core.data.external_sources.clock import (
     timestamp_to_shanghai_date,
 )
 
-SOURCE_IDS = (
-    "dollar",
-    "real_rate",
-    "fred_net_liquidity",
-    "cboe_equity_pcr",
-    "cot_nq",
-    "occ_equity_pcr",
-    "btc_funding_basis",
-    "naaim_exposure",
-    "aaii_sentiment",
+SOURCE_IDS = configured_refresh_source_ids({"features": {"use_fred_vintage_pit": False}})
+FRED_DERIVED_SOURCE_IDS = tuple(
+    source_id for source_id in all_source_ids()
+    if (profile_for(source_id) and profile_for(source_id).depends_on == "fred_vintages")
 )
-LEGACY_FRED_SOURCE_IDS = ("dollar", "real_rate", "fred_net_liquidity")
-FRED_DERIVED_SOURCE_IDS = (
-    "dollar_vintage",
-    "real_rate_vintage",
-    "fred_net_liquidity_vintage",
+FRED_VINTAGE_SOURCE_IDS = configured_refresh_source_ids(
+    {"features": {"use_fred_vintage_pit": True}}
 )
-NON_FRED_SOURCE_IDS = tuple(
-    source_id for source_id in SOURCE_IDS if source_id not in LEGACY_FRED_SOURCE_IDS
+CBOE_INDEX_SOURCE_IDS = tuple(
+    source_id for source_id in all_source_ids()
+    if profile_for(source_id) and profile_for(source_id).refresh_group == "cboe_indices"
 )
-FRED_VINTAGE_SOURCE_IDS = ("fred_vintages",) + FRED_DERIVED_SOURCE_IDS + NON_FRED_SOURCE_IDS
-CBOE_INDEX_SOURCE_IDS = tuple(CBOE_INDEX_DEFINITIONS)
-ALL_SOURCE_IDS = (
-    ("fred_vintages",) + SOURCE_IDS + FRED_DERIVED_SOURCE_IDS + CBOE_INDEX_SOURCE_IDS
+ALL_SOURCE_IDS = all_source_ids()
+IMPORT_FILE_SOURCE_IDS = import_source_ids()
+POLICY_WARN_ONLY_STALE_SOURCE_IDS = frozenset(
+    source_id for source_id in all_source_ids()
+    if profile_for(source_id) and profile_for(source_id).warn_only_stale_after_refresh
 )
-IMPORT_FILE_SOURCE_IDS = ("naaim_exposure", "aaii_sentiment")
-POLICY_WARN_ONLY_STALE_SOURCE_IDS = frozenset({"dollar"})
 DAILY_RETRY_REUSE_SECONDS = 15 * 60
 OFFICIAL_BROWSER_URLS = {
     "aaii_sentiment": "https://www.aaii.com/files/surveys/sentiment.xls",
@@ -188,6 +189,18 @@ def fred_net_liquidity_vintage_source(config: dict[str, Any]):
 
 def naaim_exposure_source(config: dict[str, Any]):
     target = resolve_path(config, "soft_history_dir") / "naaim_exposure.csv"
+    subscriber_url = str(os.environ.get("NAAIM_SUBSCRIBER_URL") or "").strip()
+    if subscriber_url:
+        bearer = str(os.environ.get("NAAIM_SUBSCRIBER_BEARER_TOKEN") or "").strip()
+        cookie = ""
+        cookie_path = str(os.environ.get("NAAIM_SUBSCRIBER_COOKIE_FILE") or "").strip()
+        if cookie_path:
+            cookie = Path(cookie_path).expanduser().read_text(encoding="utf-8").strip()
+        return naaim_exposure_spec(target_path=target), NaaimSubscriberAdapter(
+            download_url=subscriber_url,
+            bearer_token=bearer,
+            session_cookie=cookie,
+        )
     return naaim_exposure_spec(target_path=target), NaaimExposureAdapter()
 
 
@@ -253,10 +266,7 @@ def source_factories():
 
 
 def configured_source_ids(config: dict[str, Any]) -> tuple[str, ...]:
-    base = FRED_VINTAGE_SOURCE_IDS if _fred_vintage_enabled(config) else SOURCE_IDS
-    if bool((config.get("features") or {}).get("use_cboe_official_indices", False)):
-        return base + CBOE_INDEX_SOURCE_IDS
-    return base
+    return configured_refresh_source_ids(config)
 
 
 def source_specs(config: dict[str, Any]):
@@ -282,14 +292,28 @@ def refresh_source(
         raise ValueError(f"unsupported external source: {source_id}")
     spec, adapter = factories[source_id](cfg)
     archive_dir = resolve_path(cfg, "archive_dir")
+    queued_import: Path | None = None
     if import_file:
-        adapter = _import_adapter(source_id, spec, Path(import_file).expanduser())
+        staged = queue_import_candidates(
+            source_id,
+            archive_dir,
+            [Path(import_file).expanduser()],
+            processed_hashes=_processed_import_hashes(source_id, archive_dir),
+        )
+        if not staged:
+            raise ValueError(f"official import file hash already processed: {import_file}")
+        queued_import = staged[0]
+        adapter = _import_adapter(source_id, spec, queued_import)
     run = run_external_source_refresh(spec, adapter, archive_dir)
     result = run.to_dict()
+    if queued_import is not None:
+        terminal = finalize_import(queued_import, status=str(result.get("status") or "ERROR"))
+        result["import_queue_path"] = str(terminal)
+        result["import_source_file"] = str(Path(import_file).expanduser())
     if auto_import and not import_file and str(result.get("status")) != "OK":
         latest_file = _latest_import_for(source_id)
-        fallbacks = pending_import_files(source_id, archive_dir)
-        if latest_file is not None and not fallbacks:
+        discovered = pending_import_files(source_id, archive_dir)
+        if latest_file is not None and not discovered:
             skip_reason = (
                 _previous_import_failure_reason(source_id, latest_file, archive_dir)
                 or "official file hash already processed"
@@ -297,18 +321,30 @@ def refresh_source(
             result["fallback_import_skipped"] = str(latest_file)
             result["fallback_import_skip_reason"] = skip_reason
             return result
+        fallbacks = queue_import_candidates(
+            source_id,
+            archive_dir,
+            discovered,
+            processed_hashes=_processed_import_hashes(source_id, archive_dir),
+        )
         attempted: list[str] = []
         fallback_from_status = result.get("status")
         for fallback in fallbacks:
-            attempted.append(str(fallback))
+            original = import_origin(fallback) or fallback
+            attempted.append(str(original))
             fallback_run = run_external_source_refresh(
                 spec,
                 _import_adapter(source_id, spec, fallback),
                 archive_dir,
             ).to_dict()
             fallback_run["fallback_from_status"] = fallback_from_status
-            fallback_run["fallback_import_file"] = str(fallback)
+            fallback_run["fallback_import_file"] = str(original)
             fallback_run["fallback_attempted_files"] = list(attempted)
+            terminal = finalize_import(
+                fallback,
+                status=str(fallback_run.get("status") or "ERROR"),
+            )
+            fallback_run["fallback_queue_path"] = str(terminal)
             result = fallback_run
             if str(fallback_run.get("status")) == "OK":
                 return fallback_run
@@ -663,7 +699,25 @@ def pending_import_file(source_id: str, archive_dir: Path) -> Path | None:
 
 
 def pending_import_files(source_id: str, archive_dir: Path) -> list[Path]:
-    """Return every unprocessed official file in discovery order."""
+    """Discover unprocessed official files without mutating queue state."""
+    processed_hashes = _processed_import_hashes(source_id, archive_dir)
+    processed_hashes.update(terminal_import_hashes(source_id, archive_dir))
+    queued = queued_import_files(source_id, archive_dir)
+    seen = set(processed_hashes)
+    for path in queued:
+        if file_hash := _file_sha256(path):
+            seen.add(file_hash)
+    pending = list(queued)
+    for path in _import_candidates_for(source_id):
+        file_hash = _file_sha256(path)
+        if file_hash and file_hash not in seen:
+            pending.append(path)
+            seen.add(file_hash)
+    return pending
+
+
+def _processed_import_hashes(source_id: str, archive_dir: Path) -> set[str]:
+    """Treat every terminal legacy ledger outcome as already processed."""
     latest_by_hash: dict[str, dict[str, Any]] = {}
     for row in iter_source_runs(archive_dir):
         if row.get("source_id") != source_id:
@@ -671,17 +725,7 @@ def pending_import_files(source_id: str, archive_dir: Path) -> list[Path]:
         content_hash = _run_content_sha256(row)
         if content_hash:
             latest_by_hash[content_hash] = row
-    processed_hashes = {
-        content_hash
-        for content_hash, row in latest_by_hash.items()
-        if str(row.get("status") or "") != "OK" or row.get("canonical_sha256")
-    }
-    pending: list[Path] = []
-    for path in _import_candidates_for(source_id):
-        file_hash = _file_sha256(path)
-        if file_hash and file_hash not in processed_hashes:
-            pending.append(path)
-    return pending
+    return set(latest_by_hash)
 
 
 def _import_candidates_for(source_id: str) -> list[Path]:

@@ -81,6 +81,33 @@ def test_shell_entrypoints_prefer_current_release_when_present():
     assert '--lock-timeout "${HERMES_EXTERNAL_PRECHECK_LOCK_TIMEOUT:-600}"' in external
     assert 'REFRESH_ARG="--pre-daily-check"' in external
     assert 'REFRESH_ARG="--retry-needed"' in external
+    for script in (daily, dashboard, external):
+        assert "RUNTIME_LOCK_SHA256" in script
+        assert 'runtime/$LOCK_SHA/.venv/bin/python' in script
+        assert "/usr/bin/python3" not in script
+
+
+def test_production_dependency_lock_is_exact_and_hashed():
+    lock = (REPO_ROOT / "requirements.lock").read_text(encoding="utf-8")
+
+    for requirement in (
+        "numpy==2.0.2",
+        "pandas==2.3.3",
+        "scipy==1.13.1",
+        "requests==2.32.5",
+        "yfinance==1.2.0",
+    ):
+        assert requirement in lock
+    assert "--hash=sha256:" in lock
+
+
+def test_runtime_bootstrap_uses_hash_verified_immutable_environment():
+    script = (REPO_ROOT / "ops/bootstrap_runtime.sh").read_text(encoding="utf-8")
+
+    assert '"$UV_BIN" pip sync' in script
+    assert "--require-hashes" in script
+    assert 'runtime/$LOCK_SHA' not in script  # destination is supplied explicitly
+    assert "os.replace" in script
 
 
 def test_external_precheck_launchagent_runs_before_daily():
@@ -231,6 +258,10 @@ def test_external_precheck_writes_latest_and_dated_reports():
     assert 'external_precheck_latest.json' in script
     assert 'external_precheck_${DATE_STAMP}.md' in script
     assert 'external_precheck_latest.md' in script
+    assert 'RUN_STAMP="$(date +%Y%m%dT%H%M%S%z)_${MODE}_$$"' in script
+    assert 'external_precheck_${DATE_STAMP}_${RUN_STAMP}.json' in script
+    assert 'external_precheck_${DATE_STAMP}_${RUN_STAMP}.md' in script
+    assert "publish_copy" in script
     assert "# External Precheck" in script
     assert "nonblocking_refresh_error_sources" in script
     assert "HERMES_EXTERNAL_PRECHECK_MODE" in script
@@ -242,6 +273,13 @@ def test_external_precheck_markdown_includes_top_level_source_status(tmp_path):
     runtime = home / ".hermes" / "skills" / "investment" / "escape-top" / "current"
     scripts = runtime / "hermes_escape_top" / "scripts"
     scripts.mkdir(parents=True)
+    (runtime / "hermes_escape_top/RUNTIME_LOCK_SHA256").write_text("test-runtime\n")
+    managed_python = (
+        home
+        / ".hermes/skills/investment/escape-top/runtime/test-runtime/.venv/bin/python"
+    )
+    managed_python.parent.mkdir(parents=True)
+    managed_python.symlink_to(sys.executable)
     (runtime / "hermes_escape_top" / "__init__.py").write_text("", encoding="utf-8")
     scripts.joinpath("__init__.py").write_text("", encoding="utf-8")
     scripts.joinpath("refresh_external.py").write_text(
@@ -280,6 +318,57 @@ def test_external_precheck_markdown_includes_top_level_source_status(tmp_path):
     assert "| dollar | OK/WARN | 2026-07-02 | run refresh_external --source dollar |" in text
 
 
+def test_external_precheck_keeps_two_same_day_runs_immutable(tmp_path):
+    home = tmp_path / "home"
+    runtime = home / ".hermes" / "skills" / "investment" / "escape-top" / "current"
+    scripts = runtime / "hermes_escape_top" / "scripts"
+    scripts.mkdir(parents=True)
+    (runtime / "hermes_escape_top/RUNTIME_LOCK_SHA256").write_text("test-runtime\n")
+    managed_python = (
+        home
+        / ".hermes/skills/investment/escape-top/runtime/test-runtime/.venv/bin/python"
+    )
+    managed_python.parent.mkdir(parents=True)
+    managed_python.symlink_to(sys.executable)
+    (runtime / "hermes_escape_top" / "__init__.py").write_text("", encoding="utf-8")
+    scripts.joinpath("__init__.py").write_text("", encoding="utf-8")
+    scripts.joinpath("refresh_external.py").write_text(
+        "import json\n"
+        "print(json.dumps({'ready': True, 'blocking_sources': [], "
+        "'warning_sources': [], 'nonblocking_refresh_error_sources': [], "
+        "'blocking_refresh_error_sources': [], 'refresh': {'ok': True}, 'sources': {}}))\n",
+        encoding="utf-8",
+    )
+    env = {**os.environ, "HOME": str(home)}
+
+    first = subprocess.run(
+        ["bash", str(REPO_ROOT / "ops" / "refresh_external_precheck.sh")],
+        env={**env, "HERMES_EXTERNAL_PRECHECK_MODE": "all"},
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    second = subprocess.run(
+        ["bash", str(REPO_ROOT / "ops" / "refresh_external_precheck.sh")],
+        env={**env, "HERMES_EXTERNAL_PRECHECK_MODE": "retry_needed"},
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert first.returncode == 0, first.stdout + first.stderr
+    assert second.returncode == 0, second.stdout + second.stderr
+    report_dir = home / ".hermes/logs/external"
+    immutable_json = list(report_dir.glob("external_precheck_????-??-??_*_*.json"))
+    immutable_md = list(report_dir.glob("external_precheck_????-??-??_*_*.md"))
+    assert len(immutable_json) == 2
+    assert len(immutable_md) == 2
+    assert any("_all_" in path.name for path in immutable_json)
+    assert any("_retry_needed_" in path.name for path in immutable_json)
+    assert (report_dir / "external_precheck_latest.json").exists()
+    assert (report_dir / "external_precheck_latest.md").exists()
+
+
 def test_run_daily_entry_uses_current_release_runtime_and_data_root(tmp_path):
     home = tmp_path / "home"
     live = home / ".hermes" / "skills" / "investment" / "escape-top"
@@ -288,6 +377,10 @@ def test_run_daily_entry_uses_current_release_runtime_and_data_root(tmp_path):
     package = current / "hermes_escape_top"
     script.parent.mkdir(parents=True)
     package.mkdir(parents=True)
+    (package / "RUNTIME_LOCK_SHA256").write_text("test-runtime\n")
+    managed_python = live / "runtime/test-runtime/.venv/bin/python"
+    managed_python.parent.mkdir(parents=True)
+    managed_python.symlink_to(sys.executable)
     marker = tmp_path / "entry_env.json"
     script.write_text(
         "import json, os, pathlib, sys\n"
