@@ -1,0 +1,159 @@
+{
+  "variant": "baseline",
+  "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
+  "cache_schema": "flag-sweep-cache-v4",
+  "cache_key": "134a9b3e55901b076aee90949e437f107cd7311840bbfc7597006d038f4244c0",
+  "manifest_id": "52235bb4ae7988338d739304cfa4f26f59910b6fcce26756d7053e114dbc7dac",
+  "git_commit": "1dde064769f0558aafef951a230c09b43071c319",
+  "code_sha256": "b637f8e628b24a4ce8d47172fb3d9af01371ef306b7fe8dcf0384e45826ce985",
+  "config_sha256": "7de18c09ee2d245851fbf8dc682abc5eac521e5312508b09155307bdb26a6e56",
+  "soft_history_sha256": "68327049824263a660963c21a7cd4e361726b29512730d851e677be74c526410",
+  "start": "2018-01-01",
+  "end": "2026-07-14",
+  "enable": [
+    "costs"
+  ],
+  "equity_timing": "next_open",
+  "effective_start": "2018-01-02",
+  "effective_end": "2026-06-04",
+  "n_days": 2117,
+  "runtime_sec": 913.2,
+  "metrics": {
+    "cagr": 0.16932,
+    "max_drawdown": -0.189881,
+    "sharpe": 1.14452,
+    "sortino": 1.472111,
+    "final_value": 371899.960824
+  },
+  "legacy_close_metrics": {
+    "final_value": 403693.404345,
+    "cagr": 0.180941,
+    "max_drawdown": -0.162246,
+    "max_drawdown_start": "2018-06-14",
+    "max_drawdown_end": "2019-03-07",
+    "sharpe": 1.20901,
+    "sortino": 1.593762
+  },
+  "execution_open_quality": {
+    "total_rows": 21170,
+    "observed_rows": 18987,
+    "modeled_rows": 2182,
+    "missing_rows": 1,
+    "observed_share": 0.89688238,
+    "counts": {
+      "MISSING": 1,
+      "MODELED_PROXY_SWITCH": 2,
+      "MODELED_SYNTHETIC_MIDPOINT": 2180,
+      "OBSERVED": 18987
+    },
+    "by_leg": {
+      "BOXX": {
+        "MODELED_PROXY_SWITCH": 1,
+        "OBSERVED": 2116
+      },
+      "BRK.B": {
+        "OBSERVED": 2117
+      },
+      "BTC-USD": {
+        "MISSING": 1,
+        "OBSERVED": 2116
+      },
+      "DBMF": {
+        "MODELED_PROXY_SWITCH": 1,
+        "MODELED_SYNTHETIC_MIDPOINT": 387,
+        "OBSERVED": 1729
+      },
+      "FNGU": {
+        "MODELED_SYNTHETIC_MIDPOINT": 1793,
+        "OBSERVED": 324
+      },
+      "IAU": {
+        "OBSERVED": 2117
+      },
+      "MSTR": {
+        "OBSERVED": 2117
+      },
+      "QQQ": {
+        "OBSERVED": 2117
+      },
+      "SOXL": {
+        "OBSERVED": 2117
+      },
+      "SOXX": {
+        "OBSERVED": 2117
+      }
+    },
+    "required_total_rows": 9879,
+    "required_observed_rows": 8537,
+    "required_modeled_rows": 1342,
+    "required_missing_rows": 0,
+    "required_observed_share": 0.86415629,
+    "required_counts": {
+      "MODELED_PROXY_SWITCH": 2,
+      "MODELED_SYNTHETIC_MIDPOINT": 1340,
+      "OBSERVED": 8537
+    },
+    "required_by_leg": {
+      "BOXX": {
+        "OBSERVED": 2115,
+        "MODELED_PROXY_SWITCH": 1
+      },
+      "FNGU": {
+        "MODELED_SYNTHETIC_MIDPOINT": 1159,
+        "OBSERVED": 188
+      },
+      "MSTR": {
+        "OBSERVED": 1166
+      },
+      "SOXL": {
+        "OBSERVED": 1378
+      },
+      "DBMF": {
+        "MODELED_SYNTHETIC_MIDPOINT": 181,
+        "MODELED_PROXY_SWITCH": 1,
+        "OBSERVED": 1623
+      },
+      "IAU": {
+        "OBSERVED": 1805
+      },
+      "BRK.B": {
+        "OBSERVED": 171
+      },
+      "SOXX": {
+        "OBSERVED": 15
+      },
+      "QQQ": {
+        "OBSERVED": 54
+      },
+      "BTC-USD": {
+        "OBSERVED": 22
+      }
+    }
+  },
+  "benchmarks": {
+    "SPY": 0.131264,
+    "SPY_metrics": {
+      "final_value": 281686.965734,
+      "cagr": 0.131264,
+      "max_drawdown": -0.341047,
+      "max_drawdown_start": "2020-02-19",
+      "max_drawdown_end": "2020-03-23",
+      "sharpe": 0.735869,
+      "sortino": 0.896909,
+      "calmar": 0.384885,
+      "turnover": 0.0
+    },
+    "QQQ": 0.201553,
+    "QQQ_metrics": {
+      "final_value": 467291.286316,
+      "cagr": 0.201553,
+      "max_drawdown": -0.364777,
+      "max_drawdown_start": "2021-11-19",
+      "max_drawdown_end": "2023-01-05",
+      "sharpe": 0.891238,
+      "sortino": 1.163533,
+      "calmar": 0.552538,
+      "turnover": 0.0
+    }
+  }
+}
