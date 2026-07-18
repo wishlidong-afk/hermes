@@ -60,15 +60,40 @@ def queue_import_candidates(
     return queued
 
 
-def finalize_import(path: Path, *, status: str) -> Path:
+def verified_import_content(path: Path) -> bytes:
+    """Read one queue artifact once and bind its bytes to its filename hash."""
+    source = Path(path)
+    expected = _expected_hash_from_name(source)
+    try:
+        content = source.read_bytes()
+    except OSError as exc:
+        raise ValueError(f"import artifact is unreadable: {source}") from exc
+    if expected is None or hashlib.sha256(content).hexdigest() != expected:
+        raise ValueError(f"import artifact content hash does not match filename: {source}")
+    return content
+
+
+def finalize_import(
+    path: Path,
+    *,
+    status: str,
+    expected_content: bytes | None = None,
+) -> Path:
     """Move one inbox artifact to its terminal content-addressed state."""
     source = Path(path)
     if source.parent.name != "inbox":
         raise ValueError(f"import artifact is not in a queue inbox: {source}")
+    content = (
+        verified_import_content(source)
+        if expected_content is None
+        else bytes(expected_content)
+    )
+    expected = _expected_hash_from_name(source)
+    if expected is None or hashlib.sha256(content).hexdigest() != expected:
+        raise ValueError(f"verified import content does not match filename: {source}")
     state = "processed" if str(status).upper() == "OK" else "rejected"
     destination = source.parent.parent / state / source.name
     destination.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(source, destination)
 
     source_meta = _metadata_path(source)
     metadata: dict[str, object] = {}
@@ -77,7 +102,12 @@ def finalize_import(path: Path, *, status: str) -> Path:
             metadata = json.loads(source_meta.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             metadata = {}
-        source_meta.unlink(missing_ok=True)
+    if expected_content is None:
+        os.replace(source, destination)
+    else:
+        _atomic_write_bytes(destination, content)
+        source.unlink(missing_ok=True)
+    source_meta.unlink(missing_ok=True)
     metadata.update(status=str(status).upper(), finalized_at=_now())
     _write_metadata(destination, metadata)
     return destination
@@ -125,7 +155,18 @@ def _state_hashes(directory: Path) -> set[str]:
 
 
 def _content_hash_from_name(path: Path) -> str | None:
-    digest = path.name.split(".", 1)[0]
+    digest = _expected_hash_from_name(path)
+    if digest is None:
+        return None
+    try:
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+    return digest if actual == digest else None
+
+
+def _expected_hash_from_name(path: Path) -> str | None:
+    digest = Path(path).name.split(".", 1)[0]
     if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
         return None
     return digest

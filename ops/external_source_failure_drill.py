@@ -155,11 +155,9 @@ def _run_scenario(
     }
 
 
-def _expected_status(source_id: str, scenario: str) -> str:
+def _expected_status(_source_id: str, scenario: str) -> str:
     if scenario == "manual_import_recovery":
         return "OK"
-    if scenario == "older_official_file" and source_id == "naaim_exposure":
-        return "VALIDATION_ERROR"
     return "PARSE_ERROR"
 
 
@@ -194,8 +192,9 @@ def _naaim_fixture() -> _SourceFixture:
         source_id="naaim_exposure",
         write_seed=_write_naaim_seed,
         build_spec=lambda target: naaim_exposure_spec(target_path=target, min_rows=1),
-        build_import_adapter=lambda _target, import_path: NaaimExposureImportAdapter(
+        build_import_adapter=lambda target, import_path: NaaimExposureImportAdapter(
             import_path=import_path,
+            seed_path=target,
             percentile_window=4,
             min_periods=1,
         ),

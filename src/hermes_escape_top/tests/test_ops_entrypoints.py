@@ -67,6 +67,7 @@ def test_shell_entrypoints_prefer_current_release_when_present():
     daily = (REPO_ROOT / "ops" / "run_daily.sh").read_text(encoding="utf-8")
     dashboard = (REPO_ROOT / "ops" / "serve_dashboard.sh").read_text(encoding="utf-8")
     external = (REPO_ROOT / "ops" / "refresh_external_precheck.sh").read_text(encoding="utf-8")
+    external_manual = (REPO_ROOT / "ops" / "refresh_external.sh").read_text(encoding="utf-8")
 
     assert 'if [ -d "$BASE/current/hermes_escape_top" ]; then' in daily
     assert 'RUNTIME="$BASE/current"' in daily
@@ -81,10 +82,69 @@ def test_shell_entrypoints_prefer_current_release_when_present():
     assert '--lock-timeout "${HERMES_EXTERNAL_PRECHECK_LOCK_TIMEOUT:-600}"' in external
     assert 'REFRESH_ARG="--pre-daily-check"' in external
     assert 'REFRESH_ARG="--retry-needed"' in external
-    for script in (daily, dashboard, external):
+    assert 'hermes_escape_top.scripts.refresh_external "$@"' in external_manual
+    for script in (daily, dashboard, external, external_manual):
         assert "RUNTIME_LOCK_SHA256" in script
         assert 'runtime/$LOCK_SHA/.venv/bin/python' in script
         assert "/usr/bin/python3" not in script
+
+
+def test_manual_external_entry_uses_managed_runtime_and_forwards_args(tmp_path):
+    home = tmp_path / "home"
+    base = home / ".hermes/skills/investment/escape-top"
+    runtime = base / "current"
+    scripts = runtime / "hermes_escape_top/scripts"
+    scripts.mkdir(parents=True)
+    (runtime / "hermes_escape_top/RUNTIME_LOCK_SHA256").write_text(
+        "test-runtime\n", encoding="utf-8"
+    )
+    managed_python = base / "runtime/test-runtime/.venv/bin/python"
+    managed_python.parent.mkdir(parents=True)
+    managed_python.symlink_to(sys.executable)
+    (runtime / "hermes_escape_top/__init__.py").write_text("", encoding="utf-8")
+    scripts.joinpath("__init__.py").write_text("", encoding="utf-8")
+    scripts.joinpath("refresh_external.py").write_text(
+        "import json, os, sys\n"
+        "print(json.dumps({\n"
+        "    'args': sys.argv[1:],\n"
+        "    'runtime': os.environ['HERMES_RUNTIME_ROOT'],\n"
+        "    'data': os.environ['HERMES_DATA_DIR'],\n"
+        "}))\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["HOME"] = str(home)
+    env.pop("HERMES_DATA_DIR", None)
+
+    result = subprocess.run(
+        ["bash", str(REPO_ROOT / "ops/refresh_external.sh"), "--status"],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=10,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload == {
+        "args": ["--status"],
+        "runtime": str(runtime),
+        "data": str(runtime / "hermes_escape_top"),
+    }
+
+
+def test_runbook_uses_explicit_validation_python_and_lists_external_wrapper():
+    runbook = (REPO_ROOT / "docs/PRODUCTION_RUNBOOK.md").read_text(encoding="utf-8")
+
+    assert "PYTHONPATH=src python3 scripts/system_validation.py" not in runbook
+    assert (
+        "PYTHONPATH=src /Users/liweishi/.hermes-v3/.venv/bin/python "
+        "scripts/system_validation.py"
+    ) in runbook
+    allowlist_line = next(
+        line for line in runbook.splitlines() if ".hermes` 只提交 allowlist" in line
+    )
+    assert "`bin/refresh_external.sh`" in allowlist_line
 
 
 def test_production_dependency_lock_is_exact_and_hashed():

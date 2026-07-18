@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 
 from hermes_escape_top.core.data.external_sources.ledger import append_source_run
-from hermes_escape_top.scripts import refresh_external
+from hermes_escape_top.scripts import backfill_soft_data, refresh_external
 
 
 def _config(tmp_path):
@@ -56,6 +56,22 @@ def test_refresh_external_source_dollar_calls_runner(monkeypatch, tmp_path):
     assert calls["spec"].target_path == tmp_path / "soft_history" / "dollar.csv"
     assert calls["adapter"].series_id == "DTWEXBGS"
     assert calls["archive_dir"] == tmp_path / "archive"
+
+
+def test_legacy_backfill_only_delegates_without_requiring_internal_lease(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_refresh(source_id, config=None, *, auto_import=False):
+        calls.append((source_id, auto_import))
+        return {"source_id": source_id, "status": "OK"}
+
+    monkeypatch.setattr(refresh_external, "refresh_source", fake_refresh)
+
+    result = backfill_soft_data.refresh_all(_config(tmp_path), only="naaim")
+
+    assert result["ok"] is True
+    assert result["canonical_writer"] == "ExternalSourceRunner"
+    assert calls == [("naaim_exposure", True)]
 
 
 def test_refresh_external_source_real_rate_calls_runner(monkeypatch, tmp_path):
@@ -512,7 +528,8 @@ def test_retry_needed_cli_runs_selective_precheck(monkeypatch, capsys):
     rc = refresh_external.main(["--retry-needed"])
 
     assert rc == 0
-    assert calls == [{"retry_only": True}]
+    assert calls[0]["retry_only"] is True
+    assert calls[0]["_lease"] is not None
     assert '"mode": "retry_needed"' in capsys.readouterr().out
 
 
@@ -520,27 +537,31 @@ def test_mutating_cli_holds_pipeline_lock(monkeypatch, capsys):
     events = []
 
     @contextmanager
-    def fake_pipeline_lock(*, blocking, timeout):
-        events.append(("enter", blocking, timeout))
+    def fake_pipeline_lock(*, blocking, timeout, path):
+        events.append(("enter", blocking, timeout, path))
         yield object()
-        events.append(("exit", blocking, timeout))
+        events.append(("exit", blocking, timeout, path))
 
     monkeypatch.setattr(refresh_external, "pipeline_lock", fake_pipeline_lock)
     monkeypatch.setattr(
         refresh_external,
         "refresh_all_sources",
-        lambda auto_import=True: {"ok": True, "runs": [], "mode": "all"},
+        lambda *_args, **_kwargs: {"ok": True, "runs": [], "mode": "all"},
     )
 
     rc = refresh_external.main(["--all", "--lock-timeout", "0"])
 
     assert rc == 0
-    assert events == [("enter", True, 0.0), ("exit", True, 0.0)]
+    assert [(event[0], event[1], event[2]) for event in events] == [
+        ("enter", True, 0.0),
+        ("exit", True, 0.0),
+    ]
+    assert events[0][3].name == ".pipeline.lock"
     assert '"mode": "all"' in capsys.readouterr().out
 
 
 def test_mutating_cli_routes_adapter_progress_to_stderr(monkeypatch, capsys):
-    def noisy_refresh(*, auto_import=True):
+    def noisy_refresh(*_args, auto_import=True, **_kwargs):
         print("provider progress")
         return {"ok": True, "runs": [], "mode": "all"}
 
@@ -1067,7 +1088,7 @@ def test_refresh_external_cli_accepts_real_rate(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(
         refresh_external,
         "run_external_source_refresh",
-        lambda spec, adapter, archive_dir: SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"}),
+        lambda spec, adapter, archive_dir, **_kwargs: SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"}),
     )
 
     rc = refresh_external.main(["--source", "real_rate"])
@@ -1083,7 +1104,7 @@ def test_refresh_external_cli_accepts_naaim(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(
         refresh_external,
         "run_external_source_refresh",
-        lambda spec, adapter, archive_dir: SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"}),
+        lambda spec, adapter, archive_dir, **_kwargs: SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"}),
     )
 
     rc = refresh_external.main(["--source", "naaim_exposure"])
@@ -1099,7 +1120,7 @@ def test_refresh_external_cli_accepts_aaii(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(
         refresh_external,
         "run_external_source_refresh",
-        lambda spec, adapter, archive_dir: SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"}),
+        lambda spec, adapter, archive_dir, **_kwargs: SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"}),
     )
 
     rc = refresh_external.main(["--source", "aaii_sentiment"])
@@ -1115,7 +1136,7 @@ def test_refresh_external_cli_accepts_aaii_import_file(monkeypatch, tmp_path, ca
     import_path = tmp_path / "sentiment.csv"
     import_path.write_text("Reported,Bullish,Neutral,Bearish,Bull-Bear\n2026-07-02,38.2,28.0,33.8,4.4\n", encoding="utf-8")
 
-    def fake_runner(spec, adapter, archive_dir):
+    def fake_runner(spec, adapter, archive_dir, **_kwargs):
         calls["adapter"] = adapter
         return SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"})
 
@@ -1134,12 +1155,50 @@ def test_refresh_external_cli_accepts_aaii_import_file(monkeypatch, tmp_path, ca
     assert import_path.exists()
 
 
+def test_refresh_external_binds_verified_import_bytes_before_promotion(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    import_path = tmp_path / "sentiment.csv"
+    original = (
+        b"Reported,Bullish,Neutral,Bearish,Bull-Bear\n"
+        b"2026-07-02,38.2,28.0,33.8,4.4\n"
+    )
+    import_path.write_bytes(original)
+    target = tmp_path / "soft_history/aaii_sentiment.csv"
+    real_runner = refresh_external.run_external_source_refresh
+
+    monkeypatch.setattr(
+        refresh_external,
+        "aaii_sentiment_source",
+        lambda _config: (
+            refresh_external.aaii_sentiment_spec(target_path=target, min_rows=1),
+            object(),
+        ),
+    )
+
+    def tampering_runner(spec, adapter, archive_dir, **kwargs):
+        adapter.import_path.write_bytes(b"tampered before adapter fetch")
+        return real_runner(spec, adapter, archive_dir, **kwargs)
+
+    monkeypatch.setattr(refresh_external, "run_external_source_refresh", tampering_runner)
+
+    result = refresh_external.refresh_source(
+        "aaii_sentiment",
+        cfg,
+        import_file=str(import_path),
+    )
+
+    assert result["status"] == "OK"
+    assert target.exists()
+    assert "2026-07-02" in target.read_text(encoding="utf-8")
+    assert Path(result["import_queue_path"]).read_bytes() == original
+
+
 def test_refresh_external_cli_accepts_naaim_import_file(monkeypatch, tmp_path, capsys):
     calls = {}
     import_path = tmp_path / "naaim.xlsx"
     import_path.write_bytes(b"fake workbook")
 
-    def fake_runner(spec, adapter, archive_dir):
+    def fake_runner(spec, adapter, archive_dir, **_kwargs):
         calls["spec"] = spec
         calls["adapter"] = adapter
         return SimpleNamespace(to_dict=lambda: {"source_id": spec.source_id, "status": "OK"})
@@ -1181,7 +1240,7 @@ def test_refresh_external_cli_accepts_all(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(
         refresh_external,
         "refresh_all_sources",
-        lambda **_kwargs: {"ok": True, "ok_count": 5, "error_count": 0, "runs": []},
+        lambda *_args, **_kwargs: {"ok": True, "ok_count": 5, "error_count": 0, "runs": []},
     )
 
     rc = refresh_external.main(["--all"])

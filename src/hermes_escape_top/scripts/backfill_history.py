@@ -52,6 +52,7 @@ class BackfillResult:
         return asdict(self)
 
 
+# Mirrors yfinance: start is inclusive and end is exclusive when provided.
 Downloader = Callable[[str, str, Optional[str]], pd.DataFrame]
 
 
@@ -312,6 +313,13 @@ def _backfill_one(
         try:
             chunk = _normalize_download(downloader(_yf_symbol(symbol), fetch_start, fetch_end),
                                         expected_symbol=_yf_symbol(symbol))
+            candidate_rows = len(chunk)
+            chunk = _clip_download_to_interval(chunk, fetch_start, fetch_end)
+            clipped_rows = candidate_rows - len(chunk)
+            if clipped_rows:
+                reasons.append(
+                    f"{fetch_start}->{fetch_end or 'latest'} clipped {clipped_rows} out-of-range rows"
+                )
             if chunk.empty:
                 reasons.append(f"{fetch_start}->{fetch_end or 'latest'} returned no rows")
             downloaded_frames.append(chunk)
@@ -345,6 +353,22 @@ def _backfill_one(
         combined = combined[~combined.index.duplicated(keep="last")]
         _write_history(path, combined)
     return _result(symbol, path, combined, updated=not normalized.empty, source_symbol=_yf_symbol(symbol), reason="; ".join(reasons))
+
+
+def _clip_download_to_interval(
+    frame: pd.DataFrame,
+    start: str,
+    end: Optional[str],
+) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    start_date = pd.Timestamp(start).date()
+    end_date = pd.Timestamp(end).date() if end is not None else None
+    dates = pd.DatetimeIndex(frame.index).date
+    mask = dates >= start_date
+    if end_date is not None:
+        mask &= dates < end_date
+    return frame.loc[mask]
 
 
 def _interval_has_probable_trading_day(

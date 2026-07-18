@@ -206,6 +206,7 @@ def cboe_index_spec(
             else "official_close_after_completed_us_session_with_yahoo_witness"
         ),
         source_url=definition.url,
+        allow_validated_same_date_promotion=True,
     )
 
 
@@ -278,7 +279,7 @@ def _validate_history_continuity(
             "rebaseline is required"
         )
     try:
-        existing = pd.read_csv(target_path, usecols=["date"])
+        existing = pd.read_csv(target_path)
     except Exception as exc:
         return f"history continuity: existing canonical cannot be read: {exc}"
     existing_dates = pd.to_datetime(existing["date"], errors="coerce").dropna()
@@ -309,6 +310,31 @@ def _validate_history_continuity(
             f"history continuity: incoming rows {len(frame)} below canonical rows "
             f"{len(existing)}"
         )
+    existing_values = existing.copy()
+    incoming_values = frame.copy()
+    existing_values["_day"] = pd.to_datetime(
+        existing_values["date"], errors="coerce"
+    ).dt.strftime("%Y-%m-%d")
+    incoming_values["_day"] = pd.to_datetime(
+        incoming_values["date"], errors="coerce"
+    ).dt.strftime("%Y-%m-%d")
+    common = existing_values.merge(
+        incoming_values,
+        on="_day",
+        suffixes=("_existing", "_incoming"),
+    )
+    for column in ("open", "high", "low", "close", "adj_close", "volume"):
+        existing_column = f"{column}_existing"
+        incoming_column = f"{column}_incoming"
+        if existing_column not in common or incoming_column not in common:
+            return f"history continuity: missing comparison column {column}"
+        old = pd.to_numeric(common[existing_column], errors="coerce")
+        new = pd.to_numeric(common[incoming_column], errors="coerce")
+        mismatch = old.isna() != new.isna()
+        mismatch |= (old - new).abs().fillna(0.0) > 1e-9
+        if mismatch.any():
+            changed_day = str(common.loc[mismatch, "_day"].iloc[0])
+            return f"history continuity: changed existing row {changed_day} column {column}"
     return None
 
 

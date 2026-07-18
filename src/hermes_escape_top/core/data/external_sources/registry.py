@@ -18,6 +18,7 @@ class ExternalSourceSpec:
     pit_rule: str | None = None
     source_url: str | None = None
     allow_duplicate_dates: bool = False
+    allow_validated_same_date_promotion: bool = False
 
     def __post_init__(self) -> None:
         if not self.source_id:
@@ -25,6 +26,8 @@ class ExternalSourceSpec:
         object.__setattr__(self, "target_path", Path(self.target_path))
         if self.min_rows < 0:
             raise ValueError("min_rows must be non-negative")
+        if self.allow_validated_same_date_promotion and self.semantic_validator is None:
+            raise ValueError("same-date promotion requires a semantic validator")
 
 
 def validate_normalized_frame(spec: ExternalSourceSpec, frame: pd.DataFrame) -> str | None:

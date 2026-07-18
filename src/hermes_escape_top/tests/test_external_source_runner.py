@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 import hashlib
+import json
+import os
+from queue import Queue
 import stat
+from threading import Thread
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
@@ -19,8 +23,10 @@ from hermes_escape_top.core.data.external_sources.ledger import (
 from hermes_escape_top.core.data.external_sources.registry import ExternalSourceSpec
 from hermes_escape_top.core.data.external_sources.runner import (
     PreparedFrameAdapter,
+    _official_metadata,
     run_external_source_refresh,
 )
+from hermes_escape_top.core.safe_io import PipelineBusy, pipeline_lock
 
 
 class FakeAdapter:
@@ -118,6 +124,20 @@ class RowTimestampAdapter:
     def parse(self, raw):
         return pd.DataFrame(raw["rows"])[["date", "value"]]
 
+
+def test_official_filename_derived_from_url_excludes_query_credentials():
+    metadata = _official_metadata(
+        {
+            "xlsx_url": (
+                "https://www.naaim.org/data/latest.xlsx"
+                "?token=official-file-secret&expires=9999999999"
+            )
+        },
+        "2026-07-01",
+    )
+
+    assert metadata["official_file_name"] == "latest.xlsx"
+    assert "official-file-secret" not in str(metadata)
 
 def test_prepared_frame_adapter_still_promotes_only_through_runner(tmp_path):
     archive = tmp_path / "archive"
@@ -283,6 +303,29 @@ def test_source_reliability_reports_stage_rates_recovery_and_advancement(tmp_pat
     assert reliability["latest_expected_release_status"] == "ADVANCED"
 
 
+def test_expected_release_stays_pending_through_final_grace_day(tmp_path):
+    archive = tmp_path / "archive"
+    unchanged = _ledger_record("aaii_sentiment", "OK", "2026-07-10T06:45:00+08:00")
+    unchanged.update(advanced=False, latest_promoted_as_of="2026-07-03")
+    append_source_run(archive, unchanged)
+
+    final_grace_day = source_reliability(
+        archive,
+        "aaii_sentiment",
+        today=pd.Timestamp("2026-07-11").date(),
+    )
+    after_grace = source_reliability(
+        archive,
+        "aaii_sentiment",
+        today=pd.Timestamp("2026-07-12").date(),
+    )
+
+    assert final_grace_day["expected_release_samples_30d"] == 0
+    assert final_grace_day["latest_expected_release_status"] == "PENDING"
+    assert after_grace["expected_release_samples_30d"] == 1
+    assert after_grace["latest_expected_release_status"] == "MISSED"
+
+
 def test_source_reliability_separates_primary_fallback_and_manual_channels(tmp_path):
     archive = tmp_path / "archive"
     primary = _ledger_record("aaii_sentiment", "OK", "2026-07-10T06:45:00+08:00")
@@ -368,7 +411,7 @@ def test_success_writes_staging_promotes_target_and_records_ledger(tmp_path):
     assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "OK"
 
 
-def test_identical_run_evidence_uses_content_addressed_hardlinks(tmp_path):
+def test_identical_run_evidence_uses_independent_read_only_copies(tmp_path):
     archive = tmp_path / "archive"
     target = tmp_path / "soft_history" / "dollar.csv"
     spec = ExternalSourceSpec(
@@ -392,8 +435,27 @@ def test_identical_run_evidence_uses_content_addressed_hardlinks(tmp_path):
     assert first.normalized_sha256 == second.normalized_sha256
     assert first.raw_blob_path == second.raw_blob_path
     assert first.normalized_blob_path == second.normalized_blob_path
-    assert Path(first.raw_path).stat().st_ino == Path(second.raw_path).stat().st_ino
-    assert Path(first.normalized_path).stat().st_ino == Path(second.normalized_path).stat().st_ino
+    raw_blob = Path(first.raw_blob_path)
+    normalized_blob = Path(first.normalized_blob_path)
+    assert Path(first.raw_path).stat().st_ino != Path(second.raw_path).stat().st_ino
+    assert Path(first.raw_path).stat().st_ino != raw_blob.stat().st_ino
+    assert Path(first.normalized_path).stat().st_ino != Path(second.normalized_path).stat().st_ino
+    assert Path(first.normalized_path).stat().st_ino != normalized_blob.stat().st_ino
+    for path in (
+        Path(first.raw_path),
+        Path(second.raw_path),
+        raw_blob,
+        Path(first.normalized_path),
+        Path(second.normalized_path),
+        normalized_blob,
+    ):
+        assert stat.S_IMODE(path.stat().st_mode) & 0o222 == 0
+
+    certified_raw = raw_blob.read_bytes()
+    os.chmod(first.raw_path, 0o600)
+    Path(first.raw_path).write_bytes(b"tampered run evidence")
+    assert raw_blob.read_bytes() == certified_raw
+    assert Path(second.raw_path).read_bytes() == certified_raw
     blobs = [path for path in (archive / "external_sources/blobs/sha256").rglob("*") if path.is_file()]
     assert len(blobs) == 2
 
@@ -495,6 +557,43 @@ def test_fetch_error_preserves_existing_target_and_records_error(tmp_path):
     assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "FETCH_ERROR"
 
 
+def test_runner_detaches_legacy_hardlinked_blobs_once_under_lock(tmp_path):
+    archive = tmp_path / "archive"
+    content = b'{"legacy":true}\n'
+    digest = hashlib.sha256(content).hexdigest()
+    blob = (
+        archive
+        / "external_sources/blobs/sha256"
+        / digest[:2]
+        / f"{digest}.json"
+    )
+    legacy_run = archive / "external_sources/dollar/legacy/raw.json"
+    blob.parent.mkdir(parents=True)
+    legacy_run.parent.mkdir(parents=True)
+    blob.write_bytes(content)
+    os.link(blob, legacy_run)
+    assert blob.stat().st_ino == legacy_run.stat().st_ino
+
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=tmp_path / "soft_history/dollar.csv",
+        required_columns=("date", "value"),
+    )
+    run = run_external_source_refresh(spec, FakeAdapter(), archive)
+
+    marker = archive / "external_sources/blobs/.independent-readonly-v1.json"
+    report = json.loads(marker.read_text(encoding="utf-8"))
+    assert run.status == "OK"
+    assert report["schema_version"] == "hermes-evidence-inode-migration-v1"
+    assert report["scanned_blob_count"] == 1
+    assert report["detached_blob_count"] == 1
+    assert blob.stat().st_ino != legacy_run.stat().st_ino
+    assert stat.S_IMODE(blob.stat().st_mode) == 0o444
+    legacy_run.chmod(0o644)
+    legacy_run.write_bytes(b"mutated legacy run\n")
+    assert blob.read_bytes() == content
+
+
 def test_parse_error_preserves_existing_target_and_records_raw_artifact(tmp_path):
     target = tmp_path / "soft_history" / "dollar.csv"
     target.parent.mkdir(parents=True)
@@ -576,6 +675,60 @@ def test_stale_source_frame_preserves_newer_existing_target(tmp_path):
     assert "older than existing target" in str(run.error_message)
     assert target.read_text(encoding="utf-8") == "date,value\n2026-07-07,9.9\n"
     assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "VALIDATION_ERROR"
+
+
+def test_same_date_source_records_unchanged_without_replacing_canonical(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text("date,value\n2026-06-30,9.9\n", encoding="utf-8")
+    before = target.read_bytes()
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+
+    run = run_external_source_refresh(spec, FakeAdapter(), tmp_path / "archive")
+
+    assert run.status == "OK"
+    assert run.promotion_status == "UNCHANGED"
+    assert run.advanced is False
+    assert run.previous_promoted_as_of == "2026-06-30"
+    assert run.latest_promoted_as_of == "2026-06-30"
+    assert target.read_bytes() == before
+
+
+def test_runner_direct_call_honors_pipeline_lock(tmp_path):
+    archive = tmp_path / "archive"
+    target = tmp_path / "soft_history" / "dollar.csv"
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+    outcome: Queue[BaseException | str] = Queue()
+
+    def attempt_refresh() -> None:
+        try:
+            run_external_source_refresh(
+                spec,
+                FakeAdapter(),
+                archive,
+                lock_timeout=0,
+            )
+        except BaseException as exc:
+            outcome.put(exc)
+        else:
+            outcome.put("unexpected success")
+
+    lock_path = archive / ".pipeline.lock"
+    with pipeline_lock(path=lock_path):
+        thread = Thread(target=attempt_refresh)
+        thread.start()
+        thread.join(timeout=2)
+
+    assert not thread.is_alive()
+    assert isinstance(outcome.get_nowait(), PipelineBusy)
 
 
 def test_source_status_reports_latest_run_and_promoted_date(tmp_path):

@@ -337,7 +337,7 @@ def _expected_release_metrics(
     matured = [
         expected_day
         for expected_day in expected_days
-        if expected_day + timedelta(days=grace_days) <= day
+        if expected_day + timedelta(days=grace_days) < day
     ]
 
     def window(days: int) -> tuple[int, int, float | None]:
@@ -352,7 +352,7 @@ def _expected_release_metrics(
     latest_expected = expected_days[-1]
     if latest_expected in matches:
         latest_status = "ADVANCED"
-    elif latest_expected + timedelta(days=grace_days) > day:
+    elif latest_expected + timedelta(days=grace_days) >= day:
         latest_status = "PENDING"
     else:
         latest_status = "MISSED"

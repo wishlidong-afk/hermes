@@ -3,18 +3,31 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import stat
 import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 import pandas as pd
 
-from ...safe_io import atomic_write_csv
+from ...safe_io import assert_pipeline_lease, atomic_write_csv, pipeline_lock
 from .ledger import append_source_run
 from .registry import ExternalSourceSpec, latest_frame_date, validate_normalized_frame
+
+
+_URL_IN_TEXT_RE = re.compile(r"https?://[^\s;,\]\[{}()<>\"']+", re.IGNORECASE)
+_SECRET_HEADER_RE = re.compile(
+    r"(?i)(?P<quote>['\"]?)(?P<name>authorization|proxy-authorization|cookie|set-cookie)"
+    r"(?P=quote)\s*[:=]\s*[^\r\n]*?"
+    r"(?=(?:[;,]\s*['\"]?(?:authorization|proxy-authorization|cookie|set-cookie)"
+    r"['\"]?\s*[:=])|\r?\n|$)"
+)
+_BEARER_TOKEN_RE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
+_EVIDENCE_MIGRATION_SCHEMA = "hermes-evidence-inode-migration-v1"
 
 
 @dataclass(frozen=True)
@@ -86,7 +99,43 @@ def run_external_source_refresh(
     archive_dir: Path,
     *,
     now: datetime | None = None,
+    _lease: Any = None,
+    lock_timeout: float = 600.0,
 ) -> ExternalSourceRun:
+    archive_dir = Path(archive_dir)
+    lock_path = archive_dir / ".pipeline.lock"
+    if _lease is None:
+        with pipeline_lock(
+            blocking=True,
+            timeout=max(float(lock_timeout), 0.0),
+            path=lock_path,
+        ) as lease:
+            return _run_external_source_refresh_locked(
+                spec,
+                adapter,
+                archive_dir,
+                now=now,
+                _lease=lease,
+            )
+    return _run_external_source_refresh_locked(
+        spec,
+        adapter,
+        archive_dir,
+        now=now,
+        _lease=_lease,
+    )
+
+
+def _run_external_source_refresh_locked(
+    spec: ExternalSourceSpec,
+    adapter: Any,
+    archive_dir: Path,
+    *,
+    now: datetime | None,
+    _lease: Any,
+) -> ExternalSourceRun:
+    assert_pipeline_lease(_lease, path=Path(archive_dir) / ".pipeline.lock")
+    _migrate_legacy_evidence_blobs(Path(archive_dir))
     started = _iso(now)
     run_id = f"{spec.source_id}_{started.replace(':', '').replace('-', '').replace('.', '')}"
     staging_dir = Path(archive_dir) / "external_sources" / spec.source_id / run_id
@@ -190,8 +239,46 @@ def run_external_source_refresh(
             **channel_metadata,
         )
 
-    previous = _canonical_snapshot(spec.target_path)
     previous_promoted_as_of = _canonical_latest_as_of(spec)
+    latest_as_of = latest_frame_date(spec, frame)
+    if (
+        latest_as_of is not None
+        and previous_promoted_as_of is not None
+        and latest_as_of == previous_promoted_as_of
+        and not spec.allow_validated_same_date_promotion
+    ):
+        canonical_sha256 = _sha256_file(spec.target_path)
+        official = _official_metadata(raw, latest_as_of)
+        return _record(
+            archive_dir,
+            spec,
+            run_id,
+            started,
+            "OK",
+            raw_path=raw_path,
+            normalized_path=normalized_path,
+            validation_path=validation_path,
+            latest_promoted_as_of=previous_promoted_as_of,
+            input_hash=input_hash,
+            output_hash=output_hash,
+            official_issue_as_of=official["official_issue_as_of"],
+            official_file_name=official["official_file_name"],
+            official_file_sha256=official["official_file_sha256"],
+            canonical_sha256=canonical_sha256,
+            canonical_latest_as_of=previous_promoted_as_of,
+            fetched_at=started,
+            pit_rule=spec.pit_rule,
+            source_url=_source_url(raw) or spec.source_url,
+            transport_status="OK",
+            parse_status="OK",
+            validation_status="OK",
+            promotion_status="UNCHANGED",
+            previous_promoted_as_of=previous_promoted_as_of,
+            advanced=False,
+            **channel_metadata,
+        )
+
+    previous = _canonical_snapshot(spec.target_path)
     try:
         atomic_write_csv(frame, spec.target_path, index=False)
     except Exception as exc:
@@ -224,7 +311,6 @@ def run_external_source_refresh(
             **channel_metadata,
         )
     try:
-        latest_as_of = latest_frame_date(spec, frame)
         canonical_sha256 = _sha256_file(spec.target_path)
         official = _official_metadata(raw, latest_as_of)
         return _record(
@@ -303,6 +389,9 @@ def _record(
     previous_promoted_as_of: str | None = None,
     advanced: bool | None = None,
 ) -> ExternalSourceRun:
+    error_message = _sanitize_persisted_text(error_message)
+    primary_failure = _sanitize_persisted_text(primary_failure)
+    source_url = _sanitize_persisted_text(source_url)
     raw_sha256 = _sha256_file(raw_path) if raw_path else None
     normalized_sha256 = _sha256_file(normalized_path) if normalized_path else None
     run = ExternalSourceRun(
@@ -354,6 +443,32 @@ def _record(
     return run
 
 
+def _sanitize_persisted_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value)
+    text = _URL_IN_TEXT_RE.sub(_redact_url_match, text)
+    text = _SECRET_HEADER_RE.sub(
+        lambda match: f"{match.group('name')}=<redacted>",
+        text,
+    )
+    return _BEARER_TOKEN_RE.sub("Bearer <redacted>", text)
+
+
+def _redact_url_match(match: re.Match[str]) -> str:
+    value = match.group(0)
+    try:
+        parsed = urlsplit(value)
+        host = parsed.hostname or ""
+        if ":" in host and not host.startswith("["):
+            host = f"[{host}]"
+        port = parsed.port
+        netloc = f"{host}:{port}" if port is not None else host
+        return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+    except (TypeError, ValueError):
+        return "<redacted-url>"
+
+
 def _iso(now: datetime | None = None) -> str:
     value = now or datetime.now(timezone.utc)
     if value.tzinfo is None:
@@ -402,6 +517,7 @@ def _write_content_addressed_evidence(
     if blob.exists():
         if blob.read_bytes() != content:
             raise RuntimeError(f"content-addressed evidence collision: {blob}")
+        os.chmod(blob, 0o444)
     else:
         fd, temp_name = tempfile.mkstemp(prefix=f".{blob.name}.", dir=blob.parent)
         temp = Path(temp_name)
@@ -410,16 +526,95 @@ def _write_content_addressed_evidence(
                 handle.write(content)
                 handle.flush()
                 os.fsync(handle.fileno())
+            os.chmod(temp, 0o444)
             try:
                 os.link(temp, blob)
             except FileExistsError:
                 if blob.read_bytes() != content:
                     raise RuntimeError(f"content-addressed evidence collision: {blob}")
+                os.chmod(blob, 0o444)
         finally:
             temp.unlink(missing_ok=True)
     run_path.parent.mkdir(parents=True, exist_ok=True)
-    os.link(blob, run_path)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{run_path.name}.", dir=run_path.parent)
+    temp = Path(temp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temp, 0o444)
+        os.link(temp, run_path)
+    finally:
+        temp.unlink(missing_ok=True)
     return blob
+
+
+def _migrate_legacy_evidence_blobs(archive_dir: Path) -> None:
+    blobs_root = Path(archive_dir) / "external_sources" / "blobs"
+    sha_root = blobs_root / "sha256"
+    marker = blobs_root / ".independent-readonly-v1.json"
+    if marker.exists():
+        try:
+            payload = json.loads(marker.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"invalid evidence inode migration marker: {marker}") from exc
+        if payload.get("schema_version") != _EVIDENCE_MIGRATION_SCHEMA:
+            raise RuntimeError(f"unsupported evidence inode migration marker: {marker}")
+        return
+
+    scanned = 0
+    detached = 0
+    if sha_root.exists():
+        for blob in sorted(path for path in sha_root.rglob("*") if path.is_file()):
+            expected = blob.name.split(".", 1)[0]
+            if (
+                len(expected) != 64
+                or any(char not in "0123456789abcdef" for char in expected)
+            ):
+                raise RuntimeError(f"invalid content-addressed evidence filename: {blob}")
+            content = blob.read_bytes()
+            if _sha256_bytes(content) != expected:
+                raise RuntimeError(f"content-addressed evidence hash mismatch: {blob}")
+            scanned += 1
+            if blob.stat().st_nlink > 1:
+                _atomic_replace_bytes(blob, content, mode=0o444)
+                detached += 1
+            else:
+                os.chmod(blob, 0o444)
+
+    report = {
+        "schema_version": _EVIDENCE_MIGRATION_SCHEMA,
+        "migrated_at": _iso(),
+        "scanned_blob_count": scanned,
+        "detached_blob_count": detached,
+        "blob_root": str(sha_root),
+    }
+    _atomic_replace_bytes(
+        marker,
+        (json.dumps(report, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8"),
+        mode=0o444,
+    )
+
+
+def _atomic_replace_bytes(path: Path, content: bytes, *, mode: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    temp = Path(temp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temp, mode)
+        os.replace(temp, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 def _content_blob_path(
@@ -503,7 +698,8 @@ def _official_metadata(raw: Any, latest_as_of: str | None) -> dict[str, str | No
         }
     file_name = raw.get("file_name")
     if not file_name and raw.get("xlsx_url"):
-        file_name = str(raw.get("xlsx_url")).rstrip("/").split("/")[-1] or None
+        parsed = urlsplit(str(raw.get("xlsx_url")))
+        file_name = Path(unquote(parsed.path.rstrip("/"))).name or None
     file_sha256 = raw.get("content_sha256") or raw.get("xlsx_sha256")
     has_file_evidence = bool(file_name or file_sha256)
     return {

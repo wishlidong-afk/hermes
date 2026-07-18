@@ -115,14 +115,14 @@ _LEGACY_SOFT_SOURCE_GROUPS = {
 }
 
 
-def _refresh_soft_data_via_external_runner(only: object = None) -> dict:
+def _refresh_soft_data_via_external_runner(only: object = None, *, _lease: object) -> dict:
     """Keep the legacy endpoint without exposing its direct CSV writers."""
     selected = str(only or "").strip()
     if not selected:
-        return refresh_all_external_sources()
+        return refresh_all_external_sources(_lease=_lease)
     source_ids = _LEGACY_SOFT_SOURCE_GROUPS.get(selected, (selected,))
     runs = [
-        refresh_external_source(source_id, auto_import=True)
+        refresh_external_source(source_id, auto_import=True, _lease=_lease)
         for source_id in source_ids
     ]
     ok_count = sum(1 for run in runs if str(run.get("status") or "") == "OK")
@@ -1095,8 +1095,11 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/refresh_soft_data":
                 response_status = 200
                 try:
-                    with pipeline_lock(blocking=False):
-                        payload = _refresh_soft_data_via_external_runner(req.get("only"))
+                    with pipeline_lock(blocking=False) as lease:
+                        payload = _refresh_soft_data_via_external_runner(
+                            req.get("only"),
+                            _lease=lease,
+                        )
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD)
                     response_status = 409
@@ -1154,11 +1157,15 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                     response_status = 400
                 else:
                     try:
-                        with pipeline_lock(blocking=False):
+                        with pipeline_lock(blocking=False) as lease:
                             if import_file:
-                                run = refresh_external_source(source_id, import_file=import_file)
+                                run = refresh_external_source(
+                                    source_id,
+                                    import_file=import_file,
+                                    _lease=lease,
+                                )
                             else:
-                                run = refresh_external_source(source_id)
+                                run = refresh_external_source(source_id, _lease=lease)
                         payload = {"ok": run.get("status") == "OK", "run": run}
                     except PipelineBusy:
                         payload = dict(_BUSY_PAYLOAD, source_id=source_id)
@@ -1180,8 +1187,8 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/refresh_external_sources":
                 response_status = 200
                 try:
-                    with pipeline_lock(blocking=False):
-                        payload = refresh_all_external_sources()
+                    with pipeline_lock(blocking=False) as lease:
+                        payload = refresh_all_external_sources(_lease=lease)
                 except PipelineBusy:
                     payload = dict(_BUSY_PAYLOAD)
                     response_status = 409

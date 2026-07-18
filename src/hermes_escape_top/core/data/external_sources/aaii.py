@@ -217,21 +217,27 @@ class AaiiSentimentAdapter:
 class AaiiSentimentImportAdapter:
     seed_path: Path
     import_path: Path
+    content_bytes: bytes | None = None
     percentile_window: int = 156
     min_periods: int = 52
 
     def fetch_raw(self) -> dict[str, Any]:
         path = Path(self.import_path).expanduser()
-        if not path.exists():
-            raise FileNotFoundError(str(path))
-        content = path.read_bytes()
+        if self.content_bytes is None:
+            if not path.exists():
+                raise FileNotFoundError(str(path))
+            content = path.read_bytes()
+            file_mtime = path.stat().st_mtime
+        else:
+            content = bytes(self.content_bytes)
+            file_mtime = None
         if not content:
             raise ValueError(f"AAII import file is empty: {path}")
         return {
             "source": "manual_official_file",
             "file_name": path.name,
             "file_size": len(content),
-            "file_mtime": path.stat().st_mtime,
+            "file_mtime": file_mtime,
             "content_sha256": hashlib.sha256(content).hexdigest(),
             "content_base64": base64.b64encode(content).decode("ascii"),
         }

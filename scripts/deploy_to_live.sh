@@ -333,6 +333,29 @@ run_with_pipeline_lock() {
     /bin/bash "$SCRIPT_PATH" "$internal_mode" "$STAMP" "$HASH" "$BACKUP"
 }
 
+install_entry_atomic() {
+  local source="$1"
+  local destination="$2"
+  local mode="${3:-}"
+  local directory name temp
+  directory=$(dirname "$destination") || return 1
+  name=$(basename "$destination") || return 1
+  mkdir -p "$directory" || return 1
+  temp=$(mktemp "$directory/.${name}.deploy.XXXXXX") || return 1
+  if ! cp -p "$source" "$temp"; then
+    rm -f "$temp"
+    return 1
+  fi
+  if [ -n "$mode" ] && ! chmod "$mode" "$temp"; then
+    rm -f "$temp"
+    return 1
+  fi
+  if ! mv -f "$temp" "$destination"; then
+    rm -f "$temp"
+    return 1
+  fi
+}
+
 backup_entry() {
   local source="$1"
   local name="$2"
@@ -350,7 +373,7 @@ restore_entry() {
   local state
   state=$(cat "$BACKUP/bin/$name.state" 2>/dev/null) || return 1
   if [ "$state" = "present" ]; then
-    cp -p "$BACKUP/bin/$name" "$target" || return 1
+    install_entry_atomic "$BACKUP/bin/$name" "$target" || return 1
   elif [ "$state" = "absent" ]; then
     rm -f "$target" || return 1
   else
@@ -371,7 +394,7 @@ restore_git_index() {
   local state
   state=$(cat "$BACKUP/hermes_git_index.state" 2>/dev/null) || return 1
   if [ "$state" = "present" ]; then
-    cp -p "$BACKUP/hermes_git_index" "$HERMES_HOME/.git/index" || return 1
+    install_entry_atomic "$BACKUP/hermes_git_index" "$HERMES_HOME/.git/index" || return 1
   elif [ "$state" = "absent" ]; then
     rm -f "$HERMES_HOME/.git/index" || return 1
   else
@@ -457,14 +480,14 @@ restore_path_state() {
 
 create_backup() {
   mkdir "$BACKUP" || return 1
-  mkdir -p "$BACKUP/package" "$BACKUP/live_scripts" "$BACKUP/bin" || return 1
+  mkdir -p "$BACKUP/package" "$BACKUP/bin" || return 1
   rsync -a --exclude='data/' "$PKG/" "$BACKUP/package/" || return 1
-  if [ -d "$LIVE/scripts" ]; then
-    rsync -a "$LIVE/scripts/" "$BACKUP/live_scripts/" || return 1
-  fi
+  backup_path_state "$LIVE/scripts" live_scripts_dir || return 1
+  backup_entry "$LIVE/scripts/run_daily.py" live_run_daily.py || return 1
   backup_entry "$BIN/run_daily.sh" run_daily.sh || return 1
   backup_entry "$BIN/serve_dashboard.sh" serve_dashboard.sh || return 1
   backup_entry "$BIN/refresh_external_precheck.sh" refresh_external_precheck.sh || return 1
+  backup_entry "$BIN/refresh_external.sh" refresh_external.sh || return 1
   backup_entry "$BIN/hermes_watchdog.py" hermes_watchdog.py || return 1
   backup_entry "$BIN/prune_runtime_artifacts.py" prune_runtime_artifacts.py || return 1
   backup_entry "$EXTERNAL_PRECHECK_LAUNCHAGENT" external_precheck_launchagent.plist || return 1
@@ -489,16 +512,15 @@ rollback_locked() {
     return 1
   fi
   [ -d "$BACKUP/package" ] || return 1
-  [ -d "$BACKUP/live_scripts" ] || return 1
 
   local failed=0
   rsync -a --checksum --delete --exclude='data/' "$BACKUP/package/" "$PKG/" || failed=1
-  if [ -d "$LIVE/scripts" ]; then
-    rsync -a --checksum --delete "$BACKUP/live_scripts/" "$LIVE/scripts/" || failed=1
-  fi
+  restore_entry "$LIVE/scripts/run_daily.py" live_run_daily.py || failed=1
+  restore_path_state "$LIVE/scripts" live_scripts_dir || failed=1
   restore_entry "$BIN/run_daily.sh" run_daily.sh || failed=1
   restore_entry "$BIN/serve_dashboard.sh" serve_dashboard.sh || failed=1
   restore_entry "$BIN/refresh_external_precheck.sh" refresh_external_precheck.sh || failed=1
+  restore_entry "$BIN/refresh_external.sh" refresh_external.sh || failed=1
   restore_entry "$BIN/hermes_watchdog.py" hermes_watchdog.py || failed=1
   restore_entry "$BIN/prune_runtime_artifacts.py" prune_runtime_artifacts.py || failed=1
   restore_entry "$EXTERNAL_PRECHECK_LAUNCHAGENT" external_precheck_launchagent.plist || failed=1
@@ -537,23 +559,26 @@ sync_entries() {
   local src
   mkdir -p "$BIN" "$LAUNCHAGENTS_DIR" "$LIVE/scripts" "$NEW_RELEASE/scripts" || return 1
   src="$REPO/ops/run_daily.sh"
-  cp "$src" "$BIN/run_daily.sh" || return 1
+  install_entry_atomic "$src" "$BIN/run_daily.sh" 0755 || return 1
   src="$REPO/ops/serve_dashboard.sh"
-  cp "$src" "$BIN/serve_dashboard.sh" || return 1
+  install_entry_atomic "$src" "$BIN/serve_dashboard.sh" 0755 || return 1
   src="$REPO/ops/refresh_external_precheck.sh"
-  cp "$src" "$BIN/refresh_external_precheck.sh" || return 1
+  install_entry_atomic "$src" "$BIN/refresh_external_precheck.sh" 0755 || return 1
+  src="$REPO/ops/refresh_external.sh"
+  install_entry_atomic "$src" "$BIN/refresh_external.sh" 0755 || return 1
   src="$REPO/ops/hermes_watchdog.py"
-  cp "$src" "$BIN/hermes_watchdog.py" || return 1
+  install_entry_atomic "$src" "$BIN/hermes_watchdog.py" 0755 || return 1
   src="$REPO/ops/prune_runtime_artifacts.py"
-  cp "$src" "$BIN/prune_runtime_artifacts.py" || return 1
+  install_entry_atomic "$src" "$BIN/prune_runtime_artifacts.py" 0755 || return 1
   src="$REPO/ops/launchagents/com.hermes.external-precheck.plist"
-  cp "$src" "$EXTERNAL_PRECHECK_LAUNCHAGENT" || return 1
+  install_entry_atomic "$src" "$EXTERNAL_PRECHECK_LAUNCHAGENT" 0644 || return 1
   src="$REPO/ops/launchagents/com.hermes.runtime-retention.plist"
-  cp "$src" "$RETENTION_LAUNCHAGENT" || return 1
+  install_entry_atomic "$src" "$RETENTION_LAUNCHAGENT" 0644 || return 1
   src="$REPO/ops/run_daily.py"
-  cp "$src" "$NEW_RELEASE/scripts/run_daily.py" || return 1
-  cp "$src" "$LIVE/scripts/run_daily.py" || return 1
+  install_entry_atomic "$src" "$NEW_RELEASE/scripts/run_daily.py" 0755 || return 1
+  install_entry_atomic "$src" "$LIVE/scripts/run_daily.py" 0755 || return 1
   chmod +x "$BIN/run_daily.sh" "$BIN/serve_dashboard.sh" "$BIN/refresh_external_precheck.sh" \
+    "$BIN/refresh_external.sh" \
     "$NEW_RELEASE/scripts/run_daily.py" "$LIVE/scripts/run_daily.py" \
     2>/dev/null || true
   chmod +x "$BIN/hermes_watchdog.py" || return 1
@@ -717,6 +742,7 @@ sync_entries_legacy() {
     "run_daily.sh:$BIN/run_daily.sh" \
     "serve_dashboard.sh:$BIN/serve_dashboard.sh" \
     "refresh_external_precheck.sh:$BIN/refresh_external_precheck.sh" \
+    "refresh_external.sh:$BIN/refresh_external.sh" \
     "hermes_watchdog.py:$BIN/hermes_watchdog.py" \
     "prune_runtime_artifacts.py:$BIN/prune_runtime_artifacts.py" \
     "launchagents/com.hermes.external-precheck.plist:$EXTERNAL_PRECHECK_LAUNCHAGENT" \
@@ -724,9 +750,10 @@ sync_entries_legacy() {
     "run_daily.py:$LIVE/scripts/run_daily.py"; do
     src="$REPO/ops/${pair%%:*}"
     dst="${pair##*:}"
-    cp "$src" "$dst" || return 1
+    install_entry_atomic "$src" "$dst" || return 1
   done
-  chmod +x "$BIN/run_daily.sh" "$BIN/serve_dashboard.sh" "$BIN/refresh_external_precheck.sh" "$LIVE/scripts/run_daily.py" \
+  chmod +x "$BIN/run_daily.sh" "$BIN/serve_dashboard.sh" "$BIN/refresh_external_precheck.sh" \
+    "$BIN/refresh_external.sh" "$LIVE/scripts/run_daily.py" \
     2>/dev/null || true
   chmod +x "$BIN/hermes_watchdog.py" || return 1
   chmod +x "$BIN/prune_runtime_artifacts.py" || return 1
@@ -748,7 +775,9 @@ run_locked_swap() {
     local ans
     read -r -p "Apply repo config to live? [y/N] " ans
     if [ "${ans:-N}" = "y" ]; then
-      cp "$REPO/src/hermes_escape_top/config/config.json" "$SHARED_PKG/config/config.json" \
+      install_entry_atomic \
+        "$REPO/src/hermes_escape_top/config/config.json" \
+        "$SHARED_PKG/config/config.json" 0600 \
         || fail_locked_swap "!! config apply failed" 1
       echo "  config applied (pre-deploy copy is in backup)"
     else
@@ -782,6 +811,7 @@ deploy_git_pathspecs() {
     'bin/run_daily.sh' \
     'bin/serve_dashboard.sh' \
     'bin/refresh_external_precheck.sh' \
+    'bin/refresh_external.sh' \
     'bin/hermes_watchdog.py' \
     'bin/prune_runtime_artifacts.py'
   [ -L "$PREVIOUS" ] && printf '%s\n' 'skills/investment/escape-top/previous'

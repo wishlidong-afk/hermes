@@ -298,6 +298,40 @@ def test_controlled_initial_rebaseline_is_explicit_in_ledger_pit_rule(tmp_path):
     ]
 
 
+def test_daily_continuity_rejects_changed_existing_cboe_row(tmp_path):
+    target = tmp_path / "history" / "_VIX.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-09,16,16,16,16,16,0\n"
+        "2026-07-10,15,15,15,15,15,0\n",
+        encoding="utf-8",
+    )
+    before = target.read_bytes()
+    csv_text = (
+        "DATE,OPEN,HIGH,LOW,CLOSE\n"
+        "07/09/2026,16.5,16.5,16.5,16.5\n"
+        "07/10/2026,15,15,15,15\n"
+    )
+    definition = CBOE_INDEX_DEFINITIONS["cboe_vix"]
+    adapter = CboeVolatilityIndexAdapter(
+        definition,
+        fetch_text=lambda _url: csv_text,
+        fetch_witness=lambda *_args: _witness(date="2026-07-10", close=15.0),
+        now=datetime(2026, 7, 14, 2, 0, tzinfo=timezone.utc),
+    )
+
+    run = run_external_source_refresh(
+        cboe_index_spec(definition, target, min_rows=1),
+        adapter,
+        tmp_path / "archive",
+    )
+
+    assert run.status == "VALIDATION_ERROR"
+    assert "changed existing row" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
 def test_valid_cboe_promotion_is_bound_to_canonical_hash_and_latest_date(tmp_path):
     target = tmp_path / "history" / "_VIX.csv"
     definition = CBOE_INDEX_DEFINITIONS["cboe_vix"]

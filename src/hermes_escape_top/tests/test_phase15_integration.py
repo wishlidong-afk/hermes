@@ -252,7 +252,11 @@ class Phase15IntegrationTest(unittest.TestCase):
                     payload = json.loads(response.read().decode("utf-8"))
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["runs"], [run])
-            runner.assert_called_once_with("aaii_sentiment", auto_import=True)
+            runner.assert_called_once_with(
+                "aaii_sentiment",
+                auto_import=True,
+                _lease=mock.ANY,
+            )
         finally:
             server.shutdown()
             server.server_close()
@@ -378,7 +382,7 @@ class Phase15IntegrationTest(unittest.TestCase):
             ) as refresh:
                 with urllib.request.urlopen(request, timeout=10) as response:
                     payload = json.loads(response.read().decode("utf-8"))
-            refresh.assert_called_once_with("dollar")
+            refresh.assert_called_once_with("dollar", _lease=mock.ANY)
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["run"]["status"], "OK")
         finally:
@@ -407,6 +411,7 @@ class Phase15IntegrationTest(unittest.TestCase):
             refresh.assert_called_once_with(
                 "aaii_sentiment",
                 import_file="/Users/liweishi/.hermes/external_imports/sentiment.xls",
+                _lease=mock.ANY,
             )
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["run"]["source_id"], "aaii_sentiment")
@@ -439,7 +444,7 @@ class Phase15IntegrationTest(unittest.TestCase):
             ) as refresh:
                 with urllib.request.urlopen(request, timeout=10) as response:
                     payload = json.loads(response.read().decode("utf-8"))
-            refresh.assert_called_once_with()
+            refresh.assert_called_once_with(_lease=mock.ANY)
             self.assertFalse(payload["ok"])
             self.assertEqual(payload["ok_count"], 4)
             self.assertEqual(payload["error_count"], 1)

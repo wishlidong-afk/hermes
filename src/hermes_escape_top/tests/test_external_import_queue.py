@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+import pytest
+
 from hermes_escape_top.core.data.external_sources.import_queue import (
     finalize_import,
     queue_import_candidates,
@@ -88,3 +90,47 @@ def test_import_queue_respects_hashes_already_bound_by_ledger(tmp_path):
         processed_hashes={digest},
     ) == []
     assert source.exists()
+
+
+def test_import_queue_rehashes_artifact_before_finalizing(tmp_path):
+    archive = tmp_path / "archive"
+    source = tmp_path / "sentiment.xls"
+    source.write_bytes(b"official workbook")
+    queued = queue_import_candidates(
+        "aaii_sentiment",
+        archive,
+        [source],
+        processed_hashes=set(),
+    )[0]
+    queued.write_bytes(b"tampered after staging")
+
+    with pytest.raises(ValueError, match="content hash"):
+        finalize_import(queued, status="OK")
+
+    assert queued.exists()
+    assert queue_import_candidates(
+        "aaii_sentiment",
+        archive,
+        [],
+        processed_hashes=set(),
+    ) == []
+
+
+def test_import_queue_finalizes_the_exact_verified_bytes_after_path_tampering(tmp_path):
+    archive = tmp_path / "archive"
+    source = tmp_path / "sentiment.xls"
+    verified = b"official workbook"
+    source.write_bytes(verified)
+    queued = queue_import_candidates(
+        "aaii_sentiment",
+        archive,
+        [source],
+        processed_hashes=set(),
+    )[0]
+    queued.write_bytes(b"tampered after verification")
+
+    processed = finalize_import(queued, status="OK", expected_content=verified)
+
+    assert processed.parent.name == "processed"
+    assert processed.read_bytes() == verified
+    assert not queued.exists()

@@ -98,6 +98,42 @@ def test_incomplete_overlap_bar_cannot_erase_cached_close(tmp_path):
     assert saved.loc[saved["date"] == "2026-06-18", "close"].item() == 30.82
 
 
+def test_tail_fetch_discards_provider_rows_outside_requested_interval(tmp_path):
+    path = tmp_path / "QQQ.csv"
+    path.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-06-01,99,101,98,100,100,1000\n"
+        "2026-06-02,100,102,99,101,101,1100\n",
+        encoding="utf-8",
+    )
+    incoming = pd.DataFrame(
+        {
+            "Open": [99.5, 101.0],
+            "High": [101.5, 103.0],
+            "Low": [98.5, 100.0],
+            "Close": [100.5, 102.0],
+            "Adj Close": [100.5, 102.0],
+            "Volume": [1000, 1200],
+        },
+        index=pd.to_datetime(["2026-06-01", "2026-06-03"]),
+    )
+    calls = []
+
+    result = backfill(
+        ["QQQ"],
+        start="2026-01-01",
+        end="2026-06-04",
+        store_dir=tmp_path,
+        downloader=lambda *args: calls.append(args) or incoming,
+    )
+
+    saved = pd.read_csv(path)
+    assert calls[0][1:] == ("2026-06-03", "2026-06-04")
+    assert result["QQQ"].updated is True
+    assert saved.loc[saved["date"] == "2026-06-01", "close"].item() == 100.0
+    assert saved.loc[saved["date"] == "2026-06-03", "close"].item() == 102.0
+
+
 def test_backfill_market_admission_freezes_mismatched_candidate(tmp_path):
     path = tmp_path / "QQQ.csv"
     path.write_text(

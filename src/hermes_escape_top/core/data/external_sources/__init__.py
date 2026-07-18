@@ -51,6 +51,7 @@ from .import_queue import (
     queue_import_candidates,
     queued_import_files,
     terminal_import_hashes,
+    verified_import_content,
 )
 
 __all__ = [
@@ -103,5 +104,6 @@ __all__ = [
     "queue_import_candidates",
     "queued_import_files",
     "terminal_import_hashes",
+    "verified_import_content",
     "source_status",
 ]

@@ -80,6 +80,7 @@ def _workbook_rank(url: str) -> tuple[date, int, str]:
 @dataclass(frozen=True)
 class NaaimExposureAdapter:
     index_url: str = NAAIM_INDEX_URL
+    seed_path: Path | None = None
     percentile_window: int = 252
     min_periods: int = 20
     fetch_text: FetchText = lambda url: _fetch_text(url)
@@ -97,8 +98,8 @@ class NaaimExposureAdapter:
         if not xlsx:
             raise ValueError("downloaded empty NAAIM xlsx")
         return {
-            "index_url": self.index_url,
-            "xlsx_url": xlsx_url,
+            "index_url": _evidence_url(urlparse(self.index_url)),
+            "xlsx_url": _evidence_url(urlparse(xlsx_url)),
             "xlsx_sha256": hashlib.sha256(xlsx).hexdigest(),
             "xlsx_base64": base64.b64encode(xlsx).decode("ascii"),
         }
@@ -107,7 +108,13 @@ class NaaimExposureAdapter:
         xlsx = base64.b64decode(str((raw or {}).get("xlsx_base64") or ""))
         rows = _xlsx_rows(xlsx)
         records = _naaim_records(rows)
-        return _records_frame(records, self.percentile_window, self.min_periods)
+        merged = _merge_with_certified_seed(
+            records,
+            self.seed_path,
+            require_complete_seed=True,
+            source_label="NAAIM public workbook",
+        )
+        return _records_frame(merged, self.percentile_window, self.min_periods)
 
 
 @dataclass(frozen=True)
@@ -117,6 +124,7 @@ class NaaimSubscriberAdapter:
     download_url: str
     bearer_token: str = ""
     session_cookie: str = ""
+    seed_path: Path | None = None
     percentile_window: int = 252
     min_periods: int = 20
     fetch_authenticated: FetchAuthenticated = lambda url, headers: _fetch_authenticated(
@@ -128,6 +136,8 @@ class NaaimSubscriberAdapter:
         host = (parsed.hostname or "").lower()
         if parsed.scheme != "https" or (host != "naaim.org" and not host.endswith(".naaim.org")):
             raise ValueError("NAAIM subscriber URL must use https on naaim.org")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("NAAIM subscriber URL must not contain userinfo")
         headers = {"User-Agent": USER_AGENT}
         if self.bearer_token:
             headers["Authorization"] = f"Bearer {self.bearer_token}"
@@ -143,7 +153,7 @@ class NaaimSubscriberAdapter:
         return {
             "source": "naaim_subscriber",
             "auth_mode": auth_mode,
-            "xlsx_url": self.download_url,
+            "xlsx_url": _evidence_url(parsed),
             "xlsx_sha256": hashlib.sha256(content).hexdigest(),
             "xlsx_base64": base64.b64encode(content).decode("ascii"),
         }
@@ -153,27 +163,40 @@ class NaaimSubscriberAdapter:
         records = _naaim_records(_xlsx_rows(content))
         if not records:
             raise ValueError("NAAIM subscriber workbook contained no usable exposure rows")
-        return _records_frame(records, self.percentile_window, self.min_periods)
+        merged = _merge_with_certified_seed(
+            records,
+            self.seed_path,
+            require_complete_seed=True,
+            source_label="NAAIM subscriber workbook",
+        )
+        return _records_frame(merged, self.percentile_window, self.min_periods)
 
 
 @dataclass(frozen=True)
 class NaaimExposureImportAdapter:
     import_path: Path
+    seed_path: Path | None = None
+    content_bytes: bytes | None = None
     percentile_window: int = 252
     min_periods: int = 20
 
     def fetch_raw(self) -> dict[str, Any]:
         path = Path(self.import_path).expanduser()
-        if not path.exists():
-            raise FileNotFoundError(str(path))
-        content = path.read_bytes()
+        if self.content_bytes is None:
+            if not path.exists():
+                raise FileNotFoundError(str(path))
+            content = path.read_bytes()
+            file_mtime = path.stat().st_mtime
+        else:
+            content = bytes(self.content_bytes)
+            file_mtime = None
         if not content:
             raise ValueError(f"NAAIM import file is empty: {path}")
         return {
             "source": "manual_official_file",
             "file_name": path.name,
             "file_size": len(content),
-            "file_mtime": path.stat().st_mtime,
+            "file_mtime": file_mtime,
             "content_sha256": hashlib.sha256(content).hexdigest(),
             "content_base64": base64.b64encode(content).decode("ascii"),
         }
@@ -185,7 +208,19 @@ class NaaimExposureImportAdapter:
         records = _naaim_records(rows)
         if not records:
             raise ValueError("NAAIM import file contained no usable exposure rows")
-        return _records_frame(records, self.percentile_window, self.min_periods)
+        merged = _merge_with_certified_seed(
+            records,
+            self.seed_path,
+            require_complete_seed=False,
+            source_label="NAAIM import file",
+        )
+        return _records_frame(merged, self.percentile_window, self.min_periods)
+
+
+def _evidence_url(parsed: Any) -> str:
+    host = str(parsed.hostname or "").lower()
+    netloc = f"{host}:{parsed.port}" if parsed.port is not None else host
+    return parsed._replace(netloc=netloc, params="", query="", fragment="").geturl()
 
 
 def naaim_exposure_spec(*, target_path: Path, min_rows: int = 60) -> ExternalSourceSpec:
@@ -323,6 +358,58 @@ def _naaim_records(rows: list[list[Any]]) -> list[dict[str, Any]]:
             continue
         records.append({"date": parsed_date, "naaim_exposure": round(exposure, 2)})
     return records
+
+
+def _seed_records(path: Path | None) -> list[dict[str, Any]]:
+    if path is None or not Path(path).exists():
+        return []
+    frame = pd.read_csv(path)
+    if "date" not in frame or "naaim_exposure" not in frame:
+        raise ValueError("NAAIM seed is missing date or naaim_exposure")
+    records: list[dict[str, Any]] = []
+    for raw_date, raw_exposure in zip(frame["date"], frame["naaim_exposure"]):
+        parsed_date = _parse_date(raw_date)
+        exposure = _parse_float(raw_exposure)
+        if parsed_date is None or exposure is None or not -200 <= exposure <= 200:
+            raise ValueError("NAAIM seed contains an invalid row")
+        records.append({"date": parsed_date, "naaim_exposure": round(exposure, 2)})
+    return records
+
+
+def _merge_with_certified_seed(
+    records: list[dict[str, Any]],
+    seed_path: Path | None,
+    *,
+    require_complete_seed: bool,
+    source_label: str,
+) -> list[dict[str, Any]]:
+    if not records:
+        raise ValueError(f"{source_label} contained no usable exposure rows")
+    incoming: dict[date, dict[str, Any]] = {}
+    for record in records:
+        issue_date = record["date"]
+        prior = incoming.get(issue_date)
+        if prior is not None and prior["naaim_exposure"] != record["naaim_exposure"]:
+            raise ValueError(f"{source_label} contains conflicting row {issue_date}")
+        incoming[issue_date] = record
+
+    seed = {record["date"]: record for record in _seed_records(seed_path)}
+    if seed and max(incoming) < max(seed):
+        raise ValueError(f"{source_label} is older than current NAAIM seed")
+    for issue_date in sorted(seed.keys() & incoming.keys()):
+        if seed[issue_date]["naaim_exposure"] != incoming[issue_date]["naaim_exposure"]:
+            raise ValueError(f"{source_label} changed certified row {issue_date}")
+    if require_complete_seed:
+        missing = sorted(seed.keys() - incoming.keys())
+        if missing:
+            raise ValueError(
+                f"{source_label} truncates certified history: "
+                f"missing {len(missing)} existing dates"
+            )
+
+    merged = dict(seed)
+    merged.update(incoming)
+    return list(merged.values())
 
 
 def _header_index(rows: list[list[Any]]) -> int | None:

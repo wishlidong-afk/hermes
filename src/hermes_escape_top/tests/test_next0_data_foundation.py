@@ -60,8 +60,8 @@ class Next0DataFoundationTest(unittest.TestCase):
             return frame(start, [100, 101])
 
         with tempfile.TemporaryDirectory() as tmp:
-            first = backfill(["AAA"], start="2026-01-01", end="2026-01-02", store_dir=tmp, downloader=downloader)
-            second = backfill(["AAA"], start="2026-01-01", end="2026-01-02", store_dir=tmp, downloader=downloader)
+            first = backfill(["AAA"], start="2026-01-01", end="2026-01-03", store_dir=tmp, downloader=downloader)
+            second = backfill(["AAA"], start="2026-01-01", end="2026-01-03", store_dir=tmp, downloader=downloader)
             self.assertTrue(first["AAA"].updated)
             self.assertFalse(second["AAA"].updated)
             cfg = {"paths": {"history_dir": tmp, "legacy_history_dir": tmp, "archive_dir": str(Path(tmp) / "archive")}}

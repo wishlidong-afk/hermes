@@ -13,7 +13,10 @@ from pathlib import Path
 from typing import Any, Callable
 
 from hermes_escape_top.config import load_config, resolve_path
-from hermes_escape_top.core.safe_io import PipelineBusy, pipeline_lock
+from hermes_escape_top.core.safe_io import (
+    PipelineBusy,
+    pipeline_lock,
+)
 from hermes_escape_top.core.data.store import safe_symbol
 from hermes_escape_top.core.data.external_sources import (
     AaiiSentimentAdapter,
@@ -59,6 +62,7 @@ from hermes_escape_top.core.data.external_sources import (
     run_external_source_refresh,
     source_status,
     terminal_import_hashes,
+    verified_import_content,
 )
 from hermes_escape_top.core.data.risk_signals import fred_api_key
 from hermes_escape_top.core.data.external_sources.ledger import (
@@ -200,8 +204,9 @@ def naaim_exposure_source(config: dict[str, Any]):
             download_url=subscriber_url,
             bearer_token=bearer,
             session_cookie=cookie,
+            seed_path=target,
         )
-    return naaim_exposure_spec(target_path=target), NaaimExposureAdapter()
+    return naaim_exposure_spec(target_path=target), NaaimExposureAdapter(seed_path=target)
 
 
 def aaii_sentiment_source(config: dict[str, Any]):
@@ -283,16 +288,18 @@ def refresh_source(
     *,
     import_file: str | None = None,
     auto_import: bool = False,
+    _lease: Any = None,
 ) -> dict[str, Any]:
     cfg = config or load_config()
+    archive_dir = resolve_path(cfg, "archive_dir")
     if source_id not in configured_source_ids(cfg):
         raise ValueError(f"external source disabled by config: {source_id}")
     factories = source_factories()
     if source_id not in factories:
         raise ValueError(f"unsupported external source: {source_id}")
     spec, adapter = factories[source_id](cfg)
-    archive_dir = resolve_path(cfg, "archive_dir")
     queued_import: Path | None = None
+    queued_content: bytes | None = None
     if import_file:
         staged = queue_import_candidates(
             source_id,
@@ -303,11 +310,22 @@ def refresh_source(
         if not staged:
             raise ValueError(f"official import file hash already processed: {import_file}")
         queued_import = staged[0]
-        adapter = _import_adapter(source_id, spec, queued_import)
-    run = run_external_source_refresh(spec, adapter, archive_dir)
+        queued_content = verified_import_content(queued_import)
+        adapter = _import_adapter(
+            source_id,
+            spec,
+            queued_import,
+            content_bytes=queued_content,
+        )
+    runner_kwargs = {"_lease": _lease} if _lease is not None else {}
+    run = run_external_source_refresh(spec, adapter, archive_dir, **runner_kwargs)
     result = run.to_dict()
     if queued_import is not None:
-        terminal = finalize_import(queued_import, status=str(result.get("status") or "ERROR"))
+        terminal = finalize_import(
+            queued_import,
+            status=str(result.get("status") or "ERROR"),
+            expected_content=queued_content,
+        )
         result["import_queue_path"] = str(terminal)
         result["import_source_file"] = str(Path(import_file).expanduser())
     if auto_import and not import_file and str(result.get("status")) != "OK":
@@ -332,10 +350,17 @@ def refresh_source(
         for fallback in fallbacks:
             original = import_origin(fallback) or fallback
             attempted.append(str(original))
+            fallback_content = verified_import_content(fallback)
             fallback_run = run_external_source_refresh(
                 spec,
-                _import_adapter(source_id, spec, fallback),
+                _import_adapter(
+                    source_id,
+                    spec,
+                    fallback,
+                    content_bytes=fallback_content,
+                ),
                 archive_dir,
+                **runner_kwargs,
             ).to_dict()
             fallback_run["fallback_from_status"] = fallback_from_status
             fallback_run["fallback_import_file"] = str(original)
@@ -343,6 +368,7 @@ def refresh_source(
             terminal = finalize_import(
                 fallback,
                 status=str(fallback_run.get("status") or "ERROR"),
+                expected_content=fallback_content,
             )
             fallback_run["fallback_queue_path"] = str(terminal)
             result = fallback_run
@@ -356,6 +382,7 @@ def _refresh_sources_with_dependencies(
     cfg: dict[str, Any],
     *,
     auto_import: bool,
+    _lease: Any = None,
 ) -> list[dict[str, Any]]:
     runs: list[dict[str, Any]] = []
     fred_vintage_ready = True
@@ -375,7 +402,13 @@ def _refresh_sources_with_dependencies(
             )
             continue
         try:
-            run = refresh_source(source_id, cfg, auto_import=auto_import)
+            refresh_kwargs = {"_lease": _lease} if _lease is not None else {}
+            run = refresh_source(
+                source_id,
+                cfg,
+                auto_import=auto_import,
+                **refresh_kwargs,
+            )
             runs.append(run)
             if source_id == "fred_vintages":
                 fred_vintage_ready = str(run.get("status") or "") == "OK"
@@ -393,12 +426,18 @@ def _refresh_sources_with_dependencies(
     return runs
 
 
-def refresh_all_sources(config: dict[str, Any] | None = None, *, auto_import: bool = True) -> dict[str, Any]:
+def refresh_all_sources(
+    config: dict[str, Any] | None = None,
+    *,
+    auto_import: bool = True,
+    _lease: Any = None,
+) -> dict[str, Any]:
     cfg = config or load_config()
     runs = _refresh_sources_with_dependencies(
         configured_source_ids(cfg),
         cfg,
         auto_import=auto_import,
+        _lease=_lease,
     )
     ok_count = sum(1 for run in runs if str(run.get("status")) == "OK")
     error_count = len(runs) - ok_count
@@ -415,6 +454,7 @@ def refresh_retry_sources(
     config: dict[str, Any] | None = None,
     *,
     today: date | None = None,
+    _lease: Any = None,
 ) -> dict[str, Any]:
     cfg = config or load_config()
     day = today or shanghai_today()
@@ -424,7 +464,12 @@ def refresh_retry_sources(
         for source_id in configured_source_ids(cfg)
         if _source_needs_retry(current.get(source_id) or {}, day)
     ]
-    runs = _refresh_sources_with_dependencies(selected, cfg, auto_import=True)
+    runs = _refresh_sources_with_dependencies(
+        selected,
+        cfg,
+        auto_import=True,
+        _lease=_lease,
+    )
     ok_count = sum(1 for run in runs if str(run.get("status") or "") == "OK")
     return {
         "ok": ok_count == len(runs),
@@ -441,13 +486,15 @@ def pre_daily_check(
     *,
     today: date | None = None,
     retry_only: bool = False,
+    _lease: Any = None,
 ) -> dict[str, Any]:
     cfg = config or load_config()
     day = today or shanghai_today()
+    refresh_kwargs = {"_lease": _lease} if _lease is not None else {}
     refresh_result = (
-        refresh_retry_sources(cfg, today=day)
+        refresh_retry_sources(cfg, today=day, **refresh_kwargs)
         if retry_only
-        else refresh_all_sources(cfg, auto_import=True)
+        else refresh_all_sources(cfg, auto_import=True, **refresh_kwargs)
     )
     sources = status(cfg, today=day)
     return _evaluate_readiness(cfg, refresh_result, sources)
@@ -458,6 +505,7 @@ def daily_source_check(
     *,
     today: date | None = None,
     now: datetime | None = None,
+    _lease: Any = None,
 ) -> dict[str, Any]:
     """Reuse a complete same-day precheck; otherwise perform a full refresh."""
     cfg = config or load_config()
@@ -475,7 +523,13 @@ def daily_source_check(
             if _source_needs_retry(row, day)
         ]
         if any(_daily_retry_is_due(row, checked_at) for row in retry_rows):
-            return pre_daily_check(cfg, today=day, retry_only=True)
+            precheck_kwargs = {"_lease": _lease} if _lease is not None else {}
+            return pre_daily_check(
+                cfg,
+                today=day,
+                retry_only=True,
+                **precheck_kwargs,
+            )
         refresh_result = {
             "ok": True,
             "ok_count": sum(1 for row in active_rows if _attempt_status(row) == "OK"),
@@ -486,7 +540,8 @@ def daily_source_check(
         }
         refresh_result["ok"] = refresh_result["error_count"] == 0
         return _evaluate_readiness(cfg, refresh_result, sources)
-    return pre_daily_check(cfg, today=day)
+    precheck_kwargs = {"_lease": _lease} if _lease is not None else {}
+    return pre_daily_check(cfg, today=day, **precheck_kwargs)
 
 
 def _daily_retry_is_due(row: dict[str, Any], now: datetime) -> bool:
@@ -648,6 +703,7 @@ def open_official_download_and_import(
     opener: Callable[[str], None] | None = None,
     timeout_seconds: float = 90.0,
     poll_seconds: float = 1.0,
+    _lease: Any = None,
 ) -> dict[str, Any]:
     if source_id not in IMPORT_FILE_SOURCE_IDS:
         raise ValueError(f"official browser download is not supported for source: {source_id}")
@@ -671,17 +727,36 @@ def open_official_download_and_import(
         time.sleep(poll_seconds)
     if selected is None:
         raise TimeoutError(f"no new official {source_id} import file appeared in {directory}")
-    result = refresh_source(source_id, config, import_file=str(selected))
+    result = refresh_source(
+        source_id,
+        config,
+        import_file=str(selected),
+        _lease=_lease,
+    )
     result["downloaded_file"] = str(selected)
     result["official_url"] = url
     return result
 
 
-def _import_adapter(source_id: str, spec: Any, path: Path):
+def _import_adapter(
+    source_id: str,
+    spec: Any,
+    path: Path,
+    *,
+    content_bytes: bytes | None = None,
+):
     if source_id == "aaii_sentiment":
-        return AaiiSentimentImportAdapter(seed_path=spec.target_path, import_path=path)
+        return AaiiSentimentImportAdapter(
+            seed_path=spec.target_path,
+            import_path=path,
+            content_bytes=content_bytes,
+        )
     if source_id == "naaim_exposure":
-        return NaaimExposureImportAdapter(import_path=path)
+        return NaaimExposureImportAdapter(
+            import_path=path,
+            seed_path=spec.target_path,
+            content_bytes=content_bytes,
+        )
     raise ValueError(f"--import-file is not supported for source: {source_id}")
 
 
@@ -840,25 +915,35 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 2
     try:
-        with pipeline_lock(blocking=True, timeout=max(float(args.lock_timeout), 0.0)):
+        cfg = load_config()
+        lock_path = resolve_path(cfg, "archive_dir") / ".pipeline.lock"
+        with pipeline_lock(
+            blocking=True,
+            timeout=max(float(args.lock_timeout), 0.0),
+            path=lock_path,
+        ) as lease:
             with redirect_stdout(sys.stderr):
                 if args.pre_daily_check:
-                    result = pre_daily_check()
+                    result = pre_daily_check(cfg, _lease=lease)
                 elif args.retry_needed:
-                    result = pre_daily_check(retry_only=True)
+                    result = pre_daily_check(cfg, retry_only=True, _lease=lease)
                 elif args.source and args.open_official_download:
                     result = open_official_download_and_import(
                         args.source,
+                        cfg,
                         downloads_dir=Path(args.downloads_dir).expanduser(),
+                        _lease=lease,
                     )
                 elif args.source:
                     result = refresh_source(
                         args.source,
+                        cfg,
                         import_file=args.import_file,
                         auto_import=args.auto_import,
+                        _lease=lease,
                     )
                 else:
-                    result = refresh_all_sources(auto_import=True)
+                    result = refresh_all_sources(cfg, auto_import=True, _lease=lease)
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True, default=str))
         return 0
     except PipelineBusy as exc:

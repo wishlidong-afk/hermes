@@ -289,7 +289,7 @@ def _heal_lagging_symbols(
 
 # ── Step 1a: refresh ledgered external sources ───────────────────────────────
 
-def refresh_external_sources() -> list[dict]:
+def refresh_external_sources(*, _lease: Any = None) -> list[dict]:
     """Consume the morning source precheck or refresh when it did not run.
 
     Non-fatal by design: ExternalSourceRunner validates and atomically promotes
@@ -299,7 +299,8 @@ def refresh_external_sources() -> list[dict]:
     """
     source_ids = refresh_external.configured_source_ids(load_config())
     print(f"[M4-1a] Pre-daily external source check ({', '.join(source_ids)})…")
-    check = refresh_external.daily_source_check()
+    refresh_kwargs = {"_lease": _lease} if _lease is not None else {}
+    check = refresh_external.daily_source_check(**refresh_kwargs)
     runs = list((check.get("refresh") or {}).get("runs") or [])
     for run in runs:
         print(
@@ -1869,7 +1870,7 @@ def _execute_daily(
             market_admission_status = market_admission_session.payload()
         _run_context["step"] = "external_source_refresh"
         try:
-            refresh_external_sources()
+            refresh_external_sources(_lease=_lease)
         except Exception as exc:
             print(f"[M4-1a] WARNING: external source refresh crashed ({exc!r}); proceeding with cached data.")
         _run_context["step"] = "soft_data_refresh"

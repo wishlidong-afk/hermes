@@ -80,6 +80,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(repo / "ops/run_daily.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/serve_dashboard.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/refresh_external_precheck.sh", "#!/bin/sh\nexit 0\n", 0o755)
+    _write(repo / "ops/refresh_external.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/hermes_watchdog.py", "#!/usr/bin/env python3\nprint('new watchdog')\n", 0o644)
     _write(repo / "ops/prune_runtime_artifacts.py", "#!/usr/bin/env python3\nprint('new retention')\n", 0o644)
     _write(repo / "ops/launchagents/com.hermes.external-precheck.plist", "<plist><dict><key>new</key><true/></dict></plist>\n")
@@ -101,6 +102,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(bin_dir / "run_daily.sh", "#!/bin/sh\nexit 10\n", 0o750)
     _write(bin_dir / "serve_dashboard.sh", "#!/bin/sh\nexit 11\n", 0o740)
     _write(bin_dir / "refresh_external_precheck.sh", "#!/bin/sh\nexit 12\n", 0o730)
+    _write(bin_dir / "refresh_external.sh", "#!/bin/sh\nexit 13\n", 0o720)
     _write(bin_dir / "hermes_watchdog.py", "#!/usr/bin/env python3\nprint('old watchdog')\n", 0o640)
     _write(bin_dir / "prune_runtime_artifacts.py", "#!/usr/bin/env python3\nprint('old retention')\n", 0o640)
     _write(launchagents_dir / "com.hermes.external-precheck.plist", "<plist><dict><key>old</key><true/></dict></plist>\n")
@@ -233,6 +235,22 @@ def test_deploy_script_exposes_isolated_fixture_contract() -> None:
     assert 'chmod +x "$BIN/hermes_watchdog.py" || return 1' in script
 
 
+def test_stable_entry_install_and_restore_use_same_directory_atomic_replace() -> None:
+    script = DEPLOY_SCRIPT.read_text(encoding="utf-8")
+
+    assert "install_entry_atomic()" in script
+    assert 'temp=$(mktemp "$directory/.${name}.deploy.XXXXXX")' in script
+    assert 'mv -f "$temp" "$destination"' in script
+    assert 'install_entry_atomic "$BACKUP/bin/$name" "$target"' in script
+    assert 'install_entry_atomic "$src" "$BIN/run_daily.sh"' in script
+    assert 'install_entry_atomic "$src" "$dst"' in script
+    assert (
+        'restore_entry "$LIVE/scripts/run_daily.py" live_run_daily.py' in script
+    )
+    assert '"$BACKUP/live_scripts/" "$LIVE/scripts/"' not in script
+    assert 'cp "$src" "$dst"' not in script
+
+
 @pytest.mark.parametrize(
     ("fail_at", "expected_code"),
     [
@@ -357,6 +375,7 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         "bin/run_daily.sh",
         "bin/serve_dashboard.sh",
         "bin/refresh_external_precheck.sh",
+        "bin/refresh_external.sh",
         "bin/hermes_watchdog.py",
         "bin/prune_runtime_artifacts.py",
         "skills/investment/escape-top/current",

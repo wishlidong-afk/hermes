@@ -95,7 +95,7 @@ def test_execute_daily_runs_external_sources_before_legacy_soft_refresh(monkeypa
 
     monkeypatch.setattr(rdp, "refresh_history", lambda *_args, **_kwargs: calls.append("history"))
     monkeypatch.setattr(rdp, "_heal_lagging_symbols", lambda *_args, **_kwargs: calls.append("heal"))
-    monkeypatch.setattr(rdp, "refresh_external_sources", lambda: calls.append("external") or [])
+    monkeypatch.setattr(rdp, "refresh_external_sources", lambda **_kwargs: calls.append("external") or [])
     monkeypatch.setattr(rdp, "refresh_soft_data", lambda: calls.append("soft"))
     monkeypatch.setattr(rdp, "_preflight_report", lambda *_args, **_kwargs: calls.append("preflight"))
     monkeypatch.setattr(rdp, "_history_integrity_scan", lambda *_args, **_kwargs: [])
@@ -121,7 +121,7 @@ def test_execute_daily_runs_external_sources_before_legacy_soft_refresh(monkeypa
 def test_execute_daily_attaches_external_source_status_to_returned_payload(monkeypatch):
     monkeypatch.setattr(rdp, "refresh_history", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(rdp, "_heal_lagging_symbols", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(rdp, "refresh_external_sources", lambda: [{"source_id": "dollar", "status": "OK"}])
+    monkeypatch.setattr(rdp, "refresh_external_sources", lambda **_kwargs: [{"source_id": "dollar", "status": "OK"}])
     monkeypatch.setattr(
         rdp.refresh_external,
         "status",
@@ -160,7 +160,7 @@ def test_live_daily_attaches_nonblocking_market_witness(monkeypatch):
         },
     )
     monkeypatch.setattr(rdp, "_heal_lagging_symbols", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(rdp, "refresh_external_sources", lambda: [])
+    monkeypatch.setattr(rdp, "refresh_external_sources", lambda **_kwargs: [])
     monkeypatch.setattr(rdp.refresh_external, "status", lambda *_args, **_kwargs: {})
     monkeypatch.setattr(rdp, "refresh_soft_data", lambda: None)
     monkeypatch.setattr(
@@ -213,7 +213,7 @@ def test_daily_prefers_current_session_error_over_stale_disk_ok(monkeypatch):
         "read_market_admission_evidence",
         lambda *_args: {"mode": "enforce_consensus", "status": "OK"},
     )
-    monkeypatch.setattr(rdp, "refresh_external_sources", lambda: [])
+    monkeypatch.setattr(rdp, "refresh_external_sources", lambda **_kwargs: [])
     monkeypatch.setattr(rdp.refresh_external, "status", lambda *_args, **_kwargs: {})
     monkeypatch.setattr(rdp, "refresh_soft_data", lambda: None)
     monkeypatch.setattr(rdp, "_preflight_report", lambda *_args, **_kwargs: None)
