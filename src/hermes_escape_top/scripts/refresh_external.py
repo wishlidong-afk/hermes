@@ -239,7 +239,7 @@ def cboe_index_source(source_id: str, config: dict[str, Any]):
     target = resolve_path(config, "history_dir") / f"{safe_symbol(definition.symbol)}.csv"
     return (
         cboe_index_spec(definition, target),
-        CboeVolatilityIndexAdapter(definition),
+        CboeVolatilityIndexAdapter(definition, seed_path=target),
     )
 
 

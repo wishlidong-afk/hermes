@@ -54,11 +54,13 @@ class CboeVolatilityIndexAdapter:
         fetch_text: FetchText | None = None,
         fetch_witness: FetchWitness | None = None,
         now: datetime | None = None,
+        seed_path: Path | None = None,
     ) -> None:
         self.definition = definition
         self.fetch_text = fetch_text or _requests_text
         self.fetch_witness = fetch_witness or _fetch_yahoo_witness
         self.now = now
+        self.seed_path = Path(seed_path) if seed_path is not None else None
 
     def fetch_raw(self) -> dict[str, object]:
         csv_text = self.fetch_text(self.definition.url)
@@ -114,13 +116,27 @@ class CboeVolatilityIndexAdapter:
             else ""
         )
         official_latest = str(frame.iloc[-1]["date"]) if not frame.empty else ""
+        certified_latest = _latest_seed_as_of(self.seed_path)
+        # A regressed secondary witness cannot revoke a tail already certified
+        # against these same official rows; continuity validation still checks it.
+        preserved_certified_tail = bool(
+            witness_latest
+            and certified_latest
+            and witness_latest < certified_latest <= official_latest
+        )
         if witness_latest:
-            frame = frame[frame["date"] <= witness_latest].reset_index(drop=True)
+            cutoff = certified_latest if preserved_certified_tail else witness_latest
+            frame = frame[frame["date"] <= cutoff].reset_index(drop=True)
         frame.attrs["completed_through"] = completed
         frame.attrs["official_latest_as_of"] = official_latest
         frame.attrs["witness_latest_as_of"] = witness_latest
+        frame.attrs["certified_latest_as_of"] = certified_latest
+        frame.attrs["certified_tail_preserved"] = preserved_certified_tail
+        retained_latest = str(frame.iloc[-1]["date"]) if not frame.empty else ""
         frame.attrs["unconfirmed_tail_trimmed"] = bool(
-            official_latest and witness_latest and witness_latest < official_latest
+            official_latest
+            and witness_latest
+            and (not retained_latest or retained_latest < official_latest)
         )
         frame.attrs["ohlc_repair_count"] = int(raw.get("ohlc_repair_count") or 0)
         frame.attrs["witness_rows"] = witness_rows
@@ -245,14 +261,21 @@ def _validate_cboe_index(
     official = frame[["date", "close"]].copy()
     latest = str(official.iloc[-1]["date"])
     latest_witness = witness[witness["Date"] == latest]
-    if latest_witness.empty:
+    certified_tail_preserved = bool(frame.attrs.get("certified_tail_preserved"))
+    if latest_witness.empty and not certified_tail_preserved:
         return f"Yahoo witness missing latest official session {latest}"
-    comparison = official.tail(3).merge(
+    witness_latest = str(frame.attrs.get("witness_latest_as_of") or "")
+    comparison_source = official
+    if certified_tail_preserved and witness_latest:
+        comparison_source = official[official["date"] <= witness_latest]
+    comparison = comparison_source.tail(3).merge(
         witness,
         left_on="date",
         right_on="Date",
         how="inner",
     )
+    if comparison.empty:
+        return "Yahoo witness unavailable: no overlapping official rows"
     for row in comparison.itertuples(index=False):
         official_close = float(row.close)
         witness_close = float(row.Close)
@@ -360,6 +383,17 @@ def _normalize_witness(frame: pd.DataFrame, expected_symbol: str) -> pd.DataFram
     out = out.dropna(subset=["Close"])
     out.index.name = "Date"
     return out[["Close"]].sort_index()
+
+
+def _latest_seed_as_of(path: Path | None) -> str:
+    if path is None or not path.exists():
+        return ""
+    try:
+        frame = pd.read_csv(path, usecols=["date"])
+    except Exception:
+        return ""
+    dates = pd.to_datetime(frame["date"], errors="coerce").dropna()
+    return dates.max().date().isoformat() if not dates.empty else ""
 
 
 def _requests_text(url: str) -> str:
