@@ -1,0 +1,162 @@
+{
+  "variant": "cd_trend_dedup",
+  "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
+  "cache_schema": "flag-sweep-cache-v4",
+  "cache_key": "998832bb3f682e7f46f93394e7db75f6dcf257cb1d81192c7b11d0447ab2c18c",
+  "manifest_id": "ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f",
+  "git_commit": "fded184b2c76cc030ebf7dbf05f80683ec05cf7d",
+  "code_sha256": "bc082a1b0dcdb6accd0c835cbb758cce327458854d47ab0f59e1fa0a47cff769",
+  "config_sha256": "4b8807629295daee1075126adf799c163c143390cbe6df74faac1c637062e3c7",
+  "soft_history_sha256": "780bd54edf239e759ba0974e6021d98712629036fe488f0c79ffad56537811f4",
+  "start": "2018-01-01",
+  "end": "2026-07-17",
+  "enable": [
+    "costs"
+  ],
+  "equity_timing": "next_open",
+  "effective_start": "2018-01-02",
+  "effective_end": "2026-07-17",
+  "n_days": 2146,
+  "runtime_sec": 1033.6,
+  "metrics": {
+    "cagr": 0.155757,
+    "max_drawdown": -0.216277,
+    "sharpe": 1.057501,
+    "sortino": 1.336041,
+    "final_value": 342857.968695
+  },
+  "legacy_close_metrics": {
+    "final_value": 380282.784361,
+    "cagr": 0.170047,
+    "max_drawdown": -0.177866,
+    "max_drawdown_start": "2018-06-14",
+    "max_drawdown_end": "2019-10-09",
+    "sharpe": 1.136567,
+    "sortino": 1.470478
+  },
+  "execution_open_quality": {
+    "total_rows": 21460,
+    "observed_rows": 19278,
+    "modeled_rows": 2182,
+    "missing_rows": 0,
+    "observed_share": 0.89832246,
+    "counts": {
+      "MODELED_PROXY_SWITCH": 2,
+      "MODELED_SYNTHETIC_MIDPOINT": 2180,
+      "OBSERVED": 19278
+    },
+    "by_leg": {
+      "BOXX": {
+        "MODELED_PROXY_SWITCH": 1,
+        "OBSERVED": 2145
+      },
+      "BRK.B": {
+        "OBSERVED": 2146
+      },
+      "BTC-USD": {
+        "OBSERVED": 2146
+      },
+      "DBMF": {
+        "MODELED_PROXY_SWITCH": 1,
+        "MODELED_SYNTHETIC_MIDPOINT": 387,
+        "OBSERVED": 1758
+      },
+      "FNGU": {
+        "MODELED_SYNTHETIC_MIDPOINT": 1793,
+        "OBSERVED": 353
+      },
+      "IAU": {
+        "OBSERVED": 2146
+      },
+      "MSTR": {
+        "OBSERVED": 2146
+      },
+      "QQQ": {
+        "OBSERVED": 2146
+      },
+      "SOXL": {
+        "OBSERVED": 2146
+      },
+      "SOXX": {
+        "OBSERVED": 2146
+      }
+    },
+    "required_total_rows": 10033,
+    "required_observed_rows": 8690,
+    "required_modeled_rows": 1343,
+    "required_missing_rows": 0,
+    "required_observed_share": 0.86614173,
+    "required_counts": {
+      "MODELED_PROXY_SWITCH": 2,
+      "MODELED_SYNTHETIC_MIDPOINT": 1341,
+      "OBSERVED": 8690
+    },
+    "required_by_leg": {
+      "BOXX": {
+        "OBSERVED": 2144,
+        "MODELED_PROXY_SWITCH": 1
+      },
+      "FNGU": {
+        "MODELED_SYNTHETIC_MIDPOINT": 1159,
+        "OBSERVED": 211
+      },
+      "MSTR": {
+        "OBSERVED": 1166
+      },
+      "SOXL": {
+        "OBSERVED": 1397
+      },
+      "DBMF": {
+        "MODELED_SYNTHETIC_MIDPOINT": 182,
+        "MODELED_PROXY_SWITCH": 1,
+        "OBSERVED": 1677
+      },
+      "IAU": {
+        "OBSERVED": 1860
+      },
+      "BRK.B": {
+        "OBSERVED": 153
+      },
+      "QQQ": {
+        "OBSERVED": 51
+      },
+      "BTC-USD": {
+        "OBSERVED": 20
+      },
+      "SOXX": {
+        "OBSERVED": 11
+      }
+    }
+  },
+  "route_set_turnover": {
+    "definition": "full_portfolio_l1_on_nonrisk_nonboxx_route_set_change_days",
+    "event_count": 164,
+    "total": 101.644873
+  },
+  "benchmarks": {
+    "SPY": 0.126941,
+    "SPY_metrics": {
+      "final_value": 276552.445738,
+      "cagr": 0.126941,
+      "max_drawdown": -0.341047,
+      "max_drawdown_start": "2020-02-19",
+      "max_drawdown_end": "2020-03-23",
+      "sharpe": 0.717205,
+      "sortino": 0.876343,
+      "calmar": 0.37221,
+      "turnover": 0.0
+    },
+    "QQQ": 0.189723,
+    "QQQ_metrics": {
+      "final_value": 438721.681488,
+      "cagr": 0.189723,
+      "max_drawdown": -0.364777,
+      "max_drawdown_start": "2021-11-19",
+      "max_drawdown_end": "2023-01-05",
+      "sharpe": 0.846749,
+      "sortino": 1.109506,
+      "calmar": 0.520107,
+      "turnover": 0.0
+    }
+  }
+}

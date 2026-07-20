@@ -37,3 +37,17 @@ weight, or factor-subset retuning.
 - Flag artifacts: `building/reports/flag_sweep/cd_trend_baseline*.json` and
   `building/reports/flag_sweep/cd_trend_dedup*.json`
 - Formal result: `building/reports/formal_gate/cd-trend-ownership-v1/`
+
+## Final Result
+
+**REJECTED / NO_FLIP.** The fixed 2018-01-01 through 2026-07-17 next-open
+comparison used 2,146 trading days and had zero missing execution-required open
+rows. Full-sample CAGR improved from `15.4643%` to `15.5757%`, while MaxDD
+worsened from `-20.8283%` to `-21.6277%` and Sharpe moved from `1.057797` to
+`1.057501`.
+
+The pre-registered gate failed three checks: walk-forward OOS delta was
+`-0.049997`, walk-forward PBO was `0.5714`, and CPCV PBO was `0.8000`. CPCV OOS
+delta (`+0.032739`), MaxDD tolerance, and DSR (`0.931188`) passed, but every
+required check had to pass. `use_cd_trend_dedup` therefore remains OFF and this
+experiment must not be retuned or rerun.
