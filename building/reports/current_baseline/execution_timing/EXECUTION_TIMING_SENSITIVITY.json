@@ -1,18 +1,18 @@
 {
   "authorization": "NO_CONFIG_FLIP",
   "current_provenance": {
-    "code_sha256": "f49428ea7f68dd334d5ef55ed90bf78f2a12207670882b4e6e48d2a5274347e7",
+    "code_sha256": "7910dc9dfa1fec7cf75e93511aef4a11e8bf57979da69e6cd457a5976c894b65",
     "config_sha256": "7de18c09ee2d245851fbf8dc682abc5eac521e5312508b09155307bdb26a6e56",
     "end": "2026-07-14",
     "equity_timing": "next_open",
-    "git_commit": "cf7e1a16e13e085a36d25ce66b1d5dbb32ab3465",
+    "git_commit": "02a19538c43f32dfeffa535922dd1a24c3a95ae6",
     "manifest_id": "ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f",
     "soft_history_sha256": "780bd54edf239e759ba0974e6021d98712629036fe488f0c79ffad56537811f4",
     "start": "2018-01-01",
     "worktree_clean": true
   },
   "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
-  "generated_at": "2026-07-20T02:35:58.283407+00:00",
+  "generated_at": "2026-07-20T03:36:06.939066+00:00",
   "headline_eligible": true,
   "headline_scenario": "next_open",
   "legacy_source_parity": {
@@ -8781,10 +8781,10 @@
   "source": {
     "data_manifest_id": "ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f",
     "end": "2026-07-14",
-    "path": "/private/tmp/hermes-baseline-rebuild-out-20260720-1017/CURRENT_BASELINE_FULL.json",
+    "path": "/Users/liweishi/Documents/github/hermes/building/reports/current_baseline/CURRENT_BASELINE_FULL.json",
     "rows": 2143,
     "schema_version": "escape-top-greenfield-full-backtest-v1",
-    "sha256": "16377424333d2c614c8d2f32ac725e4d1a835f4683141b8f7fb6c33774d511a2",
+    "sha256": "f7fcfd97ac5e7a85cb870af1434277937746f2ff810c8fdb450188c84e01f6c8",
     "start": "2018-01-02"
   },
   "source_provenance": {

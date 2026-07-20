@@ -1,7 +1,7 @@
 {
-  "cache_key": "1eabf04e3ced11aa07029fd203eb5f7b6a31c466054afdc7a8f95b4e041fbe9e",
+  "cache_key": "594d1bd9706bc817db4ec845739217006553b0acfd4ac48ff060b2c763f93c7a",
   "cache_schema": "flag-sweep-cache-v4",
-  "code_sha256": "f49428ea7f68dd334d5ef55ed90bf78f2a12207670882b4e6e48d2a5274347e7",
+  "code_sha256": "7910dc9dfa1fec7cf75e93511aef4a11e8bf57979da69e6cd457a5976c894b65",
   "config_sha256": "7de18c09ee2d245851fbf8dc682abc5eac521e5312508b09155307bdb26a6e56",
   "effective_end": "2026-07-14",
   "effective_start": "2018-01-02",
@@ -105,7 +105,7 @@
     "required_total_rows": 10033,
     "total_rows": 21430
   },
-  "git_commit": "cf7e1a16e13e085a36d25ce66b1d5dbb32ab3465",
+  "git_commit": "02a19538c43f32dfeffa535922dd1a24c3a95ae6",
   "legacy_close_metrics": {
     "cagr": 0.166128,
     "final_value": 368898.95571,

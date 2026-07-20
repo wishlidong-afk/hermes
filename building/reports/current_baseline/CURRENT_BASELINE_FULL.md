@@ -1,7 +1,7 @@
 # Current Baseline Full Source
 
 Evidence schema: `current-baseline-source-v1`
-Commit: `cf7e1a16e13e085a36d25ce66b1d5dbb32ab3465`
+Commit: `02a19538c43f32dfeffa535922dd1a24c3a95ae6`
 Window: `2018-01-02` to `2026-07-14`
 Requested window: `2018-01-01` to `2026-07-14`
 Manifest: `ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f`

@@ -83,7 +83,7 @@
     }
   ],
   "evidence_role": "SENSITIVITY_OF_RECORDED_BASELINE",
-  "generated_at": "2026-07-20T02:54:24.609849+00:00",
+  "generated_at": "2026-07-20T03:36:50.149739+00:00",
   "notes": [
     "All rows reuse the recorded baseline decisions and next-open execution prices.",
     "Extra slippage is charged on absolute turnover in addition to configured base costs.",
@@ -92,11 +92,11 @@
   "schema_version": "cost-robustness-v1",
   "source": {
     "path": "/Users/liweishi/Documents/github/hermes/building/reports/current_baseline/CURRENT_BASELINE_FULL.json.gz",
-    "payload_sha256": "16377424333d2c614c8d2f32ac725e4d1a835f4683141b8f7fb6c33774d511a2",
+    "payload_sha256": "f7fcfd97ac5e7a85cb870af1434277937746f2ff810c8fdb450188c84e01f6c8",
     "provenance": {
-      "cache_key": "1eabf04e3ced11aa07029fd203eb5f7b6a31c466054afdc7a8f95b4e041fbe9e",
+      "cache_key": "594d1bd9706bc817db4ec845739217006553b0acfd4ac48ff060b2c763f93c7a",
       "cache_schema": "flag-sweep-cache-v4",
-      "code_sha256": "f49428ea7f68dd334d5ef55ed90bf78f2a12207670882b4e6e48d2a5274347e7",
+      "code_sha256": "7910dc9dfa1fec7cf75e93511aef4a11e8bf57979da69e6cd457a5976c894b65",
       "config_sha256": "7de18c09ee2d245851fbf8dc682abc5eac521e5312508b09155307bdb26a6e56",
       "enable": [
         "costs"
@@ -104,7 +104,7 @@
       "end": "2026-07-14",
       "equity_timing": "next_open",
       "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
-      "git_commit": "cf7e1a16e13e085a36d25ce66b1d5dbb32ab3465",
+      "git_commit": "02a19538c43f32dfeffa535922dd1a24c3a95ae6",
       "manifest_id": "ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f",
       "soft_history_sha256": "780bd54edf239e759ba0974e6021d98712629036fe488f0c79ffad56537811f4",
       "start": "2018-01-01",
