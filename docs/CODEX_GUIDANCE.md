@@ -1,5 +1,7 @@
 # CODEX GUIDANCE — 下一步做什么（看这一个文件就够）
 
+> **已归档（2026-07-20）：**本文主体是 2026-06-02 的施工快照，不再是当前 Agent 指令。新工作先读 [`../context.md`](../context.md)、[`PRODUCTION_RUNBOOK.md`](PRODUCTION_RUNBOOK.md) 与最新 `docs/superpowers/plans/`；不得依据本文的旧测试数、M4 阶段或基线数字做部署判断。
+>
 > 给 Codex 的明确施工指引。读完照做即可，无需翻其它文档（细节锚点已标）。
 > 更新：2026-06-02，据真实进度账本。读者：Codex。
 

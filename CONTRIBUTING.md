@@ -20,8 +20,8 @@
 ## 2. 测试——先证明，再说完成
 
 ```bash
-cd src && python -m pytest            # 全量套件，必须全绿
-python -m pytest tests/test_xxx.py    # 单文件
+PYTHONPATH=src:src/hermes_escape_top/tests python -m pytest src/hermes_escape_top/tests -q
+PYTHONPATH=src python scripts/check_governance_consistency.py
 ```
 
 - **改了行为就要有测试。** 修 bug：先写一个能复现的失败测试（看它因正确的原因失败），再修到它通过。
@@ -30,23 +30,23 @@ python -m pytest tests/test_xxx.py    # 单文件
 
 ## 3. 部署：仓库 → live，强制过门
 
-代码不是改完就生效——live 在 `~/.hermes/skills/investment/escape-top/hermes_escape_top/`，要显式部署：
+代码不是改完就生效。live 由 `~/.hermes/skills/investment/escape-top/current` 指向一个不可变 release，必须显式部署：
 
 ```bash
 bash scripts/deploy_to_live.sh
 ```
 
-该脚本的纪律（**不要绕过**）——**任一步失败即自动回滚(解 tar + 重启)并退非零**，不是只提示：
+该脚本的纪律（**不要绕过**）——任一步失败都会回滚并非零退出：
 
-1. **并发守卫**：`pgrep run_daily` 检测到 daily/刷新在跑就中止——不在运行上叠部署；
-2. **备份**：tar live 代码（排除 `data/`，一键可回滚）；
-3. **`rsync --delete` 仓库 → live = 真 0 drift**（repo 删/改名的文件 live 也清），写 `VERSION=<hash>`；并从 [`ops/`](ops/) 同步 live 入口脚本（`run_daily.sh` / `run_daily.py` / `serve_dashboard.sh`）；
-4. **smoke gate**（[`predeploy_smoke.py`](src/hermes_escape_top/scripts/predeploy_smoke.py)）：FRED publish_date、常驻日频源、无源回归、证据链无 NA、manifest 不漂移、（WARN）无法解释的翻转。**FAIL → 自动回滚**；
-5. **重启** dashboard：`launchctl kickstart -k gui/$(id -u)/com.hermes.dashboard`；
-6. **端到端验收**：curl 8766 == 200 + [`ops/verify_live.sh`](ops/verify_live.sh)（真入口走 `manual_rerun`，断言回执/manifest/NEXT5 效果落地）。**FAIL → 自动回滚**；
-7. 全绿才 commit `.hermes` git。
+1. 停止 dashboard，并用 Python `fcntl` **单次持有**与 daily/refresh 相同的 `.pipeline.lock`；
+2. 备份 `current/previous`、入口、共享运行态和 `.hermes` git index；
+3. 构建 `releases/<hash>_<stamp>/` staging，挂载 shared `data/reports/orders`，写 `VERSION`；
+4. 对 staging 跑 import 与 [`predeploy_smoke.py`](src/hermes_escape_top/scripts/predeploy_smoke.py)，config 差异必须人工回答；
+5. 用 `os.replace` 原子切换相对 `current` 软链，随后释放锁并重启 dashboard；
+6. `curl 8766` 与 [`ops/verify_live.sh`](ops/verify_live.sh) 在隔离数据副本上跑 `manual_rerun` 验收，不写官方 receipt/audit/state；
+7. 全绿才按 allowlist 提交 `.hermes` 的代码、入口、VERSION 和软链；绝不 `git add -A` 运行态。
 
-> 真原子切换（软链 release）是 Phase 2，按触发器延后（多机 / 撞出过不一致 / 自动化常态敲刷新端点时再上）。跨进程锁已随 #3（`2beea7d`，`core/safe_io.py` 的 `pipeline_lock`）完成。
+回滚同样停止 dashboard、重新持有整段 pipeline lock，并恢复软链和备份；回滚失败必须输出 `DOUBLE FAILURE`，不得伪报 `deploy OK`。
 > 改了影响每日官方管线的东西，部署后用 8766 WebUI 亲自确认落地，别假设。
 
 ## 4. 数据纪律（这个系统的命门）

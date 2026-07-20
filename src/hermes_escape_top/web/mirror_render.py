@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
+from ..core.safe_io import atomic_write_text
 from .render import (
     _badge,
     _flow_kind,
@@ -277,8 +278,7 @@ def render_mirror_dashboard(payload: Dict[str, Any]) -> str:
 
 
 def write_mirror_dashboard(payload: Dict[str, Any], output_path: Path) -> Path:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(render_mirror_dashboard(payload), encoding="utf-8")
+    atomic_write_text(output_path, render_mirror_dashboard(payload))
     return output_path
 
 

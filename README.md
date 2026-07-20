@@ -29,7 +29,7 @@ hermes/
 ├── src/hermes_escape_top/        ← 全部代码
 │   ├── core/            ── 引擎：data(取数+PIT) / scoring(打分+硬阀门) /
 │   │                       decision(裁决+再建仓+信号日志) / factors(因子实验室)
-│   ├── web/             ── 本地 WebUI：server.py(只读 HTTP) + render.py(纯 payload→HTML)
+│   ├── web/             ── 本地 WebUI：server.py(loopback HTTP + 受控刷新) + render.py(纯 payload→HTML)
 │   ├── scripts/         ── 可运行入口：run_daily_package / predeploy_smoke / check_next5_unlock …
 │   ├── tests/           ── pytest 套件
 │   └── config/          ── config.json（开关、阈值、provenance）
@@ -70,7 +70,7 @@ open http://127.0.0.1:8766
 launchctl kickstart -k gui/$(id -u)/com.hermes.dashboard
 ```
 
-部署 = 仓库 → `cp` → live（`~/.hermes/skills/.../hermes_escape_top/`），由 [`scripts/deploy_to_live.sh`](scripts/deploy_to_live.sh) 执行，**第 4 步强制过 6 项 smoke gate**（[`src/hermes_escape_top/scripts/predeploy_smoke.py`](src/hermes_escape_top/scripts/predeploy_smoke.py)）才允许落地。测试与部署细则见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+部署由 [`scripts/deploy_to_live.sh`](scripts/deploy_to_live.sh) 完成：在同一把 pipeline lock 内构建并验证不可变的 `releases/<hash>_<stamp>/`，再用 `os.replace` 原子切换 `current` 相对软链。失败会恢复 `current/previous`、入口和共享运行态并重启 dashboard；不会直接覆盖正在服务的代码目录。测试与部署细则见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
 
 ## 阅读路线（按顺序）
 

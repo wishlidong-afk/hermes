@@ -346,7 +346,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 | 端口 | 入口 | 用途 |
 |---|---|---|
-| 8766 | `web/server.py` + `web/render.py` | 唯一 UI：策略操作台、决策历史条、Evidence Strip、硬阀门雷达、持仓对账、数据信任区、refresh/confirm 写端点；M4 与 IBKR demo 写入口永久返回 410 |
+| 8766 | `web/server.py` + `web/render.py` | 唯一 UI：策略操作台、决策历史条、Evidence Strip、硬阀门雷达、持仓对账、数据信任区、refresh/confirm 写端点；M4 与 IBKR demo URL 只保留无执行实现的 HTTP 410 tombstone |
 | ~~8765~~ | ~~`web/workbench.py`~~ | 已退役；功能并入 8766 |
 
 运维：发布前 `scripts/predeploy_smoke.py`（FRED publish_date/源可用/决策行无 NA/manifest/软源回归）拦假数据；审计日志日运行轮转（`rotate_audit_log`，>100MB 归档 gz 后压缩主文件）。
@@ -354,8 +354,9 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 8766 POST 鉴权的唯一政策（威胁模型：服务仅绑定 loopback，不经反向代理或对外暴露）：
 
 - 所有写端点的 `Host` 必须是 localhost/127.0.0.1/::1；`Origin` 若存在，也必须是本机 loopback。
-- 危险端点 `/api/m4_golive`、`/api/confirm_execution` 还必须提供 `HERMES_CONFIRM_TOKEN`；无 token 或错 token 返回 HTTP 403。
-- 低风险的数据刷新/重算端点 `m4_shadow`、`m4_backfill`、`refresh_manifest`、`refresh_soft_data`、`ibkr_demo_snapshot`、`refresh_score`、`refresh_positions`、`ibkr_live_check` 仅要求 loopback，不要求 token；它们不下单、不改变生产路由。
+- 会写决策状态的 `/api/confirm_execution` 还必须提供 `HERMES_CONFIRM_TOKEN`；无 token 或错 token 返回 HTTP 403。
+- 低风险的数据刷新/重算端点 `refresh_manifest`、`refresh_soft_data`、`refresh_score`、`refresh_positions`、`refresh_external_source(s)`、`rerun_external_precheck`、`ibkr_live_check` 仅要求 loopback，不要求 token；它们不下单、不改变生产路由。
+- `/api/m4_shadow`、`/api/m4_backfill`、`/api/m4_golive` 与 `/api/ibkr_demo_snapshot` 已永久退役，只返回 HTTP 410；server 内没有对应执行 helper 或 shadow-status GET。
 - 锁被其他 daily/刷新持有时，写端点返回 HTTP 409，不启动第二个 writer。
 - 若 8766 未来绑定非 loopback、经反向代理或暴露到其他主机，在暴露前必须将全部 mutating POST 升级为 token 鉴权并补齐 CSRF/代理信任边界，不得直接沿用当前政策。
 

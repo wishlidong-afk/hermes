@@ -68,7 +68,7 @@
 - 8766 由 launchd 常驻托管（开机自启 + 崩溃自拉起），入口 `~/.hermes/bin/serve_dashboard.sh`。
 - **从 LIVE 包服务，不是 repo**：launchd agent 无 `~/Documents` 的 TCC 授权（repo-served 模式下会 `Operation not permitted` 且 NO_CACHE）；且操作台应跟随部署版本而非 repo 半成品。**代码改动经 `deploy_to_live.sh` 才会出现在 8766**。
 - 数据根=live（`HERMES_DATA_DIR` 指向 live 包），显示的是当日真实决策。
-- 威胁模型：8766 只绑定 loopback，所有 POST 都校验本机 Host/Origin。`/api/m4_golive` 和 `/api/confirm_execution` 会改变生产行为/决策状态，额外要求 `HERMES_CONFIRM_TOKEN`；数据刷新、重算和只读检查端点仅限 loopback。锁冲突返回 409，不并发执行。
+- 威胁模型：8766 只绑定 loopback，所有有效 POST 都校验本机 Host/Origin。`/api/confirm_execution` 会写决策确认状态，额外要求 `HERMES_CONFIRM_TOKEN`；数据刷新、重算和只读检查端点仅限 loopback。退休的 M4/demo URL 只有 HTTP 410 tombstone、没有执行实现。锁冲突返回 409，不并发执行。
 - 禁止将当前鉴权模式直接用在非 loopback/反向代理场景；如需对外暴露，必须先将全部 mutating POST 升级为 token 鉴权并重新审核 CSRF 与代理信任边界。
 - 排障：`tail ~/.hermes/logs/dashboard.err.log`；重启 `launchctl kickstart -k gui/$(id -u)/com.hermes.dashboard`。
 

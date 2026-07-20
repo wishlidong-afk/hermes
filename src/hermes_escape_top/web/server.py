@@ -13,7 +13,6 @@ import json
 import hmac
 import os
 import subprocess
-import sys
 import traceback
 from datetime import date, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -37,15 +36,6 @@ def _runtime_root() -> Path:
 
 
 BASE_DIR = _runtime_root()
-VENV_PYTHON = BASE_DIR.parent.parent.parent.parent / ".hermes" / "hermes-agent" / "venv" / "bin" / "python3"
-PYTHON = str(VENV_PYTHON) if VENV_PYTHON.exists() else sys.executable
-SHADOW_LOG = BASE_DIR / "reports" / "shadow" / "M4_shadow_log.jsonl"
-RUN_DAILY = BASE_DIR / "scripts" / "run_daily.py"
-RUN_DAILY_PKG = (
-    BASE_DIR / "scripts" / "run_daily_package.py"
-    if (BASE_DIR / "scripts" / "run_daily_package.py").exists()
-    else PACKAGE_DIR / "scripts" / "run_daily_package.py"
-)
 
 from ..config import load_config, resolve_path
 from ..core.data.alpaca_flow import load_daily_flow_snapshot
@@ -751,188 +741,6 @@ def _auth_failure_payload(status: str, token_required: bool = True) -> bytes:
     ).encode()
 
 
-def _read_run_daily_mode() -> str:
-    try:
-        src = RUN_DAILY.read_text(encoding="utf-8")
-        if "escape_top_system" in src and "run_daily_package" not in src:
-            return "monolith"
-        if "run_daily_package" in src or "hermes_escape_top.cli" in src:
-            return "package"
-    except Exception:
-        pass
-    return "unknown"
-
-
-def _shadow_status() -> dict:
-    entries = []
-    if SHADOW_LOG.exists():
-        for line in SHADOW_LOG.read_text(encoding="utf-8").splitlines()[-10:]:
-            line = line.strip()
-            if line:
-                try:
-                    entries.append(json.loads(line))
-                except Exception:
-                    pass
-    shadow_latest = None
-    shadow_files = sorted(
-        (BASE_DIR / "data" / "shadow").glob("daily_score_precheck_*.json"), reverse=True
-    )
-    if shadow_files:
-        try:
-            shadow_latest = json.loads(shadow_files[0].read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    available_dates = []
-    for p in sorted((BASE_DIR / "data").glob("daily_score_precheck_*.json"), reverse=True):
-        available_dates.append(p.stem.replace("daily_score_precheck_", ""))
-    return {
-        "log_entries": entries,
-        "shadow_precheck": shadow_latest,
-        "run_daily_mode": _read_run_daily_mode(),
-        "available_dates": available_dates,
-        "latest_baseline_date": available_dates[0] if available_dates else None,
-    }
-
-
-def _run_shadow(as_of: str) -> dict:
-    cmd = [
-        PYTHON,
-        str(RUN_DAILY_PKG),
-        "--as-of",
-        as_of,
-        "--skip-refresh",
-        "--lock-timeout",
-        "0",
-    ]
-    try:
-        r = subprocess.run(cmd, cwd=str(BASE_DIR), env=_subprocess_env(), capture_output=True, text=True, timeout=180)
-        output = r.stdout + ("\n[STDERR]\n" + r.stderr if r.stderr.strip() else "")
-        ok = r.returncode == 0
-        diff_result = _diff_shadow(as_of)
-        busy = "pipeline busy" in output.lower()
-        return {"ok": ok, "busy": busy, "output": output[-2000:], "diff": diff_result}
-    except subprocess.TimeoutExpired:
-        return {"ok": False, "output": "Timeout (180s)", "diff": None}
-    except Exception:
-        return {"ok": False, "output": traceback.format_exc()[-1000:], "diff": None}
-
-
-def _run_history_refresh(as_of: str) -> dict:
-    cmd = [PYTHON, "-m", "hermes_escape_top.cli", "backfill-history", "--end", as_of, "--repair-overlap-days", "3"]
-    try:
-        r = subprocess.run(cmd, cwd=str(BASE_DIR), env=_subprocess_env(), capture_output=True, text=True, timeout=180)
-        return {"ok": r.returncode == 0, "output": (r.stdout + ("\n[STDERR]\n" + r.stderr if r.stderr.strip() else ""))[-2000:]}
-    except subprocess.TimeoutExpired:
-        return {"ok": False, "output": "history refresh timeout (180s)"}
-    except Exception:
-        return {"ok": False, "output": traceback.format_exc()[-1000:]}
-
-
-def _run_baseline(as_of: str) -> dict:
-    backup = RUN_DAILY.with_suffix(".py.monolith_backup")
-    script = backup if backup.exists() else RUN_DAILY
-    if not script.exists():
-        return {"ok": False, "output": f"No monolith baseline script found at {script}"}
-    cmd = [PYTHON, str(script), "--as-of", as_of, "--skip-refresh"]
-    try:
-        r = subprocess.run(cmd, cwd=str(BASE_DIR), env=_subprocess_env(), capture_output=True, text=True, timeout=180)
-        output = r.stdout + ("\n[STDERR]\n" + r.stderr if r.stderr.strip() else "")
-        return {"ok": r.returncode == 0, "output": output[-2000:]}
-    except subprocess.TimeoutExpired:
-        return {"ok": False, "output": "baseline timeout (180s)"}
-    except Exception:
-        return {"ok": False, "output": traceback.format_exc()[-1000:]}
-
-
-def _backfill_compare(as_of: str) -> dict:
-    # The legacy history/baseline legs do not acquire the package transaction
-    # themselves. Hold the shared mutex around both, then release it before the
-    # package shadow child takes the same lock normally.
-    with pipeline_lock(blocking=False):
-        refresh = _run_history_refresh(as_of)
-        baseline = _run_baseline(as_of) if refresh.get("ok") else {
-            "ok": False,
-            "output": "Skipped baseline because refresh failed.",
-        }
-    shadow = _run_shadow(as_of) if baseline.get("ok") else {"ok": False, "output": "Skipped shadow because baseline failed.", "diff": None}
-    output = (
-        "=== history refresh ===\n" + str(refresh.get("output", "")) +
-        "\n\n=== baseline ===\n" + str(baseline.get("output", "")) +
-        "\n\n=== package shadow ===\n" + str(shadow.get("output", ""))
-    )
-    return {
-        "ok": bool(refresh.get("ok") and baseline.get("ok") and shadow.get("ok")),
-        "output": output[-5000:],
-        "diff": shadow.get("diff"),
-        "steps": {"refresh": refresh.get("ok"), "baseline": baseline.get("ok"), "shadow": shadow.get("ok")},
-    }
-
-
-def _diff_shadow(as_of: str) -> dict | None:
-    mono_path = BASE_DIR / "data" / f"daily_score_precheck_{as_of}.json"
-    pkg_path = BASE_DIR / "data" / "shadow" / f"daily_score_precheck_{as_of}.json"
-    if not mono_path.exists() or not pkg_path.exists():
-        return None
-    try:
-        mono = json.loads(mono_path.read_text())
-        pkg = json.loads(pkg_path.read_text())
-        diffs, matches, total = [], 0, 0
-        for sym in ["MSTR", "FNGU", "SOXL"]:
-            mr = mono.get("results", {}).get(sym, {})
-            pr = pkg.get("results", {}).get(sym, {})
-            mht = mr.get("hard_trigger", {}) or {}
-            pht = pr.get("hard_trigger", {}) or {}
-            mv = {"status": mr.get("status"), "sell_pct": mr.get("sell_pct"),
-                  "hard_ids": sorted(mht.get("ids", []))}
-            pv = {"status": pr.get("status"), "sell_pct": pr.get("sell_pct"),
-                  "hard_ids": sorted(pht.get("ids", []))}
-            for f in ["hard_ids", "status", "sell_pct"]:
-                total += 1
-                if mv[f] == pv[f]:
-                    matches += 1
-                else:
-                    diffs.append(f"{sym}.{f}: 单体={mv[f]} → 包={pv[f]}")
-        return {"match_rate": round(matches / total * 100, 1) if total else 0,
-                "matches": matches, "total": total, "divergences": diffs}
-    except Exception:
-        return None
-
-
-def _flip_to_package() -> dict:
-    try:
-        backup = RUN_DAILY.with_suffix(".py.monolith_backup")
-        RUN_DAILY.parent.mkdir(parents=True, exist_ok=True)
-        if RUN_DAILY.exists() and not backup.exists():
-            backup.write_text(RUN_DAILY.read_text(encoding="utf-8"), encoding="utf-8")
-        elif not RUN_DAILY.exists() and not backup.exists():
-            backup.write_text(
-                '#!/usr/bin/env python3\n"""No monolith file existed in this checkout before package shim creation."""\n',
-                encoding="utf-8",
-            )
-        new_content = (
-            '#!/usr/bin/env python3\n'
-            '"""run_daily.py — M4 live: runs the package engine via -m (single source of truth).\n'
-            'There is no loose run_daily_package.py copy; the package self-locates via\n'
-            '_discover_runtime_paths walk-up. Monolith backup: run_daily.py.monolith_backup\n"""\n'
-            'import os, subprocess, sys\n'
-            'from pathlib import Path\n'
-            'ESCAPE_TOP = Path(__file__).resolve().parent.parent\n'
-            'PYTHON = sys.executable\n'
-            'if __name__ == "__main__":\n'
-            '    env = dict(os.environ)\n'
-            '    env["PYTHONPATH"] = str(ESCAPE_TOP) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")\n'
-            '    cmd = [PYTHON, "-m", "hermes_escape_top.scripts.run_daily_package",\n'
-            '           "--live", "--commit-state"] + sys.argv[1:]\n'
-            '    r = subprocess.run(cmd, cwd=str(ESCAPE_TOP), env=env)\n'
-            '    sys.exit(r.returncode)\n'
-        )
-        RUN_DAILY.write_text(new_content, encoding="utf-8")
-        return {"ok": True,
-                "message": f"✅ run_daily.py → 包引擎。备份: {backup.name}"}
-    except Exception as e:
-        return {"ok": False, "message": str(e)}
-
-
 # ── HTTP handler ──────────────────────────────────────────────────────────────
 
 def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
@@ -959,7 +767,6 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 _attach_system_health_history(payload)
                 payload["status_history"] = _recent_status_history(payload.get("as_of") or as_of, records=audit_records)
                 payload["prev_valves"] = _prev_official_valves(audit_records, payload.get("as_of") or as_of)
-                shadow = _shadow_status()
                 try:
                     manifest = manifest_status()
                 except Exception:
@@ -969,8 +776,7 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 except Exception:
                     health = {}
                 self._send(200, "text/html; charset=utf-8",
-                           render_dashboard(payload, shadow_status=shadow,
-                                            manifest_status=manifest, health=health).encode())
+                           render_dashboard(payload, manifest_status=manifest, health=health).encode())
                 return
 
             if parsed.path == "/api/score":
@@ -987,12 +793,6 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(payload, ensure_ascii=False, indent=2,
                                       sort_keys=True, default=str).encode())
-                return
-
-            if parsed.path == "/api/shadow_status":
-                self._send(200, "application/json; charset=utf-8",
-                           json.dumps(_shadow_status(), ensure_ascii=False,
-                                      indent=2, default=str).encode())
                 return
 
             if parsed.path == "/api/manifest_status":

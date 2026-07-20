@@ -1,5 +1,7 @@
 # STATUS（进度账本）
 
+> **历史快照警告（2026-07-20）：**下方主体冻结在 2026-06-07，不再代表当前部署、测试数、数据自动化或正式 baseline。当前事实源是 [`../context.md`](../context.md)、[`PRODUCTION_RUNBOOK.md`](PRODUCTION_RUNBOOK.md)、[`FLAG_REGISTRY.md`](FLAG_REGISTRY.md) 和 `building/reports/current_baseline/`。R6 versioned release + `current/previous` 原子软链已经上线；旧 M4 migration 实现已退役，只保留 410 tombstone。
+>
 > 每完成一步更新本表，并与 `00_MASTER_OVERVIEW.md` 元信息、`SYSTEM_OVERVIEW.md` 成熟度表对账。
 > 更新时间：2026-06-07（最新复盘见 [`history/PROJECT_REVIEW_2026_06_07.md`](history/PROJECT_REVIEW_2026_06_07.md)）
 >

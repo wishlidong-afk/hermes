@@ -75,28 +75,28 @@ Web reporting, and focused tests.
 `use_route_set_transition_buffer`; add tests, experiment manifest, flag card,
 and one formal-gate result.
 
-- [ ] Add OFF identity and hard-valve non-delay tests before implementation.
-- [ ] Implement only the pre-registered 2pp non-risk-leg suppression rule.
-- [ ] Run four-date OFF identity and the one-shot formal gate once.
-- [ ] Record Candidate-gate-passed or Rejected; do not flip or retune; review.
+- [x] Add OFF identity and hard-valve non-delay tests before implementation.
+- [x] Implement only the pre-registered 2pp non-risk-leg suppression rule.
+- [x] Run four-date OFF identity and the one-shot formal gate once.
+- [x] Record Candidate-gate-passed or Rejected; do not flip or retune; review.
 
 ### Task 6: C/D Trend Ownership Experiment
 
 **Files:** modify module D/scoring behind `use_cd_trend_dedup`; add tests,
 experiment manifest, ownership decision, flag card, and one formal-gate result.
 
-- [ ] Add OFF identity and D1/D2 suppression tests before implementation.
-- [ ] Implement C-owned MA trend semantics without reweighting thresholds.
-- [ ] Run four-date OFF identity and the one-shot formal gate once.
-- [ ] Record Candidate-gate-passed or Rejected; do not flip or retune; review.
+- [x] Add OFF identity and D1/D2 suppression tests before implementation.
+- [x] Implement C-owned MA trend semantics without reweighting thresholds.
+- [x] Run four-date OFF identity and the one-shot formal gate once.
+- [x] Record Candidate-gate-passed or Rejected; do not flip or retune; review.
 
 ### Task 7: Maintenance And Final Audit
 
 **Files:** modify `web/server.py`, IBKR/report writers, README/CONTRIBUTING and
 current status docs; add `.github/workflows/ci.yml` and focused tests.
 
-- [ ] Add tests for atomic auxiliary writes and absence of retired M4 handlers.
-- [ ] Remove unreachable M4 functions and migrate direct writes to safe I/O.
+- [x] Add tests for atomic auxiliary writes and absence of retired M4 handlers.
+- [x] Remove unreachable M4 functions and migrate direct writes to safe I/O.
 - [ ] Update current architecture/baseline docs and add minimal CI.
 - [ ] Run full pytest, governance, compileall, shell syntax, secret/live-data
   scan, and final diff review; present deployment decision without deploying.

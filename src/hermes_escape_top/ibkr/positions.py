@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from hermes_escape_top.core.safe_io import atomic_write_text
+
 _SNAPSHOT_PATH = (
     Path(__file__).resolve().parents[2] / "data" / "positions_cache.json"
 )
@@ -226,10 +228,7 @@ def _read_from_tws(ib: Any, config: Optional[Dict[str, Any]], client_id: int) ->
 
 
 def _save_snapshot(snap: PositionSnapshot) -> None:
-    _SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _SNAPSHOT_PATH.write_text(
-        json.dumps(snap.to_dict(), indent=2, default=str), encoding="utf-8"
-    )
+    atomic_write_text(_SNAPSHOT_PATH, json.dumps(snap.to_dict(), indent=2, default=str))
 
 
 DEMO_ACCOUNT_ID = "DEMO-MOCK"

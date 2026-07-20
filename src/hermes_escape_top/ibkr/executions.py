@@ -9,6 +9,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from hermes_escape_top.core.safe_io import atomic_write_text
+
 _CACHE_PATH = Path(__file__).resolve().parents[2] / "data" / "executions_cache.json"
 _DEFAULT_LOOKBACK_DAYS = 21
 _DEFAULT_CACHE_MAX_AGE_SECONDS = 6 * 60 * 60
@@ -160,8 +162,10 @@ def _exec_time(value: Any) -> str:
 
 
 def _save_cache(snapshot: ExecutionSnapshot) -> None:
-    _CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _CACHE_PATH.write_text(json.dumps(snapshot.to_dict(), ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    atomic_write_text(
+        _CACHE_PATH,
+        json.dumps(snapshot.to_dict(), ensure_ascii=False, indent=2, default=str),
+    )
 
 
 def _load_cache(error: Optional[str], max_age_seconds: float) -> ExecutionSnapshot:

@@ -3,6 +3,7 @@ import os
 import stat
 import threading
 import time
+from unittest import mock
 
 import pandas as pd
 import pytest
@@ -11,6 +12,7 @@ from hermes_escape_top.core.safe_io import (
     PipelineBusy,
     assert_pipeline_lease,
     atomic_write_csv,
+    atomic_write_text,
     pipeline_lock,
 )
 
@@ -107,6 +109,18 @@ def test_atomic_write_csv_preserves_existing_mode(tmp_path):
     atomic_write_csv(pd.DataFrame({"a": [2]}), path, index=False)
 
     assert stat.S_IMODE(path.stat().st_mode) == 0o644
+
+
+def test_atomic_write_text_keeps_old_file_when_replace_fails(tmp_path):
+    path = tmp_path / "report.json"
+    path.write_text("old\n", encoding="utf-8")
+
+    with mock.patch("hermes_escape_top.core.safe_io.os.replace", side_effect=OSError("replace failed")):
+        with pytest.raises(OSError, match="replace failed"):
+            atomic_write_text(path, "new\n")
+
+    assert path.read_text(encoding="utf-8") == "old\n"
+    assert not list(tmp_path.glob("*.tmp"))
 
 
 def _capture_lease_error(errors, lease, path):

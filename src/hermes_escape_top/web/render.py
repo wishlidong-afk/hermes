@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from ..core.data.external_sources.ledger import canonical_evidence_issue
 from ..core.data.external_sources.profiles import display_source_ids, profile_for
+from ..core.safe_io import atomic_write_text
 from ..core.scoring.explain_registry import explain_factor
 from ..core.scoring.module_a import module_a_factors
 from ..core.scoring.module_b import module_b_factors
@@ -64,12 +65,10 @@ RUNBOOK_REFS = {
 
 def render_dashboard(
     payload: Dict[str, Any],
-    shadow_status: Dict[str, Any] | None = None,
     manifest_status: Dict[str, Any] | None = None,
     health: Dict[str, Any] | None = None,
 ) -> str:
     """Render the package-engine dashboard using the new payload schema."""
-    shadow_status = shadow_status or {}
     manifest_status = manifest_status or {}
     health = health or {}
     as_of = str(payload.get("as_of", ""))
@@ -569,7 +568,7 @@ def render_dashboard(
 
     {_render_component_flow_section(payload)}
 
-    {_render_secondary_details(payload, shadow_status, manifest_status, health)}
+    {_render_secondary_details(payload)}
     {_render_bottom_system_ops_details(payload, manifest_status)}
 
   </div>
@@ -580,8 +579,7 @@ def render_dashboard(
 
 
 def write_dashboard(payload: Dict[str, Any], output_path: Path) -> Path:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(render_dashboard(payload), encoding="utf-8")
+    atomic_write_text(output_path, render_dashboard(payload))
     return output_path
 
 
@@ -1699,9 +1697,6 @@ def _render_escape_decisions_details(payload: Dict[str, Any]) -> str:
 
 def _render_secondary_details(
     payload: Dict[str, Any],
-    shadow_status: Dict[str, Any],
-    manifest_status: Dict[str, Any],
-    health: Dict[str, Any],
 ) -> str:
     return f"""
     <details class="full-detail-block">

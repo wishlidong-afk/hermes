@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from hermes_escape_top.config import CONFIG_PATH, load_config, resolve_path
-from hermes_escape_top.core.safe_io import assert_pipeline_lease, pipeline_lock
+from hermes_escape_top.core.safe_io import atomic_write_text, assert_pipeline_lease, pipeline_lock
 from hermes_escape_top.ibkr.positions import read_positions
 from hermes_escape_top.pipeline import _score_pipeline_locked
 
@@ -141,8 +141,11 @@ def _write_reports(payload: Dict[str, Any], config: Dict[str, Any]) -> Dict[str,
     as_of = str(payload.get("as_of", "unknown"))[:10]
     json_path = archive / f"ibkr_live_check_{as_of}_{stamp}.json"
     md_path = archive / f"ibkr_live_check_{as_of}_{stamp}.md"
-    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
-    md_path.write_text(_render_markdown(payload), encoding="utf-8")
+    atomic_write_text(
+        json_path,
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, default=str) + "\n",
+    )
+    atomic_write_text(md_path, _render_markdown(payload))
     return {"json": str(json_path), "markdown": str(md_path)}
 
 

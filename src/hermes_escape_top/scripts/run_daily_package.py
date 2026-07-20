@@ -101,7 +101,7 @@ from hermes_escape_top.core.data.market_admission import (
 )
 from hermes_escape_top.core.data.decision_as_of import last_bar_dates as decision_last_bar_dates
 from hermes_escape_top.core.data.store import LocalStore, safe_symbol
-from hermes_escape_top.core.safe_io import assert_pipeline_lease
+from hermes_escape_top.core.safe_io import atomic_write_text, assert_pipeline_lease
 from hermes_escape_top.core.reporting.system_health import (
     build_system_health_audit_dimensions as _build_system_health_audit_dimensions,
     factor_score_symbol_count as _factor_score_symbol_count,
@@ -749,10 +749,10 @@ def commit_state(translated: Dict[str, Any], as_of: str) -> Path:
     state["symbols"] = symbols
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
     path = _state_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=False) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    atomic_write_text(
+        path,
+        json.dumps(state, ensure_ascii=False, indent=2, sort_keys=False) + "\n",
+    )
     return path
 
 
@@ -872,9 +872,12 @@ def write_artifacts(translated: Dict[str, Any], orders: Dict[str, Any],
     order_path = order_dir / f"orders_preview_{as_of}.json"
     report_path = report_dir / f"daily_report_{as_of}.md"
 
-    score_path.write_text(json.dumps(translated, ensure_ascii=False, indent=2, sort_keys=False) + "\n", encoding="utf-8")
-    order_path.write_text(json.dumps(orders, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    report_path.write_text(_render_markdown(translated, as_of), encoding="utf-8")
+    atomic_write_text(
+        score_path,
+        json.dumps(translated, ensure_ascii=False, indent=2, sort_keys=False) + "\n",
+    )
+    atomic_write_text(order_path, json.dumps(orders, ensure_ascii=False, indent=2) + "\n")
+    atomic_write_text(report_path, _render_markdown(translated, as_of))
 
     mode = "shadow" if shadow else "LIVE"
     print(f"[M4-1] [{mode}] {score_path}")
@@ -1181,7 +1184,7 @@ def _post_run_diff(payload: Dict[str, Any], as_of: str, shadow: bool) -> None:
     out_dir = _artifact_root() / "reports" / ("shadow" if shadow else "")
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"daily_diff_{as_of}.md"
-    out_path.write_text("\n".join(md))
+    atomic_write_text(out_path, "\n".join(md))
     print(f"[M4-diff] written: {out_path}")
 
 
@@ -1396,34 +1399,7 @@ def _write_run_receipt(
 
 
 def _atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    try:
-        tmp.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
-        raise
-
-
-def _atomic_write_text(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    try:
-        tmp.write_text(text, encoding="utf-8")
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
-        raise
+    atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
 
 
 def _write_system_health_report(
@@ -1478,9 +1454,9 @@ def _write_system_health_report(
     run_md_path = run_dir / f"{run_stem}.md"
     markdown = _render_system_health_markdown(report)
     _atomic_write_json(run_json_path, report)
-    _atomic_write_text(run_md_path, markdown)
+    atomic_write_text(run_md_path, markdown)
     _atomic_write_json(json_path, report)
-    _atomic_write_text(md_path, markdown)
+    atomic_write_text(md_path, markdown)
     print(f"[health] written: {run_json_path}")
     print(f"[health] written: {run_md_path}")
     print(f"[health] written: {json_path}")
