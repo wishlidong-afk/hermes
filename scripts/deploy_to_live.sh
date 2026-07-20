@@ -551,7 +551,8 @@ sync_code() {
   local dst="${1:-$PKG}"
   rsync -a --checksum --delete \
     --exclude='/tests/' --exclude='/config/' --exclude='/data/' --exclude='/orders/' \
-    --include='*/' --include='*.py' --exclude='*' \
+    --include='*/' --include='*.py' \
+    --include='/governance/approved_live_config.json' --exclude='*' \
     "$REPO/src/hermes_escape_top/" "$dst/"
 }
 
@@ -650,89 +651,15 @@ stage_release() {
 
 generate_live_config_attestation() {
   local prior="$CURRENT/hermes_escape_top/LIVE_CONFIG_ATTESTATION.json"
-  "$PYTHON" - \
-    "$SHARED_PKG/config/config.json" \
-    "$REPO/src/hermes_escape_top/config/config.json" \
-    "$NEW_PKG/LIVE_CONFIG_ATTESTATION.json" \
-    "$prior" \
-    "$RELEASE_ID" \
-    "$HASH" <<'PY'
-import hashlib
-import json
-import os
-import sys
-from datetime import datetime, time, timedelta, timezone
-from pathlib import Path
-from zoneinfo import ZoneInfo
-
-live_path, repo_path, output_path, prior_path = map(Path, sys.argv[1:5])
-release_id, release_hash = sys.argv[5:7]
-
-live_bytes = live_path.read_bytes()
-repo_bytes = repo_path.read_bytes()
-live = json.loads(live_bytes)
-repo = json.loads(repo_bytes)
-live_features = live.get("features") or {}
-repo_features = repo.get("features") or {}
-if not isinstance(live_features, dict) or not isinstance(repo_features, dict):
-    raise ValueError("config features must be objects")
-
-feature_diff = {}
-for key in sorted(set(live_features) | set(repo_features)):
-    live_value = live_features.get(key, False)
-    repo_value = repo_features.get(key, False)
-    if not isinstance(live_value, bool) or not isinstance(repo_value, bool):
-        raise ValueError(f"feature {key} must be boolean")
-    if live_value != repo_value:
-        feature_diff[key] = {"live": live_value, "repo": repo_value}
-
-now = datetime.now(timezone.utc)
-generated_at = now.isoformat(timespec="seconds")
-prior = {}
-try:
-    prior = json.loads(prior_path.read_text(encoding="utf-8"))
-except (FileNotFoundError, json.JSONDecodeError, OSError):
-    pass
-active_since = str(prior.get("retention_policy_active_since") or generated_at)
-first_expected = str(prior.get("retention_first_expected_at") or "")
-if not first_expected:
-    local = now.astimezone(ZoneInfo("Asia/Shanghai"))
-    days_until_sunday = (6 - local.weekday()) % 7
-    candidate_day = local.date() + timedelta(days=days_until_sunday)
-    candidate = datetime.combine(
-        candidate_day,
-        time(8, 35),
-        tzinfo=ZoneInfo("Asia/Shanghai"),
-    )
-    if candidate <= local:
-        candidate += timedelta(days=7)
-    first_expected = candidate.isoformat(timespec="seconds")
-
-payload = {
-    "schema_version": "hermes-live-config-attestation-v1",
-    "generated_at": generated_at,
-    "release_id": release_id,
-    "release_hash": release_hash,
-    "live_config_sha256": hashlib.sha256(live_bytes).hexdigest(),
-    "repo_config_sha256": hashlib.sha256(repo_bytes).hexdigest(),
-    "feature_diff": feature_diff,
-    "live_enabled_features": sorted(
-        key for key, value in live_features.items() if value is True
-    ),
-    "retention_policy_active_since": active_since,
-    "retention_first_expected_at": first_expected,
-}
-output_path.parent.mkdir(parents=True, exist_ok=True)
-temp = output_path.with_name(f".{output_path.name}.{os.getpid()}.tmp")
-try:
-    temp.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    os.replace(temp, output_path)
-finally:
-    temp.unlink(missing_ok=True)
-PY
+  PYTHONPATH="$REPO/src" "$PYTHON" -m \
+    hermes_escape_top.governance.live_config_policy attest \
+    --live "$SHARED_PKG/config/config.json" \
+    --repo "$REPO/src/hermes_escape_top/config/config.json" \
+    --policy "$REPO/src/hermes_escape_top/governance/approved_live_config.json" \
+    --output "$NEW_PKG/LIVE_CONFIG_ATTESTATION.json" \
+    --prior "$prior" \
+    --release-id "$RELEASE_ID" \
+    --release-hash "$HASH"
 }
 
 sync_entries_legacy() {
@@ -800,6 +727,7 @@ deploy_git_pathspecs() {
     "skills/investment/escape-top/releases/$RELEASE_ID/hermes_escape_top/VERSION" \
     "skills/investment/escape-top/releases/$RELEASE_ID/hermes_escape_top/RUNTIME_LOCK_SHA256" \
     "skills/investment/escape-top/releases/$RELEASE_ID/hermes_escape_top/LIVE_CONFIG_ATTESTATION.json" \
+    "skills/investment/escape-top/releases/$RELEASE_ID/hermes_escape_top/governance/approved_live_config.json" \
     "skills/investment/escape-top/releases/$RELEASE_ID/hermes_escape_top/config" \
     "skills/investment/escape-top/releases/$RELEASE_ID/hermes_escape_top/data" \
     "skills/investment/escape-top/releases/$RELEASE_ID/data" \

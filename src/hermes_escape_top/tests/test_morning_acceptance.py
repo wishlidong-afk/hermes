@@ -19,6 +19,16 @@ EXPECTED_ARTIFACTS = (
 )
 
 
+def _semantic_sha256(value: object) -> str:
+    payload = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def _load_module():
     path = REPO_ROOT / "ops" / "morning_acceptance.py"
     spec = importlib.util.spec_from_file_location("hermes_morning_acceptance", path)
@@ -46,18 +56,48 @@ def _acceptance_fixture(tmp_path: Path) -> tuple[Path, datetime, dict]:
     archive.mkdir(parents=True)
     reports.mkdir(parents=True)
     (package / "VERSION").write_text("d9ec486 20260712_184620\n", encoding="utf-8")
-    _write_json(shared_config, {"features": {"use_market_admission_gate": True}})
+    repo_config = {
+        "features": {"use_market_admission_gate": False},
+        "ibkr": {"readonly": True},
+    }
+    live_config = {
+        "features": {"use_market_admission_gate": True},
+        "ibkr": {"readonly": True},
+    }
+    _write_json(shared_config, live_config)
+    policy_path = package / "governance/approved_live_config.json"
+    policy_validator = (
+        REPO_ROOT / "src/hermes_escape_top/governance/live_config_policy.py"
+    )
+    validator_target = package / "governance/live_config_policy.py"
+    validator_target.parent.mkdir(parents=True, exist_ok=True)
+    validator_target.write_bytes(policy_validator.read_bytes())
+    _write_json(
+        policy_path,
+        {
+            "schema_version": "hermes-approved-live-config-v1",
+            "repo_config_semantic_sha256": _semantic_sha256(repo_config),
+            "live_config_semantic_sha256": _semantic_sha256(live_config),
+            "approved_feature_diff": {
+                "use_market_admission_gate": {"repo": False, "live": True}
+            },
+            "required_values": {"ibkr.readonly": True},
+        },
+    )
     (package / "data").symlink_to(base / "shared/hermes_escape_top/data", target_is_directory=True)
     (package / "config").symlink_to(base / "shared/hermes_escape_top/config", target_is_directory=True)
     _write_json(
         package / "LIVE_CONFIG_ATTESTATION.json",
         {
-            "schema_version": "hermes-live-config-attestation-v1",
+            "schema_version": "hermes-live-config-attestation-v2",
             "generated_at": "2026-07-12T18:46:20+08:00",
             "release_id": release_name,
             "release_hash": "d9ec486",
             "live_config_sha256": hashlib.sha256(shared_config.read_bytes()).hexdigest(),
             "repo_config_sha256": "repo-config-hash",
+            "repo_config_semantic_sha256": _semantic_sha256(repo_config),
+            "live_config_semantic_sha256": _semantic_sha256(live_config),
+            "policy_sha256": hashlib.sha256(policy_path.read_bytes()).hexdigest(),
             "feature_diff": {"use_market_admission_gate": {"repo": False, "live": True}},
             "retention_policy_active_since": "2026-07-12T18:46:20+08:00",
             "retention_first_expected_at": "2026-07-19T08:35:00+08:00",
@@ -214,6 +254,64 @@ def test_clean_morning_acceptance_passes_with_visible_expected_warnings(tmp_path
     assert report["operational_observations"]["market_admission"]["consecutive_ok"] == 3
 
 
+def test_morning_acceptance_rejects_self_attested_unapproved_live_config(tmp_path):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    base = home / ".hermes/skills/investment/escape-top"
+    config_path = base / "current/hermes_escape_top/config/config.json"
+    attestation_path = base / "current/hermes_escape_top/LIVE_CONFIG_ATTESTATION.json"
+    live_config = json.loads(config_path.read_text(encoding="utf-8"))
+    live_config["features"]["rogue"] = True
+    _write_json(config_path, live_config)
+    attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+    attestation["live_config_sha256"] = hashlib.sha256(config_path.read_bytes()).hexdigest()
+    attestation["live_config_semantic_sha256"] = _semantic_sha256(live_config)
+    attestation["feature_diff"]["rogue"] = {"repo": False, "live": True}
+    _write_json(attestation_path, attestation)
+
+    report = module.collect_acceptance(
+        home=home,
+        now=now,
+        dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    release = next(row for row in report["checks"] if row["id"] == "release_identity")
+    assert release["status"] == "FAIL"
+    assert "policy" in release["detail"].lower()
+
+
+def test_legacy_release_without_policy_is_accepted_until_next_deploy(tmp_path):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    package = (
+        home
+        / ".hermes/skills/investment/escape-top/current/hermes_escape_top"
+    )
+    (package / "governance/approved_live_config.json").unlink()
+    (package / "governance/live_config_policy.py").unlink()
+    attestation_path = package / "LIVE_CONFIG_ATTESTATION.json"
+    attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+    attestation["schema_version"] = "hermes-live-config-attestation-v1"
+    for key in (
+        "policy_sha256",
+        "live_config_semantic_sha256",
+        "repo_config_semantic_sha256",
+    ):
+        attestation.pop(key, None)
+    _write_json(attestation_path, attestation)
+
+    report = module.collect_acceptance(
+        home=home,
+        now=now,
+        dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    release = next(row for row in report["checks"] if row["id"] == "release_identity")
+    assert release["status"] == "PASS"
+    assert "LEGACY_UNBOUND" in release["detail"]
+    assert report["release"]["policy_bound"] == "false"
+
+
 def test_retention_missing_warns_only_after_first_expected_window(tmp_path):
     module = _load_module()
     home, _now, _dashboard_health = _acceptance_fixture(tmp_path)
@@ -323,7 +421,7 @@ def test_live_config_hash_drift_fails_release_identity(tmp_path):
 
     row = next(item for item in report["checks"] if item["id"] == "release_identity")
     assert row["status"] == "FAIL"
-    assert "live config sha256" in row["detail"]
+    assert "not approved by policy" in row["detail"]
 
 
 def test_health_report_hash_mismatch_fails_acceptance(tmp_path):

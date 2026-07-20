@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import sys
@@ -196,8 +197,18 @@ def _collect_release(base: Path) -> Tuple[Dict[str, str], Dict[str, str]]:
             )
         attestation_path = current / "hermes_escape_top/LIVE_CONFIG_ATTESTATION.json"
         attestation = _read_json(attestation_path)
-        if attestation.get("schema_version") != "hermes-live-config-attestation-v1":
-            raise ValueError(f"invalid live config attestation: {attestation_path}")
+        policy_path = current / "hermes_escape_top/governance/approved_live_config.json"
+        policy_bound = policy_path.is_file()
+        expected_schema = (
+            "hermes-live-config-attestation-v2"
+            if policy_bound
+            else "hermes-live-config-attestation-v1"
+        )
+        if attestation.get("schema_version") != expected_schema:
+            raise ValueError(
+                f"invalid live config attestation for "
+                f"{'policy-bound' if policy_bound else 'legacy'} release: {attestation_path}"
+            )
         if str(attestation.get("release_id") or "") != release_name:
             raise ValueError(
                 f"attestation release {attestation.get('release_id')} does not match {release_name}"
@@ -207,6 +218,24 @@ def _collect_release(base: Path) -> Tuple[Dict[str, str], Dict[str, str]]:
                 f"attestation hash {attestation.get('release_hash')} does not match {version_hash}"
             )
         config_path = current / "hermes_escape_top/config/config.json"
+        if policy_bound:
+            validator_path = current / "hermes_escape_top/governance/live_config_policy.py"
+            validator_spec = importlib.util.spec_from_file_location(
+                f"hermes_live_config_policy_{release_name}",
+                validator_path,
+            )
+            if validator_spec is None or validator_spec.loader is None:
+                raise ValueError(f"live config policy validator missing: {validator_path}")
+            validator = importlib.util.module_from_spec(validator_spec)
+            validator_spec.loader.exec_module(validator)
+            live_config = _read_json(config_path)
+            policy = validator.load_policy(policy_path)
+            validator.validate_attestation(
+                live_config,
+                policy,
+                attestation,
+                policy_path=policy_path,
+            )
         observed_config_hash = hashlib.sha256(config_path.read_bytes()).hexdigest()
         attested_config_hash = str(attestation.get("live_config_sha256") or "")
         if observed_config_hash != attested_config_hash:
@@ -217,9 +246,15 @@ def _collect_release(base: Path) -> Tuple[Dict[str, str], Dict[str, str]]:
         feature_diff = attestation.get("feature_diff")
         if not isinstance(feature_diff, dict):
             raise ValueError("live config attestation feature_diff is not an object")
+        policy_detail = (
+            str(attestation.get("policy_sha256") or "")[:12]
+            if policy_bound
+            else "LEGACY_UNBOUND"
+        )
         detail = (
             f"{release_name} VERSION={version_hash} {version_stamp} "
-            f"config={observed_config_hash[:12]} feature_diff={len(feature_diff)}"
+            f"config={observed_config_hash[:12]} feature_diff={len(feature_diff)} "
+            f"policy={policy_detail}"
         )
         return _check("release_identity", "PASS", detail, attestation_path), {
             "name": release_name,
@@ -227,6 +262,7 @@ def _collect_release(base: Path) -> Tuple[Dict[str, str], Dict[str, str]]:
             "stamp": version_stamp,
             "live_config_sha256": observed_config_hash,
             "feature_diff_count": str(len(feature_diff)),
+            "policy_bound": str(policy_bound).lower(),
         }
     except Exception as exc:
         return _check("release_identity", "FAIL", str(exc), current), {}

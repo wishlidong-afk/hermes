@@ -44,6 +44,7 @@ def test_repository_governance_evidence_matches_config_and_baseline():
     assert report["checks"]["context_snapshot"] == "OK"
     assert report["checks"]["baseline_metadata"] == "OK"
     assert report["checks"]["factor_capacity"] == "OK"
+    assert report["checks"]["live_config_policy"] == "OK"
 
 
 def test_stale_baseline_requires_explicit_labels_in_both_docs(tmp_path):

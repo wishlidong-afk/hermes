@@ -143,6 +143,20 @@ def check_repository(root: Path) -> dict[str, Any]:
     else:
         checks["factor_capacity"] = "OK"
 
+    from hermes_escape_top.governance.live_config_policy import (
+        LiveConfigPolicyError,
+        load_policy,
+        validate_repository_policy,
+    )
+
+    policy_path = root / "src/hermes_escape_top/governance/approved_live_config.json"
+    try:
+        validate_repository_policy(config, load_policy(policy_path))
+        checks["live_config_policy"] = "OK"
+    except (LiveConfigPolicyError, OSError, ValueError) as exc:
+        checks["live_config_policy"] = "ERROR"
+        errors.append(f"live config policy: {exc}")
+
     return {
         "schema_version": "hermes-governance-check-v1",
         "ok": not errors,

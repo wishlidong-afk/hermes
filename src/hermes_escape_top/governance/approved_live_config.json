@@ -1,0 +1,29 @@
+{
+  "approved_at": "2026-07-20",
+  "approved_by": "human-approved-live-state-2026-07-20",
+  "approved_feature_diff": {
+    "use_btc_spot_witness": {
+      "live": true,
+      "repo": false
+    },
+    "use_cboe_official_indices": {
+      "live": true,
+      "repo": false
+    },
+    "use_market_admission_gate": {
+      "live": true,
+      "repo": false
+    }
+  },
+  "evidence": [
+    "docs/history/2026-07-14_market_admission_gate.md",
+    "docs/history/2026-07-14_cboe_official_indices.md",
+    "building/reports/data_quality/btc_spot_witness_off_equivalence_2026_07_14.json"
+  ],
+  "live_config_semantic_sha256": "c6060e55825f85462e2a8d567d8a6c2b20a771c40884ea721b8f23f730b704f9",
+  "repo_config_semantic_sha256": "25d01207a266b9443d4c64f70dc5e7b95c25a55fa88fa46fe949c22fc492e68d",
+  "required_values": {
+    "ibkr.readonly": true
+  },
+  "schema_version": "hermes-approved-live-config-v1"
+}

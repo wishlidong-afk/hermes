@@ -17,6 +17,40 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy_to_live.sh"
 
 
+def _semantic_sha256(value: object) -> str:
+    payload = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _write_live_config_policy(
+    repo: Path,
+    *,
+    repo_config: dict,
+    live_config: dict,
+    approved_feature_diff: dict | None = None,
+) -> None:
+    _write(
+        repo / "src/hermes_escape_top/governance/approved_live_config.json",
+        json.dumps(
+            {
+                "schema_version": "hermes-approved-live-config-v1",
+                "repo_config_semantic_sha256": _semantic_sha256(repo_config),
+                "live_config_semantic_sha256": _semantic_sha256(live_config),
+                "approved_feature_diff": approved_feature_diff or {},
+                "required_values": {"ibkr.readonly": True},
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+    )
+
+
 def _write(path: Path, content: str, mode: int = 0o644) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
@@ -74,7 +108,25 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(repo / "src/hermes_escape_top/core/keep.py", "VALUE = 'new'\n")
     _write(repo / "src/hermes_escape_top/core/added.py", "ADDED = True\n")
     _write(repo / "src/hermes_escape_top/core/data/keep.py", "DATA_CODE = True\n")
-    _write(repo / "src/hermes_escape_top/config/config.json", "{}\n")
+    repo_config = {"features": {}, "ibkr": {"readonly": True}}
+    live_config = {"features": {}, "ibkr": {"readonly": True}}
+    _write(
+        repo / "src/hermes_escape_top/config/config.json",
+        json.dumps(repo_config) + "\n",
+    )
+    _write_live_config_policy(
+        repo,
+        repo_config=repo_config,
+        live_config=live_config,
+    )
+    validator_source = (
+        REPO_ROOT / "src/hermes_escape_top/governance/live_config_policy.py"
+    )
+    _write(
+        repo / "src/hermes_escape_top/governance/live_config_policy.py",
+        validator_source.read_text(encoding="utf-8"),
+    )
+    _write(repo / "src/hermes_escape_top/governance/__init__.py", "\n")
     _write(repo / "src/hermes_escape_top/data/soft_history/source.csv", "date,value\n2026-06-18,2\n")
     _write(repo / "requirements.lock", "numpy==2.0.2 --hash=sha256:fixture\n")
     _write(repo / "ops/run_daily.sh", "#!/bin/sh\nexit 0\n", 0o755)
@@ -90,7 +142,11 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
 
     _write(package / "core/keep.py", "VALUE = 'old'\n", 0o640)
     _write(package / "core/removed.py", "REMOVED = True\n", 0o600)
-    _write(package / "config/config.json", "{}\n", 0o640)
+    _write(
+        package / "config/config.json",
+        json.dumps(live_config) + "\n",
+        0o640,
+    )
     _write(package / "data/soft_history/runtime.csv", "date,value\n2026-06-17,1\n", 0o600)
     # S8 regression guard: a .py under data/ and config/ must NOT reach the .hermes
     # commit even with `git add -f` — the :(exclude) pathspecs keep them out.
@@ -201,7 +257,11 @@ def _promote_fixture_to_existing_r6(fixture: dict[str, object]) -> Path:
     shared = live / "shared/hermes_escape_top"
     _write(shared / "data/archive/.pipeline.lock", "", 0o644)
     _write(shared / "data/soft_history/runtime.csv", "date,value\n2026-06-17,1\n", 0o600)
-    _write(shared / "config/config.json", "{}\n", 0o640)
+    _write(
+        shared / "config/config.json",
+        (Path(fixture["package"]) / "config/config.json").read_text(encoding="utf-8"),
+        0o640,
+    )
 
     old_release = live / "releases/old_release"
     old_package = old_release / "hermes_escape_top"
@@ -349,7 +409,7 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
     attestation_path = release / "hermes_escape_top/LIVE_CONFIG_ATTESTATION.json"
     assert attestation_path.is_file()
     attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
-    assert attestation["schema_version"] == "hermes-live-config-attestation-v1"
+    assert attestation["schema_version"] == "hermes-live-config-attestation-v2"
     assert attestation["release_hash"] == release.name.split("_", 1)[0]
     assert attestation["live_config_sha256"] == hashlib.sha256(
         (release / "hermes_escape_top/config/config.json").read_bytes()
@@ -385,6 +445,9 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         f"{release_prefix}/hermes_escape_top/VERSION",
         f"{release_prefix}/hermes_escape_top/RUNTIME_LOCK_SHA256",
         f"{release_prefix}/hermes_escape_top/LIVE_CONFIG_ATTESTATION.json",
+        f"{release_prefix}/hermes_escape_top/governance/approved_live_config.json",
+        f"{release_prefix}/hermes_escape_top/governance/__init__.py",
+        f"{release_prefix}/hermes_escape_top/governance/live_config_policy.py",
         f"{release_prefix}/hermes_escape_top/core/added.py",
         f"{release_prefix}/hermes_escape_top/core/data/keep.py",
         f"{release_prefix}/hermes_escape_top/core/keep.py",
@@ -435,10 +498,12 @@ def test_live_config_attestation_contains_only_hashes_and_boolean_feature_diff(
     repo_config = {
         "features": {"use_market_admission_gate": False, "repo_only": True},
         "fred": {"api_key": "repo-secret"},
+        "ibkr": {"readonly": True},
     }
     live_config = {
         "features": {"use_market_admission_gate": True, "live_only": True},
         "fred": {"api_key": "live-secret"},
+        "ibkr": {"readonly": True},
     }
     _write(
         Path(deploy_fixture["repo"]) / "src/hermes_escape_top/config/config.json",
@@ -448,6 +513,16 @@ def test_live_config_attestation_contains_only_hashes_and_boolean_feature_diff(
         Path(deploy_fixture["package"]) / "config/config.json",
         json.dumps(live_config) + "\n",
         0o640,
+    )
+    _write_live_config_policy(
+        Path(deploy_fixture["repo"]),
+        repo_config=repo_config,
+        live_config=live_config,
+        approved_feature_diff={
+            "live_only": {"live": True, "repo": False},
+            "repo_only": {"live": False, "repo": True},
+            "use_market_admission_gate": {"live": True, "repo": False},
+        },
     )
 
     result = _run(deploy_fixture)
@@ -466,6 +541,42 @@ def test_live_config_attestation_contains_only_hashes_and_boolean_feature_diff(
     }
     assert payload["retention_policy_active_since"]
     assert payload["retention_first_expected_at"]
+    assert payload["policy_sha256"] == hashlib.sha256(
+        (
+            Path(deploy_fixture["repo"])
+            / "src/hermes_escape_top/governance/approved_live_config.json"
+        ).read_bytes()
+    ).hexdigest()
+
+
+def test_deploy_rejects_live_config_not_approved_by_repository_policy(
+    deploy_fixture: dict[str, object],
+) -> None:
+    repo = Path(deploy_fixture["repo"])
+    package = Path(deploy_fixture["package"])
+    repo_config = {"features": {"rogue": False}, "ibkr": {"readonly": True}}
+    unapproved_live = {"features": {"rogue": True}, "ibkr": {"readonly": True}}
+    approved_live = {"features": {"rogue": False}, "ibkr": {"readonly": True}}
+    _write(
+        repo / "src/hermes_escape_top/config/config.json",
+        json.dumps(repo_config) + "\n",
+    )
+    _write(
+        package / "config/config.json",
+        json.dumps(unapproved_live) + "\n",
+        0o640,
+    )
+    _write_live_config_policy(
+        repo,
+        repo_config=repo_config,
+        live_config=approved_live,
+    )
+
+    result = _run(deploy_fixture)
+
+    assert result.returncode != 0
+    assert "live config policy" in (result.stdout + result.stderr).lower()
+    assert "deploy OK" not in result.stdout + result.stderr
 
 
 def test_existing_r6_success_switches_current_and_preserves_old_as_previous(
