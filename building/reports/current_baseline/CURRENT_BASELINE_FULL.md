@@ -1,10 +1,10 @@
 # Current Baseline Full Source
 
 Evidence schema: `current-baseline-source-v1`
-Commit: `b515f98b17dbf6061964048ba806877a5209a5d1`
+Commit: `cf7e1a16e13e085a36d25ce66b1d5dbb32ab3465`
 Window: `2018-01-02` to `2026-07-14`
 Requested window: `2018-01-01` to `2026-07-14`
-Manifest: `24cf3da83b7fc6fb09d17546922d1d3d4d7ec874f84cbf4b75119739dafe54bc`
+Manifest: `ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f`
 Config source: `/Users/liweishi/.hermes/skills/investment/escape-top/shared/hermes_escape_top/config/config.json`
 Config snapshot: `CURRENT_BASELINE_CONFIG.json`
 Authorization: `NO_CONFIG_FLIP`

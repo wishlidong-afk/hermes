@@ -98,6 +98,7 @@ class NaaimExposureAdapter:
         if not xlsx:
             raise ValueError("downloaded empty NAAIM xlsx")
         return {
+            "source": "naaim_public_workbook",
             "index_url": _evidence_url(urlparse(self.index_url)),
             "xlsx_url": _evidence_url(urlparse(xlsx_url)),
             "xlsx_sha256": hashlib.sha256(xlsx).hexdigest(),

@@ -13,6 +13,7 @@ from ..core.scoring.module_a import module_a_factors
 from ..core.scoring.module_b import module_b_factors
 from ..core.scoring.module_c import module_c_factors
 from ..core.scoring.module_d import module_d_factors
+from .external_source_view import external_reliability_text
 
 
 TRADE_SYMBOLS = ["MSTR", "FNGU", "SOXL"]
@@ -3621,7 +3622,7 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
         rows.append(
             "<tr>"
             f"<td><b>{esc(source_id)}</b><div class='subtle'>{esc(EXTERNAL_SOURCE_LABELS.get(source_id, 'External source'))}</div>"
-            f"<div class='subtle'>{esc(_external_reliability_text(row or {}))}</div></td>"
+            f"<div class='subtle'>{esc(external_reliability_text(row or {}))}</div></td>"
             f"<td>{_external_source_status_badge(evidence or status)} {_external_migration_badge((row or {}).get('migration_status'))}</td>"
             f"<td>{esc(str(latest)[:10])}</td>"
             f"<td><span class='subtle'>{esc(str(run_time))}</span></td>"
@@ -3751,54 +3752,6 @@ def _external_source_status_badge(status: str) -> str:
     else:
         kind = "warn"
     return _badge(upper, kind)
-
-
-def _external_reliability_text(row: Dict[str, Any]) -> str:
-    rate_30 = row.get("success_rate_30d")
-    rate_90 = row.get("success_rate_90d")
-    samples = int(row.get("samples_30d") or 0)
-    failures = int(row.get("consecutive_failures") or 0)
-    if rate_30 is None and rate_90 is None:
-        return "可靠性：尚无日级样本"
-    parts = [
-        f"30d {_fmt_num(rate_30)}% (n={samples})",
-        f"90d {_fmt_num(rate_90)}%",
-        f"连续失败 {failures}",
-    ]
-    channel = str(row.get("latest_source_channel") or "").strip()
-    if channel:
-        parts.append(f"渠道 {channel}")
-    rescues = int(row.get("fallback_rescues_7d") or 0)
-    if rescues:
-        parts.append(f"7d fallback 救回 {rescues}")
-    primary_rate = row.get("primary_success_rate_30d")
-    if primary_rate is not None:
-        parts.append(f"主源 30d {_fmt_num(primary_rate)}%")
-    stages = row.get("stage_reliability")
-    if isinstance(stages, dict):
-        labels = (("transport", "T"), ("parse", "P"), ("validation", "V"), ("promotion", "R"))
-        stage_parts = []
-        for stage, label in labels:
-            metrics = stages.get(stage)
-            if not isinstance(metrics, dict) or metrics.get("success_rate_30d") is None:
-                continue
-            stage_parts.append(
-                f"{label}{_fmt_num(metrics.get('success_rate_30d'))}"
-                f"(n={int(metrics.get('samples_30d') or 0)})"
-            )
-        if stage_parts:
-            parts.append("四段 " + "/".join(stage_parts))
-    advancement_rate = row.get("advancement_rate_30d")
-    if advancement_rate is not None:
-        parts.append(
-            f"推进 {_fmt_num(advancement_rate)}% "
-            f"(n={int(row.get('advancement_samples_30d') or 0)})"
-        )
-    expected_date = str(row.get("latest_expected_release_date") or "").strip()
-    expected_status = str(row.get("latest_expected_release_status") or "").strip()
-    if expected_date and expected_status:
-        parts.append(f"应发 {expected_date} {expected_status}")
-    return " · ".join(parts)
 
 
 def _external_migration_badge(status: Any) -> str:

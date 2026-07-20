@@ -261,6 +261,18 @@ def test_naaim_public_parse_error_raw_evidence_redacts_signed_url(tmp_path):
     assert "https://www.naaim.org/data/latest.xlsx" in persisted
 
 
+def test_naaim_public_adapter_identifies_automatic_official_channel():
+    xlsx_url = "https://www.naaim.org/data/USE_Data-since-Inception_2026-07-15.xlsx"
+    adapter = NaaimExposureAdapter(
+        fetch_text=lambda _url: f'<a href="{xlsx_url}">xlsx</a>',
+        fetch_bytes=lambda _url: _naaim_xlsx(),
+    )
+
+    raw = adapter.fetch_raw()
+
+    assert raw["source"] == "naaim_public_workbook"
+
+
 def test_naaim_subscriber_adapter_rejects_non_naaim_credential_target():
     adapter = NaaimSubscriberAdapter(
         download_url="https://example.com/latest.xlsx",

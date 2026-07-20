@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import gzip
+import hashlib
 import json
 import re
 import sys
@@ -127,11 +129,19 @@ def check_repository(root: Path) -> dict[str, Any]:
         checks["context_snapshot"] = "OK"
 
     baseline_errors = _baseline_errors(baseline, baseline_doc_path, gate_doc_path)
+    baseline_errors.extend(_baseline_source_errors(root))
     if baseline_errors:
         checks["baseline_metadata"] = "ERROR"
         errors.extend(f"baseline: {message}" for message in baseline_errors)
     else:
         checks["baseline_metadata"] = "OK"
+
+    factor_capacity_errors = _factor_capacity_errors(root, config)
+    if factor_capacity_errors:
+        checks["factor_capacity"] = "ERROR"
+        errors.extend(f"factor capacity: {message}" for message in factor_capacity_errors)
+    else:
+        checks["factor_capacity"] = "OK"
 
     return {
         "schema_version": "hermes-governance-check-v1",
@@ -173,6 +183,59 @@ def _baseline_errors(baseline: dict[str, Any], baseline_doc_path: Path, gate_doc
             if expected not in text:
                 errors.append(f"{path.name} missing {expected}")
     return errors
+
+
+def _baseline_source_errors(root: Path) -> list[str]:
+    artifact_dir = Path(root) / "building" / "reports" / "current_baseline"
+    timing_path = artifact_dir / "execution_timing" / "EXECUTION_TIMING_SENSITIVITY.json"
+    if not timing_path.exists():
+        return [f"missing execution timing source metadata: {timing_path}"]
+    try:
+        timing = json.loads(timing_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"execution timing source metadata unreadable: {exc}"]
+    expected_sha = str((timing.get("source") or {}).get("sha256") or "")
+    if not re.fullmatch(r"[0-9a-f]{64}", expected_sha):
+        return ["execution timing source sha256 is missing or invalid"]
+
+    raw_path = artifact_dir / "CURRENT_BASELINE_FULL.json"
+    archive_path = artifact_dir / "CURRENT_BASELINE_FULL.json.gz"
+    candidates: list[tuple[str, bytes]] = []
+    if raw_path.exists():
+        try:
+            candidates.append((raw_path.name, raw_path.read_bytes()))
+        except OSError as exc:
+            return [f"full provenance source unreadable: {exc}"]
+    if archive_path.exists():
+        try:
+            candidates.append((archive_path.name, gzip.decompress(archive_path.read_bytes())))
+        except (OSError, EOFError) as exc:
+            return [f"compressed full provenance source unreadable: {exc}"]
+    if not candidates:
+        return [f"missing full provenance source: {raw_path.name} or {archive_path.name}"]
+
+    errors = []
+    for name, payload in candidates:
+        actual_sha = hashlib.sha256(payload).hexdigest()
+        if actual_sha != expected_sha:
+            errors.append(f"{name} sha256 mismatch: {actual_sha} != {expected_sha}")
+    return errors
+
+
+def _factor_capacity_errors(root: Path, config: dict[str, Any]) -> list[str]:
+    from hermes_escape_top.core.scoring.capacity import factor_capacity_inventory
+
+    path = Path(root) / "building/reports/factor_capacity/FACTOR_CAPACITY_INVENTORY.json"
+    if not path.exists():
+        return [f"missing generated inventory: {path}"]
+    try:
+        actual = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"generated inventory unreadable: {exc}"]
+    expected = factor_capacity_inventory(config)
+    if actual != expected:
+        return ["generated inventory differs from current scoring definitions/config"]
+    return []
 
 
 def _ensure_src(root: Path) -> None:

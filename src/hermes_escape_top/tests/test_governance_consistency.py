@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
+import gzip
+import hashlib
+import json
 import sys
 from pathlib import Path
 
@@ -40,6 +43,7 @@ def test_repository_governance_evidence_matches_config_and_baseline():
     assert report["checks"]["flag_registry"] == "OK"
     assert report["checks"]["context_snapshot"] == "OK"
     assert report["checks"]["baseline_metadata"] == "OK"
+    assert report["checks"]["factor_capacity"] == "OK"
 
 
 def test_stale_baseline_requires_explicit_labels_in_both_docs(tmp_path):
@@ -68,3 +72,50 @@ def test_stale_baseline_requires_explicit_labels_in_both_docs(tmp_path):
             encoding="utf-8",
         )
     assert module._baseline_errors(baseline, baseline_doc, gate_doc) == []
+
+
+def test_baseline_source_evidence_accepts_matching_deterministic_archive(tmp_path):
+    module = _module()
+    source = b'{"rows":[{"as_of":"2026-07-14"}]}\n'
+    artifact_dir = tmp_path / "building" / "reports" / "current_baseline"
+    timing_dir = artifact_dir / "execution_timing"
+    timing_dir.mkdir(parents=True)
+    (artifact_dir / "CURRENT_BASELINE_FULL.json.gz").write_bytes(gzip.compress(source, mtime=0))
+    (timing_dir / "EXECUTION_TIMING_SENSITIVITY.json").write_text(
+        json.dumps({"source": {"sha256": hashlib.sha256(source).hexdigest()}}),
+        encoding="utf-8",
+    )
+
+    assert module._baseline_source_errors(tmp_path) == []
+
+
+def test_baseline_source_evidence_rejects_missing_or_mismatched_archive(tmp_path):
+    module = _module()
+    artifact_dir = tmp_path / "building" / "reports" / "current_baseline"
+    timing_dir = artifact_dir / "execution_timing"
+    timing_dir.mkdir(parents=True)
+    (timing_dir / "EXECUTION_TIMING_SENSITIVITY.json").write_text(
+        json.dumps({"source": {"sha256": "a" * 64}}),
+        encoding="utf-8",
+    )
+
+    errors = module._baseline_source_errors(tmp_path)
+    assert any("missing full provenance source" in error for error in errors)
+
+    (artifact_dir / "CURRENT_BASELINE_FULL.json.gz").write_bytes(gzip.compress(b"wrong", mtime=0))
+    errors = module._baseline_source_errors(tmp_path)
+    assert any("sha256 mismatch" in error for error in errors)
+
+
+def test_factor_capacity_governance_rejects_missing_or_stale_artifact(tmp_path):
+    module = _module()
+    config = {"module_caps": {"A": 20}, "features": {}, "symbols": {}}
+
+    errors = module._factor_capacity_errors(tmp_path, config)
+    assert any("missing" in error for error in errors)
+
+    path = tmp_path / "building/reports/factor_capacity/FACTOR_CAPACITY_INVENTORY.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"schema_version": "stale"}), encoding="utf-8")
+    errors = module._factor_capacity_errors(tmp_path, config)
+    assert any("differs" in error for error in errors)

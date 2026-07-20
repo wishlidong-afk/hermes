@@ -7,7 +7,7 @@
     "effective_end": "2026-07-14",
     "equity_timing": "next_open",
     "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
-    "git_commit": "b515f98b17dbf6061964048ba806877a5209a5d1"
+    "git_commit": "cf7e1a16e13e085a36d25ce66b1d5dbb32ab3465"
   },
   "config_version": "escape-top-v3.0-greenfield",
   "disabled_features": [
@@ -159,21 +159,21 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 
 | 源 | canonical | 生产入口 | PIT/可见时间 | 运维边界 |
 |---|---|---|---|---|
-| `dollar` / `real_rate` / `fred_net_liquidity` | production legacy `*.csv`；research-only 独立 `*_vintage.csv` | 默认 FRED API/Graph CSV；研究路径为 ALFRED exact vintage event store | 生产观测日 `+1d`；研究路径为真实 `realtime_start` | `fred-vintage-pit-v1` 已正式拒绝，生产 flag 保持 OFF；exact 路径无 key 失败并保留旧认证数据；Dollar 官方 vintage 仅从 2019-02 起可用 |
+| `dollar` / `real_rate` / `fred_net_liquidity` | production legacy `*.csv`；research-only 独立 `*_vintage.csv` | 默认 FRED API/Graph CSV；Dollar 的 DTWEXBGS 额外由 Federal Reserve Board H.10 同序列见证；研究路径为 ALFRED exact vintage event store | 生产观测日 `+1d`；研究路径为真实 `realtime_start` | Dollar 两条官方路径日期/值不一致或任一路径不可用时冻结旧 canonical；`fred-vintage-pit-v1` 已拒绝，生产 flag 保持 OFF |
 | `cboe_equity_pcr` | `soft_history/cboe_equity_pcr.csv` | CBOE daily HTML | 观测日 `+1d` | 解析/比率校验失败时保留上一份 canonical |
 | `cboe_vix` / `cboe_vix3m` / `cboe_vix9d` / `cboe_skew` / `cboe_vvix` | `history/_VIX*.csv` / `_SKEW.csv` / `_VVIX.csv` | CBOE official daily history CSV；Yahoo witness-only | 仅已完成美股交易日；未见证尾部不晋升 | 2026-07-14 live 已开启，repo 默认 OFF；`backfill()` 内层禁止 Yahoo 双写，截断/缺日/证据漂移保留旧 canonical |
 | `cot_nq` | `soft_history/cot_nq.csv` | CFTC public API | 周二观测、周五公开 | flag OFF 时不影响生产健康/决策覆盖 |
 | `occ_equity_pcr` | `soft_history/occ_equity_pcr.csv` | OCC weekly report | 周五 week-ending、周六公开 | 当前 inactive，只做迁移/替代源证据 |
 | `btc_funding_basis` | `soft_history/btc_funding_basis.csv` | Deribit，OKX fallback | 交易所 UTC 时间戳归日 | 增量刷新不再把历史 real 行降成 proxy |
 | `btc_spot_witness` | `history/BTC_USD.csv` 的准入证据 | Coinbase Exchange public BTC-USD 1D candles；Yahoo 仍是候选 writer | 仅完成的 UTC 日；日期相同且 close 差异 <=1% 才晋升 | live 自 2026-07-14 为 ON（repo 默认 OFF）；缺失/失配冻结旧 canonical，成交量口径不参与判断 |
-| `naaim_exposure` | `soft_history/naaim_exposure.csv` | 官方 XLSX / official-file import | issue `+1d` | 2026-08-01 迁移截止；订阅/会话是人工责任 |
+| `naaim_exposure` | `soft_history/naaim_exposure.csv` | 官方公共 XLSX；可配置订阅 XLSX；official-file import 兜底 | issue `+1d` | ledger 显式记录通道；订阅成功立即标记 ready，公共通道只有在 2026-08-01 后仍有成功证据才解除迁移告警，人工文件只算 fallback |
 | `aaii_sentiment` | `soft_history/aaii_sentiment.csv` | AAII 结果页 → AAII 官方 Insights RSS → official-file import | 结果页按 reported `+1d`；RSS 只按自身 artifact `pubDate` 可用，不向前回填 | Imperva 不再是自动化单点；RSS 可能比结果页晚约 2 天，两条官方发布面均失败时才需人工文件 |
 
 - 06:45 全量预检，07:05 只重试当日失败/证据未就绪的源，07:10 daily 优先复用当日完整 ledger，不连续重打限流源。
 - 所有外部软数据先写 raw/staging，通过 schema + semantic validation 后才原子晋升；成功 ledger 绑定 canonical SHA-256、最新日期、来源 URL 和 PIT 规则。
 - canonical 字节与最新成功 ledger 不一致时显示 `EVIDENCE_DRIFT`，不会把人工改写重新认证为 OK。
 - AAII 结果页受阻时自动切换官方 Insights RSS，ledger 记录实际 URL 与 XML 指纹；AAII/NAAIM 下载文件按 SHA-256 去重，已消费或已失败的旧文件不会在每次预检被当成新候选。
-- 可靠性按 `Asia/Shanghai` 自然日去重；同日失败后重试成功只算一个成功日，避免重试次数虚增成功率。
+- 可靠性按 `Asia/Shanghai` 自然日去重；同日失败后重试成功只算一个成功日，避免重试次数虚增成功率。transport/parse/validation/promotion 中 `promotion=UNCHANGED` 是成功检查而不是失败；任何 30/90 日比率在样本少于 5 时显示 `INSUFFICIENT_EVIDENCE`，不把 0%/100% 冒充稳定统计。
 - Alpaca SIP 见证只对比 Yahoo/local canonical 的最近 OHLCV，写 `market_witness_*.json`；`NO_WITNESS`/`FETCH_ERROR` 不改评分、不改 `input_hash`。
 - Coinbase BTC 见证属于 canonical admission 而非评分因子：0.5%-1.0% close 差异标黄但可晋升，>1.0% 或缺日冻结旧值；当前 UTC 日延后且不制造健康红灯。
 
@@ -208,12 +208,14 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 
 模块 cap：
 
-| 模块 | cap | 含义 |
-|---|---:|---|
-| A | 20 | 宏观、流动性、市场广度、情绪 |
-| B | 25 名义 / 21 当前可达 | 标的过热、估值、期权压力；B5 stub，MSTR B6 默认 OFF |
-| C | 35 | 趋势破坏、急跌、支撑破坏、分布压力 |
-| D | 20 | 标的自身、雷达、BTC/底层股票穿透风险 |
+| 模块 | cap | 当前代码定义 / 可达容量 | 含义 |
+|---|---:|---|---|
+| A | 20 | 50 / 50，超过 cap 的 30 分会被截断 | 宏观、流动性、市场广度、情绪 |
+| B | 25 | 定义 26；MSTR 可达 21，FNGU/SOXL 可达 26 后截为 25 | 标的过热、估值、期权压力；B5 是 0 分 placeholder，MSTR B6 默认 OFF |
+| C | 35 | 36 / 36，超过 cap 的 1 分会被截断 | 趋势破坏、急跌、支撑破坏、分布压力 |
+| D | 20 | 20 / 20 | 标的自身、雷达、BTC/底层股票穿透风险 |
+
+机器生成的逐标的、逐因子 SSOT：`building/reports/factor_capacity/FACTOR_CAPACITY_INVENTORY.md`。治理检查会在因子定义、flag 或 cap 改变但清单未再生时失败；不要再手算 B 的“16/21/25/26”。
 
 `features.use_regime_multipliers=true` 时，`scorer.py` 会按 regime 调整模块权重。该 flag 默认 ON 是为了匹配 2026-06-10 前的无条件行为。
 
@@ -359,7 +361,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 11. 当前性能基线
 
-> **CURRENT EXECUTION EVIDENCE：**baseline 绑定 gate-code commit `b515f98`、已提交的有效 live-config 快照、当前 history manifest 与 soft-history 指纹；可作为预注册 formal gate 的 next-open 对照，但不授权任何配置翻闸。
+> **CURRENT EXECUTION EVIDENCE：**baseline 绑定 gate-code commit `cf7e1a1`、已提交的有效 live-config 快照、当前 history manifest 与 soft-history 指纹；可作为预注册 formal gate 的 next-open 对照，但不授权任何配置翻闸。完整来源以确定性 gzip 归档，治理检查会核对解压后 SHA-256。
 
 | 当前场景 | CAGR | MaxDD | Sharpe | 定位 |
 |---|---:|---:|---:|---|

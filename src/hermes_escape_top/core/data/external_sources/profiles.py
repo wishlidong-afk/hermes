@@ -120,8 +120,8 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         cadence="weekly",
         max_age_days=10,
         warn_age_days=8,
-        primary="FRED DTWEXBGS API",
-        fallback="rerun FRED external source",
+        primary="FRED DTWEXBGS API cross-checked against Federal Reserve Board H.10",
+        fallback="freeze last certified Dollar canonical when either official path disagrees or is unavailable",
         feature_flag="data_dollar",
         decision_weight=4.0,
         pit_rule="observation_date_plus_one_day",
@@ -464,6 +464,7 @@ def enrich_source_status(
     out["freshness_status"] = _freshness_status(age_days, profile)
     out["failure_kind"] = _failure_kind(row)
     out["official_artifact_ready"] = bool(official_artifact_ready)
+    out["migration_readiness"] = _migration_readiness(out, profile)
     out["migration_status"] = _migration_status(
         out,
         profile,
@@ -547,7 +548,15 @@ def _migration_status(
             deadline = date.fromisoformat(profile.migration_deadline)
         except ValueError:
             deadline = today
-        return "MIGRATION_DUE" if today <= deadline else "ACTION_REQUIRED"
+        readiness = str(row.get("migration_readiness") or "")
+        if readiness == "AUTOMATIC_PRIMARY":
+            return "SUBSCRIBER_READY"
+        if today <= deadline:
+            return "MIGRATION_DUE"
+        checked = _date_from_timestamp(row.get("finished_at") or row.get("latest_finished_at"))
+        if readiness == "AUTOMATIC_PUBLIC" and checked is not None and checked > deadline:
+            return "PUBLIC_OFFICIAL_STABLE"
+        return "ACTION_REQUIRED"
     if profile.source_id == "aaii_sentiment":
         if row.get("official_artifact_ready"):
             return "OFFICIAL_FILE_READY"
@@ -555,6 +564,30 @@ def _migration_status(
             return "ACTION_REQUIRED"
         return "MONITORED"
     return "STABLE"
+
+
+def _migration_readiness(
+    row: dict[str, Any],
+    profile: ExternalSourceProfile,
+) -> str:
+    if profile.source_id != "naaim_exposure":
+        return "NOT_APPLICABLE"
+    if str(row.get("status") or "").upper() != "OK":
+        return "NOT_EVIDENCED"
+    if str(row.get("freshness_status") or "") in {"STALE", "UNKNOWN"}:
+        return "NOT_EVIDENCED"
+    channel = str(
+        row.get("latest_source_channel")
+        or row.get("source_channel")
+        or ""
+    )
+    if channel == "naaim_subscriber":
+        return "AUTOMATIC_PRIMARY"
+    if channel == "naaim_public_workbook":
+        return "AUTOMATIC_PUBLIC"
+    if channel == "manual_official_file":
+        return "MANUAL_FALLBACK"
+    return "NOT_EVIDENCED"
 
 
 def _date_from_timestamp(value: Any) -> date | None:
@@ -570,6 +603,10 @@ def _next_action(row: dict[str, Any], profile: ExternalSourceProfile) -> str:
         return "download the current official sentiment file and import it through ExternalSourceRunner"
     if migration == "ACTION_REQUIRED" and source_id == "naaim_exposure":
         return "NAAIM migration deadline passed; verify official workbook access and import the current issue"
+    if migration == "SUBSCRIBER_READY":
+        return "NAAIM subscriber workbook is certified; monitor weekly automatic refresh"
+    if migration == "PUBLIC_OFFICIAL_STABLE":
+        return "NAAIM public official workbook remains automated after the migration deadline; retain import fallback"
     if migration == "OFFICIAL_FILE_READY":
         return f"validate and import the staged official file for {source_id}"
     if str(row.get("publisher_status") or "") == "UNCHANGED_AFTER_REFRESH":

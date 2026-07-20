@@ -270,7 +270,7 @@ def test_source_reliability_reports_stage_rates_recovery_and_advancement(tmp_pat
         transport_status="OK",
         parse_status="OK",
         validation_status="OK",
-        promotion_status="OK",
+        promotion_status="UNCHANGED",
         advanced=False,
         latest_promoted_as_of="2026-07-10",
     )
@@ -289,9 +289,13 @@ def test_source_reliability_reports_stage_rates_recovery_and_advancement(tmp_pat
         "samples_30d": 3,
         "samples_90d": 3,
         "consecutive_failures": 0,
+        "evidence_status_30d": "INSUFFICIENT_EVIDENCE",
+        "evidence_status_90d": "INSUFFICIENT_EVIDENCE",
     }
     assert reliability["stage_reliability"]["parse"]["success_rate_30d"] == 100.0
     assert reliability["stage_reliability"]["parse"]["samples_30d"] == 2
+    assert reliability["stage_reliability"]["promotion"]["success_rate_30d"] == 100.0
+    assert reliability["stage_reliability"]["promotion"]["consecutive_failures"] == 0
     assert reliability["last_recovery_at"] == "2026-07-11T06:45:00+08:00"
     assert reliability["advancement_rate_30d"] == 50.0
     assert reliability["advancement_samples_30d"] == 2
@@ -299,6 +303,9 @@ def test_source_reliability_reports_stage_rates_recovery_and_advancement(tmp_pat
     assert reliability["expected_release_samples_30d"] == 1
     assert reliability["expected_release_advanced_30d"] == 1
     assert reliability["expected_release_advance_rate_30d"] == 100.0
+    assert reliability["reliability_evidence_status_30d"] == "INSUFFICIENT_EVIDENCE"
+    assert reliability["advancement_evidence_status_30d"] == "INSUFFICIENT_EVIDENCE"
+    assert reliability["expected_release_evidence_status_30d"] == "INSUFFICIENT_EVIDENCE"
     assert reliability["latest_expected_release_date"] == "2026-07-10"
     assert reliability["latest_expected_release_status"] == "ADVANCED"
 
@@ -375,6 +382,7 @@ def test_source_status_exposes_daily_reliability_metrics(tmp_path):
 
     assert row["samples_30d"] == 2
     assert row["success_rate_30d"] == 50.0
+    assert row["reliability_evidence_status_30d"] == "INSUFFICIENT_EVIDENCE"
     assert row["consecutive_failures"] == 1
     assert row["last_success_at"]
 

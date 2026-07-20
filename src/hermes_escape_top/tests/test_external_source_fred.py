@@ -11,13 +11,109 @@ import pandas as pd
 
 from hermes_escape_top.core.data.macro import fetch_fred_graph_csv
 from hermes_escape_top.core.data.external_sources.fred import (
+    FredBoardH10PercentileAdapter,
     FredNetLiquidityAdapter,
     fred_net_liquidity_spec,
     FredPercentileAdapter,
     fred_percentile_spec,
+    parse_federal_reserve_h10_broad,
+    validate_federal_reserve_h10_witness,
 )
 from hermes_escape_top.core.data.external_sources.ledger import latest_source_run
 from hermes_escape_top.core.data.external_sources.runner import run_external_source_refresh
+
+
+def _h10_html(*rows: tuple[str, float]) -> str:
+    body = "".join(
+        f'<tr><th id="r1">{day}</th><td>{value:.4f}</td></tr>'
+        for day, value in rows
+    )
+    return (
+        '<div class="dates">Release Date: Monday, July 13, 2026</div>'
+        '<table class="pubtables"><thead><th>Date</th><th>Rate</th></thead>'
+        f"{body}</table>"
+    )
+
+
+def _fred_dollar_frame(values: list[tuple[str, float]]) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "date": pd.to_datetime([day for day, _value in values]),
+            "publish_date": pd.to_datetime(["2026-07-13"] * len(values)),
+            "value": [value for _day, value in values],
+        }
+    )
+
+
+def test_parse_federal_reserve_h10_broad_extracts_release_and_daily_values():
+    parsed = parse_federal_reserve_h10_broad(
+        _h10_html(("9-JUL-26", 120.7530), ("10-JUL-26", 120.5046))
+    )
+
+    assert parsed["release_date"] == "2026-07-13"
+    assert parsed["rows"] == [
+        {"date": "2026-07-09", "value": 120.753},
+        {"date": "2026-07-10", "value": 120.5046},
+    ]
+
+
+def test_dollar_board_witness_matching_same_series_promotes(tmp_path):
+    values = [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)]
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(values),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7530),
+            ("10-JUL-26", 120.5046),
+        ),
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=tmp_path / "soft_history/dollar.csv",
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "OK"
+    ledger = latest_source_run(tmp_path / "archive", "dollar")
+    assert ledger["source_channel"] == "fred_api_with_fed_board_h10_witness"
+
+
+def test_dollar_board_witness_mismatch_freezes_certified_canonical(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    target.parent.mkdir(parents=True)
+    certified = (
+        "date,publish_date,dollar_broad,dollar_broad_pctl\n"
+        "2026-07-09,2026-07-13,120.753,100.0\n"
+    ).encode()
+    target.write_bytes(certified)
+    values = [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)]
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(values),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7530),
+            ("10-JUL-26", 121.5000),
+        ),
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert "H.10 witness mismatch" in str(run.error_message)
+    assert target.read_bytes() == certified
 
 
 def test_fetch_fred_graph_csv_prefers_curl_and_does_not_require_requests(monkeypatch):

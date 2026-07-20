@@ -22,6 +22,8 @@ STAGE_FIELDS = {
     "validation": "validation_status",
     "promotion": "promotion_status",
 }
+MIN_RELIABILITY_SAMPLES = 5
+MIN_EXPECTED_RELEASE_SAMPLES = 4
 
 
 def canonical_evidence_issue(row: dict[str, Any]) -> str:
@@ -156,6 +158,8 @@ def source_reliability(
             "samples_30d": stage_samples_30,
             "samples_90d": stage_samples_90,
             "consecutive_failures": stage_failures,
+            "evidence_status_30d": _sample_evidence_status(stage_samples_30),
+            "evidence_status_90d": _sample_evidence_status(stage_samples_90),
         }
 
     advancement_outcomes = [
@@ -223,6 +227,8 @@ def source_reliability(
         "success_rate_90d": rate_90,
         "samples_30d": samples_30,
         "samples_90d": samples_90,
+        "reliability_evidence_status_30d": _sample_evidence_status(samples_30),
+        "reliability_evidence_status_90d": _sample_evidence_status(samples_90),
         "consecutive_failures": consecutive_failures,
         "last_success_at": last_success_at,
         "last_recovery_at": last_recovery_at,
@@ -231,11 +237,14 @@ def source_reliability(
         "advancement_rate_90d": advancement_rate_90,
         "advancement_samples_30d": advancement_samples_30,
         "advancement_samples_90d": advancement_samples_90,
+        "advancement_evidence_status_30d": _sample_evidence_status(advancement_samples_30),
+        "advancement_evidence_status_90d": _sample_evidence_status(advancement_samples_90),
         "last_advanced_at": last_advanced_at,
         "channel_successes_30d": dict(sorted(channel_successes.items())),
         "fallback_rescues_7d": fallback_rescues_7d,
         "primary_success_rate_30d": primary_rate,
         "primary_samples_30d": primary_samples,
+        "primary_evidence_status_30d": _sample_evidence_status(primary_samples),
         "latest_source_channel": (
             str(latest_ok.get("source_channel") or "") or None
             if latest_ok is not None
@@ -252,6 +261,10 @@ def source_reliability(
         for key, value in metrics.items():
             result[f"{stage}_{key}"] = value
     return result
+
+
+def _sample_evidence_status(samples: int, minimum: int = MIN_RELIABILITY_SAMPLES) -> str:
+    return "SUFFICIENT" if int(samples) >= int(minimum) else "INSUFFICIENT_EVIDENCE"
 
 
 def _day_succeeded(rows: list[dict[str, Any]]) -> bool:
@@ -275,7 +288,10 @@ def _stage_day_outcome(rows: list[dict[str, Any]], field: str) -> bool | None:
     attempted = [status for status in statuses if status not in {"", "NOT_RUN"}]
     if not attempted:
         return None
-    return "OK" in attempted
+    successful = {"OK"}
+    if field == "promotion_status":
+        successful.add("UNCHANGED")
+    return any(status in successful for status in attempted)
 
 
 def _expected_release_metrics(
@@ -300,6 +316,8 @@ def _expected_release_metrics(
         "expected_release_advanced_90d": 0,
         "expected_release_advance_rate_30d": None,
         "expected_release_advance_rate_90d": None,
+        "expected_release_evidence_status_30d": "INSUFFICIENT_EVIDENCE",
+        "expected_release_evidence_status_90d": "INSUFFICIENT_EVIDENCE",
         "latest_expected_release_date": None,
         "latest_expected_release_status": "UNINSTRUMENTED",
     }
@@ -363,6 +381,14 @@ def _expected_release_metrics(
         "expected_release_advanced_90d": advanced_90,
         "expected_release_advance_rate_30d": rate_30,
         "expected_release_advance_rate_90d": rate_90,
+        "expected_release_evidence_status_30d": _sample_evidence_status(
+            samples_30,
+            MIN_EXPECTED_RELEASE_SAMPLES,
+        ),
+        "expected_release_evidence_status_90d": _sample_evidence_status(
+            samples_90,
+            MIN_EXPECTED_RELEASE_SAMPLES,
+        ),
         "latest_expected_release_date": latest_expected.isoformat(),
         "latest_expected_release_status": latest_status,
     }

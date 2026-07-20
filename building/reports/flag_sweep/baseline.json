@@ -1,7 +1,7 @@
 {
-  "cache_key": "1fb936f888af1896855387907c9d8b725d71aa7727e355096bd2e7644ec53bc5",
+  "cache_key": "1eabf04e3ced11aa07029fd203eb5f7b6a31c466054afdc7a8f95b4e041fbe9e",
   "cache_schema": "flag-sweep-cache-v4",
-  "code_sha256": "4834b8b0063482ab4a73508ce9965fb91603e55a9c459308bdcda8a3036b2827",
+  "code_sha256": "f49428ea7f68dd334d5ef55ed90bf78f2a12207670882b4e6e48d2a5274347e7",
   "config_sha256": "7de18c09ee2d245851fbf8dc682abc5eac521e5312508b09155307bdb26a6e56",
   "effective_end": "2026-07-14",
   "effective_start": "2018-01-02",
@@ -21,8 +21,7 @@
         "OBSERVED": 2143
       },
       "BTC-USD": {
-        "MISSING": 1,
-        "OBSERVED": 2142
+        "OBSERVED": 2143
       },
       "DBMF": {
         "MODELED_PROXY_SWITCH": 1,
@@ -50,15 +49,14 @@
       }
     },
     "counts": {
-      "MISSING": 1,
       "MODELED_PROXY_SWITCH": 2,
       "MODELED_SYNTHETIC_MIDPOINT": 2180,
-      "OBSERVED": 19247
+      "OBSERVED": 19248
     },
-    "missing_rows": 1,
+    "missing_rows": 0,
     "modeled_rows": 2182,
-    "observed_rows": 19247,
-    "observed_share": 0.89813346,
+    "observed_rows": 19248,
+    "observed_share": 0.89818012,
     "required_by_leg": {
       "BOXX": {
         "MODELED_PROXY_SWITCH": 1,
@@ -107,7 +105,7 @@
     "required_total_rows": 10033,
     "total_rows": 21430
   },
-  "git_commit": "b515f98b17dbf6061964048ba806877a5209a5d1",
+  "git_commit": "cf7e1a16e13e085a36d25ce66b1d5dbb32ab3465",
   "legacy_close_metrics": {
     "cagr": 0.166128,
     "final_value": 368898.95571,
@@ -117,7 +115,7 @@
     "sharpe": 1.120566,
     "sortino": 1.443205
   },
-  "manifest_id": "24cf3da83b7fc6fb09d17546922d1d3d4d7ec874f84cbf4b75119739dafe54bc",
+  "manifest_id": "ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f",
   "metrics": {
     "cagr": 0.155785,
     "final_value": 342336.838505,
@@ -128,7 +126,7 @@
     "sortino": 1.335967
   },
   "n_days": 2143,
-  "soft_history_sha256": "02afefadd8474119d8a0209b63e747de94ee3c35e45441d4c50c2c8bcb0fdd19",
+  "soft_history_sha256": "780bd54edf239e759ba0974e6021d98712629036fe488f0c79ffad56537811f4",
   "start": "2018-01-01",
   "turnover": 237.534782,
   "variant": "baseline",

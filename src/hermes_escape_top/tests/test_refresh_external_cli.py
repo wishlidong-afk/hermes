@@ -10,6 +10,10 @@ from types import SimpleNamespace
 import pytest
 
 from hermes_escape_top.core.data.external_sources.ledger import append_source_run
+from hermes_escape_top.core.data.external_sources.profiles import (
+    enrich_source_status,
+    profile_for,
+)
 from hermes_escape_top.scripts import backfill_soft_data, refresh_external
 
 
@@ -273,6 +277,98 @@ def test_refresh_external_status_explains_due_soon_after_same_day_success(tmp_pa
     assert out["dollar"]["publisher_status"] == "UNCHANGED_AFTER_REFRESH"
     assert "wait for publisher update" in out["dollar"]["next_action"]
     assert "run refresh_external --source dollar" not in out["dollar"]["next_action"]
+
+
+@pytest.mark.parametrize(
+    ("today", "source_channel", "finished_at", "expected_migration", "expected_readiness"),
+    [
+        (
+            date(2026, 7, 20),
+            "naaim_public_workbook",
+            "2026-07-16T13:00:00+00:00",
+            "MIGRATION_DUE",
+            "AUTOMATIC_PUBLIC",
+        ),
+        (
+            date(2026, 7, 20),
+            "naaim_subscriber",
+            "2026-07-16T13:00:00+00:00",
+            "SUBSCRIBER_READY",
+            "AUTOMATIC_PRIMARY",
+        ),
+        (
+            date(2026, 8, 3),
+            "naaim_public_workbook",
+            "2026-08-02T13:00:00+00:00",
+            "PUBLIC_OFFICIAL_STABLE",
+            "AUTOMATIC_PUBLIC",
+        ),
+        (
+            date(2026, 8, 3),
+            "manual_official_file",
+            "2026-08-02T13:00:00+00:00",
+            "ACTION_REQUIRED",
+            "MANUAL_FALLBACK",
+        ),
+    ],
+)
+def test_naaim_migration_status_is_driven_by_verified_channel_evidence(
+    today,
+    source_channel,
+    finished_at,
+    expected_migration,
+    expected_readiness,
+):
+    row = {
+        "source_id": "naaim_exposure",
+        "status": "OK",
+        "latest_promoted_as_of": "2026-07-29",
+        "latest_source_channel": source_channel,
+        "finished_at": finished_at,
+    }
+
+    out = enrich_source_status(
+        row,
+        today=today,
+        profile=profile_for("naaim_exposure"),
+    )
+
+    assert out["migration_status"] == expected_migration
+    assert out["migration_readiness"] == expected_readiness
+
+
+def test_naaim_post_deadline_public_channel_needs_post_deadline_success():
+    out = enrich_source_status(
+        {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-07-29",
+            "latest_source_channel": "naaim_public_workbook",
+            "finished_at": "2026-07-31T13:00:00+00:00",
+        },
+        today=date(2026, 8, 3),
+        profile=profile_for("naaim_exposure"),
+    )
+
+    assert out["migration_status"] == "ACTION_REQUIRED"
+
+
+def test_naaim_stale_subscriber_success_is_not_migration_ready():
+    out = enrich_source_status(
+        {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-07-01",
+            "latest_source_channel": "naaim_subscriber",
+            "finished_at": "2026-07-02T13:00:00+00:00",
+        },
+        today=date(2026, 8, 3),
+        profile=profile_for("naaim_exposure"),
+    )
+
+    assert out["freshness_status"] == "STALE"
+    assert out["migration_readiness"] == "NOT_EVIDENCED"
+    assert out["migration_status"] == "ACTION_REQUIRED"
 
 
 def test_refresh_external_all_sources_keeps_going_on_single_failure(monkeypatch, tmp_path):

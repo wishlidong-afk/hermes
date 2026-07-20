@@ -1,0 +1,1530 @@
+{
+  "config_sha256": "25d01207a266b9443d4c64f70dc5e7b95c25a55fa88fa46fe949c22fc492e68d",
+  "factors": [
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.real_rate_10y_pctl"
+      ],
+      "factor_id": "A10_REAL_RATE",
+      "max_score": 4.0,
+      "missing_name": "A10 real_rate",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.dollar_broad_pctl"
+      ],
+      "factor_id": "A11_DOLLAR",
+      "max_score": 4.0,
+      "missing_name": "A11 dollar",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.defensive_cyclical_pctl"
+      ],
+      "factor_id": "A15_DEFENSIVE_ROTATION",
+      "max_score": 4.0,
+      "missing_name": "A15 defensive_rotation",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.close",
+        "QQQ.ma200"
+      ],
+      "factor_id": "A1_QQQ_MA200_BREAK",
+      "max_score": 4.0,
+      "missing_name": null,
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "^VIX.close"
+      ],
+      "factor_id": "A1_VIX_COMPLACENCY",
+      "max_score": 4.0,
+      "missing_name": "A1 VIX",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.aaii_bull_bear_spread",
+        "SOFT.aaii_bull_pctl"
+      ],
+      "factor_id": "A2_AAII_BULL",
+      "max_score": 2.0,
+      "missing_name": "A2 aaii_bull",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.equity_pcr",
+        "SOFT.equity_pcr_pctl"
+      ],
+      "factor_id": "A2_CBOE_EQUITY_PCR",
+      "max_score": 2.0,
+      "missing_name": "A2 cboe_equity_pcr",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "NON_SCORING_PLACEHOLDER",
+      "dependencies": [
+        "A2 cnn_fear_greed"
+      ],
+      "factor_id": "A2_CNN_FEAR_GREED",
+      "max_score": 0.0,
+      "missing_name": "A2 cnn_fear_greed",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.naaim_exposure",
+        "SOFT.naaim_pctl"
+      ],
+      "factor_id": "A2_NAAIM",
+      "max_score": 2.0,
+      "missing_name": "A2 naaim",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.aggregate_pct_above_50dma",
+        "SOFT.aggregate_pct_above_200dma",
+        "SOFT.aggregate_breadth_chg_5d"
+      ],
+      "factor_id": "A3_COMPONENT_BREADTH",
+      "max_score": 4.0,
+      "missing_name": "A3 NDX breadth",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.close",
+        "QQQ.ema20",
+        "QQQ.rsi14"
+      ],
+      "factor_id": "A4_QQQ_STRETCH",
+      "max_score": 4.0,
+      "missing_name": "A4 QQQ stretch",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.net_liq_chg10_pctl"
+      ],
+      "factor_id": "A5_NET_LIQUIDITY",
+      "max_score": 4.0,
+      "missing_name": "A5",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.cmf20",
+        "QQQ.mfi14",
+        "QQQ.ad_slope20"
+      ],
+      "factor_id": "A6_FUND_FLOW",
+      "max_score": 4.0,
+      "missing_name": "A6 fund flow",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "^VIX.close",
+        "^VIX3M.close"
+      ],
+      "factor_id": "A7_VIX_TERM_STRUCTURE",
+      "max_score": 4.0,
+      "missing_name": "A7 VIX term structure",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.distribution_days_25d",
+        "SPY.distribution_days_25d"
+      ],
+      "factor_id": "A8_QQQ_DISTRIBUTION",
+      "max_score": 4.0,
+      "missing_name": "A8 market distribution",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "rsi14"
+      ],
+      "factor_id": "B1_RSI_OVERHEAT",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ma200"
+      ],
+      "factor_id": "B2_MA200_EXTENSION",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "drawdown_60d_high_pct"
+      ],
+      "factor_id": "B3_POST_PEAK_DAMAGE",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.vvix_pctl",
+        "SOFT.skew_index",
+        "SOFT.skew_pctl"
+      ],
+      "factor_id": "B4_CBOE_OPTIONS_STRESS",
+      "max_score": 6.0,
+      "missing_name": "B4 options",
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "NON_SCORING_PLACEHOLDER",
+      "dependencies": [
+        "B5 social"
+      ],
+      "factor_id": "B5_SOCIAL_EUPHORIA",
+      "max_score": 0.0,
+      "missing_name": "B5 social",
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.FNGU_valuation_pctl"
+      ],
+      "factor_id": "B6_VALUATION_HEAT",
+      "max_score": 5.0,
+      "missing_name": "B6 valuation",
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ema50",
+        "ma50",
+        "ma150",
+        "ma200"
+      ],
+      "factor_id": "C10_MACRO_TREND_STRUCTURE",
+      "max_score": 10.0,
+      "missing_name": null,
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ma220"
+      ],
+      "factor_id": "C11_MA220_REBUILD_GAP",
+      "max_score": 4.0,
+      "missing_name": null,
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "realized_vol20"
+      ],
+      "factor_id": "C12_VOL_EXPANSION",
+      "max_score": 4.0,
+      "missing_name": null,
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "return_2d"
+      ],
+      "factor_id": "C6_SHARP_DROP",
+      "max_score": 5.0,
+      "missing_name": "C6",
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "avwap_anchored_20d",
+        "support_20d_low"
+      ],
+      "factor_id": "C7_AVWAP_PLATFORM_SUPPORT",
+      "max_score": 4.0,
+      "missing_name": "C7 AVWAP/platform support",
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "distribution_days_25d"
+      ],
+      "factor_id": "C8_DISTRIBUTION_PRESSURE",
+      "max_score": 4.0,
+      "missing_name": "C8",
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "chandelier_exit"
+      ],
+      "factor_id": "C9_CHANDELIER_BREAK",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ma200"
+      ],
+      "factor_id": "D1_ASSET_MA200_BREAK",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ma220"
+      ],
+      "factor_id": "D2_ASSET_MA220_BREAK",
+      "max_score": 3.0,
+      "missing_name": null,
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ema50",
+        "drawdown_60d_high_pct"
+      ],
+      "factor_id": "D3_TRAILING_PEAK_DAMAGE",
+      "max_score": 4.0,
+      "missing_name": null,
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.close",
+        "QQQ.ma200",
+        "QQQ.ema50"
+      ],
+      "factor_id": "D4_RADAR_CONFIRMATION",
+      "max_score": 4.0,
+      "missing_name": "D-F4",
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "NVDA.cmf20",
+        "NVDA.mfi14",
+        "NVDA.ad_slope20",
+        "AAPL.cmf20",
+        "AAPL.mfi14",
+        "AAPL.ad_slope20",
+        "MSFT.cmf20",
+        "MSFT.mfi14",
+        "MSFT.ad_slope20",
+        "AMZN.cmf20",
+        "AMZN.mfi14",
+        "AMZN.ad_slope20",
+        "META.cmf20",
+        "META.mfi14",
+        "META.ad_slope20",
+        "GOOGL.cmf20",
+        "GOOGL.mfi14",
+        "GOOGL.ad_slope20",
+        "TSLA.cmf20",
+        "TSLA.mfi14",
+        "TSLA.ad_slope20",
+        "NFLX.cmf20",
+        "NFLX.mfi14",
+        "NFLX.ad_slope20",
+        "AVGO.cmf20",
+        "AVGO.mfi14",
+        "AVGO.ad_slope20"
+      ],
+      "factor_id": "D_F4_COMPONENT_FLOW",
+      "max_score": 4.0,
+      "missing_name": "D-F4",
+      "module": "D",
+      "partial_ok": true,
+      "symbol": "FNGU"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.real_rate_10y_pctl"
+      ],
+      "factor_id": "A10_REAL_RATE",
+      "max_score": 4.0,
+      "missing_name": "A10 real_rate",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.dollar_broad_pctl"
+      ],
+      "factor_id": "A11_DOLLAR",
+      "max_score": 4.0,
+      "missing_name": "A11 dollar",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.defensive_cyclical_pctl"
+      ],
+      "factor_id": "A15_DEFENSIVE_ROTATION",
+      "max_score": 4.0,
+      "missing_name": "A15 defensive_rotation",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.close",
+        "QQQ.ma200"
+      ],
+      "factor_id": "A1_QQQ_MA200_BREAK",
+      "max_score": 4.0,
+      "missing_name": null,
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "^VIX.close"
+      ],
+      "factor_id": "A1_VIX_COMPLACENCY",
+      "max_score": 4.0,
+      "missing_name": "A1 VIX",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.aaii_bull_bear_spread",
+        "SOFT.aaii_bull_pctl"
+      ],
+      "factor_id": "A2_AAII_BULL",
+      "max_score": 2.0,
+      "missing_name": "A2 aaii_bull",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.equity_pcr",
+        "SOFT.equity_pcr_pctl"
+      ],
+      "factor_id": "A2_CBOE_EQUITY_PCR",
+      "max_score": 2.0,
+      "missing_name": "A2 cboe_equity_pcr",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "NON_SCORING_PLACEHOLDER",
+      "dependencies": [
+        "A2 cnn_fear_greed"
+      ],
+      "factor_id": "A2_CNN_FEAR_GREED",
+      "max_score": 0.0,
+      "missing_name": "A2 cnn_fear_greed",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.naaim_exposure",
+        "SOFT.naaim_pctl"
+      ],
+      "factor_id": "A2_NAAIM",
+      "max_score": 2.0,
+      "missing_name": "A2 naaim",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.aggregate_pct_above_50dma",
+        "SOFT.aggregate_pct_above_200dma",
+        "SOFT.aggregate_breadth_chg_5d"
+      ],
+      "factor_id": "A3_COMPONENT_BREADTH",
+      "max_score": 4.0,
+      "missing_name": "A3 NDX breadth",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.close",
+        "QQQ.ema20",
+        "QQQ.rsi14"
+      ],
+      "factor_id": "A4_QQQ_STRETCH",
+      "max_score": 4.0,
+      "missing_name": "A4 QQQ stretch",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.net_liq_chg10_pctl"
+      ],
+      "factor_id": "A5_NET_LIQUIDITY",
+      "max_score": 4.0,
+      "missing_name": "A5",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.cmf20",
+        "QQQ.mfi14",
+        "QQQ.ad_slope20"
+      ],
+      "factor_id": "A6_FUND_FLOW",
+      "max_score": 4.0,
+      "missing_name": "A6 fund flow",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "^VIX.close",
+        "^VIX3M.close"
+      ],
+      "factor_id": "A7_VIX_TERM_STRUCTURE",
+      "max_score": 4.0,
+      "missing_name": "A7 VIX term structure",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.distribution_days_25d",
+        "SPY.distribution_days_25d"
+      ],
+      "factor_id": "A8_QQQ_DISTRIBUTION",
+      "max_score": 4.0,
+      "missing_name": "A8 market distribution",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "rsi14"
+      ],
+      "factor_id": "B1_RSI_OVERHEAT",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ma200"
+      ],
+      "factor_id": "B2_MA200_EXTENSION",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "drawdown_60d_high_pct"
+      ],
+      "factor_id": "B3_POST_PEAK_DAMAGE",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.vvix_pctl",
+        "SOFT.skew_index",
+        "SOFT.skew_pctl"
+      ],
+      "factor_id": "B4_CBOE_OPTIONS_STRESS",
+      "max_score": 6.0,
+      "missing_name": "B4 options",
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "NON_SCORING_PLACEHOLDER",
+      "dependencies": [
+        "B5 social"
+      ],
+      "factor_id": "B5_SOCIAL_EUPHORIA",
+      "max_score": 0.0,
+      "missing_name": "B5 social",
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "CONFIG_DISABLED",
+      "dependencies": [
+        "B6 valuation"
+      ],
+      "factor_id": "B6_VALUATION_HEAT",
+      "max_score": 5.0,
+      "missing_name": "B6 valuation",
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ema50",
+        "ma50",
+        "ma150",
+        "ma200"
+      ],
+      "factor_id": "C10_MACRO_TREND_STRUCTURE",
+      "max_score": 10.0,
+      "missing_name": null,
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ma220"
+      ],
+      "factor_id": "C11_MA220_REBUILD_GAP",
+      "max_score": 4.0,
+      "missing_name": null,
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "realized_vol20"
+      ],
+      "factor_id": "C12_VOL_EXPANSION",
+      "max_score": 4.0,
+      "missing_name": null,
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "return_2d"
+      ],
+      "factor_id": "C6_SHARP_DROP",
+      "max_score": 5.0,
+      "missing_name": "C6",
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "avwap_anchored_20d",
+        "support_20d_low"
+      ],
+      "factor_id": "C7_AVWAP_PLATFORM_SUPPORT",
+      "max_score": 4.0,
+      "missing_name": "C7 AVWAP/platform support",
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "distribution_days_25d"
+      ],
+      "factor_id": "C8_DISTRIBUTION_PRESSURE",
+      "max_score": 4.0,
+      "missing_name": "C8",
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "chandelier_exit"
+      ],
+      "factor_id": "C9_CHANDELIER_BREAK",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ma200"
+      ],
+      "factor_id": "D1_ASSET_MA200_BREAK",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ma220"
+      ],
+      "factor_id": "D2_ASSET_MA220_BREAK",
+      "max_score": 3.0,
+      "missing_name": null,
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ema50",
+        "drawdown_60d_high_pct"
+      ],
+      "factor_id": "D3_TRAILING_PEAK_DAMAGE",
+      "max_score": 4.0,
+      "missing_name": null,
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "BTC-USD.close",
+        "BTC-USD.ma200"
+      ],
+      "factor_id": "D4_RADAR_CONFIRMATION",
+      "max_score": 4.0,
+      "missing_name": "D-M1",
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "BTC-USD.realized_vol20",
+        "BTC-USD.return_10d",
+        "BTC-USD.drawdown_60d_high_pct"
+      ],
+      "factor_id": "D_M3_BTC_VOLATILITY_PROXY",
+      "max_score": 4.0,
+      "missing_name": "D-M3",
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "NON_SCORING_PLACEHOLDER",
+      "dependencies": [
+        "D-M4"
+      ],
+      "factor_id": "D_M4_BALANCE_SHEET_PROXY",
+      "max_score": 0.0,
+      "missing_name": "D-M4",
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "NON_SCORING_PLACEHOLDER",
+      "dependencies": [
+        "D-M5"
+      ],
+      "factor_id": "D_M5_CRYPTO_SENTIMENT",
+      "max_score": 0.0,
+      "missing_name": "D-M5",
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "MSTR"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.real_rate_10y_pctl"
+      ],
+      "factor_id": "A10_REAL_RATE",
+      "max_score": 4.0,
+      "missing_name": "A10 real_rate",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.dollar_broad_pctl"
+      ],
+      "factor_id": "A11_DOLLAR",
+      "max_score": 4.0,
+      "missing_name": "A11 dollar",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.defensive_cyclical_pctl"
+      ],
+      "factor_id": "A15_DEFENSIVE_ROTATION",
+      "max_score": 4.0,
+      "missing_name": "A15 defensive_rotation",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.close",
+        "QQQ.ma200"
+      ],
+      "factor_id": "A1_QQQ_MA200_BREAK",
+      "max_score": 4.0,
+      "missing_name": null,
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "^VIX.close"
+      ],
+      "factor_id": "A1_VIX_COMPLACENCY",
+      "max_score": 4.0,
+      "missing_name": "A1 VIX",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.aaii_bull_bear_spread",
+        "SOFT.aaii_bull_pctl"
+      ],
+      "factor_id": "A2_AAII_BULL",
+      "max_score": 2.0,
+      "missing_name": "A2 aaii_bull",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.equity_pcr",
+        "SOFT.equity_pcr_pctl"
+      ],
+      "factor_id": "A2_CBOE_EQUITY_PCR",
+      "max_score": 2.0,
+      "missing_name": "A2 cboe_equity_pcr",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "NON_SCORING_PLACEHOLDER",
+      "dependencies": [
+        "A2 cnn_fear_greed"
+      ],
+      "factor_id": "A2_CNN_FEAR_GREED",
+      "max_score": 0.0,
+      "missing_name": "A2 cnn_fear_greed",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.naaim_exposure",
+        "SOFT.naaim_pctl"
+      ],
+      "factor_id": "A2_NAAIM",
+      "max_score": 2.0,
+      "missing_name": "A2 naaim",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.aggregate_pct_above_50dma",
+        "SOFT.aggregate_pct_above_200dma",
+        "SOFT.aggregate_breadth_chg_5d"
+      ],
+      "factor_id": "A3_COMPONENT_BREADTH",
+      "max_score": 4.0,
+      "missing_name": "A3 NDX breadth",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.close",
+        "QQQ.ema20",
+        "QQQ.rsi14"
+      ],
+      "factor_id": "A4_QQQ_STRETCH",
+      "max_score": 4.0,
+      "missing_name": "A4 QQQ stretch",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.net_liq_chg10_pctl"
+      ],
+      "factor_id": "A5_NET_LIQUIDITY",
+      "max_score": 4.0,
+      "missing_name": "A5",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.cmf20",
+        "QQQ.mfi14",
+        "QQQ.ad_slope20"
+      ],
+      "factor_id": "A6_FUND_FLOW",
+      "max_score": 4.0,
+      "missing_name": "A6 fund flow",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "^VIX.close",
+        "^VIX3M.close"
+      ],
+      "factor_id": "A7_VIX_TERM_STRUCTURE",
+      "max_score": 4.0,
+      "missing_name": "A7 VIX term structure",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "QQQ.distribution_days_25d",
+        "SPY.distribution_days_25d"
+      ],
+      "factor_id": "A8_QQQ_DISTRIBUTION",
+      "max_score": 4.0,
+      "missing_name": "A8 market distribution",
+      "module": "A",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "rsi14"
+      ],
+      "factor_id": "B1_RSI_OVERHEAT",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ma200"
+      ],
+      "factor_id": "B2_MA200_EXTENSION",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "drawdown_60d_high_pct"
+      ],
+      "factor_id": "B3_POST_PEAK_DAMAGE",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.vvix_pctl",
+        "SOFT.skew_index",
+        "SOFT.skew_pctl"
+      ],
+      "factor_id": "B4_CBOE_OPTIONS_STRESS",
+      "max_score": 6.0,
+      "missing_name": "B4 options",
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "NON_SCORING_PLACEHOLDER",
+      "dependencies": [
+        "B5 social"
+      ],
+      "factor_id": "B5_SOCIAL_EUPHORIA",
+      "max_score": 0.0,
+      "missing_name": "B5 social",
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOFT.SOXL_valuation_pctl"
+      ],
+      "factor_id": "B6_VALUATION_HEAT",
+      "max_score": 5.0,
+      "missing_name": "B6 valuation",
+      "module": "B",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ema50",
+        "ma50",
+        "ma150",
+        "ma200"
+      ],
+      "factor_id": "C10_MACRO_TREND_STRUCTURE",
+      "max_score": 10.0,
+      "missing_name": null,
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ma220"
+      ],
+      "factor_id": "C11_MA220_REBUILD_GAP",
+      "max_score": 4.0,
+      "missing_name": null,
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "realized_vol20"
+      ],
+      "factor_id": "C12_VOL_EXPANSION",
+      "max_score": 4.0,
+      "missing_name": null,
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "return_2d"
+      ],
+      "factor_id": "C6_SHARP_DROP",
+      "max_score": 5.0,
+      "missing_name": "C6",
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "avwap_anchored_20d",
+        "support_20d_low"
+      ],
+      "factor_id": "C7_AVWAP_PLATFORM_SUPPORT",
+      "max_score": 4.0,
+      "missing_name": "C7 AVWAP/platform support",
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "distribution_days_25d"
+      ],
+      "factor_id": "C8_DISTRIBUTION_PRESSURE",
+      "max_score": 4.0,
+      "missing_name": "C8",
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "chandelier_exit"
+      ],
+      "factor_id": "C9_CHANDELIER_BREAK",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "C",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ma200"
+      ],
+      "factor_id": "D1_ASSET_MA200_BREAK",
+      "max_score": 5.0,
+      "missing_name": null,
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ma220"
+      ],
+      "factor_id": "D2_ASSET_MA220_BREAK",
+      "max_score": 3.0,
+      "missing_name": null,
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "close",
+        "ema50",
+        "drawdown_60d_high_pct"
+      ],
+      "factor_id": "D3_TRAILING_PEAK_DAMAGE",
+      "max_score": 4.0,
+      "missing_name": null,
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "SOXX.close",
+        "SOXX.ma200",
+        "SOXX.ema50"
+      ],
+      "factor_id": "D4_RADAR_CONFIRMATION",
+      "max_score": 4.0,
+      "missing_name": "D-S4",
+      "module": "D",
+      "partial_ok": false,
+      "symbol": "SOXL"
+    },
+    {
+      "capacity_state": "ACTIVE_SCORING",
+      "dependencies": [
+        "NVDA.cmf20",
+        "NVDA.mfi14",
+        "NVDA.ad_slope20",
+        "AVGO.cmf20",
+        "AVGO.mfi14",
+        "AVGO.ad_slope20",
+        "AMD.cmf20",
+        "AMD.mfi14",
+        "AMD.ad_slope20",
+        "TSM.cmf20",
+        "TSM.mfi14",
+        "TSM.ad_slope20",
+        "ASML.cmf20",
+        "ASML.mfi14",
+        "ASML.ad_slope20",
+        "AMAT.cmf20",
+        "AMAT.mfi14",
+        "AMAT.ad_slope20",
+        "LRCX.cmf20",
+        "LRCX.mfi14",
+        "LRCX.ad_slope20",
+        "KLAC.cmf20",
+        "KLAC.mfi14",
+        "KLAC.ad_slope20",
+        "QCOM.cmf20",
+        "QCOM.mfi14",
+        "QCOM.ad_slope20",
+        "MU.cmf20",
+        "MU.mfi14",
+        "MU.ad_slope20"
+      ],
+      "factor_id": "D_S4_COMPONENT_FLOW",
+      "max_score": 4.0,
+      "missing_name": "D-S4",
+      "module": "D",
+      "partial_ok": true,
+      "symbol": "SOXL"
+    }
+  ],
+  "module_caps": {
+    "A": 20.0,
+    "B": 25.0,
+    "C": 35.0,
+    "D": 20.0
+  },
+  "module_summaries": [
+    {
+      "active_factor_count": 14,
+      "configured_disabled_factor_count": 0,
+      "configured_reachable_max": 50.0,
+      "defined_max": 50.0,
+      "defined_points_clipped_by_cap": 30.0,
+      "module": "A",
+      "module_cap": 20.0,
+      "placeholder_factor_count": 1,
+      "post_cap_capacity": 20.0,
+      "reachable_points_clipped_by_cap": 30.0,
+      "symbol": "MSTR"
+    },
+    {
+      "active_factor_count": 4,
+      "configured_disabled_factor_count": 1,
+      "configured_reachable_max": 21.0,
+      "defined_max": 26.0,
+      "defined_points_clipped_by_cap": 1.0,
+      "module": "B",
+      "module_cap": 25.0,
+      "placeholder_factor_count": 1,
+      "post_cap_capacity": 21.0,
+      "reachable_points_clipped_by_cap": 0.0,
+      "symbol": "MSTR"
+    },
+    {
+      "active_factor_count": 7,
+      "configured_disabled_factor_count": 0,
+      "configured_reachable_max": 36.0,
+      "defined_max": 36.0,
+      "defined_points_clipped_by_cap": 1.0,
+      "module": "C",
+      "module_cap": 35.0,
+      "placeholder_factor_count": 0,
+      "post_cap_capacity": 35.0,
+      "reachable_points_clipped_by_cap": 1.0,
+      "symbol": "MSTR"
+    },
+    {
+      "active_factor_count": 5,
+      "configured_disabled_factor_count": 0,
+      "configured_reachable_max": 20.0,
+      "defined_max": 20.0,
+      "defined_points_clipped_by_cap": 0.0,
+      "module": "D",
+      "module_cap": 20.0,
+      "placeholder_factor_count": 2,
+      "post_cap_capacity": 20.0,
+      "reachable_points_clipped_by_cap": 0.0,
+      "symbol": "MSTR"
+    },
+    {
+      "active_factor_count": 14,
+      "configured_disabled_factor_count": 0,
+      "configured_reachable_max": 50.0,
+      "defined_max": 50.0,
+      "defined_points_clipped_by_cap": 30.0,
+      "module": "A",
+      "module_cap": 20.0,
+      "placeholder_factor_count": 1,
+      "post_cap_capacity": 20.0,
+      "reachable_points_clipped_by_cap": 30.0,
+      "symbol": "FNGU"
+    },
+    {
+      "active_factor_count": 5,
+      "configured_disabled_factor_count": 0,
+      "configured_reachable_max": 26.0,
+      "defined_max": 26.0,
+      "defined_points_clipped_by_cap": 1.0,
+      "module": "B",
+      "module_cap": 25.0,
+      "placeholder_factor_count": 1,
+      "post_cap_capacity": 25.0,
+      "reachable_points_clipped_by_cap": 1.0,
+      "symbol": "FNGU"
+    },
+    {
+      "active_factor_count": 7,
+      "configured_disabled_factor_count": 0,
+      "configured_reachable_max": 36.0,
+      "defined_max": 36.0,
+      "defined_points_clipped_by_cap": 1.0,
+      "module": "C",
+      "module_cap": 35.0,
+      "placeholder_factor_count": 0,
+      "post_cap_capacity": 35.0,
+      "reachable_points_clipped_by_cap": 1.0,
+      "symbol": "FNGU"
+    },
+    {
+      "active_factor_count": 5,
+      "configured_disabled_factor_count": 0,
+      "configured_reachable_max": 20.0,
+      "defined_max": 20.0,
+      "defined_points_clipped_by_cap": 0.0,
+      "module": "D",
+      "module_cap": 20.0,
+      "placeholder_factor_count": 0,
+      "post_cap_capacity": 20.0,
+      "reachable_points_clipped_by_cap": 0.0,
+      "symbol": "FNGU"
+    },
+    {
+      "active_factor_count": 14,
+      "configured_disabled_factor_count": 0,
+      "configured_reachable_max": 50.0,
+      "defined_max": 50.0,
+      "defined_points_clipped_by_cap": 30.0,
+      "module": "A",
+      "module_cap": 20.0,
+      "placeholder_factor_count": 1,
+      "post_cap_capacity": 20.0,
+      "reachable_points_clipped_by_cap": 30.0,
+      "symbol": "SOXL"
+    },
+    {
+      "active_factor_count": 5,
+      "configured_disabled_factor_count": 0,
+      "configured_reachable_max": 26.0,
+      "defined_max": 26.0,
+      "defined_points_clipped_by_cap": 1.0,
+      "module": "B",
+      "module_cap": 25.0,
+      "placeholder_factor_count": 1,
+      "post_cap_capacity": 25.0,
+      "reachable_points_clipped_by_cap": 1.0,
+      "symbol": "SOXL"
+    },
+    {
+      "active_factor_count": 7,
+      "configured_disabled_factor_count": 0,
+      "configured_reachable_max": 36.0,
+      "defined_max": 36.0,
+      "defined_points_clipped_by_cap": 1.0,
+      "module": "C",
+      "module_cap": 35.0,
+      "placeholder_factor_count": 0,
+      "post_cap_capacity": 35.0,
+      "reachable_points_clipped_by_cap": 1.0,
+      "symbol": "SOXL"
+    },
+    {
+      "active_factor_count": 5,
+      "configured_disabled_factor_count": 0,
+      "configured_reachable_max": 20.0,
+      "defined_max": 20.0,
+      "defined_points_clipped_by_cap": 0.0,
+      "module": "D",
+      "module_cap": 20.0,
+      "placeholder_factor_count": 0,
+      "post_cap_capacity": 20.0,
+      "reachable_points_clipped_by_cap": 0.0,
+      "symbol": "SOXL"
+    }
+  ],
+  "schema_version": "factor-capacity-inventory-v1",
+  "symbols": [
+    "MSTR",
+    "FNGU",
+    "SOXL"
+  ]
+}

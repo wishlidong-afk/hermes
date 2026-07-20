@@ -9,9 +9,9 @@ Live effect: `none`
 ## Open-Price Coverage
 
 - Total rows: `21430`
-- Observed: `19247` (89.81%)
+- Observed: `19248` (89.82%)
 - Modeled synthetic/proxy: `2182`
-- Missing: `1`
+- Missing: `0`
 - Execution-required rows: `10033`
 - Execution-required missing: `0`
 
@@ -19,7 +19,7 @@ Live effect: `none`
 |---|---:|---:|---:|
 | BOXX | 2142 | 1 | 0 |
 | BRK.B | 2143 | 0 | 0 |
-| BTC-USD | 2142 | 0 | 1 |
+| BTC-USD | 2143 | 0 | 0 |
 | DBMF | 1755 | 388 | 0 |
 | FNGU | 350 | 1793 | 0 |
 | IAU | 2143 | 0 | 0 |
@@ -40,8 +40,8 @@ Live effect: `none`
 ## Provenance
 
 - Mismatches: `none`
-- Source artifact: `/Users/liweishi/Documents/github/hermes/building/reports/current_baseline/CURRENT_BASELINE_FULL.json`
-- Source SHA256: `4b3cdd5972ed386f420d74a1af248cc909ba97b52df59aecd6c16fca75c8e51a`
+- Source artifact: `/private/tmp/hermes-baseline-rebuild-out-20260720-1017/CURRENT_BASELINE_FULL.json`
+- Source SHA256: `16377424333d2c614c8d2f32ac725e4d1a835f4683141b8f7fb6c33774d511a2`
 
 ## Notes
 

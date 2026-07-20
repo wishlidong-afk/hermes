@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import gzip
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -127,3 +128,13 @@ def test_run_writes_effective_config_snapshot(tmp_path, monkeypatch) -> None:
     mod.run(output_dir=tmp_path, end="2026-07-10")
 
     assert json.loads((tmp_path / "CURRENT_BASELINE_CONFIG.json").read_text()) == config
+    source_bytes = (tmp_path / "CURRENT_BASELINE_FULL.json").read_bytes()
+    assert gzip.decompress((tmp_path / "CURRENT_BASELINE_FULL.json.gz").read_bytes()) == source_bytes
+
+
+def test_deterministic_gzip_is_byte_identical() -> None:
+    mod = _load_module()
+    payload = b'{"evidence":"current"}\n'
+
+    assert mod.deterministic_gzip(payload) == mod.deterministic_gzip(payload)
+    assert gzip.decompress(mod.deterministic_gzip(payload)) == payload

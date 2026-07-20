@@ -7,7 +7,7 @@ pre-registered formal gates. It grants no configuration authorization.
 
 | Field | Value |
 |---|---|
-| Gate-code commit | `b515f98b17dbf6061964048ba806877a5209a5d1` |
+| Gate-code commit | `cf7e1a16e13e085a36d25ce66b1d5dbb32ab3465` |
 | Cache schema | `flag-sweep-cache-v4` |
 | Equity timing | `next_open` |
 | Window | `2018-01-01` to `2026-07-14` |

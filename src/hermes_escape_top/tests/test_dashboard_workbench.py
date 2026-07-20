@@ -788,6 +788,7 @@ def test_trust_zone_uses_external_source_ledger_status():
             "success_rate_30d": 92.86,
             "success_rate_90d": 96.15,
             "samples_30d": 7,
+            "samples_90d": 13,
             "consecutive_failures": 0,
             "migration_status": "MIGRATION_DUE",
             "migration_deadline": "2026-08-01",
@@ -799,6 +800,7 @@ def test_trust_zone_uses_external_source_ledger_status():
             "success_rate_30d": 75.0,
             "success_rate_90d": 80.0,
             "samples_30d": 4,
+            "samples_90d": 10,
             "consecutive_failures": 2,
             "stage_reliability": {
                 "transport": {"success_rate_30d": 75.0, "samples_30d": 4},
@@ -844,12 +846,15 @@ def test_trust_zone_uses_external_source_ledger_status():
     assert "AAII public endpoint blocked; manual import required" in html
     assert "refreshExternalSource('aaii_sentiment')" in html
     assert "30d 92.86% (n=7)" in html
+    assert "90d 96.15% (n=13)" in html
     assert "连续失败 2" in html
     assert "渠道 official_insights_rss" in html
     assert "7d fallback 救回 2" in html
-    assert "主源 30d 25.00%" in html
-    assert "四段 T75.00(n=4)/P100.00(n=3)/V66.67(n=3)/R100.00(n=2)" in html
-    assert "推进 50.00% (n=2)" in html
+    assert "30d INSUFFICIENT_EVIDENCE (n=4)" in html
+    assert "90d 80.00% (n=10)" in html
+    assert "主源 30d INSUFFICIENT_EVIDENCE (n=4)" in html
+    assert "四段 T不足(n=4)/P不足(n=3)/V不足(n=3)/R不足(n=2)" in html
+    assert "推进 INSUFFICIENT_EVIDENCE (n=2)" in html
     assert "应发 2026-07-10 ADVANCED" in html
     assert "MIGRATION_DUE" in html
     assert "ACTION_REQUIRED" in html

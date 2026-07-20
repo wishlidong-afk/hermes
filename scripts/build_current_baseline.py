@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import gzip
 import json
 import os
 from pathlib import Path
@@ -137,14 +138,17 @@ def run(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     source_path = output_dir / "CURRENT_BASELINE_FULL.json"
+    source_archive_path = output_dir / "CURRENT_BASELINE_FULL.json.gz"
     summary_path = output_dir / "CURRENT_BASELINE_FULL.md"
     equity_path = output_dir / "CURRENT_BASELINE_EQUITY.json"
     config_snapshot_path = output_dir / "CURRENT_BASELINE_CONFIG.json"
     _atomic_write_json(config_snapshot_path, cfg)
     _atomic_write_json(source_path, payload)
+    _atomic_write_bytes(source_archive_path, deterministic_gzip(source_path.read_bytes()))
     _atomic_write_json(equity_path, payload.get("simulation", {}).get("equity_curve", {}))
     _atomic_write_text(summary_path, render_summary(payload))
     print(f"Current baseline source: {source_path}")
+    print(f"Current baseline source archive: {source_archive_path}")
     print(f"Current baseline summary: {summary_path}")
     print(f"Current baseline config: {config_snapshot_path}")
     print(f"Commit: {payload['provenance']['git_commit']}")
@@ -174,6 +178,26 @@ def _atomic_write_text(path: Path, text: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def deterministic_gzip(payload: bytes) -> bytes:
+    return gzip.compress(payload, compresslevel=9, mtime=0)
+
+
+def _atomic_write_bytes(path: Path, payload: bytes) -> None:
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, path)

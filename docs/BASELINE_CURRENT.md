@@ -1,6 +1,6 @@
 # Hermes Current Baseline
 
-Generated: 2026-07-15
+Generated: 2026-07-20
 
 Status: **CURRENT EXECUTION EVIDENCE**
 
@@ -17,15 +17,15 @@ authorize a feature or routing flip and is not a candidate gate result.
 
 | Field | Value |
 |---|---|
-| Gate-code commit | `b515f98b17dbf6061964048ba806877a5209a5d1` |
+| Gate-code commit | `cf7e1a16e13e085a36d25ce66b1d5dbb32ab3465` |
 | Cache schema | `flag-sweep-cache-v4` |
 | Gate equity timing | `next_open` |
 | Requested window | `2018-01-01` to `2026-07-14` |
 | Effective window | `2018-01-02` to `2026-07-14` (2,143 trading days) |
-| History manifest | `24cf3da83b7fc6fb09d17546922d1d3d4d7ec874f84cbf4b75119739dafe54bc` |
-| Code SHA256 | `4834b8b0063482ab4a73508ce9965fb91603e55a9c459308bdcda8a3036b2827` |
+| History manifest | `ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f` |
+| Code SHA256 | `f49428ea7f68dd334d5ef55ed90bf78f2a12207670882b4e6e48d2a5274347e7` |
 | Config SHA256 | `7de18c09ee2d245851fbf8dc682abc5eac521e5312508b09155307bdb26a6e56` |
-| Soft-history SHA256 | `02afefadd8474119d8a0209b63e747de94ee3c35e45441d4c50c2c8bcb0fdd19` |
+| Soft-history SHA256 | `780bd54edf239e759ba0974e6021d98712629036fe488f0c79ffad56537811f4` |
 | Authorization | `NO_CONFIG_FLIP` |
 
 The evidence uses the effective live config as its explicit source. The proven
@@ -56,11 +56,10 @@ instruction to delay trading.
 
 ## Open Coverage
 
-- Observed opens: 19,247 / 21,430 rows (89.81%).
+- Observed opens: 19,248 / 21,430 rows (89.82%).
 - Modeled opens: 2,182 rows, concentrated in pre-inception FNGU (1,793) and
   DBMF (387), plus two proxy-switch rows.
-- Full-panel missing opens: 1 (BTC-USD on the first replay date, before BTC had
-  any old or pending target weight).
+- Full-panel missing opens: 0.
 - Execution-required opens: 10,033; missing: 0. Headline eligibility uses this
   stricter executable set, while the full-panel gap remains visible.
 - Synthetic opens use an explicitly labeled geometric midpoint; they are not
@@ -72,13 +71,23 @@ with a non-positive-price guard, and the full baseline was rerun afterward.
 
 ## Artifacts
 
-- Full provenance source: `building/reports/current_baseline/CURRENT_BASELINE_FULL.json`
+- Full provenance source: `building/reports/current_baseline/CURRENT_BASELINE_FULL.json.gz`
 - Human summary: `building/reports/current_baseline/CURRENT_BASELINE_FULL.md`
 - Execution report: `building/reports/current_baseline/execution_timing/EXECUTION_TIMING_SENSITIVITY.md`
 - Gate metrics: `building/reports/flag_sweep/baseline.json`
 - Gate equity: `building/reports/flag_sweep/baseline_equity.json`
 - Same-close shadow: `building/reports/flag_sweep/baseline_legacy_close_equity.json`
+- Cost curve and turnover attribution: `building/reports/current_baseline/cost_robustness/COST_ROBUSTNESS.md`
 
 `baseline.json` is explicitly `CURRENT_EXECUTION_EVIDENCE` with
 `equity_timing=next_open`. Formal gates may use it as the comparator; all prior
 v3, same-close, and mismatched-provenance reports remain historical.
+
+The tracked gzip archive is deterministic (`mtime=0`). Governance decompresses
+it and verifies the uncompressed SHA-256 recorded by the execution-timing
+artifact, so a missing, truncated, or substituted source fails closed.
+
+The cost report reuses these recorded next-open decisions without rescoring. It
+shows 0/5/10/25/50 bps extra-slippage sensitivity and reconciles turnover by
+leg and by route-set change versus within-route weight rebalance. It is
+diagnostic evidence only and carries `NO_CONFIG_FLIP`.

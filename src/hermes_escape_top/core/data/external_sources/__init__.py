@@ -5,7 +5,14 @@ from .cboe_indices import (
     CboeVolatilityIndexAdapter,
     cboe_index_spec,
 )
-from .fred import FredNetLiquidityAdapter, FredPercentileAdapter, fred_net_liquidity_spec, fred_percentile_spec
+from .fred import (
+    FredBoardH10PercentileAdapter,
+    FredNetLiquidityAdapter,
+    FredPercentileAdapter,
+    fred_net_liquidity_spec,
+    fred_percentile_spec,
+    validate_federal_reserve_h10_witness,
+)
 from .fred_vintage import (
     FredVintageAdapter,
     FredVintageNetLiquidityAdapter,
@@ -71,6 +78,7 @@ __all__ = [
     "configured_refresh_source_ids",
     "display_source_ids",
     "FredNetLiquidityAdapter",
+    "FredBoardH10PercentileAdapter",
     "FredPercentileAdapter",
     "FredVintageAdapter",
     "FredVintageNetLiquidityAdapter",
@@ -86,6 +94,7 @@ __all__ = [
     "cot_nq_spec",
     "fred_net_liquidity_spec",
     "fred_percentile_spec",
+    "validate_federal_reserve_h10_witness",
     "fred_vintage_net_liquidity_spec",
     "fred_vintage_percentile_spec",
     "fred_vintage_spec",

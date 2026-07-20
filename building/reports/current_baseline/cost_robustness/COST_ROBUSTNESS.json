@@ -1,0 +1,474 @@
+{
+  "authorization": "NO_CONFIG_FLIP",
+  "cost_curve": [
+    {
+      "base_cost": 41528.26258,
+      "executed_rebalances": 1101,
+      "extra_slippage_bps": 0.0,
+      "extra_slippage_cost": 0.0,
+      "metrics": {
+        "cagr": 0.155785,
+        "final_value": 342336.838505,
+        "max_drawdown": -0.208283,
+        "max_drawdown_end": "2019-10-08",
+        "max_drawdown_start": "2018-06-14",
+        "sharpe": 1.064148,
+        "sortino": 1.335967
+      },
+      "turnover": 237.534782
+    },
+    {
+      "base_cost": 38673.009479,
+      "executed_rebalances": 1101,
+      "extra_slippage_bps": 5.0,
+      "extra_slippage_cost": 19336.504743,
+      "metrics": {
+        "cagr": 0.139738,
+        "final_value": 303978.345209,
+        "max_drawdown": -0.219665,
+        "max_drawdown_end": "2019-10-08",
+        "max_drawdown_start": "2018-06-14",
+        "sharpe": 0.968451,
+        "sortino": 1.214519
+      },
+      "turnover": 237.534782
+    },
+    {
+      "base_cost": 36054.287669,
+      "executed_rebalances": 1101,
+      "extra_slippage_bps": 10.0,
+      "extra_slippage_cost": 36054.287669,
+      "metrics": {
+        "cagr": 0.12391,
+        "final_value": 269910.174423,
+        "max_drawdown": -0.230884,
+        "max_drawdown_end": "2019-10-08",
+        "max_drawdown_start": "2018-06-14",
+        "sharpe": 0.872647,
+        "sortino": 1.092319
+      },
+      "turnover": 237.534782
+    },
+    {
+      "base_cost": 29415.515162,
+      "executed_rebalances": 1101,
+      "extra_slippage_bps": 25.0,
+      "extra_slippage_cost": 73538.787888,
+      "metrics": {
+        "cagr": 0.077712,
+        "final_value": 188918.5439,
+        "max_drawdown": -0.263597,
+        "max_drawdown_end": "2019-10-08",
+        "max_drawdown_start": "2018-06-14",
+        "sharpe": 0.584938,
+        "sortino": 0.728952
+      },
+      "turnover": 237.534782
+    },
+    {
+      "base_cost": 21452.226121,
+      "executed_rebalances": 1101,
+      "extra_slippage_bps": 50.0,
+      "extra_slippage_cost": 107261.130601,
+      "metrics": {
+        "cagr": 0.004829,
+        "final_value": 104180.070894,
+        "max_drawdown": -0.340628,
+        "max_drawdown_end": "2023-05-12",
+        "max_drawdown_start": "2018-03-12",
+        "sharpe": 0.106512,
+        "sortino": 0.1317
+      },
+      "turnover": 237.534782
+    }
+  ],
+  "evidence_role": "SENSITIVITY_OF_RECORDED_BASELINE",
+  "generated_at": "2026-07-20T02:54:24.609849+00:00",
+  "notes": [
+    "All rows reuse the recorded baseline decisions and next-open execution prices.",
+    "Extra slippage is charged on absolute turnover in addition to configured base costs.",
+    "This report is sensitivity evidence only and does not authorize a config or feature change."
+  ],
+  "schema_version": "cost-robustness-v1",
+  "source": {
+    "path": "/Users/liweishi/Documents/github/hermes/building/reports/current_baseline/CURRENT_BASELINE_FULL.json.gz",
+    "payload_sha256": "16377424333d2c614c8d2f32ac725e4d1a835f4683141b8f7fb6c33774d511a2",
+    "provenance": {
+      "cache_key": "1eabf04e3ced11aa07029fd203eb5f7b6a31c466054afdc7a8f95b4e041fbe9e",
+      "cache_schema": "flag-sweep-cache-v4",
+      "code_sha256": "f49428ea7f68dd334d5ef55ed90bf78f2a12207670882b4e6e48d2a5274347e7",
+      "config_sha256": "7de18c09ee2d245851fbf8dc682abc5eac521e5312508b09155307bdb26a6e56",
+      "enable": [
+        "costs"
+      ],
+      "end": "2026-07-14",
+      "equity_timing": "next_open",
+      "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
+      "git_commit": "cf7e1a16e13e085a36d25ce66b1d5dbb32ab3465",
+      "manifest_id": "ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f",
+      "soft_history_sha256": "780bd54edf239e759ba0974e6021d98712629036fe488f0c79ffad56537811f4",
+      "start": "2018-01-01",
+      "variant": "baseline",
+      "worktree_clean": true
+    }
+  },
+  "turnover_attribution": {
+    "attributed_turnover": 237.534782,
+    "by_leg": [
+      {
+        "leg": "BOXX",
+        "share": 0.21773529,
+        "turnover": 51.719705
+      },
+      {
+        "leg": "SOXL",
+        "share": 0.16214126,
+        "turnover": 38.514188
+      },
+      {
+        "leg": "DBMF",
+        "share": 0.15149842,
+        "turnover": 35.986145
+      },
+      {
+        "leg": "FNGU",
+        "share": 0.13159434,
+        "turnover": 31.258233
+      },
+      {
+        "leg": "BRK.B",
+        "share": 0.11897118,
+        "turnover": 28.259794
+      },
+      {
+        "leg": "IAU",
+        "share": 0.10099895,
+        "turnover": 23.990763
+      },
+      {
+        "leg": "MSTR",
+        "share": 0.07583297,
+        "turnover": 18.012968
+      },
+      {
+        "leg": "QQQ",
+        "share": 0.02434898,
+        "turnover": 5.78373
+      },
+      {
+        "leg": "SOXX",
+        "share": 0.01181666,
+        "turnover": 2.806868
+      },
+      {
+        "leg": "BTC-USD",
+        "share": 0.00506194,
+        "turnover": 1.202388
+      }
+    ],
+    "by_mechanism": [
+      {
+        "mechanism": "ROUTE_SET_CHANGE",
+        "share": 0.70132287,
+        "turnover": 166.588574
+      },
+      {
+        "mechanism": "WEIGHT_REBALANCE",
+        "share": 0.29446722,
+        "turnover": 69.946208
+      },
+      {
+        "mechanism": "INITIAL_ALLOCATION",
+        "share": 0.00420991,
+        "turnover": 1.0
+      }
+    ],
+    "reconciled": true,
+    "switch_days": 1101,
+    "top_switch_days": [
+      {
+        "date": "2024-09-11",
+        "from": "BOXX+DBMF+IAU",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+BRK.B",
+        "turnover": 1.3
+      },
+      {
+        "date": "2026-06-09",
+        "from": "BOXX+DBMF+IAU",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+BRK.B+FNGU+SOXL",
+        "turnover": 1.3
+      },
+      {
+        "date": "2023-02-24",
+        "from": "BOXX+DBMF+IAU+MSTR",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+FNGU+MSTR+QQQ+SOXL+SOXX",
+        "turnover": 1.14517
+      },
+      {
+        "date": "2025-12-30",
+        "from": "BOXX+DBMF+IAU+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+BRK.B+SOXL+SOXX",
+        "turnover": 1.145034
+      },
+      {
+        "date": "2026-01-02",
+        "from": "BOXX+BRK.B+SOXL+SOXX",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+IAU+SOXL",
+        "turnover": 1.136506
+      },
+      {
+        "date": "2023-02-27",
+        "from": "BOXX+FNGU+MSTR+QQQ+SOXL+SOXX",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+IAU+MSTR",
+        "turnover": 1.128676
+      },
+      {
+        "date": "2026-01-30",
+        "from": "BOXX+BRK.B+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+IAU+SOXL",
+        "turnover": 1.088494
+      },
+      {
+        "date": "2026-02-26",
+        "from": "BOXX+DBMF+IAU+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+BRK.B+SOXL+SOXX",
+        "turnover": 1.086874
+      },
+      {
+        "date": "2026-02-27",
+        "from": "BOXX+BRK.B+SOXL+SOXX",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+IAU+SOXL",
+        "turnover": 1.086874
+      },
+      {
+        "date": "2024-11-01",
+        "from": "BOXX+BRK.B+FNGU+MSTR+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+IAU+MSTR",
+        "turnover": 1.07181
+      },
+      {
+        "date": "2020-09-08",
+        "from": "BOXX+BRK.B+MSTR",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+IAU+MSTR+SOXL",
+        "turnover": 1.05394
+      },
+      {
+        "date": "2023-05-23",
+        "from": "BOXX+BRK.B+FNGU+QQQ+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+FNGU+IAU+SOXL",
+        "turnover": 1.04298
+      },
+      {
+        "date": "2026-06-10",
+        "from": "BOXX+BRK.B+FNGU+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+FNGU+IAU+SOXL",
+        "turnover": 1.042178
+      },
+      {
+        "date": "2021-01-28",
+        "from": "BOXX+BRK.B+BTC-USD+FNGU+MSTR+QQQ+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+FNGU+IAU+MSTR",
+        "turnover": 1.034072
+      },
+      {
+        "date": "2021-01-29",
+        "from": "BOXX+DBMF+FNGU+IAU+MSTR",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+BRK.B+BTC-USD+FNGU+MSTR+QQQ+SOXL",
+        "turnover": 1.034072
+      },
+      {
+        "date": "2024-10-02",
+        "from": "BOXX+DBMF+FNGU+IAU+MSTR",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+BRK.B+FNGU+MSTR",
+        "turnover": 1.022066
+      },
+      {
+        "date": "2023-04-28",
+        "from": "BOXX+BRK.B+MSTR",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+FNGU+IAU+MSTR",
+        "turnover": 1.002008
+      },
+      {
+        "date": "2018-01-03",
+        "from": "CASH",
+        "mechanism": "INITIAL_ALLOCATION",
+        "to": "BOXX+FNGU+MSTR+SOXL",
+        "turnover": 1.0
+      },
+      {
+        "date": "2020-09-04",
+        "from": "BOXX+DBMF+FNGU+IAU+MSTR+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+BRK.B+MSTR",
+        "turnover": 1.0
+      },
+      {
+        "date": "2023-04-26",
+        "from": "BOXX+DBMF+IAU+MSTR+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+BRK.B+MSTR",
+        "turnover": 1.0
+      }
+    ],
+    "top_transitions": [
+      {
+        "count": 191,
+        "from": "BOXX+DBMF+FNGU+IAU+MSTR+SOXL",
+        "mechanism": "WEIGHT_REBALANCE",
+        "to": "BOXX+DBMF+FNGU+IAU+MSTR+SOXL",
+        "turnover": 28.635257
+      },
+      {
+        "count": 166,
+        "from": "BOXX+DBMF+FNGU+IAU+SOXL",
+        "mechanism": "WEIGHT_REBALANCE",
+        "to": "BOXX+DBMF+FNGU+IAU+SOXL",
+        "turnover": 19.984486
+      },
+      {
+        "count": 21,
+        "from": "BOXX+FNGU+MSTR+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+FNGU+IAU+MSTR+SOXL",
+        "turnover": 8.280888
+      },
+      {
+        "count": 10,
+        "from": "BOXX+DBMF+FNGU+IAU+MSTR+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+BRK.B+FNGU+MSTR+QQQ+SOXL",
+        "turnover": 7.853968
+      },
+      {
+        "count": 16,
+        "from": "BOXX+DBMF+FNGU+IAU+MSTR+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+FNGU+MSTR+SOXL",
+        "turnover": 6.865966
+      },
+      {
+        "count": 124,
+        "from": "BOXX+FNGU+MSTR+SOXL",
+        "mechanism": "WEIGHT_REBALANCE",
+        "to": "BOXX+FNGU+MSTR+SOXL",
+        "turnover": 6.38391
+      },
+      {
+        "count": 8,
+        "from": "BOXX+BRK.B+FNGU+MSTR+QQQ+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+FNGU+IAU+MSTR+SOXL",
+        "turnover": 6.068908
+      },
+      {
+        "count": 6,
+        "from": "BOXX+BRK.B+FNGU+MSTR",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+FNGU+IAU+MSTR",
+        "turnover": 5.175534
+      },
+      {
+        "count": 9,
+        "from": "BOXX+DBMF+FNGU+IAU+MSTR+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+BRK.B+FNGU+MSTR+SOXL",
+        "turnover": 5.127402
+      },
+      {
+        "count": 21,
+        "from": "BOXX+DBMF+FNGU+IAU+MSTR+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+FNGU+IAU+SOXL",
+        "turnover": 5.087562
+      },
+      {
+        "count": 8,
+        "from": "BOXX+BRK.B+FNGU+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+FNGU+IAU+SOXL",
+        "turnover": 5.024368
+      },
+      {
+        "count": 5,
+        "from": "BOXX+DBMF+FNGU+IAU+MSTR",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+BRK.B+FNGU+MSTR",
+        "turnover": 4.365716
+      },
+      {
+        "count": 7,
+        "from": "BOXX+DBMF+FNGU+IAU+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+BRK.B+FNGU+SOXL",
+        "turnover": 4.30005
+      },
+      {
+        "count": 5,
+        "from": "BOXX+BRK.B+BTC-USD+FNGU+MSTR+QQQ+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+FNGU+IAU+MSTR+SOXL",
+        "turnover": 4.14661
+      },
+      {
+        "count": 22,
+        "from": "BOXX+DBMF+FNGU+IAU+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+FNGU+IAU+MSTR+SOXL",
+        "turnover": 4.064125
+      },
+      {
+        "count": 15,
+        "from": "BOXX+DBMF+IAU+MSTR",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+IAU+MSTR+SOXL",
+        "turnover": 3.730534
+      },
+      {
+        "count": 7,
+        "from": "BOXX+BRK.B+FNGU+MSTR+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+FNGU+IAU+MSTR+SOXL",
+        "turnover": 3.338392
+      },
+      {
+        "count": 16,
+        "from": "BOXX+DBMF+IAU+SOXL",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+IAU",
+        "turnover": 3.29075
+      },
+      {
+        "count": 14,
+        "from": "BOXX+DBMF+IAU",
+        "mechanism": "ROUTE_SET_CHANGE",
+        "to": "BOXX+DBMF+IAU+SOXL",
+        "turnover": 3.207464
+      },
+      {
+        "count": 28,
+        "from": "BOXX+DBMF+FNGU+IAU+MSTR",
+        "mechanism": "WEIGHT_REBALANCE",
+        "to": "BOXX+DBMF+FNGU+IAU+MSTR",
+        "turnover": 3.123914
+      }
+    ],
+    "total_turnover": 237.534782
+  }
+}

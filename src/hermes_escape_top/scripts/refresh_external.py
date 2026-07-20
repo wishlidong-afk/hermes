@@ -26,6 +26,7 @@ from hermes_escape_top.core.data.external_sources import (
     CboePcrAdapter,
     CboeVolatilityIndexAdapter,
     CotNqAdapter,
+    FredBoardH10PercentileAdapter,
     FredNetLiquidityAdapter,
     FredPercentileAdapter,
     FredVintageAdapter,
@@ -47,6 +48,7 @@ from hermes_escape_top.core.data.external_sources import (
     fred_vintage_net_liquidity_spec,
     fred_vintage_percentile_spec,
     fred_vintage_spec,
+    validate_federal_reserve_h10_witness,
     enrich_source_status,
     import_files,
     import_origin,
@@ -124,8 +126,9 @@ def dollar_source(config: dict[str, Any]):
         source_id="dollar",
         target_path=target,
         field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
     )
-    adapter = FredPercentileAdapter(
+    adapter = FredBoardH10PercentileAdapter(
         series_id="DTWEXBGS",
         field="dollar_broad",
     )

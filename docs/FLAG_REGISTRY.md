@@ -35,7 +35,7 @@ of four states:
 | `data_cboe_pcr` | **ON** ✅ | live | CBOE equity put/call ratio (A2) |
 | `data_hy_oas` | OFF | calibrated-off | HY OAS spread percentile (A9) — gate-failed standalone |
 | `data_real_rate` | **ON** ✅ | live | FRED DFII10 real rate percentile (A10) — gate-passed 2026-06-08 |
-| `data_dollar` | **ON** ✅ | live | FRED DTWEXBGS broad dollar percentile (A11) — gate-passed 2026-06-08 |
+| `data_dollar` | **ON** ✅ | live | FRED DTWEXBGS broad dollar percentile (A11), cross-checked against the same Federal Reserve Board H.10 series; mismatch freezes the certified canonical — gate-passed 2026-06-08 |
 | `data_yield_curve` | OFF | calibrated-off | FRED T10Y3M yield curve (A12) — gate-failed standalone |
 | `data_credit_etf` | OFF | calibrated-off | HYG/IEF ratio (A13) — gate-failed standalone |
 | `data_concentration` | OFF | calibrated-off | RSP/SPY equal-vs-cap weight (A14) — gate-failed standalone |
@@ -103,7 +103,7 @@ These flags had zero code references and were removed from config.json:
 | F4 partial factor eval | Live | Live robustness under partial data | `building/reports/flag_sweep/SWEEP_SUMMARY.md`; no-op on clean history, robustness win | `features.use_partial_factor_eval=false` |
 | Regime multipliers | Live | Scoring module weights | `features.use_regime_multipliers=true`; default ON matches the unconditional pre-2026-06-10 behavior | `features.use_regime_multipliers=false` |
 | Routing combo: MSTR→BTC-USD + DEFCON1 GLD leg | Live | Routing | `src/hermes_escape_top/config/config.json` `_defcon3_note`; historical combo OOS bottom-half rate 0.31, OOS Δ+0.117, CAGR +1.90pp vs baseline; DEFCON1 GLD standalone +1.59pp | `routing.defcon3.MSTR="QQQ"`; restore DEFCON1 BOXX70/TREND30 and remove `extra_legs.GLD` |
-| Deployment baseline | Current comparator | Docs, validation provenance | `docs/BASELINE_CURRENT.md`; cache v4 `baseline.json` is `CURRENT_EXECUTION_EVIDENCE` at gate-code commit `b515f98`, `equity_timing=next_open`, 15.58% CAGR / -20.83% MaxDD / 1.064 Sharpe | Rebuild after any gate-code/config/history/soft-history provenance change; baseline alone authorizes no flip |
+| Deployment baseline | Current comparator | Docs, validation provenance | `docs/BASELINE_CURRENT.md`; cache v4 `baseline.json` is `CURRENT_EXECUTION_EVIDENCE` at gate-code commit `cf7e1a1`, `equity_timing=next_open`, 15.58% CAGR / -20.83% MaxDD / 1.064 Sharpe; compressed full source is SHA-bound | Rebuild after any gate-code/config/history/soft-history provenance change; baseline alone authorizes no flip |
 
 ### Rejected / parked
 
@@ -153,13 +153,13 @@ Set `use_regime_multipliers: false` to disable (flat module weights in all regim
 
 ## B-module capacity note
 
-Nominal B cap = **25 pts**. Currently achievable = **21 pts**:
+The scoring cap is **25 pts**, while the currently defined positive-max factors sum to **26 pts**:
+B1=5, B2=5, B3=5, B4=6, B6=5. B5 is a zero-point non-scoring placeholder.
 
-- B5 social (4 pts): stub — `_score_b5_social()` always returns 0
-- B6 valuation (5 pts): mNAV source is wired/parked, but B6 consumption gate failed and remains OFF
+- MSTR: B6 consumption remains OFF, so configured reachable max is **21**, below the cap.
+- FNGU/SOXL: B6 is wired, so configured reachable max is **26** and the scorer clips it to **25**.
 
-Effective live B cap = **16 pts** until B5/B6 are approved live. The `_module_caps_note` in
-config.json also records this.
+The generated SSOT is `building/reports/factor_capacity/FACTOR_CAPACITY_INVENTORY.md`; the governance check fails when code/config and this artifact differ. Historical “effective B cap = 16” language is retired because it no longer describes the current registry.
 
 ---
 
