@@ -63,11 +63,11 @@ Web reporting, and focused tests.
 **Files:** add `core/data/history_transaction.py`; modify
 `scripts/backfill_history.py` and `tests/test_backfill_guard.py`.
 
-- [ ] Add deterministic crash-state tests for partial promotion and startup
+- [x] Add deterministic crash-state tests for partial promotion and startup
   recovery, including manifest-before-evidence ordering.
-- [ ] Implement staged candidates, old-byte backups, operation manifest,
+- [x] Implement staged candidates, old-byte backups, operation manifest,
   atomic promotion, commit, and recovery.
-- [ ] Run history/admission tests and isolated fault injection; review diff.
+- [x] Run history/admission tests and isolated fault injection; review diff.
 
 ### Task 5: Route-Set Transition Experiment
 

@@ -427,18 +427,26 @@ def write_market_admission_evidence(
     archive_dir: Path,
     payload: Mapping[str, Any],
 ) -> Path:
+    dated, latest = market_admission_evidence_paths(archive_dir, payload)
+    dated.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(dict(payload), ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    for path in (dated, latest):
+        _atomic_write_text(path, encoded)
+    return latest
+
+
+def market_admission_evidence_paths(
+    archive_dir: Path,
+    payload: Mapping[str, Any],
+) -> tuple[Path, Path]:
     archive = Path(archive_dir)
-    archive.mkdir(parents=True, exist_ok=True)
     generated_date = timestamp_to_shanghai_date(payload.get("generated_at"))
     if generated_date is None:
         raise ValueError("market admission payload missing generated_at")
     generated_day = generated_date.isoformat()
-    encoded = json.dumps(dict(payload), ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     dated = archive / f"market_admission_{generated_day}.json"
     latest = archive / "market_admission_latest.json"
-    for path in (dated, latest):
-        _atomic_write_text(path, encoded)
-    return latest
+    return dated, latest
 
 
 def read_market_admission_evidence(archive_dir: Path) -> dict[str, Any] | None:

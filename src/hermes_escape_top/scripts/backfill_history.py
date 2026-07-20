@@ -14,8 +14,13 @@ from dateutil.easter import easter
 from ..config import load_config, resolve_path
 from ..core.data.market_admission import (
     MarketAdmissionSession,
+    market_admission_evidence_paths,
     prepare_market_admission_session,
     write_market_admission_evidence,
+)
+from ..core.data.history_transaction import (
+    HistoryPromotionTransaction,
+    recover_history_transactions,
 )
 from ..core.data.market_witness import is_alpaca_supported_symbol
 from ..core.data.external_sources.cboe_indices import CBOE_INDEX_SYMBOLS
@@ -133,6 +138,22 @@ def backfill(
                 **admission_kwargs,
             )
             admission_archive_path = resolve_path(config, "archive_dir")
+    allowed_roots = [store]
+    if ((config.get("paths") or {}).get("archive_dir")):
+        configured_archive_path = resolve_path(config, "archive_dir")
+        if configured_archive_path not in allowed_roots:
+            allowed_roots.append(configured_archive_path)
+    if admission_archive_path is not None:
+        if admission_archive_path not in allowed_roots:
+            allowed_roots.append(admission_archive_path)
+    recovered = recover_history_transactions(store, allowed_roots=allowed_roots)
+    if recovered:
+        print(f"[backfill] recovered interrupted history transactions: {', '.join(recovered)}")
+    transaction = HistoryPromotionTransaction(
+        store,
+        allowed_roots=allowed_roots,
+        operation_id=(active_admission.operation_id if active_admission is not None else None),
+    )
     out: Dict[str, BackfillResult] = {}
     snapshots = {
         store / f"{safe_symbol(symbol)}.csv": _history_snapshot(
@@ -151,7 +172,16 @@ def backfill(
                 repair_overlap_days=repair_overlap_days,
                 admission_session=active_admission,
                 repair_history_head=repair_history_head,
+                history_transaction=transaction,
             )
+        if active_admission is not None and admission_archive_path is not None:
+            for evidence_path in market_admission_evidence_paths(
+                admission_archive_path,
+                active_admission.payload(),
+            ):
+                transaction.track_path(evidence_path)
+        transaction.prepare()
+        transaction.promote()
         if active_admission is not None:
             active_admission.bind_canonical_files(store, symbols)
         if active_admission is not None and admission_archive_path is not None:
@@ -159,8 +189,13 @@ def backfill(
                 admission_archive_path,
                 active_admission.payload(),
             )
+        transaction.mark_committed()
     except BaseException as exc:
         rollback_error: BaseException | None = None
+        try:
+            transaction.rollback()
+        except BaseException as restore_exc:
+            rollback_error = restore_exc
         for path, snapshot in snapshots.items():
             try:
                 _restore_history_snapshot(path, snapshot)
@@ -277,6 +312,7 @@ def _backfill_one(
     repair_overlap_days: int = 0,
     admission_session: MarketAdmissionSession | None = None,
     repair_history_head: bool = False,
+    history_transaction: HistoryPromotionTransaction | None = None,
 ) -> BackfillResult:
     path = store_dir / f"{safe_symbol(symbol)}.csv"
     existing = _read_existing(path)
@@ -351,7 +387,7 @@ def _backfill_one(
     combined = pd.concat([existing, normalized]).sort_index()
     if not combined.empty:
         combined = combined[~combined.index.duplicated(keep="last")]
-        _write_history(path, combined)
+        _write_history(path, combined, history_transaction=history_transaction)
     return _result(symbol, path, combined, updated=not normalized.empty, source_symbol=_yf_symbol(symbol), reason="; ".join(reasons))
 
 
@@ -522,13 +558,22 @@ def _normalize_download(frame: pd.DataFrame, expected_symbol: str | None = None)
     return out[[col for col in ["Open", "High", "Low", "Close", "Adj Close", "Volume"] if col in out.columns]]
 
 
-def _write_history(path: Path, frame: pd.DataFrame) -> None:
+def _write_history(
+    path: Path,
+    frame: pd.DataFrame,
+    *,
+    history_transaction: HistoryPromotionTransaction | None = None,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     out = frame.copy()
     out.index.name = "date"
     out = out.reset_index()
     out = out.rename(columns={"Open": "open", "High": "high", "Low": "low", "Close": "close", "Adj Close": "adj_close", "Volume": "volume"})
-    atomic_write_csv(out[["date", "open", "high", "low", "close", "adj_close", "volume"]], path, index=False)
+    canonical = out[["date", "open", "high", "low", "close", "adj_close", "volume"]]
+    if history_transaction is not None:
+        history_transaction.stage_bytes(path, canonical.to_csv(index=False).encode("utf-8"))
+    else:
+        atomic_write_csv(canonical, path, index=False)
 
 
 def _result(symbol: str, path: Path, frame: pd.DataFrame, updated: bool, source_symbol: str, reason: str = "") -> BackfillResult:

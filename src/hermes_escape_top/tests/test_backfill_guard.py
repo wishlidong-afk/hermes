@@ -1,6 +1,8 @@
 """Download sanity guard (2026-06-12 cross-wired yfinance incident)."""
 from __future__ import annotations
 
+import json
+
 import pandas as pd
 
 from hermes_escape_top.core.data.market_admission import MarketAdmissionSession
@@ -599,6 +601,123 @@ def test_backfill_market_admission_records_run_failure_in_evidence(tmp_path, mon
     assert captured[0]["status"] == "ERROR"
     assert captured[0]["run_error"] == "OSError: disk write failed"
     assert qqq.read_bytes() == before
+
+
+def test_backfill_batch_does_not_publish_first_symbol_when_second_fails(
+    tmp_path,
+    monkeypatch,
+):
+    from hermes_escape_top.scripts import backfill_history as module
+
+    history = tmp_path / "history"
+    history.mkdir()
+    old = (
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-10,99,101,98,100,100,1000\n"
+    )
+    for symbol in ("QQQ", "SPY"):
+        (history / f"{symbol}.csv").write_text(old, encoding="utf-8")
+    before = {symbol: (history / f"{symbol}.csv").read_bytes() for symbol in ("QQQ", "SPY")}
+    incoming = pd.DataFrame(
+        {
+            "Open": [100.0],
+            "High": [102.0],
+            "Low": [99.0],
+            "Close": [101.0],
+            "Adj Close": [101.0],
+            "Volume": [1_100.0],
+        },
+        index=pd.to_datetime(["2026-07-13"]),
+    )
+    original = module._backfill_one
+
+    def fail_second(symbol, *args, **kwargs):
+        if symbol == "SPY":
+            raise OSError("second symbol failed")
+        return original(symbol, *args, **kwargs)
+
+    monkeypatch.setattr(module, "_backfill_one", fail_second)
+
+    try:
+        backfill(
+            ["QQQ", "SPY"],
+            start="2026-07-13",
+            end="2026-07-14",
+            store_dir=history,
+            downloader=lambda *_args: incoming,
+        )
+    except OSError as exc:
+        assert str(exc) == "second symbol failed"
+    else:
+        raise AssertionError("batch failure must propagate")
+
+    assert {
+        symbol: (history / f"{symbol}.csv").read_bytes()
+        for symbol in ("QQQ", "SPY")
+    } == before
+
+
+def test_history_transaction_manifest_precedes_market_admission_evidence(
+    tmp_path,
+    monkeypatch,
+):
+    from hermes_escape_top.scripts import backfill_history as module
+
+    history = tmp_path / "history"
+    archive = tmp_path / "archive"
+    history.mkdir()
+    (history / "QQQ.csv").write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-10,99,101,98,100,100,1000\n",
+        encoding="utf-8",
+    )
+    incoming = pd.DataFrame(
+        {
+            "Open": [100.0],
+            "High": [102.0],
+            "Low": [99.0],
+            "Close": [101.0],
+            "Adj Close": [101.0],
+            "Volume": [1_100.0],
+        },
+        index=pd.to_datetime(["2026-07-13"]),
+    )
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={
+            "QQQ": [
+                {
+                    "t": "2026-07-13T04:00:00Z",
+                    "o": 100.0,
+                    "h": 102.0,
+                    "l": 99.0,
+                    "c": 101.0,
+                    "v": 1_100.0,
+                }
+            ]
+        },
+    )
+    observed = []
+
+    def write_evidence(_archive, payload):
+        manifests = list((history / ".history_transactions").glob("*/manifest.json"))
+        assert len(manifests) == 1
+        manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
+        observed.append((manifest["state"], payload["status"]))
+
+    monkeypatch.setattr(module, "write_market_admission_evidence", write_evidence)
+
+    backfill(
+        ["QQQ"],
+        start="2026-07-13",
+        end="2026-07-14",
+        store_dir=history,
+        downloader=lambda *_args: incoming,
+        admission_session=session,
+        admission_archive=archive,
+    )
+
+    assert observed == [("PROMOTING", "OK")]
 
 
 def test_backfill_market_admission_rolls_back_when_evidence_write_fails(tmp_path, monkeypatch):
