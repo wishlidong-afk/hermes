@@ -5,9 +5,8 @@ process OOM-kills). Usage:
 
     PYTHONPATH=src python3 scripts/backtest_flag_sweep.py <variant> [--reuse-if-fresh]
 
-Variants: baseline, scored_missing_weight, partial_factor_eval,
-decision_stabilizer, suspect_valve_guard, spine_only, mnav_b6,
-f8_tightened, all_on.
+Variants include baseline plus the pre-registered feature candidates handled by
+``build_config`` below.
 
 Results land in building/reports/flag_sweep/<variant>.json.
 """
@@ -76,6 +75,7 @@ def normalize_gate_config(config: dict[str, Any]) -> dict[str, Any]:
     feats = cfg.setdefault("features", {})
     feats["use_indicator_cache"] = True
     feats.setdefault("use_fred_vintage_pit", False)
+    feats.setdefault("use_route_set_transition_buffer", False)
     return cfg
 
 
@@ -105,6 +105,8 @@ def build_config(variant: str, *, config_path: Path | None = None) -> dict:
         feats["data_cot_nq"] = True
     elif variant == "fred_vintage_pit":
         feats["use_fred_vintage_pit"] = True
+    elif variant == "route_set_transition_buffer":
+        feats["use_route_set_transition_buffer"] = True
     elif variant == "CM_EXCHANGE_INFLOW_PRESSURE":
         feats["data_onchain_mstr"] = True
         cfg["onchain_mstr"] = {"candidate": "CM_EXCHANGE_INFLOW_PRESSURE"}
@@ -288,6 +290,33 @@ def select_gate_equity(timing_artifact: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def route_set_turnover_evidence(rows: list[dict[str, Any]], cfg: dict[str, Any]) -> dict[str, Any]:
+    """Sum full-portfolio L1 turnover on non-risk route-set change days."""
+    excluded = set(cfg.get("symbols", {})) | {"BOXX"}
+    previous: dict[str, float] | None = None
+    previous_routes: set[str] = set()
+    total = 0.0
+    event_count = 0
+    for row in rows:
+        current = {
+            str(leg): float(weight)
+            for leg, weight in (row.get("route_leg_weights") or {}).items()
+            if float(weight) > 1e-12
+        }
+        current_routes = {leg for leg in current if leg not in excluded}
+        if previous is not None and current_routes != previous_routes:
+            legs = set(previous) | set(current)
+            total += sum(abs(current.get(leg, 0.0) - previous.get(leg, 0.0)) for leg in legs)
+            event_count += 1
+        previous = current
+        previous_routes = current_routes
+    return {
+        "definition": "full_portfolio_l1_on_nonrisk_nonboxx_route_set_change_days",
+        "event_count": event_count,
+        "total": round(total, 8),
+    }
+
+
 def reprice_report_for_gate(report: Any, cfg: dict) -> dict[str, Any]:
     decisions = [
         DayDecision(str(row["date"]), {str(leg): float(weight) for leg, weight in row.get("route_leg_weights", {}).items()})
@@ -418,6 +447,7 @@ def main() -> None:
         },
         "legacy_close_metrics": selected["legacy_close_metrics"],
         "execution_open_quality": timing.get("open_quality", {}),
+        "route_set_turnover": route_set_turnover_evidence(report.rows, cfg),
         "benchmarks": benchmarks,
     }
     path = OUT_DIR / f"{variant}.json"

@@ -14,6 +14,10 @@ from ..data.store import LocalStore
 from ..features.regime import Regime, RegimeInput, classify_regime
 from ..portfolio.risk_budget import compute_portfolio_risk
 from ..routing.capital_routing import route_capital
+from ..routing.portfolio_routes import (
+    apply_route_set_transition_buffer,
+    route_leg_weights,
+)
 from ..routing.leg_proxy import leg_price_series, leg_proxy_metadata
 from ..data.sanitize import is_suspect_on
 from ..scoring.scorer import score_symbol
@@ -94,6 +98,7 @@ def run_full_backtest(
 
     decisions: list[DayDecision] = []
     rows: list[Dict[str, Any]] = []
+    previous_route_weights: Dict[str, float] | None = None
     for as_of in dates:
         day_histories = _truncate_histories(histories, as_of)
         snapshots = build_snapshot(as_of, store=store, cfg=config)
@@ -131,7 +136,10 @@ def run_full_backtest(
             signal_journal_path=None,
         )
         routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=day_histories) for symbol, bundle in bundles.items()}
-        weights = route_leg_weights(config, {symbol: decision.to_dict() for symbol, decision in sizing.items()}, {symbol: decision.to_dict() for symbol, decision in routing.items()})
+        raw_weights = route_leg_weights(config, {symbol: decision.to_dict() for symbol, decision in sizing.items()}, {symbol: decision.to_dict() for symbol, decision in routing.items()})
+        transition = apply_route_set_transition_buffer(config, raw_weights, previous_route_weights)
+        weights = transition.weights
+        previous_route_weights = weights
         decisions.append(DayDecision(as_of, weights))
         rows.append(
             {
@@ -141,6 +149,7 @@ def run_full_backtest(
                 "sizing": {symbol: decision.to_dict() for symbol, decision in sorted(sizing.items())},
                 "routing": {symbol: decision.to_dict() for symbol, decision in sorted(routing.items())},
                 "route_leg_weights": weights,
+                "route_transition": transition.to_dict(),
                 "portfolio_risk_legacy_shadow": risk.to_dict(),
             }
         )
@@ -187,29 +196,6 @@ def run_full_backtest(
         rows,
         proxies,
     )
-
-
-def route_leg_weights(config: Dict[str, Any], sizing: Dict[str, Dict[str, Any]], routing: Dict[str, Dict[str, Any]]) -> Dict[str, float]:
-    weights: Dict[str, float] = {}
-    for symbol in trade_symbols(config):
-        cap = float(config.get("symbols", {}).get(symbol, {}).get("sleeve_cap", 0.0))
-        target = max(0.0, float(sizing.get(symbol, {}).get("target_weight", 0.0) or 0.0))
-        if target:
-            weights[symbol] = weights.get(symbol, 0.0) + target
-        residual = max(0.0, cap - target)
-        route = routing.get(symbol, {})
-        route_weights = route.get("weights", {}) if route.get("applies") else {}
-        if residual and route_weights:
-            for leg, share in route_weights.items():
-                weights[str(leg)] = weights.get(str(leg), 0.0) + residual * float(share)
-        elif residual:
-            weights["BOXX"] = weights.get("BOXX", 0.0) + residual
-    gross = sum(weights.values())
-    if gross < 1.0:
-        weights["BOXX"] = weights.get("BOXX", 0.0) + (1.0 - gross)
-    if gross > 1.0:
-        weights = {leg: weight / gross for leg, weight in weights.items()}
-    return {leg: round(float(weight), 8) for leg, weight in sorted(weights.items()) if weight > 1e-12}
 
 
 def _load_histories(store: LocalStore, config: Dict[str, Any]) -> Dict[str, pd.DataFrame]:

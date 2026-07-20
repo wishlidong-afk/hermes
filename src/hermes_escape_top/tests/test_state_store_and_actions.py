@@ -11,6 +11,7 @@ from unittest import mock
 from hermes_escape_top.pipeline import score_pipeline
 from hermes_escape_top.core.data.base import Field, SymbolSnapshot
 from hermes_escape_top.core.data.state_store import (
+    latest_score_payload_before,
     latest_execution_confirmations,
     recent_calibration_logs,
     recent_ibkr_snapshots,
@@ -142,6 +143,13 @@ class StateStoreAndActionTest(unittest.TestCase):
             {"BOXX": 7500.0, "DBMF": 4500.0, "GLD": 3000.0},
         )
 
+        payload["portfolio_target_weights"] = {"BOXX": 0.85, "MSTR": 0.0, "IAU": 0.15}
+        payload["route_transition"] = {"applied": True, "changed_leg": "IAU"}
+        buffered = build_action_context(payload, snapshots)
+        self.assertEqual(buffered["today_ops"]["execution_target_source"], "portfolio_target_weights")
+        self.assertEqual(buffered["today_ops"]["portfolio_target_weights"], payload["portfolio_target_weights"])
+        self.assertTrue(buffered["today_ops"]["route_transition"]["applied"])
+
     def test_pipeline_writes_unified_state_and_action_context(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             config_path = _temp_config(tmp)
@@ -257,6 +265,18 @@ class StateStoreAndActionTest(unittest.TestCase):
         self.assertEqual(factors, 2)
         self.assertEqual(refresh_runs, 2)
         self.assertEqual(ibkr_snapshots, 2)
+
+    def test_latest_score_payload_before_is_strictly_prior(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "hermes_state.sqlite"
+            for day in ["2026-06-01", "2026-06-02", "2026-06-03"]:
+                write_state_snapshot(path, _minimal_payload(day), retention={"score_runs": 10})
+
+            prior = latest_score_payload_before(path, "2026-06-03")
+            none = latest_score_payload_before(path, "2026-06-01")
+
+        self.assertEqual(prior["as_of"], "2026-06-02")
+        self.assertIsNone(none)
 
     def test_ibkr_only_snapshot_retention_does_not_prune_score_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

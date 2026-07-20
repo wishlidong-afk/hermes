@@ -67,6 +67,8 @@ def reconcile(
     pipeline_sizing: Dict[str, Dict[str, Any]],
     pipeline_routing: Optional[Dict[str, Dict[str, Any]]] = None,
     tolerance: float = 0.01,    # 1% weight tolerance for MATCH
+    *,
+    portfolio_target_weights: Optional[Dict[str, float]] = None,
 ) -> ReconcileReport:
     """Compare IBKR actual positions with pipeline ideal sizing.
 
@@ -85,14 +87,23 @@ def reconcile(
     trade_syms = sorted(pipeline_sizing.keys())
     ideal_weights: Dict[str, float] = {}
     for sym in trade_syms:
-        ideal_weights[sym] = float(
-            pipeline_sizing.get(sym, {}).get("target_weight", 0.0) or 0.0
-        )
+        if portfolio_target_weights is not None:
+            ideal_weights[sym] = float(portfolio_target_weights.get(sym, 0.0) or 0.0)
+        else:
+            ideal_weights[sym] = float(
+                pipeline_sizing.get(sym, {}).get("target_weight", 0.0) or 0.0
+            )
 
     # Collect expected route leg destinations.  Route legs receive the residual
     # sleeve capital (sleeve cap minus risky target), not the risky target itself.
     route_targets: Dict[str, float] = {}
-    if pipeline_routing:
+    if portfolio_target_weights is not None:
+        route_targets = {
+            str(symbol): float(weight)
+            for symbol, weight in portfolio_target_weights.items()
+            if symbol not in trade_syms and float(weight) > 0.0
+        }
+    elif pipeline_routing:
         for sym, rout in pipeline_routing.items():
             if rout.get("applies") is False:
                 continue

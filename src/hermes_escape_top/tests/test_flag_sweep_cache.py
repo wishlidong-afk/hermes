@@ -30,6 +30,7 @@ def test_build_config_variants_are_distinct() -> None:
     mnav = mod.build_config("mnav_b6")
     stabilizer = mod.build_config("decision_stabilizer")
     fred_vintage = mod.build_config("fred_vintage_pit")
+    route_buffer = mod.build_config("route_set_transition_buffer")
 
     assert baseline["features"]["use_indicator_cache"] is True
     assert baseline["features"]["data_cot_nq"] is False
@@ -39,6 +40,27 @@ def test_build_config_variants_are_distinct() -> None:
     assert stabilizer["features"]["use_decision_stabilizer"] is True
     assert baseline["features"]["use_fred_vintage_pit"] is False
     assert fred_vintage["features"]["use_fred_vintage_pit"] is True
+    assert baseline["features"].get("use_route_set_transition_buffer", False) is False
+    assert route_buffer["features"]["use_route_set_transition_buffer"] is True
+
+
+def test_route_set_turnover_counts_only_non_risk_set_transition_days() -> None:
+    mod = _load_module()
+    config = {"symbols": {"MSTR": {}, "FNGU": {}, "SOXL": {}}}
+    rows = [
+        {"date": "2026-01-01", "route_leg_weights": {"BOXX": 0.8, "MSTR": 0.2}},
+        {"date": "2026-01-02", "route_leg_weights": {"BOXX": 0.79, "MSTR": 0.2, "IAU": 0.01}},
+        {"date": "2026-01-03", "route_leg_weights": {"BOXX": 0.77, "MSTR": 0.22, "IAU": 0.01}},
+        {"date": "2026-01-04", "route_leg_weights": {"BOXX": 0.78, "MSTR": 0.22}},
+    ]
+
+    evidence = mod.route_set_turnover_evidence(rows, config)
+
+    assert evidence == {
+        "definition": "full_portfolio_l1_on_nonrisk_nonboxx_route_set_change_days",
+        "event_count": 2,
+        "total": 0.04,
+    }
 
 
 def test_default_gate_config_uses_current_baseline_snapshot(tmp_path, monkeypatch) -> None:

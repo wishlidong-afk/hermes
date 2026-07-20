@@ -36,6 +36,7 @@
     "use_market_admission_gate",
     "use_meta_label",
     "use_portfolio_risk_budget",
+    "use_route_set_transition_buffer",
     "use_status_hysteresis"
   ],
   "enabled_features": [

@@ -279,6 +279,34 @@ def latest_execution_confirmations(path: Path) -> Dict[str, Dict[str, Any]]:
     return out
 
 
+def latest_score_payload_before(path: Path, as_of: str) -> Optional[Dict[str, Any]]:
+    """Read the latest persisted score payload strictly before ``as_of``."""
+    if not path.exists():
+        return None
+    try:
+        with sqlite3.connect(path) as conn:
+            _ensure_schema(conn)
+            row = conn.execute(
+                """
+                SELECT payload_json
+                FROM score_runs
+                WHERE as_of < ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (str(as_of)[:10],),
+            ).fetchone()
+    except Exception:
+        return None
+    if not row:
+        return None
+    try:
+        payload = json.loads(row[0] or "{}")
+    except (TypeError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def apply_retention(path: Path, policy: Optional[Dict[str, int]] = None) -> Dict[str, int]:
     """Apply state DB retention and return row counts deleted per table group."""
     if not path.exists():

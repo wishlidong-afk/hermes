@@ -82,6 +82,22 @@ class TestReconcileOver(unittest.TestCase):
 
 
 class TestReconcileRouteLeg(unittest.TestCase):
+    def test_portfolio_targets_override_raw_routing_for_candidate_execution(self):
+        snap = _snap([])
+        report = reconcile(
+            snap,
+            {
+                "MSTR": {"target_weight": 0.15, "sleeve_cap": 0.15},
+                "FNGU": {"target_weight": 0.20, "sleeve_cap": 0.20},
+                "SOXL": {"target_weight": 0.20, "sleeve_cap": 0.30},
+            },
+            {"SOXL": {"applies": True, "weights": {"IAU": 0.19, "BOXX": 0.81}}},
+            portfolio_target_weights={"MSTR": 0.15, "FNGU": 0.20, "SOXL": 0.20, "BOXX": 0.45},
+        )
+
+        targets = {row.symbol: row.ideal_weight for row in report.route_legs}
+        self.assertEqual(targets, {"BOXX": 0.45})
+
     def test_soxx_in_route_legs_when_routing_provided(self):
         """When routing dict includes SOXX destination, it appears in route_legs."""
         snap = _snap([_pos("SOXX", 10_000)])

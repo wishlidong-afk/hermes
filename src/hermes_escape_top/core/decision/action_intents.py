@@ -43,10 +43,15 @@ def build_action_context(
         decision_layers[symbol] = layer
         action_intents[symbol] = intent
 
+    today_ops = _today_ops(action_intents, payload)
+    if payload.get("portfolio_target_weights") is not None:
+        today_ops["portfolio_target_weights"] = dict(payload["portfolio_target_weights"])
+        today_ops["route_transition"] = dict(payload.get("route_transition") or {})
+        today_ops["execution_target_source"] = "portfolio_target_weights"
     return {
         "decision_layers": decision_layers,
         "action_intents": action_intents,
-        "today_ops": _today_ops(action_intents, payload),
+        "today_ops": today_ops,
     }
 
 

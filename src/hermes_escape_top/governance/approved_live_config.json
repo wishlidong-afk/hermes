@@ -21,7 +21,7 @@
     "building/reports/data_quality/btc_spot_witness_off_equivalence_2026_07_14.json"
   ],
   "live_config_semantic_sha256": "c6060e55825f85462e2a8d567d8a6c2b20a771c40884ea721b8f23f730b704f9",
-  "repo_config_semantic_sha256": "25d01207a266b9443d4c64f70dc5e7b95c25a55fa88fa46fe949c22fc492e68d",
+  "repo_config_semantic_sha256": "c57cd6cac10484397ef4f9c0d7d259a1ea6dd9d3412077d5dbcb8e2736d7ad1c",
   "required_values": {
     "ibkr.readonly": true
   },

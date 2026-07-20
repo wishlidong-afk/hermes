@@ -22,6 +22,7 @@ from .core.data.quality import analyze_missing_fields, quality_from_snapshots
 from .core.data.state_store import (
     latest_decision_statuses,
     latest_execution_confirmations,
+    latest_score_payload_before,
     sync_execution_confirmations,
     write_state_snapshot,
 )
@@ -36,6 +37,10 @@ from .core.portfolio.sizing_optimizer import optimize_targets
 from .core.contracts import Verdict, ConfidenceState
 from .core.confidence.spine import compute_confidence
 from .core.routing.capital_routing import route_capital
+from .core.routing.portfolio_routes import (
+    apply_route_set_transition_buffer,
+    route_leg_weights,
+)
 from .core.reentry.plan import build_reentry_plan
 from .core.reentry.auto_confirm import infer_execution_confirmations
 from .core.reentry.store import read_reentry_states, write_reentry_snapshot
@@ -233,6 +238,28 @@ def _score_pipeline_locked(
     sizing, sizing_extras = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of,
                                              signal_journal_path=signal_journal_path)
     routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=histories) for symbol, bundle in bundles.items()}
+    route_transition = None
+    portfolio_target_weights = None
+    if bool(config.get("features", {}).get("use_route_set_transition_buffer", False)):
+        sizing_dict = {symbol: decision.to_dict() for symbol, decision in sizing.items()}
+        routing_dict = {symbol: decision.to_dict() for symbol, decision in routing.items()}
+        raw_route_weights = route_leg_weights(config, sizing_dict, routing_dict)
+        previous_payload = latest_score_payload_before(state_db_path, as_of)
+        previous_route_weights = None
+        if previous_payload:
+            previous_route_weights = previous_payload.get("portfolio_target_weights")
+            if not previous_route_weights:
+                previous_route_weights = route_leg_weights(
+                    config,
+                    previous_payload.get("sizing") or {},
+                    previous_payload.get("routing") or {},
+                )
+        route_transition = apply_route_set_transition_buffer(
+            config,
+            raw_route_weights,
+            previous_route_weights,
+        )
+        portfolio_target_weights = route_transition.weights
     reentry_db_path = store.archive_dir / "reentry_state.sqlite"
     reentry_states = read_reentry_states(reentry_db_path)
     execution_confirmations = latest_execution_confirmations(state_db_path)
@@ -272,7 +299,12 @@ def _score_pipeline_locked(
         flow_db = write_flow_snapshot(store.archive_dir / "flow_reference.sqlite", flow)
         flow["db_path"] = str(flow_db)
         _persistence_checkpoint("flow_reference")
-        ibkr_payload = _ibkr_payload(config, sizing, routing) if include_ibkr else {
+        ibkr_payload = _ibkr_payload(
+            config,
+            sizing,
+            routing,
+            portfolio_target_weights=portfolio_target_weights,
+        ) if include_ibkr else {
             "source": "disabled",
             "note": "IBKR disabled for offline replay/backtest.",
         }
@@ -332,6 +364,9 @@ def _score_pipeline_locked(
         }
         if market_admission_status is not None:
             payload["market_admission_status"] = dict(market_admission_status)
+        if portfolio_target_weights is not None and route_transition is not None:
+            payload["portfolio_target_weights"] = portfolio_target_weights
+            payload["route_transition"] = route_transition.to_dict()
         payload["input_hash"] = stable_hash(payload["snapshots"])
         payload["data_quality_breakdown"] = _quality_breakdown(payload, snapshots, flow)
         payload.update(build_action_context(payload, snapshots))
@@ -419,7 +454,13 @@ def _flow_payload(config: Dict[str, Any], histories: Dict[str, Any], as_of: str)
     }
 
 
-def _ibkr_payload(config: Dict[str, Any], sizing: Dict[str, Any], routing: Dict[str, Any]) -> Dict[str, Any]:
+def _ibkr_payload(
+    config: Dict[str, Any],
+    sizing: Dict[str, Any],
+    routing: Dict[str, Any],
+    *,
+    portfolio_target_weights: Optional[Dict[str, float]] = None,
+) -> Dict[str, Any]:
     if not config.get("ibkr", {}).get("enabled", False):
         return {"source": "disabled", "note": "set ibkr.enabled=true to activate"}
     try:
@@ -429,7 +470,12 @@ def _ibkr_payload(config: Dict[str, Any], sizing: Dict[str, Any], routing: Dict[
         snap = read_positions(config)
         sizing_for_recon = {s: d.to_dict() for s, d in sizing.items()}
         routing_for_recon = {s: d.to_dict() for s, d in routing.items()}
-        return ibkr_reconcile(snap, sizing_for_recon, routing_for_recon).to_dict()
+        return ibkr_reconcile(
+            snap,
+            sizing_for_recon,
+            routing_for_recon,
+            portfolio_target_weights=portfolio_target_weights,
+        ).to_dict()
     except Exception as exc:
         return {"error": str(exc), "source": "unavailable"}
 

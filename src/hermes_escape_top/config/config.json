@@ -354,7 +354,8 @@
     "use_market_admission_gate": false,
     "use_btc_spot_witness": false,
     "use_cboe_official_indices": false,
-    "use_fred_vintage_pit": false
+    "use_fred_vintage_pit": false,
+    "use_route_set_transition_buffer": false
   },
   "_full_confidence_spine_flip": {
     "enabled_at": "2026-06-12",
