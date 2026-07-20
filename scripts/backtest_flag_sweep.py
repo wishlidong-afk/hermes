@@ -76,6 +76,7 @@ def normalize_gate_config(config: dict[str, Any]) -> dict[str, Any]:
     feats["use_indicator_cache"] = True
     feats.setdefault("use_fred_vintage_pit", False)
     feats.setdefault("use_route_set_transition_buffer", False)
+    feats.setdefault("use_cd_trend_dedup", False)
     return cfg
 
 
@@ -85,7 +86,7 @@ def build_config(variant: str, *, config_path: Path | None = None) -> dict:
         selected = CURRENT_BASELINE_CONFIG_PATH if CURRENT_BASELINE_CONFIG_PATH.exists() else CONFIG_PATH
     cfg = normalize_gate_config(load_config(selected))
     feats = cfg["features"]
-    if variant == "baseline":
+    if variant in {"baseline", "cd_trend_baseline"}:
         pass
     elif variant == "continuous_sell_fraction":
         cfg["sell_fraction_mode"] = "continuous"
@@ -107,6 +108,8 @@ def build_config(variant: str, *, config_path: Path | None = None) -> dict:
         feats["use_fred_vintage_pit"] = True
     elif variant == "route_set_transition_buffer":
         feats["use_route_set_transition_buffer"] = True
+    elif variant == "cd_trend_dedup":
+        feats["use_cd_trend_dedup"] = True
     elif variant == "CM_EXCHANGE_INFLOW_PRESSURE":
         feats["data_onchain_mstr"] = True
         cfg["onchain_mstr"] = {"candidate": "CM_EXCHANGE_INFLOW_PRESSURE"}

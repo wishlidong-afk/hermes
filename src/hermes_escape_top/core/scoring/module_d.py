@@ -13,14 +13,32 @@ ONCHAIN_THRESHOLD = 2.0
 
 
 def module_d_factors(symbol: str, config: Optional[dict[str, Any]] = None) -> list[FactorDefinition]:
+    trend_dedup = bool((config or {}).get("features", {}).get("use_cd_trend_dedup", False))
+    if trend_dedup:
+        trend_factors = [
+            FactorDefinition("D1_ASSET_MA200_BREAK", "D", 5.0, [], _c_owned_ma200),
+            FactorDefinition("D2_ASSET_MA220_BREAK", "D", 3.0, [], _c_owned_ma220),
+        ]
+    else:
+        trend_factors = [
+            FactorDefinition("D1_ASSET_MA200_BREAK", "D", 5.0, ["close", "ma200"], _asset_ma200_break),
+            FactorDefinition("D2_ASSET_MA220_BREAK", "D", 3.0, ["close", "ma220"], _asset_ma220_break),
+        ]
     factors = [
-        FactorDefinition("D1_ASSET_MA200_BREAK", "D", 5.0, ["close", "ma200"], _asset_ma200_break),
-        FactorDefinition("D2_ASSET_MA220_BREAK", "D", 3.0, ["close", "ma220"], _asset_ma220_break),
+        *trend_factors,
         FactorDefinition("D3_TRAILING_PEAK_DAMAGE", "D", 4.0, ["close", "ema50", "drawdown_60d_high_pct"], _trailing_peak_damage),
         FactorDefinition("D4_RADAR_CONFIRMATION", "D", 4.0, _radar_dependencies(symbol), _radar_confirmation(symbol), _radar_missing_name(symbol)),
     ]
     factors.extend(_symbol_extra_factors(symbol, config))
     return factors
+
+
+def _c_owned_ma200(_ctx: FactorContext) -> tuple[float, str]:
+    return 0.0, "Module C owns MA200 trend damage; D1 retained as a zero-point audit row"
+
+
+def _c_owned_ma220(_ctx: FactorContext) -> tuple[float, str]:
+    return 0.0, "Module C owns MA220 rebuild damage; D2 retained as a zero-point audit row"
 
 
 def _asset_ma200_break(ctx: FactorContext) -> tuple[float, str]:

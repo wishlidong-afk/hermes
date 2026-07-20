@@ -28,6 +28,7 @@
     "use_b6_mnav_valuation",
     "use_btc_spot_witness",
     "use_cboe_official_indices",
+    "use_cd_trend_dedup",
     "use_close_confirmation",
     "use_decision_stabilizer",
     "use_fred_vintage_pit",

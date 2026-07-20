@@ -75,6 +75,7 @@ of four states:
 | `use_cboe_official_indices` | **ON (live config; repo default OFF)** ✅ | live | Live since 2026-07-14: official CBOE VIX/VIX3M/VIX9D/SKEW/VVIX files are the five canonical single writers; Yahoo is witness-only, and mismatched or unconfirmed rows stay frozen. Activation evidence: `building/reports/data_quality/cboe_official_indices_live_activation_2026_07_14.json` |
 | `use_fred_vintage_pit` | OFF | gate-failed | Exact ALFRED output-type-3 event storage and as-of replay remain available for research, but the one-shot formal gate rejected replacing the live legacy FRED path. Production stays on the documented `date+1` approximation. |
 | `use_route_set_transition_buffer` | OFF | gate-failed | Fixed sole sub-2pp non-risk route-leg suppression was a full-system no-op: WF/CPCV OOS deltas and route-set turnover delta were all zero. It remains false and must not be retuned or rerun. |
+| `use_cd_trend_dedup` | OFF | candidate | Give Module C sole ownership of broad MA200/MA220 price-trend damage; D1/D2 remain zero-point audit rows while D3/D4 and symbol extras remain unchanged. Registered once as `cd-trend-ownership-v1`. |
 
 ---
 
@@ -132,6 +133,7 @@ These flags had zero code references and were removed from config.json:
 | Experiment | State | Hypothesis | Required validation |
 |---|---|---|---|
 | `use_indicator_cache` | Candidate | Reusing an indicator frame should reduce repeated score latency without changing payload semantics | OFF-path byte identity and a fresh performance measurement are required before any live flip |
+| `use_cd_trend_dedup` | Candidate | Removing the duplicate D1/D2 MA votes may reduce confirmation overcounting without weakening symbol-specific D evidence | Four-date OFF identity and one formal gate; neutrality or any failed standard check rejects without retuning. |
 | `use_market_admission_gate` | Live | Dual-source consensus prevents a corrupt or cross-wired Yahoo row from entering canonical history | 914 tests; four-date/six-artifact OFF identity; isolated and live read-only certification; operation `c192975dd63c478a904b21c152108a1c`; 8766 strategy health OK |
 | `use_btc_spot_witness` | Live | Coinbase completed-day close should catch a corrupt Yahoo BTC row without rejecting normal cross-venue variation | `building/reports/data_quality/btc_spot_witness_off_equivalence_2026_07_14.json`; `btc_spot_witness_historical_overlap_2026_07_14.json`; 365/365 overlap, 0 days above 1%, max 0.5042%; 964 tests; live operation `b1ee0b6f3fb34f73a500661559c78356` |
 

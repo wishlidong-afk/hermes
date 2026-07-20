@@ -1,7 +1,7 @@
 # Factor Capacity Inventory
 
 Generated directly from `build_registry(symbol, config)`.
-Config SHA-256: `c57cd6cac10484397ef4f9c0d7d259a1ea6dd9d3412077d5dbcb8e2736d7ad1c`
+Config SHA-256: `5133698ab9e638d090ba0f56223b1e0a8b4b4ae8a11f451c34e8e2ba9001e544`
 
 `defined_max` includes configured-off scoring definitions; `configured_reachable_max` excludes
 non-scoring placeholders and deliberate missing-only gates. The scorer applies `module_cap` last.

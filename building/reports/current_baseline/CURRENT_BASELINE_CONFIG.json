@@ -113,6 +113,7 @@
     "use_decision_stabilizer": false,
     "use_fred_vintage_pit": false,
     "use_route_set_transition_buffer": false,
+    "use_cd_trend_dedup": false,
     "use_full_confidence_spine": true,
     "use_hm2_buffer": false,
     "use_indicator_cache": true,

@@ -31,6 +31,8 @@ def test_build_config_variants_are_distinct() -> None:
     stabilizer = mod.build_config("decision_stabilizer")
     fred_vintage = mod.build_config("fred_vintage_pit")
     route_buffer = mod.build_config("route_set_transition_buffer")
+    cd_baseline = mod.build_config("cd_trend_baseline")
+    cd_dedup = mod.build_config("cd_trend_dedup")
 
     assert baseline["features"]["use_indicator_cache"] is True
     assert baseline["features"]["data_cot_nq"] is False
@@ -42,6 +44,8 @@ def test_build_config_variants_are_distinct() -> None:
     assert fred_vintage["features"]["use_fred_vintage_pit"] is True
     assert baseline["features"].get("use_route_set_transition_buffer", False) is False
     assert route_buffer["features"]["use_route_set_transition_buffer"] is True
+    assert cd_baseline["features"].get("use_cd_trend_dedup", False) is False
+    assert cd_dedup["features"]["use_cd_trend_dedup"] is True
 
 
 def test_route_set_turnover_counts_only_non_risk_set_transition_days() -> None:
