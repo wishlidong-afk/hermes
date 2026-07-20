@@ -32,7 +32,7 @@ VOLATILE_KEYS = {
 }
 INTENTIONAL_METADATA_KEYS = {"persistence"}
 SEED_SUBDIRS = ("history", "soft_history")
-BUSINESS_ARTIFACTS = {
+STATIC_BUSINESS_ARTIFACTS = {
     "audit_log.jsonl",
     "flow_reference.sqlite",
     "hermes_state.sqlite",
@@ -40,6 +40,13 @@ BUSINESS_ARTIFACTS = {
     "reentry_state.sqlite",
     "signal_journal.jsonl",
 }
+
+
+def _business_artifact_names(as_of: str) -> set[str]:
+    return {
+        *STATIC_BUSINESS_ARTIFACTS,
+        f"soft_adapter_snapshot_{str(as_of)[:10]}.json",
+    }
 
 
 def parse_args() -> argparse.Namespace:
@@ -60,8 +67,7 @@ def main() -> int:
         "baseline_source": str(args.baseline_source.resolve()),
         "candidate_source": str(args.candidate_source.resolve()),
         "scope_notes": [
-            "Covers score_pipeline persistence only: four SQLite files, audit_log.jsonl, and signal_journal.jsonl.",
-            "archive_soft_inputs/write_dated_snapshot is a separate command outside the score_pipeline transaction and is intentionally excluded.",
+            "Covers score_pipeline persistence: four SQLite files, two JSONL ledgers, and the dated soft-adapter snapshot.",
             "Timestamps, temporary data-root prefixes, and the audit row's timestamp-derived payload_hash are normalized.",
             "The recoverable transaction envelope is omitted because its random run_id is operational metadata; every business field and persisted row remains strict.",
         ],
@@ -144,14 +150,19 @@ Path(sys.argv[2]).write_text(
     payload = json.loads(payload_path.read_text(encoding="utf-8"))
     archive = data_root / "data" / "archive"
     artifacts = {}
-    for name in sorted(BUSINESS_ARTIFACTS):
+    for name in sorted(_business_artifact_names(as_of)):
         path = archive / name
         if not path.exists():
             artifacts[name] = {"missing": True}
         elif path.suffix == ".sqlite":
             artifacts[name] = _snapshot_sqlite(path, data_root)
-        else:
+        elif path.suffix == ".jsonl":
             artifacts[name] = _snapshot_jsonl(path, data_root)
+        else:
+            artifacts[name] = _normalize(
+                json.loads(path.read_text(encoding="utf-8")),
+                data_root,
+            )
     return {
         "payload": _normalize(payload, data_root),
         "artifacts": artifacts,

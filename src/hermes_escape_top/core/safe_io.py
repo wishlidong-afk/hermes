@@ -24,6 +24,7 @@ opens a second lock fd, which would self-deadlock in the same process.
 """
 from __future__ import annotations
 
+import json
 import os
 import stat
 import tempfile
@@ -31,7 +32,7 @@ import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, Mapping, Optional
 
 try:
     import fcntl  # POSIX (macOS/Linux); this system only ever runs on darwin
@@ -167,3 +168,37 @@ def atomic_write_csv(frame: Any, path: Any, **to_csv_kwargs: Any) -> None:
         except OSError:
             pass
         raise
+
+
+def atomic_write_text(path: Any, content: str) -> None:
+    """Atomically replace a UTF-8 text file while preserving its mode."""
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    mode = stat.S_IMODE(target.stat().st_mode) if target.exists() else 0o644
+    fd, temp_name = tempfile.mkstemp(
+        dir=str(target.parent),
+        prefix=f".{target.name}.",
+        suffix=".tmp",
+    )
+    temp = Path(temp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temp, mode)
+        os.replace(temp, target)
+    except BaseException:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        temp.unlink(missing_ok=True)
+        raise
+
+
+def atomic_write_json(path: Any, payload: Mapping[str, Any]) -> None:
+    atomic_write_text(
+        path,
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+    )

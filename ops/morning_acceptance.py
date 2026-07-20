@@ -124,7 +124,11 @@ def collect_acceptance(
     audit_check, audit = _collect_audit(archive, receipt, acceptance_date)
     checks.append(audit_check)
 
-    transaction_check = _collect_transaction(archive, audit)
+    transaction_check = _collect_transaction(
+        archive,
+        audit,
+        require_soft_snapshot=release.get("policy_bound") == "true",
+    )
     checks.append(transaction_check)
 
     health_check, health_warnings = _collect_bound_health(
@@ -319,7 +323,12 @@ def _collect_audit(
         return _check("scheduled_audit", "FAIL", str(exc), path), {}
 
 
-def _collect_transaction(archive: Path, audit: Mapping[str, Any]) -> Dict[str, str]:
+def _collect_transaction(
+    archive: Path,
+    audit: Mapping[str, Any],
+    *,
+    require_soft_snapshot: bool,
+) -> Dict[str, str]:
     root = archive / ".score_run_transactions"
     try:
         persistence = audit.get("persistence")
@@ -357,7 +366,12 @@ def _collect_transaction(archive: Path, audit: Mapping[str, Any]) -> Dict[str, s
             for row in manifest.get("artifacts") or []
             if isinstance(row, Mapping)
         ]
-        expected_paths = {f"archive/{name}" for name in EXPECTED_ARTIFACTS}
+        expected_names = set(EXPECTED_ARTIFACTS)
+        if require_soft_snapshot:
+            expected_names.add(
+                f"soft_adapter_snapshot_{str(audit.get('as_of') or '')[:10]}.json"
+            )
+        expected_paths = {f"archive/{name}" for name in expected_names}
         artifacts = set(artifact_rows)
         if artifacts != expected_paths or len(artifact_rows) != len(expected_paths):
             missing = sorted(expected_paths - artifacts)
@@ -366,7 +380,8 @@ def _collect_transaction(archive: Path, audit: Mapping[str, Any]) -> Dict[str, s
         return _check(
             "persistence_transaction",
             "PASS",
-            f"run_id={run_id} status=COMMITTED artifacts=6 active=absent",
+            f"run_id={run_id} status=COMMITTED "
+            f"artifacts={len(expected_paths)} active=absent",
             manifest_path,
         )
     except Exception as exc:

@@ -26,7 +26,7 @@ from .core.data.state_store import (
     write_state_snapshot,
 )
 from .core.data.store import LocalStore, bootstrap_history
-from .core.data.adapters import collect_soft_data
+from .core.data.adapters import build_soft_data, collect_soft_data, persist_soft_data_snapshot
 from .core.data.sanitize import is_suspect_on
 from .core.backtest.posterior import escape_posterior_pnl, mirror_posterior_pnl
 from .core.features.regime import Regime, RegimeInput, classify_regime
@@ -49,6 +49,7 @@ from .core.safe_io import assert_pipeline_lease, pipeline_lock
 
 
 PERSISTENCE_CHECKPOINTS = (
+    "soft_adapter_snapshot",
     "reentry_state",
     "mirror_reference",
     "flow_reference",
@@ -191,7 +192,7 @@ def _score_pipeline_locked(
         symbol: (frame.loc[frame.index <= _cutoff] if frame is not None and not getattr(frame, "empty", True) else frame)
         for symbol, frame in histories.items()
     }
-    soft_data = collect_soft_data(as_of, config, store)
+    soft_data = build_soft_data(as_of, config, store)
     snapshots["SOFT"] = _soft_snapshot(soft_data, as_of)
     regime, regime_meta = _current_regime(snapshots, histories, as_of)
     sanitize_cfg = config.get("sanitize", {})
@@ -248,7 +249,7 @@ def _score_pipeline_locked(
         )
         for symbol, bundle in bundles.items()
     }
-    artifacts = _score_persistence_artifacts(store, shadow)
+    artifacts = _score_persistence_artifacts(store, shadow, as_of)
     with score_run_transaction(
         store.archive_dir,
         artifacts,
@@ -260,6 +261,8 @@ def _score_pipeline_locked(
         },
         _lease=_lease,
     ) as persistence:
+        persist_soft_data_snapshot(soft_data, store)
+        _persistence_checkpoint("soft_adapter_snapshot")
         reentry_db = write_reentry_snapshot(reentry_db_path, str(as_of)[:10], reentry, reentry_states)
         _persistence_checkpoint("reentry_state")
         mirror = build_mirror_plan(snapshots, config, histories=histories, as_of=as_of)
@@ -374,8 +377,13 @@ def _audit_write_dir(store: LocalStore, shadow: bool) -> Path:
     return path
 
 
-def _score_persistence_artifacts(store: LocalStore, shadow: bool) -> tuple[Path, ...]:
+def _score_persistence_artifacts(
+    store: LocalStore,
+    shadow: bool,
+    as_of: str,
+) -> tuple[Path, ...]:
     return (
+        store.archive_path("soft_adapter_snapshot", str(as_of)[:10]),
         store.archive_dir / "reentry_state.sqlite",
         store.archive_dir / "mirror_reference.sqlite",
         store.archive_dir / "flow_reference.sqlite",

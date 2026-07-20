@@ -19,6 +19,7 @@ BUSINESS_ARTIFACTS = (
     "mirror_reference.sqlite",
     "reentry_state.sqlite",
     "signal_journal.jsonl",
+    "soft_adapter_snapshot_2026-05-29.json",
 )
 
 
@@ -88,6 +89,37 @@ def test_each_cross_store_fault_restores_all_business_artifacts():
             with pytest.raises(RuntimeError, match=f"fault after {fault_name}"):
                 pipeline.score_pipeline("2026-05-29", include_ibkr=False)
         assert _artifact_hashes(archive) == before, fault_name
+
+
+def test_score_transaction_manifest_includes_dated_soft_snapshot():
+    config = load_config()
+    archive = resolve_path(config, "archive_dir")
+
+    payload = pipeline.score_pipeline("2026-05-29", include_ibkr=False)
+
+    run_id = payload["persistence"]["run_id"]
+    manifest = (
+        archive / f".score_run_transactions/runs/{run_id}/manifest.json"
+    ).read_text(encoding="utf-8")
+    assert "archive/soft_adapter_snapshot_2026-05-29.json" in manifest
+
+
+def test_fault_restores_prior_soft_snapshot_bytes():
+    config = load_config()
+    archive = resolve_path(config, "archive_dir")
+    snapshot = archive / "soft_adapter_snapshot_2026-05-29.json"
+    previous = b'{"certified":"prior-run"}\n'
+    snapshot.write_bytes(previous)
+
+    def inject(checkpoint):
+        if checkpoint == "reentry_state":
+            raise RuntimeError("fault after reentry_state")
+
+    with mock.patch.object(pipeline, "_persistence_checkpoint", side_effect=inject):
+        with pytest.raises(RuntimeError, match="fault after reentry_state"):
+            pipeline.score_pipeline("2026-05-29", include_ibkr=False)
+
+    assert snapshot.read_bytes() == previous
 
 
 def _call_name(node):

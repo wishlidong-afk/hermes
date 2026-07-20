@@ -40,11 +40,11 @@ and `src/hermes_escape_top/governance/live_config_policy.py`; modify `scripts/de
 **Files:** modify `core/data/adapters.py`, `core/data/store.py`, `pipeline.py`,
 `tests/test_pipeline_transaction.py`, and persistence comparison tooling.
 
-- [ ] Add fault tests that include `soft_adapter_snapshot_<as_of>.json`.
-- [ ] Verify a fault currently changes the snapshot while six artifacts restore.
-- [ ] Split soft collection from persistence; atomically write inside the score
+- [x] Add fault tests that include `soft_adapter_snapshot_<as_of>.json`.
+- [x] Verify a fault currently changes the snapshot while six artifacts restore.
+- [x] Split soft collection from persistence; atomically write inside the score
   transaction and include the dated path in the manifest.
-- [ ] Run fault matrix, four-date identity, and pipeline tests; review diff.
+- [x] Run fault matrix, four-date identity, and pipeline tests; review diff.
 
 ### Task 3: Source Role And Provenance Contract
 

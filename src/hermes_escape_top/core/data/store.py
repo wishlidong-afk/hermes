@@ -7,6 +7,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from ..safe_io import atomic_write_json
+
 import pandas as pd
 
 from ...config import PACKAGE_DIR, resolve_path
@@ -82,7 +84,7 @@ class LocalStore:
     def write_dated_snapshot(self, name: str, as_of: str | date, payload: Dict[str, Any]) -> Path:
         self.ensure_dirs()
         path = self.archive_path(name, as_of)
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
+        atomic_write_json(path, payload)
         return path
 
     def load_dated_snapshot(self, name: str, as_of: str | date) -> Optional[Dict[str, Any]]:

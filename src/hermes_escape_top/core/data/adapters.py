@@ -173,17 +173,33 @@ def apply_soft_data_slo(records: Dict[str, Any], config: Dict[str, Any]) -> Dict
     return records
 
 
-def collect_soft_data(as_of: str, config: Dict[str, Any], store: LocalStore) -> Dict[str, Any]:
+def build_soft_data(as_of: str, config: Dict[str, Any], store: LocalStore) -> Dict[str, Any]:
+    """Build the deterministic soft payload without mutating persistence."""
     records = {source.name: source.collect(as_of, config).to_dict() for source in default_sources(config)}
     records["valuation"] = _valuation_record(as_of, config, store)
     records = apply_soft_data_slo(records, config)
-    path = store.write_dated_snapshot(
+    path = store.archive_path("soft_adapter_snapshot", str(as_of)[:10])
+    return {"as_of": str(as_of)[:10], "path": str(path), "records": records}
+
+
+def persist_soft_data_snapshot(payload: Dict[str, Any], store: LocalStore) -> Path:
+    """Persist a previously built soft payload at its deterministic dated path."""
+    as_of = str(payload.get("as_of") or "")[:10]
+    if not as_of:
+        raise ValueError("soft data as_of is required")
+    return store.write_dated_snapshot(
         "soft_adapter_snapshot",
         as_of,
         {
             "schema_version": "escape-top-greenfield-soft-adapter-v1",
-            "as_of": str(as_of)[:10],
-            "records": records,
+            "as_of": as_of,
+            "records": payload.get("records") or {},
         },
     )
-    return {"as_of": str(as_of)[:10], "path": str(path), "records": records}
+
+
+def collect_soft_data(as_of: str, config: Dict[str, Any], store: LocalStore) -> Dict[str, Any]:
+    """Compatibility interface for explicit snapshot/archive commands."""
+    payload = build_soft_data(as_of, config, store)
+    persist_soft_data_snapshot(payload, store)
+    return payload

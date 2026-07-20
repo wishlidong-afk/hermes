@@ -1,8 +1,9 @@
 """Recoverable transaction journal for one multi-store score run.
 
-SQLite can make each database atomic, but Hermes writes four databases and two
-JSONL ledgers per score run. This module records one run id, snapshots the six
-files before the first write, and publishes ``COMMITTED`` only after every write
+SQLite can make each database atomic, but Hermes writes four databases, two
+JSONL ledgers, and one dated soft-input snapshot per score run. This module
+records one run id, snapshots all seven files before the first write, and
+publishes ``COMMITTED`` only after every write
 returns. A normal exception restores immediately; after a process kill, the next
 lock-owning run calls :func:`recover_incomplete_score_run` before reading state.
 
