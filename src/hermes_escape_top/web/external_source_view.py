@@ -19,6 +19,12 @@ def external_reliability_text(row: Mapping[str, Any]) -> str:
     channel = str(row.get("latest_source_channel") or "").strip()
     if channel:
         parts.append(f"渠道 {channel}")
+    primary = str(row.get("latest_primary_source") or "").strip()
+    if primary and primary != channel:
+        parts.append(f"主源 {primary}")
+    primary_failure = str(row.get("latest_primary_failure") or "").strip()
+    if primary_failure:
+        parts.append(f"主源失败 {primary_failure}")
     rescues = int(row.get("fallback_rescues_7d") or 0)
     if rescues:
         parts.append(f"7d fallback 救回 {rescues}")

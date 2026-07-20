@@ -10,6 +10,7 @@ from typing import Callable
 import pandas as pd
 
 from ..market_clock import latest_completed_us_market_session
+from .provenance import source_provenance
 from .registry import ExternalSourceSpec
 
 
@@ -84,6 +85,7 @@ class CboeVolatilityIndexAdapter:
             except Exception as exc:
                 witness_error = f"{exc.__class__.__name__}: {exc}"
         return {
+            "provenance": source_provenance("cboe_official_history"),
             "source_url": self.definition.url,
             "file_name": self.definition.file_name,
             "content_sha256": hashlib.sha256(csv_text.encode("utf-8")).hexdigest(),

@@ -16,6 +16,7 @@ from ..core.data.external_sources.ledger import (
     CANONICAL_EVIDENCE_CRITICAL_STATUSES,
     canonical_evidence_issue,
 )
+from ..core.data.external_sources.profiles import profile_for
 from .refresh import _completed_trading_days_after
 
 # Sources that are off/unwired BY DESIGN — their absence is the steady-state
@@ -248,6 +249,26 @@ def compute_health(
                 continue
             if row.get("active") is False:
                 continue
+            profile = profile_for(str(source_id))
+            decision_role = str(
+                row.get("decision_role")
+                or (profile.decision_role if profile is not None else "strategy")
+            )
+            source_layer = (
+                "strategy_data"
+                if decision_role in {"strategy", "hard_gate"}
+                else "auxiliary_flows"
+            )
+            failure_level = "INFO" if decision_role == "research" else "DEGRADED"
+            evidence_critical_level = (
+                "CRITICAL"
+                if decision_role in {"strategy", "hard_gate"}
+                else failure_level
+            )
+
+            def add_source(level: str, label: str, detail: str) -> None:
+                add(level, label, detail, source_layer)
+
             status = str(row.get("status") or "")
             attempt_status = str(row.get("latest_attempt_status") or status)
             freshness = str(row.get("freshness_status") or "")
@@ -255,12 +276,12 @@ def compute_health(
             if evidence:
                 detail = f"{source_id}: {evidence} {row.get('evidence_detail') or ''}".strip()
                 if evidence in CANONICAL_EVIDENCE_CRITICAL_STATUSES:
-                    add("CRITICAL", "外部数据证据失配", detail[:160])
+                    add_source(evidence_critical_level, "外部数据证据失配", detail[:160])
                 else:
-                    add("DEGRADED", "外部数据证据未绑定", detail[:160])
+                    add_source(failure_level, "外部数据证据未绑定", detail[:160])
                 continue
             if attempt_status == "MISSING":
-                add("DEGRADED", "外部数据源未自动刷新", str(source_id))
+                add_source(failure_level, "外部数据源未自动刷新", str(source_id))
                 continue
             if attempt_status not in {"", "OK"}:
                 attempt_error = (
@@ -271,22 +292,22 @@ def compute_health(
                     or ""
                 )
                 detail = f"{source_id}: {attempt_status} {attempt_error}".strip()
-                add("DEGRADED", "外部数据源刷新失败", detail[:160])
+                add_source(failure_level, "外部数据源刷新失败", detail[:160])
                 continue
             if status == "OK" and freshness == "STALE":
                 detail = (
                     f"{source_id}: age={row.get('age_days')}d "
                     f"{row.get('next_action') or ''}"
                 ).strip()
-                add("DEGRADED", "外部数据源陈旧", detail[:160])
+                add_source(failure_level, "外部数据源陈旧", detail[:160])
                 continue
             if status == "OK":
                 continue
             if status == "MISSING":
-                add("DEGRADED", "外部数据源未自动刷新", str(source_id))
+                add_source(failure_level, "外部数据源未自动刷新", str(source_id))
                 continue
             detail = f"{source_id}: {status} {row.get('error_message') or row.get('error') or ''}".strip()
-            add("DEGRADED", "外部数据源刷新失败", detail[:160])
+            add_source(failure_level, "外部数据源刷新失败", detail[:160])
 
     layers = _layers(checks)
     overall = layers["strategy_data"]["level"]

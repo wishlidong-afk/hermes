@@ -202,9 +202,44 @@ def test_btc_micro_adapter_preserves_schema_and_real_provider(tmp_path):
     frame = pd.read_csv(target)
 
     assert run.status == "OK"
+    assert run.source_channel == "deribit"
+    assert run.primary_source == "deribit"
+    assert run.fallback_used is False
     assert frame.iloc[-1]["publish_date"] == "2026-07-10"
     assert bool(frame.iloc[-1]["is_proxy"]) is False
     assert frame.iloc[-1]["funding_source"] == "deribit"
+
+
+def test_btc_micro_adapter_records_okx_fallback_provenance(tmp_path):
+    module = _module()
+    target = tmp_path / "soft_history" / "btc_funding_basis.csv"
+    adapter = module.BtcMicroAdapter(
+        seed_path=target,
+        fetch_bundle=lambda _seed: {
+            "funding_source": "okx_failover",
+            "primary_failure": "empty_funding_response",
+            "funding": [
+                {
+                    "date": "2026-07-10",
+                    "btc_funding_8h_avg": 0.0001,
+                    "btc_index_price": 100000.0,
+                }
+            ],
+            "dvol": [],
+        },
+    )
+
+    run = run_external_source_refresh(
+        module.btc_micro_spec(target_path=target, min_rows=1),
+        adapter,
+        tmp_path / "archive",
+    )
+
+    assert run.status == "OK"
+    assert run.source_channel == "okx"
+    assert run.primary_source == "deribit"
+    assert run.fallback_used is True
+    assert run.primary_failure == "empty_funding_response"
 
 
 def test_btc_micro_validator_applies_exchange_bounds_only_to_real_rows(tmp_path):

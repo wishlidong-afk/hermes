@@ -19,6 +19,8 @@ from xml.etree import ElementTree as ET
 
 import pandas as pd
 
+from .provenance import source_provenance
+
 from ..risk_signals import _last_percentile
 from .clock import shanghai_today
 from .registry import ExternalSourceSpec
@@ -158,6 +160,7 @@ class AaiiSentimentAdapter:
             return {
                 "url": self.url,
                 "source": "public_html",
+                "provenance": source_provenance("public_html"),
                 "file_name": "sent_results.html",
                 "content_sha256": hashlib.sha256(html.encode("utf-8")).hexdigest(),
                 "html": html,
@@ -183,6 +186,12 @@ class AaiiSentimentAdapter:
             return {
                 "url": self.feed_url,
                 "source": "official_insights_rss",
+                "provenance": source_provenance(
+                    "official_insights_rss",
+                    primary_source="public_html",
+                    fallback_used=True,
+                    primary_failure=primary_failure,
+                ),
                 "file_name": "aaii_insights_feed.xml",
                 "content_sha256": hashlib.sha256(feed.encode("utf-8")).hexdigest(),
                 "primary_failure": primary_failure,
@@ -235,6 +244,7 @@ class AaiiSentimentImportAdapter:
             raise ValueError(f"AAII import file is empty: {path}")
         return {
             "source": "manual_official_file",
+            "provenance": source_provenance("manual_official_file"),
             "file_name": path.name,
             "file_size": len(content),
             "file_mtime": file_mtime,

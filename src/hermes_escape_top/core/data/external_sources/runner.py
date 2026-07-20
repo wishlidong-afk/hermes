@@ -16,6 +16,7 @@ import pandas as pd
 
 from ...safe_io import assert_pipeline_lease, atomic_write_csv, pipeline_lock
 from .ledger import append_source_run
+from .provenance import ProvenanceError, source_provenance
 from .registry import ExternalSourceSpec, latest_frame_date, validate_normalized_frame
 
 
@@ -55,6 +56,7 @@ class ExternalSourceRun:
     pit_rule: str | None = None
     source_url: str | None = None
     source_channel: str | None = None
+    primary_source: str | None = None
     fallback_used: bool | None = None
     primary_failure: str | None = None
     raw_sha256: str | None = None
@@ -86,6 +88,7 @@ class PreparedFrameAdapter:
     def fetch_raw(self) -> dict[str, Any]:
         return {
             "source": self.source_channel,
+            "provenance": source_provenance(self.source_channel),
             "rows": self.frame.to_dict("records"),
         }
 
@@ -167,7 +170,25 @@ def _run_external_source_refresh_locked(
         (raw_text + "\n").encode("utf-8"),
     )
     input_hash = _sha256(_stable_raw_text(raw))
-    channel_metadata = _source_channel_metadata(raw)
+    try:
+        channel_metadata = _source_channel_metadata(raw)
+    except ProvenanceError as exc:
+        return _record(
+            archive_dir,
+            spec,
+            run_id,
+            started,
+            "PARSE_ERROR",
+            raw_path=raw_path,
+            error_type=exc.__class__.__name__,
+            error_message=str(exc),
+            input_hash=input_hash,
+            fetched_at=started,
+            pit_rule=spec.pit_rule,
+            source_url=_source_url(raw) or spec.source_url,
+            transport_status="OK",
+            parse_status="ERROR",
+        )
 
     try:
         frame = adapter.parse(raw)
@@ -380,6 +401,7 @@ def _record(
     pit_rule: str | None = None,
     source_url: str | None = None,
     source_channel: str | None = None,
+    primary_source: str | None = None,
     fallback_used: bool | None = None,
     primary_failure: str | None = None,
     transport_status: str = "NOT_RUN",
@@ -390,6 +412,7 @@ def _record(
     advanced: bool | None = None,
 ) -> ExternalSourceRun:
     error_message = _sanitize_persisted_text(error_message)
+    primary_source = _sanitize_persisted_text(primary_source)
     primary_failure = _sanitize_persisted_text(primary_failure)
     source_url = _sanitize_persisted_text(source_url)
     raw_sha256 = _sha256_file(raw_path) if raw_path else None
@@ -418,6 +441,7 @@ def _record(
         pit_rule=pit_rule,
         source_url=source_url,
         source_channel=source_channel,
+        primary_source=primary_source,
         fallback_used=fallback_used,
         primary_failure=primary_failure,
         raw_sha256=raw_sha256,
@@ -677,14 +701,46 @@ def _source_channel_metadata(raw: Any) -> dict[str, Any]:
     if not isinstance(raw, dict):
         return {
             "source_channel": None,
+            "primary_source": None,
             "fallback_used": None,
             "primary_failure": None,
         }
-    channel = str(raw.get("source") or "").strip() or None
-    primary_failure = str(raw.get("primary_failure") or "").strip() or None
+    provenance = raw.get("provenance")
+    if not isinstance(provenance, dict):
+        provenance = {}
+    channel = str(provenance.get("source") or raw.get("source") or "").strip() or None
+    primary_source = (
+        str(provenance.get("primary_source") or raw.get("primary_source") or "").strip()
+        or channel
+    )
+    primary_failure = str(
+        provenance.get("primary_failure") or raw.get("primary_failure") or ""
+    ).strip() or None
+    explicit_fallback = provenance.get("fallback_used")
+    if explicit_fallback is None:
+        explicit_fallback = raw.get("fallback_used")
+    fallback_used = (
+        bool(explicit_fallback)
+        if explicit_fallback is not None
+        else bool(primary_failure) if channel else None
+    )
+    if provenance:
+        normalized = source_provenance(
+            channel or "",
+            primary_source=primary_source,
+            fallback_used=fallback_used,
+            primary_failure=primary_failure,
+        )
+        return {
+            "source_channel": normalized["source"],
+            "primary_source": normalized["primary_source"],
+            "fallback_used": normalized["fallback_used"],
+            "primary_failure": normalized["primary_failure"],
+        }
     return {
         "source_channel": channel,
-        "fallback_used": bool(primary_failure) if channel else None,
+        "primary_source": primary_source,
+        "fallback_used": fallback_used,
         "primary_failure": primary_failure,
     }
 

@@ -10,6 +10,21 @@ def _effective_source_profile(config, source_id):
     return function(config, source_id)
 
 
+def test_every_external_source_declares_a_decision_role():
+    allowed = {"strategy", "hard_gate", "auxiliary", "research"}
+
+    assert profiles.PROFILES
+    assert {
+        source_id: profile.decision_role
+        for source_id, profile in profiles.PROFILES.items()
+        if profile.decision_role not in allowed
+    } == {}
+    assert profiles.PROFILES["fred_vintages"].decision_role == "hard_gate"
+    assert profiles.PROFILES["dollar"].decision_role == "strategy"
+    assert profiles.PROFILES["cboe_vix9d"].decision_role == "auxiliary"
+    assert profiles.PROFILES["btc_funding_basis"].decision_role == "research"
+
+
 def test_effective_profile_uses_config_slo_as_single_runtime_truth():
     config = {
         "soft_data_slo": {

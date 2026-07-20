@@ -17,6 +17,8 @@ from xml.etree import ElementTree as ET
 
 import pandas as pd
 
+from .provenance import source_provenance
+
 from ..risk_signals import _last_percentile
 from .registry import ExternalSourceSpec
 
@@ -99,6 +101,7 @@ class NaaimExposureAdapter:
             raise ValueError("downloaded empty NAAIM xlsx")
         return {
             "source": "naaim_public_workbook",
+            "provenance": source_provenance("naaim_public_workbook"),
             "index_url": _evidence_url(urlparse(self.index_url)),
             "xlsx_url": _evidence_url(urlparse(xlsx_url)),
             "xlsx_sha256": hashlib.sha256(xlsx).hexdigest(),
@@ -153,6 +156,7 @@ class NaaimSubscriberAdapter:
             raise ValueError("downloaded empty NAAIM subscriber workbook")
         return {
             "source": "naaim_subscriber",
+            "provenance": source_provenance("naaim_subscriber"),
             "auth_mode": auth_mode,
             "xlsx_url": _evidence_url(parsed),
             "xlsx_sha256": hashlib.sha256(content).hexdigest(),
@@ -195,6 +199,7 @@ class NaaimExposureImportAdapter:
             raise ValueError(f"NAAIM import file is empty: {path}")
         return {
             "source": "manual_official_file",
+            "provenance": source_provenance("manual_official_file"),
             "file_name": path.name,
             "file_size": len(content),
             "file_mtime": file_mtime,

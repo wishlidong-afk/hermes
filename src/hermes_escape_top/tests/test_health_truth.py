@@ -387,6 +387,32 @@ def test_stale_external_source_profile_degrades_even_when_last_run_ok():
     )
 
 
+def test_stale_active_research_source_is_visible_without_degrading_strategy():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "btc_funding_basis": {
+            "source_id": "btc_funding_basis",
+            "decision_role": "research",
+            "active": True,
+            "status": "OK",
+            "freshness_status": "STALE",
+            "age_days": 8,
+        }
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "OK"
+    assert health["layers"]["strategy_data"]["level"] == "OK"
+    check = next(
+        check
+        for check in health["checks"]
+        if "btc_funding_basis" in check["detail"]
+    )
+    assert check["level"] == "INFO"
+    assert check["layer"] == "auxiliary_flows"
+
+
 def test_previous_receipt_expires_after_next_run_grace_window():
     # com.hermes.daily runs every calendar day at 07:10. The extra two hours
     # distinguish a missed daily job from normal weekend/holiday price staleness.

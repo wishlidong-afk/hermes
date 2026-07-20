@@ -12,6 +12,8 @@ from urllib.request import Request, urlopen
 
 import pandas as pd
 
+from .provenance import source_provenance
+
 from ..risk_signals import _last_percentile
 from .registry import ExternalSourceSpec
 
@@ -212,6 +214,7 @@ class FredVintageAdapter:
             "responses": responses,
             "seed_rows": seed_rows,
             "source_url": FRED_OBSERVATIONS_URL,
+            "provenance": source_provenance("fred_alfred_api"),
         }
 
     def parse(self, raw: Mapping[str, Any]) -> pd.DataFrame:
@@ -584,6 +587,7 @@ class FredVintagePercentileAdapter:
             "vintage_path": str(self.vintage_path),
             "vintage_sha256": hashlib.sha256(body).hexdigest(),
             "source_url": FRED_OBSERVATIONS_URL,
+            "provenance": source_provenance("certified_fred_vintage_store"),
         }
 
     def parse(self, raw: Mapping[str, Any]) -> pd.DataFrame:
@@ -613,6 +617,7 @@ class FredVintageNetLiquidityAdapter:
             "vintage_path": str(self.vintage_path),
             "vintage_sha256": hashlib.sha256(body).hexdigest(),
             "source_url": FRED_OBSERVATIONS_URL,
+            "provenance": source_provenance("certified_fred_vintage_store"),
         }
 
     def parse(self, raw: Mapping[str, Any]) -> pd.DataFrame:

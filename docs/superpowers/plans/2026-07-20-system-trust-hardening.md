@@ -51,12 +51,12 @@ and `src/hermes_escape_top/governance/live_config_policy.py`; modify `scripts/de
 **Files:** modify external-source profiles, adapters, runner/ledger, health,
 Web reporting, and focused tests.
 
-- [ ] Add tests proving a stale research source cannot degrade strategy health
+- [x] Add tests proving a stale research source cannot degrade strategy health
   and every fallback records primary failure and selected provider.
-- [ ] Add `decision_role` and a normalized provenance record to the source
+- [x] Add `decision_role` and a normalized provenance record to the source
   policy/runner interfaces.
-- [ ] Update all active adapters and ledger/status rendering.
-- [ ] Run external-source, health, and dashboard tests; review diff.
+- [x] Update all active adapters and ledger/status rendering.
+- [x] Run external-source, health, and dashboard tests; review diff.
 
 ### Task 4: Recoverable History Promotion
 

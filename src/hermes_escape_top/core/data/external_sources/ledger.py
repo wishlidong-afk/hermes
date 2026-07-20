@@ -202,26 +202,33 @@ def source_reliability(
         and row.get("fallback_used") is True
     )
     primary_rate = None
-    primary_samples = 0
-    if source_id == "aaii_sentiment":
-        instrumented = [
-            (operating_day, row)
-            for operating_day, row in daily_successes
-            if operating_day >= start_30
-            and any("source_channel" in attempt for attempt in daily_rows[operating_day])
-        ]
-        primary_samples = len(instrumented)
-        if primary_samples:
-            primary_rate = round(
-                sum(
-                    1
-                    for _day_value, row in instrumented
-                    if row is not None and row.get("source_channel") == "public_html"
+    instrumented = [
+        (operating_day, row)
+        for operating_day, row in daily_successes
+        if operating_day >= start_30
+        and row is not None
+        and (
+            row.get("primary_source")
+            or (source_id == "aaii_sentiment" and row.get("source_channel"))
+        )
+    ]
+    primary_samples = len(instrumented)
+    if primary_samples:
+        primary_rate = round(
+            sum(
+                1
+                for _day_value, row in instrumented
+                if row is not None
+                and str(row.get("source_channel") or "")
+                == str(
+                    row.get("primary_source")
+                    or ("public_html" if source_id == "aaii_sentiment" else "")
                 )
-                / primary_samples
-                * 100.0,
-                2,
             )
+            / primary_samples
+            * 100.0,
+            2,
+        )
     result = {
         "success_rate_30d": rate_30,
         "success_rate_90d": rate_90,
@@ -250,9 +257,19 @@ def source_reliability(
             if latest_ok is not None
             else None
         ),
+        "latest_primary_source": (
+            str(latest_ok.get("primary_source") or "") or None
+            if latest_ok is not None
+            else None
+        ),
         "latest_fallback_used": (
             latest_ok.get("fallback_used")
             if latest_ok is not None and "fallback_used" in latest_ok
+            else None
+        ),
+        "latest_primary_failure": (
+            str(latest_ok.get("primary_failure") or "") or None
+            if latest_ok is not None
             else None
         ),
     }

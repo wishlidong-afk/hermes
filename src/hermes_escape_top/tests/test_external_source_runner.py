@@ -159,6 +159,72 @@ def test_prepared_frame_adapter_still_promotes_only_through_runner(tmp_path):
     assert pd.read_csv(target).to_dict("records") == [{"date": "2026-07-15", "value": 1.5}]
 
 
+def test_runner_persists_normalized_source_provenance(tmp_path):
+    class Adapter:
+        def fetch_raw(self):
+            return {
+                "provenance": {
+                    "source": "secondary_api",
+                    "primary_source": "primary_api",
+                    "fallback_used": True,
+                    "primary_failure": "TimeoutError",
+                },
+                "rows": [{"date": "2026-07-17", "value": 1.0}],
+            }
+
+        def parse(self, raw):
+            return pd.DataFrame(raw["rows"])
+
+    spec = ExternalSourceSpec(
+        source_id="provenance_test",
+        target_path=tmp_path / "canonical.csv",
+        required_columns=("date", "value"),
+        min_rows=1,
+    )
+
+    result = run_external_source_refresh(spec, Adapter(), tmp_path / "archive")
+    ledger = latest_source_run(tmp_path / "archive", "provenance_test")
+
+    assert result.status == "OK"
+    assert result.source_channel == "secondary_api"
+    assert result.primary_source == "primary_api"
+    assert result.fallback_used is True
+    assert result.primary_failure == "TimeoutError"
+    assert ledger["primary_source"] == "primary_api"
+
+
+def test_runner_rejects_fallback_without_primary_failure(tmp_path):
+    class Adapter:
+        def fetch_raw(self):
+            return {
+                "provenance": {
+                    "source": "secondary_api",
+                    "primary_source": "primary_api",
+                    "fallback_used": True,
+                    "primary_failure": None,
+                },
+                "rows": [{"date": "2026-07-17", "value": 1.0}],
+            }
+
+        def parse(self, raw):
+            return pd.DataFrame(raw["rows"])
+
+    target = tmp_path / "canonical.csv"
+    spec = ExternalSourceSpec(
+        source_id="invalid_provenance",
+        target_path=target,
+        required_columns=("date", "value"),
+        min_rows=1,
+    )
+
+    result = run_external_source_refresh(spec, Adapter(), tmp_path / "archive")
+
+    assert result.status == "PARSE_ERROR"
+    assert result.error_type == "ProvenanceError"
+    assert "primary_failure" in str(result.error_message)
+    assert not target.exists()
+
+
 def _ledger_record(source_id: str, status: str, when: str) -> dict:
     return {
         "source_id": source_id,

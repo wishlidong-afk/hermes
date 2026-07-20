@@ -15,6 +15,7 @@ from hermes_escape_top.scripts import (
 )
 
 from .clock import shanghai_today
+from .provenance import source_provenance
 from .registry import ExternalSourceSpec
 
 
@@ -28,6 +29,7 @@ class CboePcrAdapter:
     def fetch_raw(self) -> dict[str, Any]:
         return {
             "source_url": refresh_cboe_daily_pcr.URL,
+            "provenance": source_provenance("cboe_daily_html"),
             "html": self.fetch_text(),
         }
 
@@ -110,6 +112,7 @@ class CotNqAdapter:
         frame = self.fetch_frame()
         return {
             "source_url": backfill_cot._API_BASE,
+            "provenance": source_provenance("cftc_public_api"),
             "rows": _frame_records(frame),
         }
 
@@ -183,7 +186,11 @@ class OccPcrAdapter:
             record = self.fetch_week(friday - timedelta(weeks=offset))
             if record:
                 rows.append(record)
-        return {"source_url": backfill_occ_pcr.URL, "rows": rows}
+        return {
+            "source_url": backfill_occ_pcr.URL,
+            "provenance": source_provenance("occ_weekly_report"),
+            "rows": rows,
+        }
 
     def parse(self, raw: dict[str, Any]) -> pd.DataFrame:
         seed = _read_seed(self.seed_path)
@@ -258,6 +265,19 @@ class BtcMicroAdapter:
     def fetch_raw(self) -> dict[str, Any]:
         raw = dict(self.fetch_bundle(Path(self.seed_path)))
         raw.setdefault("source_url", backfill_crypto_micro.DERIBIT)
+        funding_source = str(raw.get("funding_source") or "unknown")
+        selected_source = "okx" if funding_source == "okx_failover" else funding_source
+        primary_failure = str(raw.get("primary_failure") or "").strip() or None
+        if selected_source == "okx" and primary_failure is None:
+            primary_failure = "empty_funding_response"
+        if selected_source == "none" and primary_failure is None:
+            primary_failure = "no_provider_observations"
+        raw["provenance"] = source_provenance(
+            selected_source,
+            primary_source="deribit",
+            fallback_used=selected_source in {"okx", "none"},
+            primary_failure=primary_failure,
+        )
         return raw
 
     def parse(self, raw: dict[str, Any]) -> pd.DataFrame:
@@ -393,6 +413,9 @@ def _fetch_btc_bundle(seed_path: Path) -> dict[str, Any]:
     return {
         "source_url": backfill_crypto_micro.DERIBIT,
         "funding_source": source,
+        "primary_failure": (
+            "empty_funding_response" if source == "okx_failover" else None
+        ),
         "funding": _frame_records(funding),
         "dvol": _frame_records(dvol),
         "expected_through": expected_through.isoformat(),

@@ -93,6 +93,12 @@ def test_adapter_filters_unfinished_session_and_binds_official_file_evidence():
     assert raw["file_name"] == "VIX_History.csv"
     assert len(raw["content_sha256"]) == 64
     assert raw["completed_through"] == "2026-07-13"
+    assert raw["provenance"] == {
+        "source": "cboe_official_history",
+        "primary_source": "cboe_official_history",
+        "fallback_used": False,
+        "primary_failure": None,
+    }
 
 
 def test_adapter_handles_witness_older_than_official_history_without_crashing():

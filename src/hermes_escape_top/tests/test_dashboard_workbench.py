@@ -813,6 +813,8 @@ def test_trust_zone_uses_external_source_ledger_status():
             "latest_expected_release_date": "2026-07-10",
             "latest_expected_release_status": "ADVANCED",
             "latest_source_channel": "official_insights_rss",
+            "latest_primary_source": "public_html",
+            "latest_primary_failure": "blocked",
             "fallback_rescues_7d": 2,
             "primary_success_rate_30d": 25.0,
             "primary_samples_30d": 4,
@@ -849,6 +851,8 @@ def test_trust_zone_uses_external_source_ledger_status():
     assert "90d 96.15% (n=13)" in html
     assert "连续失败 2" in html
     assert "渠道 official_insights_rss" in html
+    assert "主源 public_html" in html
+    assert "主源失败 blocked" in html
     assert "7d fallback 救回 2" in html
     assert "30d INSUFFICIENT_EVIDENCE (n=4)" in html
     assert "90d 80.00% (n=10)" in html

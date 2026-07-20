@@ -12,6 +12,7 @@ import pandas as pd
 
 from ..macro import FredNetLiquiditySource, fetch_fred_graph_csv, fred_net_liquidity_frame
 from ..risk_signals import _last_percentile, fetch_fred_series_frame
+from .provenance import source_provenance
 from .registry import ExternalSourceSpec
 
 
@@ -43,6 +44,7 @@ class FredPercentileAdapter:
                 "metadata": _fred_metadata(self.series_id),
                 "rows": [],
                 "source_url": _FRED_API_URL,
+                "provenance": source_provenance("fred_api"),
             }
         out = frame.copy()
         for column in ("date", "publish_date"):
@@ -54,6 +56,7 @@ class FredPercentileAdapter:
             "metadata": metadata,
             "rows": out.to_dict("records"),
             "source_url": metadata.get("source_url") or _FRED_API_URL,
+            "provenance": source_provenance("fred_api"),
         }
 
     def parse(self, raw: dict[str, Any] | list[dict[str, Any]]) -> pd.DataFrame:
@@ -101,6 +104,9 @@ class FredBoardH10PercentileAdapter(FredPercentileAdapter):
         raw.update(
             {
                 "source": "fred_api_with_fed_board_h10_witness",
+                "provenance": source_provenance(
+                    "fred_api_with_fed_board_h10_witness"
+                ),
                 "witness_source_url": self.witness_url,
                 "board_h10_witness": witness,
             }
@@ -258,6 +264,7 @@ class FredNetLiquidityAdapter:
             },
             "series": raw,
             "source_url": _FRED_GRAPH_URL,
+            "provenance": source_provenance("fred_graph_csv"),
         }
 
     def parse(self, raw: dict[str, Any]) -> pd.DataFrame:
