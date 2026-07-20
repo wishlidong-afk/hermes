@@ -47,3 +47,23 @@ experiment is `Rejected`, remains OFF, and is not retuned or rerun.
   `building/reports/flag_sweep/route_set_transition_buffer.json`
 - Formal result: `building/reports/formal_gate/route-set-transition-buffer-v1/`
 - OFF equivalence: `building/reports/persistence/ROUTE_TRANSITION_OFF_EQUIVALENCE_2026_07_20.json`
+
+## Final Result
+
+**Rejected; NO_FLIP; no rerun or retune.** Both artifact provenances were fresh
+at commit `148c8752b5558f59d560db288a9eb155b2096e77`, used the same data manifest,
+and covered 2018-01-01 through 2026-07-17 with zero required opening-price
+misses.
+
+- Walk-forward: 14 folds, PBO `0.0`, target OOS delta `0.0` (failed strict
+  improvement).
+- CPCV: 15 folds, PBO `0.0`, target OOS delta `0.0` (failed strict
+  improvement).
+- Full metrics were identical: CAGR `15.4643%`, MaxDD `-20.8283%`, Sharpe
+  `1.057797`, DSR `0.928541`.
+- Supplemental turnover was also identical: 162 route-set events and
+  `103.466858` L1 turnover in both variants.
+
+The fixed rule did not encounter an eligible sole sub-2pp transition in this
+window. Changing the threshold or route-set definition after seeing this result
+would be a new hypothesis and is prohibited for this experiment.

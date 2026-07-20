@@ -4,10 +4,10 @@
 ```json
 {
   "baseline": {
-    "effective_end": "2026-07-14",
+    "effective_end": "2026-07-17",
     "equity_timing": "next_open",
     "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
-    "git_commit": "02a19538c43f32dfeffa535922dd1a24c3a95ae6"
+    "git_commit": "148c8752b5558f59d560db288a9eb155b2096e77"
   },
   "config_version": "escape-top-v3.0-greenfield",
   "disabled_features": [

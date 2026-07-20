@@ -7,16 +7,16 @@ pre-registered formal gates. It grants no configuration authorization.
 
 | Field | Value |
 |---|---|
-| Gate-code commit | `02a19538c43f32dfeffa535922dd1a24c3a95ae6` |
+| Gate-code commit | `148c8752b5558f59d560db288a9eb155b2096e77` |
 | Cache schema | `flag-sweep-cache-v4` |
 | Equity timing | `next_open` |
-| Window | `2018-01-01` to `2026-07-14` |
-| Effective observations | 2,143 |
-| CAGR | 15.58% |
+| Window | `2018-01-01` to `2026-07-17` |
+| Effective observations | 2,146 |
+| CAGR | 15.46% |
 | MaxDD | -20.83% |
-| Sharpe | 1.064 |
-| Sortino | 1.336 |
-| Turnover | 237.534782 |
+| Sharpe | 1.058 |
+| Sortino | 1.329 |
+| Route-set turnover | 103.466858 across 162 route-set events |
 
 Machine freshness result: `CURRENT_EXECUTION_EVIDENCE`; source provenance is
 `CURRENT_SOURCE`, legacy parity is `MATCH`, and execution-required open missing

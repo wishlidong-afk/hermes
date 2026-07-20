@@ -1,0 +1,26 @@
+{
+  "schema_version": "hermes-composite-gate-decision-v1",
+  "experiment_id": "route-set-transition-buffer-v1",
+  "formal_result_sha256": "7f404ceadf0bdde27cce43303be051aeb454700a714a3be4f1599bfcd32ae911",
+  "formal_verdict": "REJECTED",
+  "formal_checks": {
+    "walk_forward_oos_delta": false,
+    "cpcv_oos_delta": false,
+    "walk_forward_pbo": true,
+    "cpcv_pbo": true,
+    "max_drawdown": true,
+    "deflated_sharpe": true
+  },
+  "supplemental_check": {
+    "name": "strictly_lower_route_set_turnover",
+    "definition": "full_portfolio_l1_on_nonrisk_nonboxx_route_set_change_days",
+    "baseline": 103.466858,
+    "candidate": 103.466858,
+    "delta": 0.0,
+    "passed": false
+  },
+  "final_verdict": "REJECTED",
+  "authorization": "NO_FLIP",
+  "retry_policy": "NO_RERUN_OR_RETUNE",
+  "reason": "The fixed 2pp rule was a full-system no-op: both OOS deltas and the pre-registered turnover delta were zero."
+}

@@ -112,6 +112,7 @@
     "use_close_confirmation": false,
     "use_decision_stabilizer": false,
     "use_fred_vintage_pit": false,
+    "use_route_set_transition_buffer": false,
     "use_full_confidence_spine": true,
     "use_hm2_buffer": false,
     "use_indicator_cache": true,
