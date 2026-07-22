@@ -216,3 +216,16 @@ present in live because this work has not been deployed.
    part of this batch.
 6. Only then run the R6 deployment and post-deploy `/livez`, `/readyz`, VERSION,
    default-page, official-receipt, and morning-acceptance checks.
+
+## Post-Push CI Hermeticity Addendum
+
+The first GitHub Actions run for `b23cf12` correctly failed two tests that had
+passed locally. The session fixture had copied ignored package runtime data,
+including local soft-history canonicals, while a clean checkout contained only
+Git-tracked files. Local tests therefore consumed evidence unavailable to CI.
+
+The follow-up remediation makes the test data root deterministic: it copies
+only Git-tracked package data and overlays explicit, PIT-dated test fixtures for
+FRED net liquidity, real rate, broad dollar, and NAAIM. No production canonical
+CSV was committed or changed. With ignored runtime data excluded, the full
+suite passes `1188/1188` in 116.02 seconds.
