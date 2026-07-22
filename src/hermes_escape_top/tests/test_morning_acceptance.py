@@ -281,7 +281,7 @@ def test_morning_acceptance_rejects_self_attested_unapproved_live_config(tmp_pat
     assert "policy" in release["detail"].lower()
 
 
-def test_legacy_release_without_policy_is_accepted_until_next_deploy(tmp_path):
+def test_release_without_policy_fails_closed(tmp_path):
     module = _load_module()
     home, now, dashboard_health = _acceptance_fixture(tmp_path)
     package = (
@@ -300,17 +300,6 @@ def test_legacy_release_without_policy_is_accepted_until_next_deploy(tmp_path):
     ):
         attestation.pop(key, None)
     _write_json(attestation_path, attestation)
-    transaction_root = package / "data/archive/.score_run_transactions/runs/run-1"
-    transaction = json.loads(
-        (transaction_root / "manifest.json").read_text(encoding="utf-8")
-    )
-    transaction["artifacts"] = [
-        row
-        for row in transaction["artifacts"]
-        if "soft_adapter_snapshot_" not in str(row.get("path") or "")
-    ]
-    _write_json(transaction_root / "manifest.json", transaction)
-
     report = module.collect_acceptance(
         home=home,
         now=now,
@@ -318,14 +307,9 @@ def test_legacy_release_without_policy_is_accepted_until_next_deploy(tmp_path):
     )
 
     release = next(row for row in report["checks"] if row["id"] == "release_identity")
-    assert release["status"] == "PASS"
-    assert "LEGACY_UNBOUND" in release["detail"]
-    assert report["release"]["policy_bound"] == "false"
-    persistence = next(
-        row for row in report["checks"] if row["id"] == "persistence_transaction"
-    )
-    assert persistence["status"] == "PASS"
-    assert "artifacts=6" in persistence["detail"]
+    assert release["status"] == "FAIL"
+    assert "policy" in release["detail"].lower()
+    assert report["release"] == {}
 
 
 def test_retention_missing_warns_only_after_first_expected_window(tmp_path):
