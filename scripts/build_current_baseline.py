@@ -18,12 +18,16 @@ import pandas as pd
 from hermes_escape_top.config import CONFIG_PATH, load_config
 from hermes_escape_top.core.backtest.run_full import FullBacktestReport, run_full_backtest
 from hermes_escape_top.core.data.store import LocalStore
+from hermes_escape_top.governance.live_config_policy import load_policy, validate_configs
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "building" / "reports" / "current_baseline"
 DEFAULT_START = "2018-01-01"
 ENABLE = ["costs"]
+APPROVED_LIVE_POLICY_PATH = (
+    REPO_ROOT / "src" / "hermes_escape_top" / "governance" / "approved_live_config.json"
+)
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
@@ -52,7 +56,10 @@ def research_worktree_clean(repo_root: Path = REPO_ROOT) -> bool:
 
 
 def build_baseline_config(config_path: Path) -> dict[str, Any]:
-    return normalize_gate_config(load_config(config_path))
+    repo_config = load_config(CONFIG_PATH)
+    live_config = load_config(config_path)
+    validate_configs(repo_config, live_config, load_policy(APPROVED_LIVE_POLICY_PATH))
+    return normalize_gate_config(live_config)
 
 
 def latest_history_date(frame: pd.DataFrame) -> str:

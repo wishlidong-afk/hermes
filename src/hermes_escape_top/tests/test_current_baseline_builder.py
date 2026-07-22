@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import importlib.util
+import copy
 import gzip
+import hashlib
+import importlib.util
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -138,3 +140,61 @@ def test_deterministic_gzip_is_byte_identical() -> None:
 
     assert mod.deterministic_gzip(payload) == mod.deterministic_gzip(payload)
     assert gzip.decompress(mod.deterministic_gzip(payload)) == payload
+
+
+def test_baseline_config_must_match_the_approved_live_policy(tmp_path, monkeypatch) -> None:
+    mod = _load_module()
+    repo_config = json.loads(
+        (REPO_ROOT / "src/hermes_escape_top/config/config.json").read_text()
+    )
+    live_config = copy.deepcopy(repo_config)
+    for feature in (
+        "use_btc_spot_witness",
+        "use_cboe_official_indices",
+        "use_market_admission_gate",
+    ):
+        live_config["features"][feature] = True
+
+    def semantic_sha256(value):
+        encoded = json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    repo_path = tmp_path / "repo.json"
+    live_path = tmp_path / "live.json"
+    policy_path = tmp_path / "policy.json"
+    repo_path.write_text(json.dumps(repo_config))
+    live_path.write_text(json.dumps(live_config))
+    policy_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "hermes-approved-live-config-v1",
+                "repo_config_semantic_sha256": semantic_sha256(repo_config),
+                "live_config_semantic_sha256": semantic_sha256(live_config),
+                "approved_feature_diff": {
+                    feature: {"repo": False, "live": True}
+                    for feature in (
+                        "use_btc_spot_witness",
+                        "use_cboe_official_indices",
+                        "use_market_admission_gate",
+                    )
+                },
+                "required_values": {"ibkr.readonly": True},
+            }
+        )
+    )
+    monkeypatch.setattr(mod, "CONFIG_PATH", repo_path)
+    monkeypatch.setattr(mod, "APPROVED_LIVE_POLICY_PATH", policy_path, raising=False)
+
+    approved = mod.build_baseline_config(live_path)
+    assert approved["features"]["use_market_admission_gate"] is True
+    assert approved["features"]["use_indicator_cache"] is True
+
+    live_config["routing"]["defcon2"]["brkb_corr_threshold"] = 0.123
+    live_path.write_text(json.dumps(live_config))
+    with pytest.raises(ValueError, match="policy|approved|semantic"):
+        mod.build_baseline_config(live_path)
