@@ -39,7 +39,10 @@ BASE_DIR = _runtime_root()
 
 from ..config import load_config, resolve_path
 from ..core.data.alpaca_flow import load_daily_flow_snapshot
-from ..core.data.run_transaction import pending_score_run_transaction
+from ..core.data.run_transaction import (
+    pending_score_run_transaction,
+    recover_incomplete_score_run,
+)
 from ..core.data.state_store import record_execution_confirmation
 from ..ibkr.live_check import run_live_check
 from ..core.safe_io import PipelineBusy, pipeline_lock
@@ -1044,9 +1047,11 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/api/confirm_execution":
                 response_status = 200
                 try:
-                    with pipeline_lock(blocking=False):
+                    with pipeline_lock(blocking=False) as lease:
                         config = load_config()
-                        state_db_path = resolve_path(config, "archive_dir") / "hermes_state.sqlite"
+                        archive_dir = resolve_path(config, "archive_dir")
+                        recover_incomplete_score_run(archive_dir, _lease=lease)
+                        state_db_path = archive_dir / "hermes_state.sqlite"
                         payload = record_execution_confirmation(
                             state_db_path,
                             symbol=str(req.get("symbol", "")).upper(),

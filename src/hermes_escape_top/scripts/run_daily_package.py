@@ -101,6 +101,7 @@ from hermes_escape_top.core.data.market_admission import (
 )
 from hermes_escape_top.core.data.decision_as_of import last_bar_dates as decision_last_bar_dates
 from hermes_escape_top.core.data.store import LocalStore, safe_symbol
+from hermes_escape_top.core.data.run_transaction import recover_incomplete_score_run
 from hermes_escape_top.core.safe_io import atomic_write_text, assert_pipeline_lease
 from hermes_escape_top.core.reporting.system_health import (
     build_system_health_audit_dimensions as _build_system_health_audit_dimensions,
@@ -1698,6 +1699,8 @@ def main() -> None:
     args = _build_daily_parser().parse_args()
     try:
         with pipeline_lock(blocking=True, timeout=max(float(args.lock_timeout), 0.0)) as lease:
+            config = load_config()
+            recover_incomplete_score_run(resolve_path(config, "archive_dir"), _lease=lease)
             _run_daily_with_receipt(args, _lease=lease)
     except PipelineBusy as exc:
         print(f"[M4-1] ABORT: {exc}; another run/refresh held the lock too long.")

@@ -16,6 +16,7 @@ from ..core.data.base import SymbolSnapshot
 from ..core.data.decision_as_of import decision_gating_symbols, latest_common_history_date
 from ..core.data.manifest import verify_manifest, write_manifest
 from ..core.data.market_admission import read_market_admission_evidence
+from ..core.data.run_transaction import recover_incomplete_score_run
 from ..core.safe_io import assert_pipeline_lease, pipeline_lock
 from ..core.data.store import safe_symbol
 from ..core.data.state_store import recent_ibkr_snapshots, write_ibkr_snapshot, write_refresh_run
@@ -56,7 +57,9 @@ def refresh_positions_only(
     """
     config = load_config()
     lock_path = resolve_path(config, "archive_dir") / ".pipeline.lock"
-    with pipeline_lock(blocking=blocking, timeout=60, path=lock_path):
+    with pipeline_lock(blocking=blocking, timeout=60, path=lock_path) as lease:
+        archive_dir = resolve_path(config, "archive_dir")
+        recover_incomplete_score_run(archive_dir, _lease=lease)
         payload = dict(base_payload or {})
         if not payload.get("as_of"):
             gating_symbols = ["QQQ", "SPY", *trade_symbols(config)]
@@ -72,7 +75,6 @@ def refresh_positions_only(
                 payload.get("routing") or {},
             ).to_dict()
 
-        archive_dir = resolve_path(config, "archive_dir")
         state_db_path = archive_dir / "hermes_state.sqlite"
         state_meta = write_ibkr_snapshot(
             state_db_path,
@@ -197,6 +199,7 @@ def _refresh_score_with_market_data_locked(
         _lease,
         path=resolve_path(config, "archive_dir") / ".pipeline.lock",
     )
+    recover_incomplete_score_run(resolve_path(config, "archive_dir"), _lease=_lease)
     history_dir = resolve_path(config, "history_dir")
     state_db_path = resolve_path(config, "archive_dir") / "hermes_state.sqlite"
     symbols = all_backfill_symbols(config)

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from hermes_escape_top.config import CONFIG_PATH, load_config, resolve_path
+from hermes_escape_top.core.data.run_transaction import recover_incomplete_score_run
 from hermes_escape_top.core.safe_io import atomic_write_text, assert_pipeline_lease, pipeline_lock
 from hermes_escape_top.ibkr.positions import read_positions
 from hermes_escape_top.pipeline import _score_pipeline_locked
@@ -48,6 +49,7 @@ def _run_live_check_locked(
         _lease,
         path=resolve_path(config, "archive_dir") / ".pipeline.lock",
     )
+    recover_incomplete_score_run(resolve_path(config, "archive_dir"), _lease=_lease)
     checked_at = datetime.now(timezone.utc).isoformat()
     snap = read_positions(config)
     payload: Dict[str, Any] = {

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+import tempfile
 import threading
 import unittest
 import urllib.error
@@ -12,6 +14,14 @@ import pandas as pd
 from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.backtest.posterior import ideal_previous_day_pnl
 from hermes_escape_top.core.safe_io import PipelineBusy, pipeline_lock
+from hermes_escape_top.core.data.run_transaction import (
+    recover_incomplete_score_run,
+    score_run_transaction,
+)
+from hermes_escape_top.core.data.state_store import (
+    latest_execution_confirmations,
+    record_execution_confirmation,
+)
 from hermes_escape_top.pipeline import score_pipeline
 from hermes_escape_top.web import server as web_server
 from hermes_escape_top.web.server import create_server
@@ -337,6 +347,79 @@ class Phase15IntegrationTest(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
+
+    def test_execution_confirmation_recovers_crashed_score_before_append(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp) / "data/archive"
+            archive.mkdir(parents=True)
+            state_db = archive / "hermes_state.sqlite"
+            lock_path = archive / ".pipeline.lock"
+            record_execution_confirmation(
+                state_db,
+                symbol="SOXL",
+                tranche="T0",
+                status="BASELINE",
+            )
+            with pipeline_lock(path=lock_path) as lease:
+                context = score_run_transaction(
+                    archive,
+                    [state_db],
+                    metadata={"as_of": "2026-07-21"},
+                    _lease=lease,
+                )
+                context.__enter__()
+                record_execution_confirmation(
+                    state_db,
+                    symbol="SOXL",
+                    tranche="T1",
+                    status="TRANSIENT_SCORE_WRITE",
+                )
+
+            server = create_server("127.0.0.1", 0, "2026-07-21")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+
+            def isolated_lock(*, blocking=True, timeout=600, path=None):
+                return pipeline_lock(
+                    blocking=blocking,
+                    timeout=timeout,
+                    path=lock_path,
+                )
+
+            try:
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_port}/api/confirm_execution",
+                    data=json.dumps(
+                        {
+                            "symbol": "SOXL",
+                            "tranche": "T1",
+                            "status": "MANUAL_AFTER_CRASH",
+                        }
+                    ).encode("utf-8"),
+                    headers=_auth_headers(),
+                    method="POST",
+                )
+                with mock.patch.dict(
+                    "os.environ", {"HERMES_CONFIRM_TOKEN": "secret"}
+                ), mock.patch.object(
+                    web_server, "pipeline_lock", side_effect=isolated_lock
+                ), mock.patch.object(
+                    web_server, "load_config", return_value={}
+                ), mock.patch.object(
+                    web_server, "resolve_path", return_value=archive
+                ):
+                    with urllib.request.urlopen(request, timeout=10) as response:
+                        payload = json.loads(response.read().decode("utf-8"))
+                self.assertTrue(payload["ok"])
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+            with pipeline_lock(path=lock_path) as lease:
+                recover_incomplete_score_run(archive, _lease=lease)
+            latest = latest_execution_confirmations(state_db)
+            self.assertEqual(latest["SOXL"]["status"], "MANUAL_AFTER_CRASH")
 
     def test_external_source_status_endpoint_reads_ledger(self) -> None:
         server = create_server("127.0.0.1", 0, "2026-05-29")

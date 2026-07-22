@@ -56,11 +56,14 @@ def test_refresh_positions_only_reads_ibkr_without_scoring_or_history(tmp_path):
     with mock.patch.object(refresh_mod, "load_config", return_value={"ibkr": {"enabled": True}}), \
          mock.patch.object(refresh_mod, "resolve_path", return_value=archive), \
          mock.patch.object(refresh_mod, "pipeline_lock", _fake_lock), \
+         mock.patch.object(refresh_mod, "recover_incomplete_score_run", create=True) as recover, \
          mock.patch.object(refresh_mod, "read_positions", return_value=snap) as read_positions, \
          mock.patch.object(refresh_mod, "_score_pipeline_locked", side_effect=AssertionError("must not score")):
         out = refresh_positions_only("latest", blocking=False, base_payload=base_payload)
 
     read_positions.assert_called_once()
+    recover.assert_called_once()
+    assert recover.call_args.args == (archive,)
     assert out["as_of"] == "2026-06-30"
     assert out["ibkr"]["source"] == "tws"
     assert out["ibkr"]["snapshot_stale"] is False
