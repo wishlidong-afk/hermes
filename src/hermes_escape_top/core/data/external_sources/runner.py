@@ -724,7 +724,11 @@ def _source_channel_metadata(raw: Any) -> dict[str, Any]:
         if explicit_fallback is not None
         else bool(primary_failure) if channel else None
     )
-    if provenance:
+    has_provenance_fields = bool(provenance) or any(
+        key in raw
+        for key in ("source", "primary_source", "fallback_used", "primary_failure")
+    )
+    if has_provenance_fields:
         normalized = source_provenance(
             channel or "",
             primary_source=primary_source,
