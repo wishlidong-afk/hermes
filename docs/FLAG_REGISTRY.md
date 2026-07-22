@@ -105,7 +105,7 @@ These flags had zero code references and were removed from config.json:
 | F4 partial factor eval | Live | Live robustness under partial data | `building/reports/flag_sweep/SWEEP_SUMMARY.md`; no-op on clean history, robustness win | `features.use_partial_factor_eval=false` |
 | Regime multipliers | Live | Scoring module weights | `features.use_regime_multipliers=true`; default ON matches the unconditional pre-2026-06-10 behavior | `features.use_regime_multipliers=false` |
 | Routing combo: MSTR→BTC-USD + DEFCON1 GLD leg | Live | Routing | `src/hermes_escape_top/config/config.json` `_defcon3_note`; historical combo OOS bottom-half rate 0.31, OOS Δ+0.117, CAGR +1.90pp vs baseline; DEFCON1 GLD standalone +1.59pp | `routing.defcon3.MSTR="QQQ"`; restore DEFCON1 BOXX70/TREND30 and remove `extra_legs.GLD` |
-| Deployment baseline | Current comparator | Docs, validation provenance | `docs/BASELINE_CURRENT.md`; cache v4 `baseline.json` is `CURRENT_EXECUTION_EVIDENCE` at gate-code commit `02a1953`, `equity_timing=next_open`, 15.58% CAGR / -20.83% MaxDD / 1.064 Sharpe; compressed full source is SHA-bound | Rebuild after any gate-code/config/history/soft-history provenance change; baseline alone authorizes no flip |
+| Deployment baseline | Current comparator | Docs, validation provenance | `docs/BASELINE_CURRENT.md`; cache v4 `baseline.json` is `CURRENT_EXECUTION_EVIDENCE` at gate-code commit `b78e13e`, `equity_timing=next_open`, 15.46% CAGR / -20.83% MaxDD / 1.058 Sharpe; compressed full source and approved-live config authorization are SHA-bound | Rebuild after any gate-code/config/history/soft-history/provenance-policy change; baseline alone authorizes no flip |
 
 ### Rejected / parked
 
@@ -167,4 +167,4 @@ The generated SSOT is `building/reports/factor_capacity/FACTOR_CAPACITY_INVENTOR
 
 ---
 
-*Last updated: 2026-07-14 (FRED/ALFRED exact-vintage PIT candidate registered; production flag remains OFF)*
+*Last updated: 2026-07-22 (route-transition and C/D ownership experiments rejected; current baseline rebuilt with both flags OFF)*

@@ -8,40 +8,40 @@ Live effect: `none`
 
 ## Open-Price Coverage
 
-- Total rows: `21430`
-- Observed: `19248` (89.82%)
+- Total rows: `21460`
+- Observed: `19278` (89.83%)
 - Modeled synthetic/proxy: `2182`
 - Missing: `0`
-- Execution-required rows: `10033`
+- Execution-required rows: `10045`
 - Execution-required missing: `0`
 
 | Leg | Observed | Modeled | Missing |
 |---|---:|---:|---:|
-| BOXX | 2142 | 1 | 0 |
-| BRK.B | 2143 | 0 | 0 |
-| BTC-USD | 2143 | 0 | 0 |
-| DBMF | 1755 | 388 | 0 |
-| FNGU | 350 | 1793 | 0 |
-| IAU | 2143 | 0 | 0 |
-| MSTR | 2143 | 0 | 0 |
-| QQQ | 2143 | 0 | 0 |
-| SOXL | 2143 | 0 | 0 |
-| SOXX | 2143 | 0 | 0 |
+| BOXX | 2145 | 1 | 0 |
+| BRK.B | 2146 | 0 | 0 |
+| BTC-USD | 2146 | 0 | 0 |
+| DBMF | 1758 | 388 | 0 |
+| FNGU | 353 | 1793 | 0 |
+| IAU | 2146 | 0 | 0 |
+| MSTR | 2146 | 0 | 0 |
+| QQQ | 2146 | 0 | 0 |
+| SOXL | 2146 | 0 | 0 |
+| SOXX | 2146 | 0 | 0 |
 
 ## Scenarios
 
 | Scenario | Role | Timing | Extra slip | Final | CAGR | MaxDD | Sharpe | Turnover | Base cost | Extra slip cost |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| legacy_close | HISTORICAL_THEORETICAL_UPPER_BOUND | legacy_close | 0.0000 bps | $368,898.96 | 16.61% | -18.83% | 1.1206 | 237.6399 | $44,979.34 | $0.00 |
-| next_open | PRIMARY_REALISTIC | next_open | 0.0000 bps | $342,336.84 | 15.58% | -20.83% | 1.0641 | 237.5348 | $41,528.26 | $0.00 |
-| next_close | ONE_TRADING_DAY_DELAY | next_close | 0.0000 bps | $371,937.00 | 16.71% | -16.05% | 1.1283 | 237.5348 | $45,131.95 | $0.00 |
-| next_open_stress | STRESS | next_open | 25.0000 bps | $188,918.54 | 7.77% | -26.36% | 0.5849 | 237.5348 | $29,415.52 | $73,538.79 |
+| legacy_close | HISTORICAL_THEORETICAL_UPPER_BOUND | legacy_close | 0.0000 bps | $366,178.38 | 16.49% | -18.83% | 1.1136 | 238.0568 | $45,132.96 | $0.00 |
+| next_open | PRIMARY_REALISTIC | next_open | 0.0000 bps | $340,054.44 | 15.46% | -20.83% | 1.0578 | 237.9273 | $41,662.18 | $0.00 |
+| next_close | ONE_TRADING_DAY_DELAY | next_close | 0.0000 bps | $368,296.32 | 16.55% | -16.05% | 1.1193 | 237.9273 | $45,277.24 | $0.00 |
+| next_open_stress | STRESS | next_open | 25.0000 bps | $187,474.90 | 7.66% | -26.36% | 0.5783 | 237.9273 | $29,489.39 | $73,723.49 |
 
 ## Provenance
 
 - Mismatches: `none`
-- Source artifact: `/Users/liweishi/Documents/github/hermes/building/reports/current_baseline/CURRENT_BASELINE_FULL.json`
-- Source SHA256: `f7fcfd97ac5e7a85cb870af1434277937746f2ff810c8fdb450188c84e01f6c8`
+- Source artifact: `building/reports/current_baseline/CURRENT_BASELINE_FULL.json.gz`
+- Source SHA256: `36183fceecae60fffc35d53a171d312d88e15520d45104c4b16e551565262a20`
 
 ## Notes
 

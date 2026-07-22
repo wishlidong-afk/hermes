@@ -97,6 +97,6 @@ current status docs; add `.github/workflows/ci.yml` and focused tests.
 
 - [x] Add tests for atomic auxiliary writes and absence of retired M4 handlers.
 - [x] Remove unreachable M4 functions and migrate direct writes to safe I/O.
-- [ ] Update current architecture/baseline docs and add minimal CI.
-- [ ] Run full pytest, governance, compileall, shell syntax, secret/live-data
+- [x] Update current architecture/baseline docs and add minimal CI.
+- [x] Run full pytest, governance, compileall, shell syntax, secret/live-data
   scan, and final diff review; present deployment decision without deploying.

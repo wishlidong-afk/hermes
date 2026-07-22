@@ -7,7 +7,7 @@
     "effective_end": "2026-07-17",
     "equity_timing": "next_open",
     "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
-    "git_commit": "148c8752b5558f59d560db288a9eb155b2096e77"
+    "git_commit": "b78e13e21b57e3b9553ab6ec86f320c613d5337b"
   },
   "config_version": "escape-top-v3.0-greenfield",
   "disabled_features": [
@@ -90,7 +90,7 @@
 ```
 <!-- HERMES_GOVERNANCE_SNAPSHOT_END -->
 
-> 由代码事实与治理检查生成于 2026-07-14。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准；`scripts/check_governance_consistency.py` 会阻止关键快照静默漂移。
+> 由代码事实与治理检查生成于 2026-07-22。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准；`scripts/check_governance_consistency.py` 会阻止关键快照静默漂移。
 
 本文给新 agent 一个快速、可执行的项目地图：系统做什么、数据怎样进来、评分怎样变成策略、哪些 flag 已经部署、WebUI 两个端口各负责什么，以及当前性能基线在哪里。
 
@@ -364,17 +364,17 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 11. 当前性能基线
 
-> **CURRENT EXECUTION EVIDENCE：**baseline 绑定 gate-code commit `02a1953`、已提交的有效 live-config 快照、当前 history manifest 与 soft-history 指纹；可作为预注册 formal gate 的 next-open 对照，但不授权任何配置翻闸。完整来源以确定性 gzip 归档，治理检查会核对解压后 SHA-256。
+> **CURRENT EXECUTION EVIDENCE：**baseline 绑定 gate-code commit `b78e13e`、approved-live-policy 校验通过的有效 live-config 快照、当前 history manifest 与 soft-history 指纹；可作为预注册 formal gate 的 next-open 对照，但不授权任何配置翻闸。完整来源以确定性 gzip 归档，并持久记录 raw-live、policy、normalized-replay 三段哈希；治理检查会独立验签和反向重建规范化差异。
 
 | 当前场景 | CAGR | MaxDD | Sharpe | 定位 |
 |---|---:|---:|---:|---|
-| **next_open** | **15.58%** | **-20.83%** | **1.064** | 当前正式 baseline headline |
-| legacy_close | 16.61% | -18.83% | 1.121 | 历史/理论上界 shadow |
-| next_close | 16.71% | -16.05% | 1.128 | 延迟一交易日敏感性 |
-| next_open + 25bps | 7.77% | -26.36% | 0.585 | 执行压力场景 |
+| **next_open** | **15.46%** | **-20.83%** | **1.058** | 当前正式 baseline headline |
+| legacy_close | 16.49% | -18.83% | 1.114 | 历史/理论上界 shadow |
+| next_close | 16.55% | -16.05% | 1.119 | 延迟一交易日敏感性 |
+| next_open + 25bps | 7.66% | -26.36% | 0.578 | 执行压力场景 |
 
-- 窗口：2018-01-01→2026-07-14，有效 2,143 个交易日。
-- 全量开盘覆盖：89.81% 观测、2,182 行显式建模、BTC 首日未使用缺口 1；执行所需 10,033 行缺失 0。
+- 窗口：2018-01-01→2026-07-17，有效 2,146 个交易日。
+- 全量开盘覆盖：89.83% 观测、2,182 行显式建模、缺失 0；执行所需 10,045 行缺失 0。
 - `building/reports/flag_sweep/baseline.json` 已标记 `CURRENT_EXECUTION_EVIDENCE`；code/config/manifest/soft-history 任一变化都会让它失效并阻断新 gate。
 - 完整证据与路径见 `docs/BASELINE_CURRENT.md`。
 
@@ -405,7 +405,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 12. 测试与验证
 
-当前回归结果：2026-07-13 数据质量候选分支全套 `845 passed / 0 failed`。此数绑定候选代码节点 `692f175`；后续任何行为改动必须重跑，不得把旧测试数当作健康证明。
+当前回归结果：2026-07-22 系统信任加固候选全套 `1172 passed / 0 failed`。此数绑定当前 repo 候选；后续任何行为改动必须重跑，不得把旧测试数当作健康证明。
 
 标准命令：
 

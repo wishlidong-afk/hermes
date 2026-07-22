@@ -1,18 +1,18 @@
 {
   "authorization": "NO_CONFIG_FLIP",
   "current_provenance": {
-    "code_sha256": "7910dc9dfa1fec7cf75e93511aef4a11e8bf57979da69e6cd457a5976c894b65",
-    "config_sha256": "7de18c09ee2d245851fbf8dc682abc5eac521e5312508b09155307bdb26a6e56",
-    "end": "2026-07-14",
+    "code_sha256": "34b6fe4379f781fdfad5ee8ba602678ee5ee693b04ca3b9b55c4b14fb354df59",
+    "config_sha256": "fada27925c9e64a6aed00b9cd10d80e18449792994ed18a39bb7510bb554ea68",
+    "end": "2026-07-17",
     "equity_timing": "next_open",
-    "git_commit": "02a19538c43f32dfeffa535922dd1a24c3a95ae6",
+    "git_commit": "b78e13e21b57e3b9553ab6ec86f320c613d5337b",
     "manifest_id": "ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f",
     "soft_history_sha256": "780bd54edf239e759ba0974e6021d98712629036fe488f0c79ffad56537811f4",
     "start": "2018-01-01",
     "worktree_clean": true
   },
   "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
-  "generated_at": "2026-07-20T03:36:06.939066+00:00",
+  "generated_at": "2026-07-22T03:52:07.100991+00:00",
   "headline_eligible": true,
   "headline_scenario": "next_open",
   "legacy_source_parity": {
@@ -29,52 +29,52 @@
     "by_leg": {
       "BOXX": {
         "MODELED_PROXY_SWITCH": 1,
-        "OBSERVED": 2142
+        "OBSERVED": 2145
       },
       "BRK.B": {
-        "OBSERVED": 2143
+        "OBSERVED": 2146
       },
       "BTC-USD": {
-        "OBSERVED": 2143
+        "OBSERVED": 2146
       },
       "DBMF": {
         "MODELED_PROXY_SWITCH": 1,
         "MODELED_SYNTHETIC_MIDPOINT": 387,
-        "OBSERVED": 1755
+        "OBSERVED": 1758
       },
       "FNGU": {
         "MODELED_SYNTHETIC_MIDPOINT": 1793,
-        "OBSERVED": 350
+        "OBSERVED": 353
       },
       "IAU": {
-        "OBSERVED": 2143
+        "OBSERVED": 2146
       },
       "MSTR": {
-        "OBSERVED": 2143
+        "OBSERVED": 2146
       },
       "QQQ": {
-        "OBSERVED": 2143
+        "OBSERVED": 2146
       },
       "SOXL": {
-        "OBSERVED": 2143
+        "OBSERVED": 2146
       },
       "SOXX": {
-        "OBSERVED": 2143
+        "OBSERVED": 2146
       }
     },
     "counts": {
       "MODELED_PROXY_SWITCH": 2,
       "MODELED_SYNTHETIC_MIDPOINT": 2180,
-      "OBSERVED": 19248
+      "OBSERVED": 19278
     },
     "missing_rows": 0,
     "modeled_rows": 2182,
-    "observed_rows": 19248,
-    "observed_share": 0.89818012,
+    "observed_rows": 19278,
+    "observed_share": 0.89832246,
     "required_by_leg": {
       "BOXX": {
         "MODELED_PROXY_SWITCH": 1,
-        "OBSERVED": 2141
+        "OBSERVED": 2144
       },
       "BRK.B": {
         "OBSERVED": 154
@@ -85,14 +85,14 @@
       "DBMF": {
         "MODELED_PROXY_SWITCH": 1,
         "MODELED_SYNTHETIC_MIDPOINT": 182,
-        "OBSERVED": 1674
+        "OBSERVED": 1677
       },
       "FNGU": {
         "MODELED_SYNTHETIC_MIDPOINT": 1159,
-        "OBSERVED": 208
+        "OBSERVED": 211
       },
       "IAU": {
-        "OBSERVED": 1857
+        "OBSERVED": 1860
       },
       "MSTR": {
         "OBSERVED": 1166
@@ -110,18 +110,18 @@
     "required_counts": {
       "MODELED_PROXY_SWITCH": 2,
       "MODELED_SYNTHETIC_MIDPOINT": 1341,
-      "OBSERVED": 8690
+      "OBSERVED": 8702
     },
     "required_missing_rows": 0,
     "required_modeled_rows": 1343,
-    "required_observed_rows": 8690,
-    "required_observed_share": 0.86614173,
-    "required_total_rows": 10033,
-    "total_rows": 21430
+    "required_observed_rows": 8702,
+    "required_observed_share": 0.86630164,
+    "required_total_rows": 10045,
+    "total_rows": 21460
   },
   "scenarios": [
     {
-      "base_cost": 44979.336647,
+      "base_cost": 45132.963735,
       "equity_curve": {
         "2018-01-02": 99900.0,
         "2018-01-03": 101121.803145,
@@ -2265,27 +2265,30 @@
         "2026-07-09": 368211.219088,
         "2026-07-10": 368422.423057,
         "2026-07-13": 367114.677619,
-        "2026-07-14": 368898.95571
+        "2026-07-14": 368898.95571,
+        "2026-07-15": 370562.01861,
+        "2026-07-16": 368327.424127,
+        "2026-07-17": 366178.378087
       },
-      "executed_rebalances": 1102,
+      "executed_rebalances": 1105,
       "extra_slippage_bps": 0.0,
       "extra_slippage_cost": 0.0,
       "metrics": {
-        "cagr": 0.166128,
-        "final_value": 368898.95571,
+        "cagr": 0.164864,
+        "final_value": 366178.378087,
         "max_drawdown": -0.188253,
         "max_drawdown_end": "2019-10-09",
         "max_drawdown_start": "2018-06-14",
-        "sharpe": 1.120566,
-        "sortino": 1.443205
+        "sharpe": 1.113583,
+        "sortino": 1.435085
       },
       "role": "HISTORICAL_THEORETICAL_UPPER_BOUND",
       "scenario_id": "legacy_close",
       "timing": "legacy_close",
-      "turnover": 237.639942
+      "turnover": 238.056772
     },
     {
-      "base_cost": 41528.26258,
+      "base_cost": 41662.181803,
       "equity_curve": {
         "2018-01-02": 100000.0,
         "2018-01-03": 100731.314451,
@@ -4429,27 +4432,30 @@
         "2026-07-09": 341295.278267,
         "2026-07-10": 341554.037608,
         "2026-07-13": 340398.700001,
-        "2026-07-14": 342336.838505
+        "2026-07-14": 342336.838505,
+        "2026-07-15": 343679.734839,
+        "2026-07-16": 341185.784245,
+        "2026-07-17": 340054.440867
       },
-      "executed_rebalances": 1101,
+      "executed_rebalances": 1104,
       "extra_slippage_bps": 0.0,
       "extra_slippage_cost": 0.0,
       "metrics": {
-        "cagr": 0.155785,
-        "final_value": 342336.838505,
+        "cagr": 0.154643,
+        "final_value": 340054.440867,
         "max_drawdown": -0.208283,
         "max_drawdown_end": "2019-10-08",
         "max_drawdown_start": "2018-06-14",
-        "sharpe": 1.064148,
-        "sortino": 1.335967
+        "sharpe": 1.057797,
+        "sortino": 1.328648
       },
       "role": "PRIMARY_REALISTIC",
       "scenario_id": "next_open",
       "timing": "next_open",
-      "turnover": 237.534782
+      "turnover": 237.927274
     },
     {
-      "base_cost": 45131.948616,
+      "base_cost": 45277.242951,
       "equity_curve": {
         "2018-01-02": 100000.0,
         "2018-01-03": 99900.0,
@@ -6593,27 +6599,30 @@
         "2026-07-09": 371552.859532,
         "2026-07-10": 371808.278331,
         "2026-07-13": 370564.082765,
-        "2026-07-14": 371936.99608
+        "2026-07-14": 371936.99608,
+        "2026-07-15": 373036.440528,
+        "2026-07-16": 369704.241996,
+        "2026-07-17": 368296.320832
       },
-      "executed_rebalances": 1101,
+      "executed_rebalances": 1104,
       "extra_slippage_bps": 0.0,
       "extra_slippage_cost": 0.0,
       "metrics": {
-        "cagr": 0.167116,
-        "final_value": 371936.99608,
+        "cagr": 0.165516,
+        "final_value": 368296.320832,
         "max_drawdown": -0.160547,
         "max_drawdown_end": "2019-10-23",
         "max_drawdown_start": "2018-06-14",
-        "sharpe": 1.128325,
-        "sortino": 1.468317
+        "sharpe": 1.119326,
+        "sortino": 1.457358
       },
       "role": "ONE_TRADING_DAY_DELAY",
       "scenario_id": "next_close",
       "timing": "next_close",
-      "turnover": 237.534782
+      "turnover": 237.927274
     },
     {
-      "base_cost": 29415.515162,
+      "base_cost": 29489.39473,
       "equity_curve": {
         "2018-01-02": 100000.0,
         "2018-01-03": 100479.234085,
@@ -8757,34 +8766,38 @@
         "2026-07-09": 188432.738976,
         "2026-07-10": 188557.832601,
         "2026-07-13": 187917.348218,
-        "2026-07-14": 188918.5439
+        "2026-07-14": 188918.5439,
+        "2026-07-15": 189609.754326,
+        "2026-07-16": 188159.289682,
+        "2026-07-17": 187474.901032
       },
-      "executed_rebalances": 1101,
+      "executed_rebalances": 1104,
       "extra_slippage_bps": 25.0,
-      "extra_slippage_cost": 73538.787888,
+      "extra_slippage_cost": 73723.486809,
       "metrics": {
-        "cagr": 0.077712,
-        "final_value": 188918.5439,
+        "cagr": 0.076629,
+        "final_value": 187474.901032,
         "max_drawdown": -0.263597,
         "max_drawdown_end": "2019-10-08",
         "max_drawdown_start": "2018-06-14",
-        "sharpe": 0.584938,
-        "sortino": 0.728952
+        "sharpe": 0.578255,
+        "sortino": 0.720969
       },
       "role": "STRESS",
       "scenario_id": "next_open_stress",
       "timing": "next_open",
-      "turnover": 237.534782
+      "turnover": 237.927274
     }
   ],
   "schema_version": "execution-timing-sensitivity-v1",
   "source": {
     "data_manifest_id": "ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f",
-    "end": "2026-07-14",
-    "path": "/Users/liweishi/Documents/github/hermes/building/reports/current_baseline/CURRENT_BASELINE_FULL.json",
-    "rows": 2143,
+    "end": "2026-07-17",
+    "path": "building/reports/current_baseline/CURRENT_BASELINE_FULL.json.gz",
+    "rows": 2146,
     "schema_version": "escape-top-greenfield-full-backtest-v1",
-    "sha256": "f7fcfd97ac5e7a85cb870af1434277937746f2ff810c8fdb450188c84e01f6c8",
+    "sha256": "36183fceecae60fffc35d53a171d312d88e15520d45104c4b16e551565262a20",
+    "sha256_scope": "decompressed_json_payload",
     "start": "2018-01-02"
   },
   "source_provenance": {

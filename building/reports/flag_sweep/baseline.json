@@ -1,50 +1,17 @@
 {
-  "variant": "baseline",
-  "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
+  "cache_key": "43f06e8d896a7e07d61a9879765011aa02b7a44bf64e8d006e12eceff03b3737",
   "cache_schema": "flag-sweep-cache-v4",
-  "cache_key": "019b04c7a656f3b2e6a54cf2469930ece44ff63f1561cc00517ccb3448231c9f",
-  "manifest_id": "ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f",
-  "git_commit": "148c8752b5558f59d560db288a9eb155b2096e77",
-  "code_sha256": "fc2f1027a77cf00888acbfd2793b0498b5ece9558752e55348bb0a3d438ab538",
-  "config_sha256": "9fafeddbd8561b245788bc0821f13544fe6ea13461beff7f23954868b8874df1",
-  "soft_history_sha256": "780bd54edf239e759ba0974e6021d98712629036fe488f0c79ffad56537811f4",
-  "start": "2018-01-01",
-  "end": "2026-07-17",
+  "code_sha256": "34b6fe4379f781fdfad5ee8ba602678ee5ee693b04ca3b9b55c4b14fb354df59",
+  "config_sha256": "fada27925c9e64a6aed00b9cd10d80e18449792994ed18a39bb7510bb554ea68",
+  "effective_end": "2026-07-17",
+  "effective_start": "2018-01-02",
   "enable": [
     "costs"
   ],
+  "end": "2026-07-17",
   "equity_timing": "next_open",
-  "effective_start": "2018-01-02",
-  "effective_end": "2026-07-17",
-  "n_days": 2146,
-  "runtime_sec": 1002.1,
-  "metrics": {
-    "cagr": 0.154643,
-    "max_drawdown": -0.208283,
-    "sharpe": 1.057797,
-    "sortino": 1.328648,
-    "final_value": 340054.440867
-  },
-  "legacy_close_metrics": {
-    "final_value": 366178.378087,
-    "cagr": 0.164864,
-    "max_drawdown": -0.188253,
-    "max_drawdown_start": "2018-06-14",
-    "max_drawdown_end": "2019-10-09",
-    "sharpe": 1.113583,
-    "sortino": 1.435085
-  },
+  "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
   "execution_open_quality": {
-    "total_rows": 21460,
-    "observed_rows": 19278,
-    "modeled_rows": 2182,
-    "missing_rows": 0,
-    "observed_share": 0.89832246,
-    "counts": {
-      "MODELED_PROXY_SWITCH": 2,
-      "MODELED_SYNTHETIC_MIDPOINT": 2180,
-      "OBSERVED": 19278
-    },
     "by_leg": {
       "BOXX": {
         "MODELED_PROXY_SWITCH": 1,
@@ -81,82 +48,92 @@
         "OBSERVED": 2146
       }
     },
-    "required_total_rows": 10045,
-    "required_observed_rows": 8702,
-    "required_modeled_rows": 1343,
-    "required_missing_rows": 0,
-    "required_observed_share": 0.86630164,
-    "required_counts": {
+    "counts": {
       "MODELED_PROXY_SWITCH": 2,
-      "MODELED_SYNTHETIC_MIDPOINT": 1341,
-      "OBSERVED": 8702
+      "MODELED_SYNTHETIC_MIDPOINT": 2180,
+      "OBSERVED": 19278
     },
+    "missing_rows": 0,
+    "modeled_rows": 2182,
+    "observed_rows": 19278,
+    "observed_share": 0.89832246,
     "required_by_leg": {
       "BOXX": {
-        "OBSERVED": 2144,
-        "MODELED_PROXY_SWITCH": 1
+        "MODELED_PROXY_SWITCH": 1,
+        "OBSERVED": 2144
+      },
+      "BRK.B": {
+        "OBSERVED": 154
+      },
+      "BTC-USD": {
+        "OBSERVED": 20
+      },
+      "DBMF": {
+        "MODELED_PROXY_SWITCH": 1,
+        "MODELED_SYNTHETIC_MIDPOINT": 182,
+        "OBSERVED": 1677
       },
       "FNGU": {
         "MODELED_SYNTHETIC_MIDPOINT": 1159,
         "OBSERVED": 211
       },
-      "MSTR": {
-        "OBSERVED": 1166
-      },
-      "SOXL": {
-        "OBSERVED": 1397
-      },
-      "DBMF": {
-        "MODELED_SYNTHETIC_MIDPOINT": 182,
-        "MODELED_PROXY_SWITCH": 1,
-        "OBSERVED": 1677
-      },
       "IAU": {
         "OBSERVED": 1860
       },
-      "BRK.B": {
-        "OBSERVED": 154
-      },
-      "SOXX": {
-        "OBSERVED": 17
+      "MSTR": {
+        "OBSERVED": 1166
       },
       "QQQ": {
         "OBSERVED": 56
       },
-      "BTC-USD": {
-        "OBSERVED": 20
+      "SOXL": {
+        "OBSERVED": 1397
+      },
+      "SOXX": {
+        "OBSERVED": 17
       }
-    }
+    },
+    "required_counts": {
+      "MODELED_PROXY_SWITCH": 2,
+      "MODELED_SYNTHETIC_MIDPOINT": 1341,
+      "OBSERVED": 8702
+    },
+    "required_missing_rows": 0,
+    "required_modeled_rows": 1343,
+    "required_observed_rows": 8702,
+    "required_observed_share": 0.86630164,
+    "required_total_rows": 10045,
+    "total_rows": 21460
   },
+  "git_commit": "b78e13e21b57e3b9553ab6ec86f320c613d5337b",
+  "legacy_close_metrics": {
+    "cagr": 0.164864,
+    "final_value": 366178.378087,
+    "max_drawdown": -0.188253,
+    "max_drawdown_end": "2019-10-09",
+    "max_drawdown_start": "2018-06-14",
+    "sharpe": 1.113583,
+    "sortino": 1.435085
+  },
+  "manifest_id": "ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f",
+  "metrics": {
+    "cagr": 0.154643,
+    "final_value": 340054.440867,
+    "max_drawdown": -0.208283,
+    "max_drawdown_end": "2019-10-08",
+    "max_drawdown_start": "2018-06-14",
+    "sharpe": 1.057797,
+    "sortino": 1.328648
+  },
+  "n_days": 2146,
   "route_set_turnover": {
     "definition": "full_portfolio_l1_on_nonrisk_nonboxx_route_set_change_days",
     "event_count": 162,
     "total": 103.466858
   },
-  "benchmarks": {
-    "SPY": 0.126941,
-    "SPY_metrics": {
-      "final_value": 276552.445738,
-      "cagr": 0.126941,
-      "max_drawdown": -0.341047,
-      "max_drawdown_start": "2020-02-19",
-      "max_drawdown_end": "2020-03-23",
-      "sharpe": 0.717205,
-      "sortino": 0.876343,
-      "calmar": 0.37221,
-      "turnover": 0.0
-    },
-    "QQQ": 0.189723,
-    "QQQ_metrics": {
-      "final_value": 438721.681488,
-      "cagr": 0.189723,
-      "max_drawdown": -0.364777,
-      "max_drawdown_start": "2021-11-19",
-      "max_drawdown_end": "2023-01-05",
-      "sharpe": 0.846749,
-      "sortino": 1.109506,
-      "calmar": 0.520107,
-      "turnover": 0.0
-    }
-  }
+  "soft_history_sha256": "780bd54edf239e759ba0974e6021d98712629036fe488f0c79ffad56537811f4",
+  "start": "2018-01-01",
+  "turnover": 237.927274,
+  "variant": "baseline",
+  "worktree_clean": true
 }
