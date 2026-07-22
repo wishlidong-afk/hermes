@@ -258,6 +258,34 @@ def research_worktree_clean(repo_root: Path = REPO_ROOT) -> bool:
     return result.returncode == 0 and not result.stdout.strip()
 
 
+def build_source_metadata(
+    source_path: Path,
+    source: Mapping[str, Any],
+    *,
+    rows: int,
+    start: str,
+    end: str,
+    repo_root: Path = REPO_ROOT,
+) -> dict[str, Any]:
+    resolved = Path(source_path).resolve()
+    retained = resolved.with_name(f"{resolved.name}.gz")
+    evidence_path = retained if retained.exists() else resolved
+    try:
+        display_path = str(evidence_path.relative_to(Path(repo_root).resolve()))
+    except ValueError:
+        display_path = str(evidence_path)
+    return {
+        "path": display_path,
+        "sha256": hashlib.sha256(resolved.read_bytes()).hexdigest(),
+        "sha256_scope": "decompressed_json_payload",
+        "schema_version": source.get("schema_version"),
+        "data_manifest_id": source.get("data_manifest_id"),
+        "rows": int(rows),
+        "start": str(start),
+        "end": str(end),
+    }
+
+
 def run(
     backtest_path: Path = DEFAULT_BACKTEST,
     output_dir: Path = DEFAULT_OUTPUT_DIR,
@@ -306,15 +334,13 @@ def run(
             "legacy_source_parity": legacy_parity,
             "source_provenance": source_status,
             "current_provenance": {field: current.get(field) for field in PROVENANCE_FIELDS},
-            "source": {
-                "path": str(source_path),
-                "sha256": hashlib.sha256(source_path.read_bytes()).hexdigest(),
-                "schema_version": source.get("schema_version"),
-                "data_manifest_id": source.get("data_manifest_id"),
-                "rows": len(decisions),
-                "start": dates[0],
-                "end": dates[-1],
-            },
+            "source": build_source_metadata(
+                source_path,
+                source,
+                rows=len(decisions),
+                start=dates[0],
+                end=dates[-1],
+            ),
         }
     )
     output_dir.mkdir(parents=True, exist_ok=True)

@@ -122,6 +122,30 @@ def test_headline_open_gate_uses_execution_required_missing_rows() -> None:
     assert mod.headline_open_quality_ok({"missing_rows": 1}) is False
 
 
+def test_source_metadata_points_to_retained_gzip_and_hashes_json_payload(
+    tmp_path: Path,
+) -> None:
+    mod = _load_module()
+    raw_path = tmp_path / "CURRENT_BASELINE_FULL.json"
+    archive_path = tmp_path / "CURRENT_BASELINE_FULL.json.gz"
+    raw = b'{"schema_version":"source-v1"}\n'
+    raw_path.write_bytes(raw)
+    archive_path.write_bytes(b"compressed-placeholder")
+
+    metadata = mod.build_source_metadata(
+        raw_path,
+        {"schema_version": "source-v1", "data_manifest_id": "manifest"},
+        rows=3,
+        start="2020-01-01",
+        end="2026-07-17",
+        repo_root=tmp_path,
+    )
+
+    assert metadata["path"] == "CURRENT_BASELINE_FULL.json.gz"
+    assert metadata["sha256"] == __import__("hashlib").sha256(raw).hexdigest()
+    assert metadata["sha256_scope"] == "decompressed_json_payload"
+
+
 def test_markdown_keeps_legacy_demoted_and_blocks_unverified_headline() -> None:
     mod = _load_module()
     artifact = {

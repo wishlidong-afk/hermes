@@ -18,7 +18,12 @@ import pandas as pd
 from hermes_escape_top.config import CONFIG_PATH, load_config
 from hermes_escape_top.core.backtest.run_full import FullBacktestReport, run_full_backtest
 from hermes_escape_top.core.data.store import LocalStore
-from hermes_escape_top.governance.live_config_policy import load_policy, validate_configs
+from hermes_escape_top.governance.live_config_policy import (
+    file_sha256,
+    load_policy,
+    semantic_sha256,
+    validate_configs,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +48,7 @@ def research_worktree_clean(repo_root: Path = REPO_ROOT) -> bool:
         "scripts/formal_gate.py",
         "scripts/execution_timing_sensitivity.py",
         "scripts/build_current_baseline.py",
+        "src/hermes_escape_top/governance/approved_live_config.json",
     ]
     result = subprocess.run(
         ["git", "status", "--porcelain", "--untracked-files=all", "--", *paths],
@@ -62,6 +68,52 @@ def build_baseline_config(config_path: Path) -> dict[str, Any]:
     return normalize_gate_config(live_config)
 
 
+def build_baseline_config_authorization(
+    config_path: Path,
+    normalized_config: Mapping[str, Any],
+) -> dict[str, Any]:
+    repo_config = json.loads(Path(CONFIG_PATH).read_text(encoding="utf-8"))
+    live_config = json.loads(Path(config_path).read_text(encoding="utf-8"))
+    policy = load_policy(APPROVED_LIVE_POLICY_PATH)
+    validate_configs(repo_config, live_config, policy)
+    raw_features = live_config.get("features") or {}
+    normalized_features = normalized_config.get("features") or {}
+    normalization: dict[str, dict[str, Any]] = {}
+    for key in sorted(set(raw_features) | set(normalized_features)):
+        raw_value = raw_features.get(key, "<missing>")
+        normalized_value = normalized_features.get(key, "<missing>")
+        if raw_value == normalized_value:
+            continue
+        reason = (
+            "byte-identical replay acceleration only"
+            if key == "use_indicator_cache"
+            else "explicit default for gate replay schema"
+        )
+        normalization[str(key)] = {
+            "raw": raw_value,
+            "normalized": normalized_value,
+            "reason": reason,
+        }
+    return {
+        "schema_version": "current-baseline-config-authorization-v1",
+        "config_source": str(Path(config_path).resolve()),
+        "raw_live_config_sha256": file_sha256(Path(config_path)),
+        "raw_live_config_semantic_sha256": semantic_sha256(live_config),
+        "repo_config_semantic_sha256": semantic_sha256(repo_config),
+        "policy_sha256": file_sha256(APPROVED_LIVE_POLICY_PATH),
+        "policy_schema_version": str(policy.get("schema_version") or ""),
+        "policy_approved_live_semantic_sha256": str(
+            policy.get("live_config_semantic_sha256") or ""
+        ),
+        "policy_approved_repo_semantic_sha256": str(
+            policy.get("repo_config_semantic_sha256") or ""
+        ),
+        "normalized_config_semantic_sha256": semantic_sha256(normalized_config),
+        "approved_feature_diff": policy.get("approved_feature_diff") or {},
+        "normalization": normalization,
+    }
+
+
 def latest_history_date(frame: pd.DataFrame) -> str:
     if frame is None or frame.empty or "Close" not in frame:
         raise ValueError("QQQ history has no usable close rows")
@@ -76,18 +128,22 @@ def build_source_payload(
     evidence: Mapping[str, Any],
     *,
     config_source: str,
+    config_authorization: Mapping[str, Any],
 ) -> dict[str, Any]:
     payload = report.to_dict()
     if payload.get("data_manifest_id") != evidence.get("manifest_id"):
         raise ValueError("backtest report manifest does not match frozen provenance manifest")
     if payload.get("requested_start") != evidence.get("start") or payload.get("requested_end") != evidence.get("end"):
         raise ValueError("backtest report window does not match frozen provenance window")
+    if config_authorization.get("schema_version") != "current-baseline-config-authorization-v1":
+        raise ValueError("baseline config authorization is missing or invalid")
     payload.update(
         {
             "evidence_schema": "current-baseline-source-v1",
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "config_source": str(config_source),
             "config_snapshot": "CURRENT_BASELINE_CONFIG.json",
+            "config_authorization": dict(config_authorization),
             "provenance": {**dict(evidence), "worktree_clean": True},
             "authorization": "NO_CONFIG_FLIP",
         }
@@ -99,6 +155,7 @@ def render_summary(payload: Mapping[str, Any]) -> str:
     simulation = payload.get("simulation", {})
     metrics = simulation.get("metrics", {})
     provenance = payload.get("provenance", {})
+    config_authorization = payload.get("config_authorization", {})
     return "\n".join(
         [
             "# Current Baseline Full Source",
@@ -110,6 +167,9 @@ def render_summary(payload: Mapping[str, Any]) -> str:
             f"Manifest: `{payload.get('data_manifest_id')}`",
             f"Config source: `{payload.get('config_source')}`",
             f"Config snapshot: `{payload.get('config_snapshot')}`",
+            f"Approved live semantic SHA256: `{config_authorization.get('raw_live_config_semantic_sha256')}`",
+            f"Policy SHA256: `{config_authorization.get('policy_sha256')}`",
+            f"Normalized replay config SHA256: `{config_authorization.get('normalized_config_semantic_sha256')}`",
             "Authorization: `NO_CONFIG_FLIP`",
             "",
             "| Metric | Legacy close source |",
@@ -137,11 +197,17 @@ def run(
     if not research_worktree_clean():
         raise RuntimeError("research code and config must be committed and clean before baseline generation")
     cfg = build_baseline_config(config_path)
+    config_authorization = build_baseline_config_authorization(config_path, cfg)
     store = LocalStore(cfg)
     resolved_end = str(end or latest_history_date(store.load_history("QQQ")))
     evidence = cache_evidence("baseline", cfg, start=str(start), end=resolved_end, enable=ENABLE)
     report = run_full_backtest(start=str(start), end=resolved_end, cfg=cfg, enable=set(ENABLE))
-    payload = build_source_payload(report, evidence, config_source=str(config_path.resolve()))
+    payload = build_source_payload(
+        report,
+        evidence,
+        config_source=str(config_path.resolve()),
+        config_authorization=config_authorization,
+    )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     source_path = output_dir / "CURRENT_BASELINE_FULL.json"

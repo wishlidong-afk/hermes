@@ -77,17 +77,82 @@ def test_stale_baseline_requires_explicit_labels_in_both_docs(tmp_path):
 
 def test_baseline_source_evidence_accepts_matching_deterministic_archive(tmp_path):
     module = _module()
-    source = b'{"rows":[{"as_of":"2026-07-14"}]}\n'
+    source = _write_authorized_baseline_source(tmp_path)
     artifact_dir = tmp_path / "building" / "reports" / "current_baseline"
-    timing_dir = artifact_dir / "execution_timing"
-    timing_dir.mkdir(parents=True)
-    (artifact_dir / "CURRENT_BASELINE_FULL.json.gz").write_bytes(gzip.compress(source, mtime=0))
-    (timing_dir / "EXECUTION_TIMING_SENSITIVITY.json").write_text(
-        json.dumps({"source": {"sha256": hashlib.sha256(source).hexdigest()}}),
-        encoding="utf-8",
-    )
 
     assert module._baseline_source_errors(tmp_path) == []
+
+
+def test_baseline_source_evidence_rejects_missing_config_authorization(tmp_path):
+    module = _module()
+    source = _write_authorized_baseline_source(tmp_path)
+    artifact_dir = tmp_path / "building" / "reports" / "current_baseline"
+    payload = json.loads(source)
+    payload.pop("config_authorization")
+    tampered = (json.dumps(payload, sort_keys=True) + "\n").encode()
+    (artifact_dir / "CURRENT_BASELINE_FULL.json.gz").write_bytes(
+        gzip.compress(tampered, mtime=0)
+    )
+    _write_timing_sha(artifact_dir, tampered)
+    timing_path = (
+        artifact_dir / "execution_timing" / "EXECUTION_TIMING_SENSITIVITY.json"
+    )
+    timing = json.loads(timing_path.read_text(encoding="utf-8"))
+    timing["source"]["path"] = "/tmp/CURRENT_BASELINE_FULL.json"
+    timing_path.write_text(json.dumps(timing), encoding="utf-8")
+
+    errors = module._baseline_source_errors(tmp_path)
+
+    assert any("config authorization" in error for error in errors)
+    assert any("source path" in error for error in errors)
+
+
+def test_baseline_source_evidence_rejects_normalized_config_or_policy_drift(tmp_path):
+    module = _module()
+    _write_authorized_baseline_source(tmp_path)
+    artifact_dir = tmp_path / "building" / "reports" / "current_baseline"
+    config_path = artifact_dir / "CURRENT_BASELINE_CONFIG.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["features"]["use_indicator_cache"] = False
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    errors = module._baseline_source_errors(tmp_path)
+    assert any("normalized config semantic sha256 mismatch" in error for error in errors)
+
+    _write_authorized_baseline_source(tmp_path)
+    policy_path = (
+        tmp_path
+        / "src"
+        / "hermes_escape_top"
+        / "governance"
+        / "approved_live_config.json"
+    )
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    policy["live_config_semantic_sha256"] = "f" * 64
+    policy_path.write_text(json.dumps(policy), encoding="utf-8")
+
+    errors = module._baseline_source_errors(tmp_path)
+    assert any("policy sha256 mismatch" in error for error in errors)
+
+
+def test_baseline_source_evidence_rejects_nonretained_source_path(tmp_path):
+    module = _module()
+    _write_authorized_baseline_source(tmp_path)
+    timing_path = (
+        tmp_path
+        / "building"
+        / "reports"
+        / "current_baseline"
+        / "execution_timing"
+        / "EXECUTION_TIMING_SENSITIVITY.json"
+    )
+    timing = json.loads(timing_path.read_text(encoding="utf-8"))
+    timing["source"]["path"] = "/tmp/CURRENT_BASELINE_FULL.json"
+    timing_path.write_text(json.dumps(timing), encoding="utf-8")
+
+    errors = module._baseline_source_errors(tmp_path)
+
+    assert any("source path" in error for error in errors)
 
 
 def test_baseline_source_evidence_rejects_missing_or_mismatched_archive(tmp_path):
@@ -120,3 +185,108 @@ def test_factor_capacity_governance_rejects_missing_or_stale_artifact(tmp_path):
     path.write_text(json.dumps({"schema_version": "stale"}), encoding="utf-8")
     errors = module._factor_capacity_errors(tmp_path, config)
     assert any("differs" in error for error in errors)
+
+
+def _semantic_sha256(value) -> str:
+    encoded = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _write_timing_sha(artifact_dir: Path, source: bytes) -> None:
+    timing_dir = artifact_dir / "execution_timing"
+    timing_dir.mkdir(parents=True, exist_ok=True)
+    (timing_dir / "EXECUTION_TIMING_SENSITIVITY.json").write_text(
+        json.dumps(
+            {
+                "source": {
+                    "path": "building/reports/current_baseline/CURRENT_BASELINE_FULL.json.gz",
+                    "sha256": hashlib.sha256(source).hexdigest(),
+                    "sha256_scope": "decompressed_json_payload",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_authorized_baseline_source(root: Path) -> bytes:
+    artifact_dir = root / "building" / "reports" / "current_baseline"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    policy_path = (
+        root
+        / "src"
+        / "hermes_escape_top"
+        / "governance"
+        / "approved_live_config.json"
+    )
+    policy_path.parent.mkdir(parents=True, exist_ok=True)
+    repo_config = {
+        "features": {"live_flag": False, "use_indicator_cache": False},
+        "ibkr": {"readonly": True},
+    }
+    live_config = {
+        "features": {"live_flag": True, "use_indicator_cache": False},
+        "ibkr": {"readonly": True},
+    }
+    normalized_config = {
+        "features": {"live_flag": True, "use_indicator_cache": True},
+        "ibkr": {"readonly": True},
+    }
+    policy = {
+        "schema_version": "hermes-approved-live-config-v1",
+        "repo_config_semantic_sha256": _semantic_sha256(repo_config),
+        "live_config_semantic_sha256": _semantic_sha256(live_config),
+        "approved_feature_diff": {
+            "live_flag": {"live": True, "repo": False}
+        },
+        "required_values": {"ibkr.readonly": True},
+    }
+    policy_bytes = (json.dumps(policy, sort_keys=True) + "\n").encode()
+    policy_path.write_bytes(policy_bytes)
+    (artifact_dir / "CURRENT_BASELINE_CONFIG.json").write_text(
+        json.dumps(normalized_config), encoding="utf-8"
+    )
+    authorization = {
+        "schema_version": "current-baseline-config-authorization-v1",
+        "config_source": "/live/config.json",
+        "raw_live_config_sha256": "a" * 64,
+        "raw_live_config_semantic_sha256": _semantic_sha256(live_config),
+        "repo_config_semantic_sha256": _semantic_sha256(repo_config),
+        "policy_sha256": hashlib.sha256(policy_bytes).hexdigest(),
+        "policy_schema_version": policy["schema_version"],
+        "policy_approved_live_semantic_sha256": policy[
+            "live_config_semantic_sha256"
+        ],
+        "policy_approved_repo_semantic_sha256": policy[
+            "repo_config_semantic_sha256"
+        ],
+        "normalized_config_semantic_sha256": _semantic_sha256(normalized_config),
+        "approved_feature_diff": policy["approved_feature_diff"],
+        "normalization": {
+            "use_indicator_cache": {
+                "raw": False,
+                "normalized": True,
+                "reason": "byte-identical replay acceleration only",
+            }
+        },
+    }
+    source = (
+        json.dumps(
+            {
+                "rows": [{"as_of": "2026-07-14"}],
+                "config_authorization": authorization,
+            },
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode()
+    (artifact_dir / "CURRENT_BASELINE_FULL.json.gz").write_bytes(
+        gzip.compress(source, mtime=0)
+    )
+    _write_timing_sha(artifact_dir, source)
+    return source

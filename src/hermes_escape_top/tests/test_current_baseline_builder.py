@@ -54,16 +54,32 @@ def test_source_payload_embeds_clean_provenance_and_requires_manifest_match() ->
         }
     )
 
-    payload = mod.build_source_payload(report, _evidence(), config_source="/live/config.json")
+    authorization = {
+        "schema_version": "current-baseline-config-authorization-v1",
+        "raw_live_config_semantic_sha256": "live-semantic",
+        "policy_sha256": "policy-sha",
+    }
+    payload = mod.build_source_payload(
+        report,
+        _evidence(),
+        config_source="/live/config.json",
+        config_authorization=authorization,
+    )
 
     assert payload["evidence_schema"] == "current-baseline-source-v1"
     assert payload["provenance"]["worktree_clean"] is True
     assert payload["provenance"]["end"] == "2026-07-10"
     assert payload["config_source"] == "/live/config.json"
+    assert payload["config_authorization"] == authorization
 
     bad = dict(_evidence(), manifest_id="different")
     with pytest.raises(ValueError, match="manifest"):
-        mod.build_source_payload(report, bad, config_source="/live/config.json")
+        mod.build_source_payload(
+            report,
+            bad,
+            config_source="/live/config.json",
+            config_authorization=authorization,
+        )
 
 
 def test_latest_history_date_uses_last_valid_close() -> None:
@@ -115,6 +131,17 @@ def test_run_writes_effective_config_snapshot(tmp_path, monkeypatch) -> None:
     )
     monkeypatch.setattr(mod, "research_worktree_clean", lambda repo_root=mod.REPO_ROOT: True)
     monkeypatch.setattr(mod, "build_baseline_config", lambda path: config)
+    authorization = {
+        "schema_version": "current-baseline-config-authorization-v1",
+        "raw_live_config_semantic_sha256": "live-semantic",
+        "policy_sha256": "policy-sha",
+    }
+    monkeypatch.setattr(
+        mod,
+        "build_baseline_config_authorization",
+        lambda path, normalized_config: authorization,
+        raising=False,
+    )
     monkeypatch.setattr(
         mod,
         "LocalStore",
@@ -132,6 +159,7 @@ def test_run_writes_effective_config_snapshot(tmp_path, monkeypatch) -> None:
     assert json.loads((tmp_path / "CURRENT_BASELINE_CONFIG.json").read_text()) == config
     source_bytes = (tmp_path / "CURRENT_BASELINE_FULL.json").read_bytes()
     assert gzip.decompress((tmp_path / "CURRENT_BASELINE_FULL.json.gz").read_bytes()) == source_bytes
+    assert json.loads(source_bytes)["config_authorization"] == authorization
 
 
 def test_deterministic_gzip_is_byte_identical() -> None:
@@ -198,3 +226,76 @@ def test_baseline_config_must_match_the_approved_live_policy(tmp_path, monkeypat
     live_path.write_text(json.dumps(live_config))
     with pytest.raises(ValueError, match="policy|approved|semantic"):
         mod.build_baseline_config(live_path)
+
+
+def test_baseline_config_authorization_binds_raw_policy_and_normalized_config(
+    tmp_path, monkeypatch
+) -> None:
+    mod = _load_module()
+    repo_config = {
+        "features": {"use_indicator_cache": False, "live_flag": False},
+        "ibkr": {"readonly": True},
+    }
+    live_config = copy.deepcopy(repo_config)
+    live_config["features"]["live_flag"] = True
+    normalized = copy.deepcopy(live_config)
+    normalized["features"]["use_indicator_cache"] = True
+    repo_path = tmp_path / "repo.json"
+    live_path = tmp_path / "live.json"
+    policy_path = tmp_path / "policy.json"
+    repo_path.write_text(json.dumps(repo_config), encoding="utf-8")
+    live_path.write_text(json.dumps(live_config), encoding="utf-8")
+    policy = {
+        "schema_version": "hermes-approved-live-config-v1",
+        "repo_config_semantic_sha256": mod.semantic_sha256(repo_config),
+        "live_config_semantic_sha256": mod.semantic_sha256(live_config),
+        "approved_feature_diff": {
+            "live_flag": {"repo": False, "live": True}
+        },
+        "required_values": {"ibkr.readonly": True},
+    }
+    policy_path.write_text(json.dumps(policy), encoding="utf-8")
+    monkeypatch.setattr(mod, "CONFIG_PATH", repo_path)
+    monkeypatch.setattr(mod, "APPROVED_LIVE_POLICY_PATH", policy_path)
+
+    authorization = mod.build_baseline_config_authorization(live_path, normalized)
+
+    assert authorization["raw_live_config_sha256"] == hashlib.sha256(
+        live_path.read_bytes()
+    ).hexdigest()
+    assert authorization["raw_live_config_semantic_sha256"] == policy[
+        "live_config_semantic_sha256"
+    ]
+    assert authorization["repo_config_semantic_sha256"] == policy[
+        "repo_config_semantic_sha256"
+    ]
+    assert authorization["policy_sha256"] == hashlib.sha256(
+        policy_path.read_bytes()
+    ).hexdigest()
+    assert authorization["normalized_config_semantic_sha256"] == mod.semantic_sha256(
+        normalized
+    )
+    assert authorization["normalization"]["use_indicator_cache"] == {
+        "raw": False,
+        "normalized": True,
+        "reason": "byte-identical replay acceleration only",
+    }
+
+
+def test_research_clean_scope_includes_approved_live_policy(
+    tmp_path, monkeypatch
+) -> None:
+    mod = _load_module()
+    observed: dict[str, object] = {}
+
+    def fake_run(command, **kwargs):
+        observed["command"] = command
+        return SimpleNamespace(returncode=0, stdout="")
+
+    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+
+    assert mod.research_worktree_clean(tmp_path) is True
+
+    assert "src/hermes_escape_top/governance/approved_live_config.json" in (
+        observed["command"]
+    )

@@ -211,6 +211,17 @@ def _baseline_source_errors(root: Path) -> list[str]:
     expected_sha = str((timing.get("source") or {}).get("sha256") or "")
     if not re.fullmatch(r"[0-9a-f]{64}", expected_sha):
         return ["execution timing source sha256 is missing or invalid"]
+    source_metadata = timing.get("source") or {}
+    errors: list[str] = []
+    expected_source_path = (
+        "building/reports/current_baseline/CURRENT_BASELINE_FULL.json.gz"
+    )
+    if source_metadata.get("path") != expected_source_path:
+        errors.append(
+            "execution timing source path must reference retained gzip artifact"
+        )
+    if source_metadata.get("sha256_scope") != "decompressed_json_payload":
+        errors.append("execution timing source sha256 scope is missing or invalid")
 
     raw_path = artifact_dir / "CURRENT_BASELINE_FULL.json"
     archive_path = artifact_dir / "CURRENT_BASELINE_FULL.json.gz"
@@ -226,14 +237,133 @@ def _baseline_source_errors(root: Path) -> list[str]:
         except (OSError, EOFError) as exc:
             return [f"compressed full provenance source unreadable: {exc}"]
     if not candidates:
-        return [f"missing full provenance source: {raw_path.name} or {archive_path.name}"]
+        return errors + [
+            f"missing full provenance source: {raw_path.name} or {archive_path.name}"
+        ]
 
-    errors = []
+    source_payload: bytes | None = None
+    integrity_errors: list[str] = []
     for name, payload in candidates:
         actual_sha = hashlib.sha256(payload).hexdigest()
         if actual_sha != expected_sha:
-            errors.append(f"{name} sha256 mismatch: {actual_sha} != {expected_sha}")
+            integrity_errors.append(
+                f"{name} sha256 mismatch: {actual_sha} != {expected_sha}"
+            )
+        elif source_payload is None:
+            source_payload = payload
+    if integrity_errors:
+        return errors + integrity_errors
+    if source_payload is None:
+        return ["full provenance source has no matching payload"]
+    try:
+        source = json.loads(source_payload)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return [f"full provenance source is not valid JSON: {exc}"]
+    if not isinstance(source, dict):
+        return ["full provenance source must be a JSON object"]
+    errors.extend(_baseline_config_authorization_errors(root, source))
     return errors
+
+
+def _baseline_config_authorization_errors(
+    root: Path,
+    source: dict[str, Any],
+) -> list[str]:
+    authorization = source.get("config_authorization")
+    if not isinstance(authorization, dict) or authorization.get("schema_version") != (
+        "current-baseline-config-authorization-v1"
+    ):
+        return ["config authorization is missing or invalid"]
+
+    artifact_dir = Path(root) / "building" / "reports" / "current_baseline"
+    config_path = artifact_dir / "CURRENT_BASELINE_CONFIG.json"
+    policy_path = (
+        Path(root)
+        / "src"
+        / "hermes_escape_top"
+        / "governance"
+        / "approved_live_config.json"
+    )
+    try:
+        normalized_config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"normalized baseline config unreadable: {exc}"]
+    try:
+        policy_bytes = policy_path.read_bytes()
+        policy = json.loads(policy_bytes)
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"approved live config policy unreadable: {exc}"]
+    if not isinstance(normalized_config, dict) or not isinstance(policy, dict):
+        return ["normalized baseline config and policy must be JSON objects"]
+
+    errors: list[str] = []
+    policy_sha = hashlib.sha256(policy_bytes).hexdigest()
+    if authorization.get("policy_sha256") != policy_sha:
+        errors.append("config authorization policy sha256 mismatch")
+    if authorization.get("policy_schema_version") != policy.get("schema_version"):
+        errors.append("config authorization policy schema mismatch")
+
+    expected_live = str(policy.get("live_config_semantic_sha256") or "")
+    expected_repo = str(policy.get("repo_config_semantic_sha256") or "")
+    if authorization.get("raw_live_config_semantic_sha256") != expected_live:
+        errors.append("config authorization live semantic sha256 differs from policy")
+    if authorization.get("repo_config_semantic_sha256") != expected_repo:
+        errors.append("config authorization repo semantic sha256 differs from policy")
+    if authorization.get("policy_approved_live_semantic_sha256") != expected_live:
+        errors.append("config authorization recorded approved live sha256 differs from policy")
+    if authorization.get("policy_approved_repo_semantic_sha256") != expected_repo:
+        errors.append("config authorization recorded approved repo sha256 differs from policy")
+    if authorization.get("approved_feature_diff") != policy.get("approved_feature_diff"):
+        errors.append("config authorization feature diff differs from policy")
+
+    normalized_sha = _semantic_sha256(normalized_config)
+    if authorization.get("normalized_config_semantic_sha256") != normalized_sha:
+        errors.append("normalized config semantic sha256 mismatch")
+    raw_file_sha = str(authorization.get("raw_live_config_sha256") or "")
+    if not re.fullmatch(r"[0-9a-f]{64}", raw_file_sha):
+        errors.append("raw live config file sha256 is missing or invalid")
+
+    normalization = authorization.get("normalization")
+    if not isinstance(normalization, dict):
+        errors.append("config authorization normalization map is missing or invalid")
+        return errors
+    raw_candidate = json.loads(json.dumps(normalized_config))
+    features = raw_candidate.get("features")
+    if not isinstance(features, dict):
+        errors.append("normalized baseline config features must be an object")
+        return errors
+    for key, row in normalization.items():
+        if not isinstance(key, str) or not isinstance(row, dict):
+            errors.append("config authorization normalization rows must be objects")
+            continue
+        if set(row) != {"raw", "normalized", "reason"}:
+            errors.append(f"config authorization normalization row invalid: {key}")
+            continue
+        normalized_value = row["normalized"]
+        observed_value = features.get(key, "<missing>")
+        if observed_value != normalized_value:
+            errors.append(f"normalized config value differs from authorization: {key}")
+            continue
+        raw_value = row["raw"]
+        if raw_value == "<missing>":
+            features.pop(key, None)
+        else:
+            features[key] = raw_value
+    if _semantic_sha256(raw_candidate) != str(
+        authorization.get("raw_live_config_semantic_sha256") or ""
+    ):
+        errors.append("normalized config cannot reconstruct approved raw live config")
+    return errors
+
+
+def _semantic_sha256(value: Any) -> str:
+    payload = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _factor_capacity_errors(root: Path, config: dict[str, Any]) -> list[str]:
