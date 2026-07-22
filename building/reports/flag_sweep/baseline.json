@@ -1,66 +1,68 @@
 {
-  "cache_key": "43f06e8d896a7e07d61a9879765011aa02b7a44bf64e8d006e12eceff03b3737",
+  "cache_key": "95242d4224fb76a4abbdb0f8381a5e2b94af9ff87bd4086fc5eeaefa560f98cd",
   "cache_schema": "flag-sweep-cache-v4",
-  "code_sha256": "34b6fe4379f781fdfad5ee8ba602678ee5ee693b04ca3b9b55c4b14fb354df59",
+  "code_sha256": "d71017e0c1c3ce8373485aa4757db4f9ef85383b17700af0708b3abac60305a6",
   "config_sha256": "fada27925c9e64a6aed00b9cd10d80e18449792994ed18a39bb7510bb554ea68",
-  "effective_end": "2026-07-17",
+  "effective_end": "2026-07-21",
   "effective_start": "2018-01-02",
   "enable": [
     "costs"
   ],
-  "end": "2026-07-17",
+  "end": "2026-07-21",
   "equity_timing": "next_open",
   "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
   "execution_open_quality": {
     "by_leg": {
       "BOXX": {
         "MODELED_PROXY_SWITCH": 1,
-        "OBSERVED": 2145
+        "OBSERVED": 2147
       },
       "BRK.B": {
-        "OBSERVED": 2146
+        "OBSERVED": 2148
       },
       "BTC-USD": {
-        "OBSERVED": 2146
+        "MISSING": 1,
+        "OBSERVED": 2147
       },
       "DBMF": {
         "MODELED_PROXY_SWITCH": 1,
         "MODELED_SYNTHETIC_MIDPOINT": 387,
-        "OBSERVED": 1758
+        "OBSERVED": 1760
       },
       "FNGU": {
         "MODELED_SYNTHETIC_MIDPOINT": 1793,
-        "OBSERVED": 353
+        "OBSERVED": 355
       },
       "IAU": {
-        "OBSERVED": 2146
+        "OBSERVED": 2148
       },
       "MSTR": {
-        "OBSERVED": 2146
+        "OBSERVED": 2148
       },
       "QQQ": {
-        "OBSERVED": 2146
+        "OBSERVED": 2148
       },
       "SOXL": {
-        "OBSERVED": 2146
+        "OBSERVED": 2148
       },
       "SOXX": {
-        "OBSERVED": 2146
+        "OBSERVED": 2148
       }
     },
     "counts": {
+      "MISSING": 1,
       "MODELED_PROXY_SWITCH": 2,
       "MODELED_SYNTHETIC_MIDPOINT": 2180,
-      "OBSERVED": 19278
+      "OBSERVED": 19297
     },
-    "missing_rows": 0,
+    "missing_rows": 1,
     "modeled_rows": 2182,
-    "observed_rows": 19278,
-    "observed_share": 0.89832246,
+    "observed_rows": 19297,
+    "observed_share": 0.89837058,
     "required_by_leg": {
       "BOXX": {
         "MODELED_PROXY_SWITCH": 1,
-        "OBSERVED": 2144
+        "OBSERVED": 2146
       },
       "BRK.B": {
         "OBSERVED": 154
@@ -71,14 +73,14 @@
       "DBMF": {
         "MODELED_PROXY_SWITCH": 1,
         "MODELED_SYNTHETIC_MIDPOINT": 182,
-        "OBSERVED": 1677
+        "OBSERVED": 1679
       },
       "FNGU": {
         "MODELED_SYNTHETIC_MIDPOINT": 1159,
-        "OBSERVED": 211
+        "OBSERVED": 213
       },
       "IAU": {
-        "OBSERVED": 1860
+        "OBSERVED": 1862
       },
       "MSTR": {
         "OBSERVED": 1166
@@ -96,44 +98,44 @@
     "required_counts": {
       "MODELED_PROXY_SWITCH": 2,
       "MODELED_SYNTHETIC_MIDPOINT": 1341,
-      "OBSERVED": 8702
+      "OBSERVED": 8710
     },
     "required_missing_rows": 0,
     "required_modeled_rows": 1343,
-    "required_observed_rows": 8702,
-    "required_observed_share": 0.86630164,
-    "required_total_rows": 10045,
-    "total_rows": 21460
+    "required_observed_rows": 8710,
+    "required_observed_share": 0.86640804,
+    "required_total_rows": 10053,
+    "total_rows": 21480
   },
-  "git_commit": "b78e13e21b57e3b9553ab6ec86f320c613d5337b",
+  "git_commit": "b23cf124b5b906d897884f2774d354b8cae23d1a",
   "legacy_close_metrics": {
-    "cagr": 0.164864,
-    "final_value": 366178.378087,
+    "cagr": 0.165217,
+    "final_value": 367569.985009,
     "max_drawdown": -0.188253,
     "max_drawdown_end": "2019-10-09",
     "max_drawdown_start": "2018-06-14",
-    "sharpe": 1.113583,
-    "sortino": 1.435085
+    "sharpe": 1.11609,
+    "sortino": 1.437662
   },
-  "manifest_id": "ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f",
+  "manifest_id": "cf06acc7c2454c6fbbb7038f9ae8e56a6fa50ada5dd36a19e219ecec0f21b8e2",
   "metrics": {
-    "cagr": 0.154643,
-    "final_value": 340054.440867,
+    "cagr": 0.155556,
+    "final_value": 342742.362508,
     "max_drawdown": -0.208283,
     "max_drawdown_end": "2019-10-08",
     "max_drawdown_start": "2018-06-14",
-    "sharpe": 1.057797,
-    "sortino": 1.328648
+    "sharpe": 1.063621,
+    "sortino": 1.335373
   },
-  "n_days": 2146,
+  "n_days": 2148,
   "route_set_turnover": {
     "definition": "full_portfolio_l1_on_nonrisk_nonboxx_route_set_change_days",
     "event_count": 162,
     "total": 103.466858
   },
-  "soft_history_sha256": "780bd54edf239e759ba0974e6021d98712629036fe488f0c79ffad56537811f4",
+  "soft_history_sha256": "837dab78e922cea360c2da8e769163733507fed579920a07ab4051c578de5721",
   "start": "2018-01-01",
-  "turnover": 237.927274,
+  "turnover": 238.0632,
   "variant": "baseline",
   "worktree_clean": true
 }

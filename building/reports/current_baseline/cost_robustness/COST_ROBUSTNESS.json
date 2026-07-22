@@ -2,88 +2,88 @@
   "authorization": "NO_CONFIG_FLIP",
   "cost_curve": [
     {
-      "base_cost": 41662.181803,
-      "executed_rebalances": 1104,
+      "base_cost": 41708.474955,
+      "executed_rebalances": 1105,
       "extra_slippage_bps": 0.0,
       "extra_slippage_cost": 0.0,
       "metrics": {
-        "cagr": 0.154643,
-        "final_value": 340054.440867,
+        "cagr": 0.155556,
+        "final_value": 342742.362508,
         "max_drawdown": -0.208283,
         "max_drawdown_end": "2019-10-08",
         "max_drawdown_start": "2018-06-14",
-        "sharpe": 1.057797,
-        "sortino": 1.328648
+        "sharpe": 1.063621,
+        "sortino": 1.335373
       },
-      "turnover": 237.927274
+      "turnover": 238.0632
     },
     {
-      "base_cost": 38791.91555,
-      "executed_rebalances": 1104,
+      "base_cost": 38833.013393,
+      "executed_rebalances": 1105,
       "extra_slippage_bps": 5.0,
-      "extra_slippage_cost": 19395.957779,
+      "extra_slippage_cost": 19416.506699,
       "metrics": {
-        "cagr": 0.138608,
-        "final_value": 301892.426942,
+        "cagr": 0.139514,
+        "final_value": 304258.019034,
         "max_drawdown": -0.219665,
         "max_drawdown_end": "2019-10-08",
         "max_drawdown_start": "2018-06-14",
-        "sharpe": 0.962032,
-        "sortino": 1.207057
+        "sharpe": 0.96785,
+        "sortino": 1.213818
       },
-      "turnover": 237.927274
+      "turnover": 238.0632
     },
     {
-      "base_cost": 36159.860637,
-      "executed_rebalances": 1104,
+      "base_cost": 36196.345178,
+      "executed_rebalances": 1105,
       "extra_slippage_bps": 10.0,
-      "extra_slippage_cost": 36159.860637,
+      "extra_slippage_cost": 36196.345178,
       "metrics": {
-        "cagr": 0.122792,
-        "final_value": 268005.421524,
+        "cagr": 0.123691,
+        "final_value": 270087.118585,
         "max_drawdown": -0.230884,
         "max_drawdown_end": "2019-10-08",
         "max_drawdown_start": "2018-06-14",
-        "sharpe": 0.86616,
-        "sortino": 1.084727
+        "sharpe": 0.871972,
+        "sortino": 1.091516
       },
-      "turnover": 237.927274
+      "turnover": 238.0632
     },
     {
-      "base_cost": 29489.39473,
-      "executed_rebalances": 1104,
+      "base_cost": 29514.916099,
+      "executed_rebalances": 1105,
       "extra_slippage_bps": 25.0,
-      "extra_slippage_cost": 73723.486809,
+      "extra_slippage_cost": 73787.290233,
       "metrics": {
-        "cagr": 0.076629,
-        "final_value": 187474.901032,
+        "cagr": 0.077507,
+        "final_value": 188892.557403,
         "max_drawdown": -0.263597,
         "max_drawdown_end": "2019-10-08",
         "max_drawdown_start": "2018-06-14",
-        "sharpe": 0.578255,
-        "sortino": 0.720969
+        "sharpe": 0.584037,
+        "sortino": 0.727845
       },
-      "turnover": 237.927274
+      "turnover": 238.0632
     },
     {
-      "base_cost": 21492.954288,
-      "executed_rebalances": 1104,
+      "base_cost": 21507.014121,
+      "executed_rebalances": 1105,
       "extra_slippage_bps": 50.0,
-      "extra_slippage_cost": 107464.771436,
+      "extra_slippage_cost": 107535.070601,
       "metrics": {
-        "cagr": 0.003802,
-        "final_value": 103282.50839,
+        "cagr": 0.004646,
+        "final_value": 104028.137313,
         "max_drawdown": -0.340628,
         "max_drawdown_end": "2023-05-12",
         "max_drawdown_start": "2018-03-12",
-        "sharpe": 0.099526,
-        "sortino": 0.123118
+        "sharpe": 0.10523,
+        "sortino": 0.130114
       },
-      "turnover": 237.927274
+      "turnover": 238.0632
     }
   ],
   "evidence_role": "SENSITIVITY_OF_RECORDED_BASELINE",
-  "generated_at": "2026-07-22T03:52:36.380341+00:00",
+  "generated_at": "2026-07-22T14:38:25.679819+00:00",
   "notes": [
     "All rows reuse the recorded baseline decisions and next-open execution prices.",
     "Extra slippage is charged on absolute turnover in addition to configured base costs.",
@@ -92,99 +92,99 @@
   "schema_version": "cost-robustness-v1",
   "source": {
     "path": "/Users/liweishi/Documents/github/hermes/building/reports/current_baseline/CURRENT_BASELINE_FULL.json.gz",
-    "payload_sha256": "36183fceecae60fffc35d53a171d312d88e15520d45104c4b16e551565262a20",
+    "payload_sha256": "84ba67caee68c090a15b48821aa49cdfdfff45dc882cea811681a8446dd2ed3e",
     "provenance": {
-      "cache_key": "43f06e8d896a7e07d61a9879765011aa02b7a44bf64e8d006e12eceff03b3737",
+      "cache_key": "95242d4224fb76a4abbdb0f8381a5e2b94af9ff87bd4086fc5eeaefa560f98cd",
       "cache_schema": "flag-sweep-cache-v4",
-      "code_sha256": "34b6fe4379f781fdfad5ee8ba602678ee5ee693b04ca3b9b55c4b14fb354df59",
+      "code_sha256": "d71017e0c1c3ce8373485aa4757db4f9ef85383b17700af0708b3abac60305a6",
       "config_sha256": "fada27925c9e64a6aed00b9cd10d80e18449792994ed18a39bb7510bb554ea68",
       "enable": [
         "costs"
       ],
-      "end": "2026-07-17",
+      "end": "2026-07-21",
       "equity_timing": "next_open",
       "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
-      "git_commit": "b78e13e21b57e3b9553ab6ec86f320c613d5337b",
-      "manifest_id": "ea882f4bc91aaa91ab9f222f08c21f650a1282744cbb20e0e4e8122736cd7f9f",
-      "soft_history_sha256": "780bd54edf239e759ba0974e6021d98712629036fe488f0c79ffad56537811f4",
+      "git_commit": "b23cf124b5b906d897884f2774d354b8cae23d1a",
+      "manifest_id": "cf06acc7c2454c6fbbb7038f9ae8e56a6fa50ada5dd36a19e219ecec0f21b8e2",
+      "soft_history_sha256": "837dab78e922cea360c2da8e769163733507fed579920a07ab4051c578de5721",
       "start": "2018-01-01",
       "variant": "baseline",
       "worktree_clean": true
     }
   },
   "turnover_attribution": {
-    "attributed_turnover": 237.927274,
+    "attributed_turnover": 238.0632,
     "by_leg": [
       {
         "leg": "BOXX",
-        "share": 0.21781809,
-        "turnover": 51.824865
+        "share": 0.21787619,
+        "turnover": 51.868302
       },
       {
         "leg": "SOXL",
-        "share": 0.16187378,
+        "share": 0.16178136,
         "turnover": 38.514188
       },
       {
         "leg": "DBMF",
-        "share": 0.15157371,
-        "turnover": 36.06352
+        "share": 0.1517392,
+        "turnover": 36.12352
       },
       {
         "leg": "FNGU",
-        "share": 0.1320429,
-        "turnover": 31.416607
+        "share": 0.13193596,
+        "turnover": 31.409096
       },
       {
         "leg": "BRK.B",
-        "share": 0.11877492,
+        "share": 0.11870711,
         "turnover": 28.259794
       },
       {
         "leg": "IAU",
-        "share": 0.10104914,
-        "turnover": 24.042346
+        "share": 0.10115947,
+        "turnover": 24.082346
       },
       {
         "leg": "MSTR",
-        "share": 0.07570787,
+        "share": 0.07566465,
         "turnover": 18.012968
       },
       {
         "leg": "QQQ",
-        "share": 0.02430881,
+        "share": 0.02429494,
         "turnover": 5.78373
       },
       {
         "leg": "SOXX",
-        "share": 0.01179717,
+        "share": 0.01179043,
         "turnover": 2.806868
       },
       {
         "leg": "BTC-USD",
-        "share": 0.00505359,
+        "share": 0.00505071,
         "turnover": 1.202388
       }
     ],
     "by_mechanism": [
       {
         "mechanism": "ROUTE_SET_CHANGE",
-        "share": 0.70016594,
-        "turnover": 166.588574
+        "share": 0.70035847,
+        "turnover": 166.729578
       },
       {
         "mechanism": "WEIGHT_REBALANCE",
-        "share": 0.29563109,
-        "turnover": 70.3387
+        "share": 0.29544097,
+        "turnover": 70.333622
       },
       {
         "mechanism": "INITIAL_ALLOCATION",
-        "share": 0.00420296,
+        "share": 0.00420057,
         "turnover": 1.0
       }
     ],
     "reconciled": true,
-    "switch_days": 1104,
+    "switch_days": 1105,
     "top_switch_days": [
       {
         "date": "2024-09-11",
@@ -469,6 +469,6 @@
         "turnover": 3.123914
       }
     ],
-    "total_turnover": 237.927274
+    "total_turnover": 238.0632
   }
 }

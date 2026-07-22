@@ -4,10 +4,10 @@
 ```json
 {
   "baseline": {
-    "effective_end": "2026-07-17",
+    "effective_end": "2026-07-21",
     "equity_timing": "next_open",
     "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
-    "git_commit": "b78e13e21b57e3b9553ab6ec86f320c613d5337b"
+    "git_commit": "b23cf124b5b906d897884f2774d354b8cae23d1a"
   },
   "config_version": "escape-top-v3.0-greenfield",
   "disabled_features": [
@@ -366,17 +366,17 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 11. 当前性能基线
 
-> **CURRENT EXECUTION EVIDENCE：**baseline 绑定 gate-code commit `b78e13e`、approved-live-policy 校验通过的有效 live-config 快照、当前 history manifest 与 soft-history 指纹；可作为预注册 formal gate 的 next-open 对照，但不授权任何配置翻闸。完整来源以确定性 gzip 归档，并持久记录 raw-live、policy、normalized-replay 三段哈希；治理检查会独立验签和反向重建规范化差异。
+> **CURRENT EXECUTION EVIDENCE：**baseline 绑定 gate-code commit `b23cf12`、approved-live-policy 校验通过的有效 live-config 快照、当前 history manifest 与 soft-history 指纹；可作为预注册 formal gate 的 next-open 对照，但不授权任何配置翻闸。完整来源以确定性 gzip 归档，并持久记录 raw-live、policy、normalized-replay 三段哈希；治理检查会独立验签和反向重建规范化差异。
 
 | 当前场景 | CAGR | MaxDD | Sharpe | 定位 |
 |---|---:|---:|---:|---|
-| **next_open** | **15.46%** | **-20.83%** | **1.058** | 当前正式 baseline headline |
-| legacy_close | 16.49% | -18.83% | 1.114 | 历史/理论上界 shadow |
-| next_close | 16.55% | -16.05% | 1.119 | 延迟一交易日敏感性 |
-| next_open + 25bps | 7.66% | -26.36% | 0.578 | 执行压力场景 |
+| **next_open** | **15.56%** | **-20.83%** | **1.064** | 当前正式 baseline headline |
+| legacy_close | 16.52% | -18.83% | 1.116 | 历史/理论上界 shadow |
+| next_close | 16.69% | -16.05% | 1.128 | 延迟一交易日敏感性 |
+| next_open + 25bps | 7.75% | -26.36% | 0.584 | 执行压力场景 |
 
-- 窗口：2018-01-01→2026-07-17，有效 2,146 个交易日。
-- 全量开盘覆盖：89.83% 观测、2,182 行显式建模、缺失 0；执行所需 10,045 行缺失 0。
+- 窗口：2018-01-01→2026-07-21，有效 2,148 个交易日。
+- 全量开盘覆盖：89.84% 观测、2,182 行显式建模、缺失 1（未被执行使用的 BTC-USD 行）；执行所需 10,053 行缺失 0、建模 1,343 行（13.36%）。
 - `building/reports/flag_sweep/baseline.json` 已标记 `CURRENT_EXECUTION_EVIDENCE`；code/config/manifest/soft-history 任一变化都会让它失效并阻断新 gate。
 - 完整证据与路径见 `docs/BASELINE_CURRENT.md`。
 
@@ -407,7 +407,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 12. 测试与验证
 
-当前回归结果：2026-07-22 系统信任加固候选全套 `1172 passed / 0 failed`。此数绑定当前 repo 候选；后续任何行为改动必须重跑，不得把旧测试数当作健康证明。
+当前回归结果：2026-07-22 当前基线证据批次全套 `1188 passed / 0 failed`。此数绑定当前 repo 候选；后续任何行为改动必须重跑，不得把旧测试数当作健康证明。
 
 标准命令：
 
