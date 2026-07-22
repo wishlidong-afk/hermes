@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 import pandas as pd
+import pytest
 
 from hermes_escape_top.core.data.market_admission import MarketAdmissionSession
 from hermes_escape_top.scripts.backfill_history import (
@@ -11,6 +12,47 @@ from hermes_escape_top.scripts.backfill_history import (
     _sanity_check_download,
     backfill,
 )
+
+
+def test_backfill_recovers_history_before_market_admission_network_setup(
+    tmp_path, monkeypatch
+):
+    from hermes_escape_top.scripts import backfill_history as module
+
+    history = tmp_path / "history"
+    archive = tmp_path / "archive"
+    events = []
+    monkeypatch.setattr(
+        module,
+        "load_config",
+        lambda: {
+            "features": {
+                "use_market_admission_gate": True,
+                "use_btc_spot_witness": False,
+                "use_cboe_official_indices": False,
+            },
+            "paths": {
+                "history_dir": str(history),
+                "archive_dir": str(archive),
+            },
+        },
+    )
+    monkeypatch.setattr(
+        module,
+        "recover_history_transactions",
+        lambda *_args, **_kwargs: events.append("recover") or [],
+    )
+
+    def fail_prepare(*_args, **_kwargs):
+        events.append("prepare")
+        raise RuntimeError("witness network unavailable")
+
+    monkeypatch.setattr(module, "prepare_market_admission_session", fail_prepare)
+
+    with pytest.raises(RuntimeError, match="network unavailable"):
+        backfill(["QQQ"], store_dir=history)
+
+    assert events == ["recover", "prepare"]
 
 
 def _frame(closes, start="2026-06-01"):

@@ -110,8 +110,19 @@ def backfill(
             )
     store = Path(store_dir)
     store.mkdir(parents=True, exist_ok=True)
-    active_admission = admission_session
     admission_archive_path = Path(admission_archive) if admission_archive is not None else None
+    allowed_roots = [store]
+    if (config.get("paths") or {}).get("archive_dir"):
+        configured_archive_path = resolve_path(config, "archive_dir")
+        if configured_archive_path not in allowed_roots:
+            allowed_roots.append(configured_archive_path)
+    if admission_archive_path is not None and admission_archive_path not in allowed_roots:
+        allowed_roots.append(admission_archive_path)
+    recovered = recover_history_transactions(store, allowed_roots=allowed_roots)
+    if recovered:
+        print(f"[backfill] recovered interrupted history transactions: {', '.join(recovered)}")
+
+    active_admission = admission_session
     if active_admission is None and downloader is None:
         if bool((config.get("features") or {}).get("use_market_admission_gate", False)):
             btc_spot_witness_enabled = bool(
@@ -138,17 +149,9 @@ def backfill(
                 **admission_kwargs,
             )
             admission_archive_path = resolve_path(config, "archive_dir")
-    allowed_roots = [store]
-    if ((config.get("paths") or {}).get("archive_dir")):
-        configured_archive_path = resolve_path(config, "archive_dir")
-        if configured_archive_path not in allowed_roots:
-            allowed_roots.append(configured_archive_path)
     if admission_archive_path is not None:
         if admission_archive_path not in allowed_roots:
             allowed_roots.append(admission_archive_path)
-    recovered = recover_history_transactions(store, allowed_roots=allowed_roots)
-    if recovered:
-        print(f"[backfill] recovered interrupted history transactions: {', '.join(recovered)}")
     transaction = HistoryPromotionTransaction(
         store,
         allowed_roots=allowed_roots,
