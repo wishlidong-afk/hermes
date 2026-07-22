@@ -3,10 +3,25 @@ from __future__ import annotations
 import json
 import os
 
+import pytest
+
 from hermes_escape_top.core.data.history_transaction import (
     HistoryPromotionTransaction,
     recover_history_transactions,
 )
+
+
+@pytest.mark.parametrize("operation_id", ["", ".", "..", "../escape", "nested/run"])
+def test_operation_id_cannot_escape_transaction_journal(tmp_path, operation_id):
+    history = tmp_path / "history"
+    history.mkdir()
+
+    with pytest.raises(ValueError, match="operation_id"):
+        HistoryPromotionTransaction(
+            history,
+            allowed_roots=(history,),
+            operation_id=operation_id,
+        )
 
 
 def test_startup_recovery_restores_every_target_after_partial_promotion(tmp_path):

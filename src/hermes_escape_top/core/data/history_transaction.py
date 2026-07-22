@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import stat
 import tempfile
@@ -29,8 +30,8 @@ class HistoryPromotionTransaction:
         self.allowed_roots = tuple(Path(root).resolve() for root in allowed_roots)
         if self.history_root not in self.allowed_roots:
             raise ValueError("history_root must be one of the allowed transaction roots")
-        self.operation_id = str(operation_id or uuid4().hex)
-        if not self.operation_id or Path(self.operation_id).name != self.operation_id:
+        self.operation_id = uuid4().hex if operation_id is None else str(operation_id)
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", self.operation_id) is None:
             raise ValueError("invalid history transaction operation_id")
         self.transactions_root = self.history_root / _TRANSACTION_DIR
         self.transaction_dir = self.transactions_root / self.operation_id
