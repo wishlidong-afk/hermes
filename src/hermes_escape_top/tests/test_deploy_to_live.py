@@ -295,6 +295,55 @@ def test_deploy_script_exposes_isolated_fixture_contract() -> None:
     assert 'chmod +x "$BIN/hermes_watchdog.py" || return 1' in script
 
 
+@pytest.mark.parametrize(
+    ("relative_path", "replacement"),
+    [
+        ("src/hermes_escape_top/core/keep.py", "VALUE = 'dirty code'\n"),
+        (
+            "src/hermes_escape_top/governance/approved_live_config.json",
+            '{"schema_version":"self-authorized-dirty-policy"}\n',
+        ),
+        (
+            "src/hermes_escape_top/governance/live_config_policy.py",
+            "# dirty validator bypass\n",
+        ),
+        (
+            "src/hermes_escape_top/config/config.json",
+            '{"features":{"dirty":true},"ibkr":{"readonly":true}}\n',
+        ),
+        ("ops/run_daily.py", "print('dirty entry')\n"),
+    ],
+)
+def test_deploy_rejects_dirty_managed_source_before_dashboard_stop(
+    deploy_fixture: dict[str, object],
+    relative_path: str,
+    replacement: str,
+) -> None:
+    repo = Path(deploy_fixture["repo"])
+    _write(repo / relative_path, replacement)
+
+    result = _run(deploy_fixture)
+
+    assert result.returncode == 4
+    assert "source tree differs from captured HEAD" in result.stderr
+    events = Path(deploy_fixture["events"])
+    assert not events.exists(), "source guard must run before runtime prep or dashboard stop"
+    assert "deploy OK" not in result.stdout + result.stderr
+
+
+def test_deploy_rejects_untracked_python_in_managed_source(
+    deploy_fixture: dict[str, object],
+) -> None:
+    repo = Path(deploy_fixture["repo"])
+    _write(repo / "src/hermes_escape_top/core/untracked.py", "UNREVIEWED = True\n")
+
+    result = _run(deploy_fixture)
+
+    assert result.returncode == 4
+    assert "source tree differs from captured HEAD" in result.stderr
+    assert not Path(deploy_fixture["events"]).exists()
+
+
 def test_stable_entry_install_and_restore_use_same_directory_atomic_replace() -> None:
     script = DEPLOY_SCRIPT.read_text(encoding="utf-8")
 
@@ -524,6 +573,14 @@ def test_live_config_attestation_contains_only_hashes_and_boolean_feature_diff(
             "use_market_admission_gate": {"live": True, "repo": False},
         },
     )
+    _git(Path(deploy_fixture["repo"]), "add", ".")
+    _git(
+        Path(deploy_fixture["repo"]),
+        "commit",
+        "-q",
+        "-m",
+        "approved attestation fixture",
+    )
 
     result = _run(deploy_fixture)
 
@@ -571,6 +628,8 @@ def test_deploy_rejects_live_config_not_approved_by_repository_policy(
         repo_config=repo_config,
         live_config=approved_live,
     )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "approved policy fixture")
 
     result = _run(deploy_fixture)
 

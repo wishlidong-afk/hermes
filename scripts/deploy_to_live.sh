@@ -60,9 +60,12 @@ if [ "$MODE" = "--locked-swap" ] || [ "$MODE" = "--locked-rollback" ]; then
   STAMP="${2:-}"
   HASH="${3:-}"
   BACKUP="${4:-}"
+  SOURCE_COMMIT="${HERMES_DEPLOY_SOURCE_COMMIT:-}"
 else
   STAMP=$(date +%Y%m%d_%H%M%S)
-  HASH=$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo unknown)
+  SOURCE_COMMIT=$(git -C "$REPO" rev-parse HEAD 2>/dev/null || true)
+  HASH=$(git -C "$REPO" rev-parse --short "$SOURCE_COMMIT" 2>/dev/null || echo unknown)
+  export HERMES_DEPLOY_SOURCE_COMMIT="$SOURCE_COMMIT"
   BACKUP="$BACKUP_DIR/hermes_escape_top.predeploy_backup_$STAMP"
 fi
 
@@ -222,6 +225,26 @@ deploy_index_is_clear() {
     paths+=("$path")
   done < <(deploy_git_pathspecs)
   git -C "$HERMES_HOME" diff --cached --quiet -- "${paths[@]}"
+}
+
+deploy_source_paths() {
+  printf '%s\n' \
+    "src/hermes_escape_top" \
+    "scripts" \
+    "ops" \
+    "requirements.lock"
+}
+
+source_tree_matches_commit() {
+  local observed paths=()
+  [ -n "$SOURCE_COMMIT" ] || return 1
+  observed=$(git -C "$REPO" rev-parse HEAD 2>/dev/null) || return 1
+  [ "$observed" = "$SOURCE_COMMIT" ] || return 1
+  while IFS= read -r path; do
+    paths+=("$path")
+  done < <(deploy_source_paths)
+  git -C "$REPO" diff --quiet "$SOURCE_COMMIT" -- "${paths[@]}" || return 1
+  [ -z "$(git -C "$REPO" ls-files --others --exclude-standard -- "${paths[@]}")" ]
 }
 
 stop_dashboard() {
@@ -687,6 +710,8 @@ sync_entries_legacy() {
 }
 
 run_locked_swap() {
+  source_tree_matches_commit \
+    || die "!! source tree differs from captured HEAD — aborting locked swap" 4
   echo "== 1/7 backup exact live/repo trees + git index =="
   create_backup || die "!! backup failed; partial backup retained: $BACKUP" 1
 
@@ -809,6 +834,8 @@ case "$MODE" in
 esac
 
 echo "== 0/7 prepare managed runtime + guard + stop dashboard =="
+source_tree_matches_commit \
+  || die "!! source tree differs from captured HEAD — aborting before dashboard stop" 4
 prepare_managed_runtime || die "!! managed runtime preparation failed — dashboard untouched" 4
 guard_is_clear || die "!! a daily run appears in progress — aborting deploy." 4
 deploy_index_is_clear \
