@@ -40,7 +40,12 @@ PROVENANCE_FIELDS = (
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
-from backtest_flag_sweep import build_config, cache_evidence, normalize_gate_config  # noqa: E402
+from backtest_flag_sweep import (  # noqa: E402
+    build_config,
+    cache_evidence,
+    normalize_gate_config,
+    route_set_turnover_evidence,
+)
 
 
 def build_execution_config(config_path: Path | None = None) -> dict[str, Any]:
@@ -124,6 +129,7 @@ def compare_legacy_source(source: Mapping[str, Any], artifact: Mapping[str, Any]
 def build_gate_baseline_artifacts(
     source: Mapping[str, Any],
     artifact: Mapping[str, Any],
+    config: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, float], dict[str, float]]:
     if artifact.get("evidence_status") != "CURRENT_EXECUTION_EVIDENCE":
         raise ValueError("only CURRENT_EXECUTION_EVIDENCE may be exported as a gate baseline")
@@ -154,6 +160,10 @@ def build_gate_baseline_artifacts(
         "turnover": next_open.get("turnover"),
         "legacy_close_metrics": dict(legacy.get("metrics", {})),
         "execution_open_quality": dict(artifact.get("open_quality", {})),
+        "route_set_turnover": route_set_turnover_evidence(
+            list(source.get("rows") or []),
+            config,
+        ),
     }
     return metrics, next_equity, legacy_equity
 
@@ -313,7 +323,11 @@ def run(
     json_path.write_text(json.dumps(artifact, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     md_path.write_text(render_report(artifact), encoding="utf-8")
     if gate_artifacts_dir is not None:
-        metrics, next_equity, legacy_equity = build_gate_baseline_artifacts(source, artifact)
+        metrics, next_equity, legacy_equity = build_gate_baseline_artifacts(
+            source,
+            artifact,
+            cfg,
+        )
         gate_artifacts_dir.mkdir(parents=True, exist_ok=True)
         (gate_artifacts_dir / "baseline.json").write_text(
             json.dumps(metrics, ensure_ascii=False, indent=2, sort_keys=True) + "\n",

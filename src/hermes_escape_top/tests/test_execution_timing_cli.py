@@ -194,6 +194,11 @@ def test_gate_baseline_export_uses_next_open_curve_and_source_provenance() -> No
         "effective_start": "2018-01-02",
         "effective_end": "2026-07-10",
         "dates": ["2018-01-02", "2026-07-10"],
+        "rows": [
+            {"date": "2018-01-02", "route_leg_weights": {"BOXX": 0.8, "MSTR": 0.2}},
+            {"date": "2018-01-03", "route_leg_weights": {"BOXX": 0.79, "MSTR": 0.2, "IAU": 0.01}},
+            {"date": "2026-07-10", "route_leg_weights": {"BOXX": 0.8, "MSTR": 0.2}},
+        ],
     }
     artifact = {
         "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
@@ -213,11 +218,21 @@ def test_gate_baseline_export_uses_next_open_curve_and_source_provenance() -> No
         ],
     }
 
-    metrics, next_open_equity, legacy_equity = mod.build_gate_baseline_artifacts(source, artifact)
+    config = {"symbols": {"MSTR": {}, "FNGU": {}, "SOXL": {}}}
+    metrics, next_open_equity, legacy_equity = mod.build_gate_baseline_artifacts(
+        source,
+        artifact,
+        config,
+    )
 
     assert metrics["equity_timing"] == "next_open"
     assert metrics["metrics"] == {"cagr": 0.15}
     assert metrics["legacy_close_metrics"] == {"cagr": 0.17}
     assert metrics["git_commit"] == "abc123"
+    assert metrics["route_set_turnover"] == {
+        "definition": "full_portfolio_l1_on_nonrisk_nonboxx_route_set_change_days",
+        "event_count": 2,
+        "total": 0.04,
+    }
     assert next_open_equity["2026-07-10"] == 350.0
     assert legacy_equity["2026-07-10"] == 380.0
