@@ -176,6 +176,10 @@ def build_unified(real_funding: pd.DataFrame, real_dvol: pd.DataFrame,
 
     base = base.sort_index().reset_index()
 
+    for column in ("btc_funding_8h_avg", "btc_basis_annual", "btc_dvol"):
+        if column in base.columns:
+            base[column] = pd.to_numeric(base[column], errors="coerce")
+
     # Recompute rolling percentiles on the unified series
     base["btc_funding_pctl"] = base["btc_funding_8h_avg"].rolling(252, min_periods=20).rank(pct=True).mul(100).round(2)
     base["btc_basis_pctl"] = base["btc_basis_annual"].rolling(252, min_periods=20).rank(pct=True).mul(100).round(2)

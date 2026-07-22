@@ -28,8 +28,8 @@ def _git(repo: Path, *args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=repo, text=True).strip()
 
 
-def _manifest() -> ExperimentManifest:
-    return ExperimentManifest.from_dict({
+def _manifest(**updates) -> ExperimentManifest:
+    raw = {
         "schema": "hermes-formal-gate-v1",
         "experiment_id": "cli-integration-v1",
         "created_at": "2026-07-10",
@@ -58,7 +58,9 @@ def _manifest() -> ExperimentManifest:
             "maxdd_tolerance": 0.01,
             "min_dsr": 0.0,
         },
-    })
+    }
+    raw.update(updates)
+    return ExperimentManifest.from_dict(raw)
 
 
 def _equities() -> dict[str, pd.Series]:
@@ -241,6 +243,96 @@ def test_load_artifacts_uses_baseline_window_for_every_variant(tmp_path, monkeyp
         "baseline": ("2018-01-01", "2026-07-14"),
         "alpha": ("2018-01-01", "2026-07-14"),
     }
+
+
+def test_load_artifacts_exposes_preregistered_turnover_evidence(tmp_path, monkeypatch) -> None:
+    mod = _load_module()
+    manifest = _manifest(
+        schema="hermes-formal-gate-v3",
+        governance_lane="alpha_experiment",
+        turnover_objective={
+            "metric": "route_set_turnover",
+            "max_delta_vs_baseline": -1.0,
+        },
+    )
+    artifact_dir = tmp_path / manifest.artifacts_dir
+    artifact_dir.mkdir(parents=True)
+    for variant, turnover in (("baseline", 100.0), ("alpha", 90.0)):
+        (artifact_dir / f"{variant}.json").write_text(
+            json.dumps(
+                {
+                    "start": "2018-01-01",
+                    "end": "2026-07-14",
+                    "route_set_turnover": {"total": turnover},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (artifact_dir / f"{variant}_equity.json").write_text(
+            json.dumps({"2026-07-14": 100.0}),
+            encoding="utf-8",
+        )
+    monkeypatch.setattr(mod, "build_config", lambda variant: {"variant": variant})
+    monkeypatch.setattr(
+        mod,
+        "assess_artifact_freshness",
+        lambda *args, **kwargs: {"status": "FRESH"},
+    )
+
+    _, statuses, missing = mod.load_artifacts(tmp_path, manifest)
+
+    assert missing == []
+    assert statuses["baseline"]["turnover_evidence"] == {
+        "route_set_turnover": 100.0
+    }
+    assert statuses["alpha"]["turnover_evidence"] == {
+        "route_set_turnover": 90.0
+    }
+
+
+def test_cost_governed_report_prints_the_sealed_turnover_result() -> None:
+    mod = _load_module()
+    manifest = _manifest(
+        schema="hermes-formal-gate-v3",
+        governance_lane="alpha_experiment",
+        turnover_objective={
+            "metric": "route_set_turnover",
+            "max_delta_vs_baseline": -1.0,
+        },
+    )
+    result = {
+        "verdict": "REJECTED",
+        "authorization": "NO_FLIP",
+        "checks": {"turnover_objective": False},
+        "walk_forward": {
+            "pbo": 0.0,
+            "target_delta_vs_baseline": 0.1,
+            "n_folds": 8,
+        },
+        "cpcv": {
+            "pbo": 0.0,
+            "target_delta_vs_baseline": 0.1,
+            "n_folds": 15,
+        },
+        "target": {
+            "dsr": 1.0,
+            "dsr_inputs": {"n_trials": 2, "skew": 0.0, "kurtosis": 3.0},
+        },
+        "turnover_objective": {
+            "metric": "route_set_turnover",
+            "baseline": 100.0,
+            "target": 100.0,
+            "delta_vs_baseline": 0.0,
+            "max_delta_vs_baseline": -1.0,
+        },
+    }
+
+    report = mod.render_report(manifest, result)
+
+    assert "Turnover objective" in report
+    assert "route_set_turnover" in report
+    assert "delta `+0.000000`" in report
+    assert "required `<= -1.000000`" in report
 
 
 def test_run_rechecks_manifest_and_code_before_final_commit(tmp_path, monkeypatch) -> None:

@@ -115,6 +115,106 @@ class Phase15IntegrationTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
+    def test_liveness_and_strategy_readiness_are_separate(self) -> None:
+        base_payload = {
+            "as_of": "2026-05-29",
+            "cache_status": {"hit": True},
+            "data_quality": {"level": "HIGH", "overall_score": 97.0},
+            "data_quality_breakdown": {"sources": []},
+            "ibkr": {"source": "disabled"},
+        }
+        server = create_server("127.0.0.1", 0, "2026-05-29")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            for endpoint in ("/health", "/livez"):
+                with urllib.request.urlopen(f"{base}{endpoint}", timeout=10) as response:
+                    body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertTrue(body["ok"])
+                self.assertEqual(body["mode"], "liveness")
+
+            patchers = (
+                mock.patch(
+                    "hermes_escape_top.web.server._latest_score_payload",
+                    return_value=base_payload,
+                ),
+                mock.patch(
+                    "hermes_escape_top.web.server.apply_ibkr_position_overlay",
+                    side_effect=lambda payload: dict(payload),
+                ),
+                mock.patch(
+                    "hermes_escape_top.web.server._attach_alpaca_daily_flow",
+                    side_effect=lambda payload: payload,
+                ),
+                mock.patch(
+                    "hermes_escape_top.web.server._attach_external_source_status",
+                    side_effect=lambda payload: payload,
+                ),
+                mock.patch(
+                    "hermes_escape_top.web.server._attach_market_admission_status",
+                    side_effect=lambda payload: payload,
+                ),
+                mock.patch(
+                    "hermes_escape_top.web.server._attach_external_precheck_status",
+                    side_effect=lambda payload: payload,
+                ),
+                mock.patch("hermes_escape_top.web.server._read_run_receipt", return_value={}),
+                mock.patch("hermes_escape_top.web.server.manifest_status", return_value={"status": "OK"}),
+            )
+            for patcher in patchers:
+                patcher.start()
+            try:
+                with mock.patch(
+                    "hermes_escape_top.web.server.compute_health",
+                    return_value={
+                        "level": "CRITICAL",
+                        "layers": {"strategy_data": {"level": "CRITICAL"}},
+                    },
+                ):
+                    with self.assertRaises(urllib.error.HTTPError) as raised:
+                        urllib.request.urlopen(f"{base}/readyz", timeout=10)
+                    self.assertEqual(raised.exception.code, 503)
+                    blocked = json.loads(raised.exception.read().decode("utf-8"))
+                    self.assertFalse(blocked["ok"])
+                    self.assertEqual(blocked["mode"], "strategy_readiness")
+                    self.assertEqual(blocked["strategy_level"], "CRITICAL")
+
+                with mock.patch(
+                    "hermes_escape_top.web.server.compute_health",
+                    return_value={"level": "OK", "layers": {}},
+                ):
+                    with self.assertRaises(urllib.error.HTTPError) as raised:
+                        urllib.request.urlopen(f"{base}/readyz", timeout=10)
+                    self.assertEqual(raised.exception.code, 503)
+                    missing = json.loads(raised.exception.read().decode("utf-8"))
+                    self.assertFalse(missing["ok"])
+                    self.assertEqual(missing["strategy_level"], "MISSING")
+
+                with mock.patch(
+                    "hermes_escape_top.web.server.compute_health",
+                    return_value={
+                        "level": "DEGRADED",
+                        "layers": {
+                            "strategy_data": {"level": "OK"},
+                            "auxiliary_flows": {"level": "DEGRADED"},
+                        },
+                    },
+                ):
+                    with urllib.request.urlopen(f"{base}/readyz", timeout=10) as response:
+                        ready = json.loads(response.read().decode("utf-8"))
+                    self.assertEqual(response.status, 200)
+                    self.assertTrue(ready["ok"])
+                    self.assertEqual(ready["strategy_level"], "OK")
+            finally:
+                for patcher in reversed(patchers):
+                    patcher.stop()
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_health_status_uses_ibkr_overlay_before_computing_health(self) -> None:
         stale_payload = {
             "as_of": "2026-05-29",

@@ -266,7 +266,7 @@ class AaiiSentimentImportAdapter:
                 "AAII import file is older than current AAII seed: "
                 f"import latest {imported_latest.isoformat()}, seed latest {seed_latest.isoformat()}"
             )
-        out = pd.concat([seed, imported], ignore_index=True)
+        out = imported.copy() if seed.empty else pd.concat([seed, imported], ignore_index=True)
         out = _normalize_frame(out, self.percentile_window, self.min_periods)
         return out[_COLUMNS]
 

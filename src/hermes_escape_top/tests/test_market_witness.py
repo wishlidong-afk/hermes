@@ -84,6 +84,27 @@ def test_market_witness_reports_mismatch_without_promoting_it() -> None:
     assert payload["symbols"]["MSTR"]["status"] == "PRICE_MISMATCH"
 
 
+def test_market_witness_separates_price_and_volume_evidence() -> None:
+    payload = build_market_witness_payload(
+        "2026-07-10",
+        ["SHV"],
+        {"SHV": _local(volume=1_000.0)},
+        {"SHV": [_alpaca(close=100.0, volume=700.0)]},
+    )
+
+    row = payload["symbols"]["SHV"]
+    assert row["status"] == "VOLUME_MISMATCH"
+    assert row["price_evidence_status"] == "MATCH"
+    assert row["volume_evidence_status"] == "MISMATCH"
+    assert row["policy"] == {
+        "price_match_pct": 0.5,
+        "price_warn_pct": 1.0,
+        "volume_match_pct": 10.0,
+        "volume_warn_pct": 25.0,
+        "admission_mode": "FAIL_CLOSED",
+    }
+
+
 def test_market_witness_reports_date_mismatch_before_price_comparison() -> None:
     witness = _alpaca()
     witness["t"] = "2026-07-09T04:00:00Z"

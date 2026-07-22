@@ -238,6 +238,28 @@ def test_market_admission_blocked_degrades_with_quarantine_count():
     )
 
 
+def test_market_admission_blocked_explains_price_and_volume_evidence():
+    payload = _payload()
+    payload["market_admission_status"] = {
+        "mode": "enforce_consensus",
+        "status": "BLOCKED",
+        "rejected_rows": 1,
+        "summary": {"VOLUME_MISMATCH": 1},
+        "price_evidence_summary": {"MATCH": 1},
+        "volume_evidence_summary": {"MISMATCH": 1},
+    }
+
+    health = _health(payload)
+
+    check = next(
+        check
+        for check in health["checks"]
+        if check["label"] == "双源行情候选已隔离"
+    )
+    assert "price[MATCH=1]" in check["detail"]
+    assert "volume[MISMATCH=1]" in check["detail"]
+
+
 def test_market_admission_fetch_error_never_falls_back_silently():
     payload = _payload()
     payload["market_admission_status"] = {

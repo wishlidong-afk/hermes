@@ -28,6 +28,16 @@ FREE_SIP_QUERY_DELAY = timedelta(minutes=20)
 _US_EQUITY_SYMBOL = re.compile(r"^[A-Z][A-Z0-9.]{0,9}$")
 
 
+def market_witness_policy() -> dict[str, Any]:
+    return {
+        "price_match_pct": PRICE_MATCH_PCT,
+        "price_warn_pct": PRICE_WARN_PCT,
+        "volume_match_pct": VOLUME_MATCH_PCT,
+        "volume_warn_pct": VOLUME_WARN_PCT,
+        "admission_mode": "FAIL_CLOSED",
+    }
+
+
 def fetch_alpaca_daily_bars(
     symbols: Iterable[str],
     as_of: str,
@@ -288,6 +298,18 @@ def compare_market_bar(
     finite_price_diffs = [value for value in price_diffs.values() if value is not None]
     max_price_diff = max(finite_price_diffs) if finite_price_diffs else None
     volume_diff = _relative_diff_pct(local.get("volume"), witness.get("v"))
+    price_evidence_status = _evidence_band(
+        max_price_diff,
+        match_pct=PRICE_MATCH_PCT,
+        warn_pct=PRICE_WARN_PCT,
+    )
+    if require_complete and len(finite_price_diffs) != 4:
+        price_evidence_status = "MISSING"
+    volume_evidence_status = _evidence_band(
+        volume_diff,
+        match_pct=VOLUME_MATCH_PCT,
+        warn_pct=VOLUME_WARN_PCT,
+    )
     if require_complete and len(finite_price_diffs) != 4:
         status = "PRICE_MISMATCH"
         reason = "all raw OHLC fields must be comparable"
@@ -317,9 +339,27 @@ def compare_market_bar(
         "close_diff_pct": price_diffs.get("close"),
         "max_ohlc_diff_pct": max_price_diff,
         "volume_diff_pct": volume_diff,
+        "price_evidence_status": price_evidence_status,
+        "volume_evidence_status": volume_evidence_status,
+        "policy": market_witness_policy(),
         "local_sha256": _hash_mapping(local),
         "witness_sha256": _hash_mapping(witness),
     }
+
+
+def _evidence_band(
+    value: float | None,
+    *,
+    match_pct: float,
+    warn_pct: float,
+) -> str:
+    if value is None:
+        return "MISSING"
+    if value > warn_pct:
+        return "MISMATCH"
+    if value > match_pct:
+        return "WARNING_BAND"
+    return "MATCH"
 
 
 def is_alpaca_supported_symbol(symbol: Any) -> bool:

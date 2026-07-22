@@ -5,7 +5,8 @@ Endpoints:
   GET  /api/score          Latest cached score JSON (read-only)
   POST /api/refresh_score  Recompute score JSON and update archive
   Legacy M4/demo write endpoints return HTTP 410 and cannot mutate live state.
-  GET  /health             Healthcheck
+  GET  /health, /livez     Process liveness (backward-compatible alias)
+  GET  /readyz             Strategy-data readiness
 """
 from __future__ import annotations
 
@@ -744,6 +745,21 @@ def _auth_failure_payload(status: str, token_required: bool = True) -> bytes:
     ).encode()
 
 
+def _current_health_status(as_of: str) -> dict:
+    score = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
+    score = apply_ibkr_position_overlay(score)
+    _attach_alpaca_daily_flow(score)
+    _attach_external_source_status(score)
+    score["run_receipt"] = _read_run_receipt()
+    _attach_market_admission_status(score)
+    _attach_external_precheck_status(score)
+    try:
+        manifest = manifest_status()
+    except Exception:
+        manifest = {}
+    return compute_health(score, manifest)
+
+
 # ── HTTP handler ──────────────────────────────────────────────────────────────
 
 def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
@@ -818,26 +834,48 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
 
             if parsed.path == "/api/health_status":
                 try:
-                    score = _latest_score_payload(as_of) or _empty_dashboard_payload(as_of)
-                    score = apply_ibkr_position_overlay(score)
-                    _attach_alpaca_daily_flow(score)
-                    _attach_external_source_status(score)
-                    score["run_receipt"] = _read_run_receipt()
-                    _attach_market_admission_status(score)
-                    _attach_external_precheck_status(score)
-                    try:
-                        manifest = manifest_status()
-                    except Exception:
-                        manifest = {}
-                    out = compute_health(score, manifest)
+                    out = _current_health_status(as_of)
                 except Exception:
                     out = {"level": "ERROR", "error": traceback.format_exc()[-1000:]}
                 self._send(200, "application/json; charset=utf-8",
                            json.dumps(out, ensure_ascii=False, indent=2, default=str).encode())
                 return
 
-            if parsed.path == "/health":
-                self._send(200, "application/json; charset=utf-8", b'{"ok":true}')
+            if parsed.path == "/readyz":
+                try:
+                    health = _current_health_status(as_of)
+                    strategy_level = str(
+                        ((health.get("layers") or {}).get("strategy_data") or {}).get("level")
+                        or "MISSING"
+                    )
+                    ready = strategy_level == "OK"
+                    out = {
+                        "ok": ready,
+                        "mode": "strategy_readiness",
+                        "strategy_level": strategy_level,
+                        "health": health,
+                    }
+                except Exception:
+                    ready = False
+                    out = {
+                        "ok": False,
+                        "mode": "strategy_readiness",
+                        "strategy_level": "ERROR",
+                        "error": traceback.format_exc()[-1000:],
+                    }
+                self._send(
+                    200 if ready else 503,
+                    "application/json; charset=utf-8",
+                    json.dumps(out, ensure_ascii=False, indent=2, default=str).encode(),
+                )
+                return
+
+            if parsed.path in {"/health", "/livez"}:
+                self._send(
+                    200,
+                    "application/json; charset=utf-8",
+                    b'{"ok":true,"mode":"liveness"}',
+                )
                 return
 
             self._send(404, "text/plain; charset=utf-8", b"not found")
@@ -1078,7 +1116,8 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
 
             self._send(404, "text/plain; charset=utf-8", b"not found")
 
-        def log_message(self, *_): return  # noqa: silence default logging
+        def log_message(self, *_) -> None:
+            return
 
         def _send(self, status: int, ct: str, body: bytes) -> None:
             try:

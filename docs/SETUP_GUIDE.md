@@ -38,7 +38,7 @@ Hermes 是一套**只读**投资风控/逃顶系统，覆盖 MSTR / FNGU / SOXL 
 
 | 项目 | 要求 |
 |---|---|
-| Python | 3.9+ (3.10+ 推荐) |
+| Python | 3.10+（CI 与 managed runtime 使用 3.11） |
 | 操作系统 | macOS / Linux |
 | 必需依赖 | `numpy`, `pandas` |
 | 可选依赖 | `scipy` (优化求解器加速), `sklearn` (Ledoit-Wolf / 保序回归) |
@@ -160,7 +160,7 @@ python3 hermes_escape_top/scripts/phase3_dry_run_compare.py --days 252 --thresho
 
 ### 5.2 代码风格
 
-- Python 3.9+ 类型注解
+- Python 3.10+ 类型注解
 - dataclass 作为契约（frozen=True 优先）
 - 纯函数优先（无隐式 IO）
 - 每模块行覆盖 ≥85%

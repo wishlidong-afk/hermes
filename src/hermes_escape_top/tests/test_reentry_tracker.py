@@ -7,6 +7,7 @@ import unittest
 from datetime import date
 
 from hermes_escape_top.core.reentry.tracker import (
+    LockCheck,
     TrancheState,
     advance_tranche,
     check_three_locks,
@@ -60,11 +61,9 @@ class TestThreeLocks(unittest.TestCase):
 
 class TestAdvanceTranche(unittest.TestCase):
     def _cleared_lock(self) -> "LockCheck":
-        from hermes_escape_top.core.reentry.tracker import LockCheck
         return LockCheck(True, True, True, True, [])
 
     def _locked(self) -> "LockCheck":
-        from hermes_escape_top.core.reentry.tracker import LockCheck
         return LockCheck(False, False, False, False, ["forced lock"])
 
     def test_locked_stays_locked(self) -> None:

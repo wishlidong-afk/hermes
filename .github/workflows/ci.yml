@@ -22,12 +22,22 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          python -m pip install -r requirements.lock
           python -m pip install -e './src[dev]'
       - name: Test
         env:
           PYTHONPATH: src:src/hermes_escape_top/tests
         run: python -m pytest src/hermes_escape_top/tests -q
+      - name: Static safety checks
+        run: |
+          python -m ruff check src/hermes_escape_top scripts ops --select E9,F63,F7,F82
+          python -m mypy --ignore-missing-imports --follow-imports=skip \
+            src/hermes_escape_top/core/data/market_witness.py \
+            src/hermes_escape_top/core/data/market_admission.py \
+            src/hermes_escape_top/core/backtest/formal_gate.py \
+            src/hermes_escape_top/web/health.py
+      - name: Dependency audit
+        run: python -m pip_audit -r requirements.lock --no-deps --disable-pip --progress-spinner off
       - name: Governance
         env:
           PYTHONPATH: src

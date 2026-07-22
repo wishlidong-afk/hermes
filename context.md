@@ -349,6 +349,8 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 | 8766 | `web/server.py` + `web/render.py` | 唯一 UI：策略操作台、决策历史条、Evidence Strip、硬阀门雷达、持仓对账、数据信任区、refresh/confirm 写端点；M4 与 IBKR demo URL 只保留无执行实现的 HTTP 410 tombstone |
 | ~~8765~~ | ~~`web/workbench.py`~~ | 已退役；功能并入 8766 |
 
+探针语义固定为：`/health` 与 `/livez` 是进程 liveness；`/readyz` 只看策略数据链，`strategy_data.level=OK` 才返回 200。IBKR 持仓和 SIP 资金流属于辅助证据，不单独阻断 readiness。CI 与 R6 managed runtime 共用带哈希的 `requirements.lock`，项目最低 Python 为 3.10，当前 CI/runtime 目标为 3.11。
+
 运维：发布前 `scripts/predeploy_smoke.py`（FRED publish_date/源可用/决策行无 NA/manifest/软源回归）拦假数据；审计日志日运行轮转（`rotate_audit_log`，>100MB 归档 gz 后压缩主文件）。
 
 8766 POST 鉴权的唯一政策（威胁模型：服务仅绑定 loopback，不经反向代理或对外暴露）：

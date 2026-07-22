@@ -28,6 +28,18 @@ EXPECTED_ARTIFACTS = frozenset(
         "signal_journal.jsonl",
     }
 )
+RUNTIME_INTEGRITY_CHECKS = frozenset(
+    {
+        "release_identity",
+        "scheduled_receipt",
+        "scheduled_audit",
+        "persistence_transaction",
+        "watchdog",
+    }
+)
+STRATEGY_DECISION_CHECKS = frozenset(
+    {"bound_health_report", "dashboard_health"}
+)
 
 
 def render_markdown(report: Mapping[str, Any]) -> str:
@@ -37,6 +49,8 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         f"- status: `{report.get('status')}`",
         f"- generated_at: `{report.get('generated_at')}`",
         f"- summary: {report.get('summary')}",
+        f"- runtime_integrity: `{((report.get('readiness') or {}).get('runtime_integrity') or {}).get('status', 'UNKNOWN')}`",
+        f"- strategy_decision: `{((report.get('readiness') or {}).get('strategy_decision') or {}).get('status', 'UNKNOWN')}`",
         "",
         "| Check | Status | Detail | Evidence |",
         "|---|---|---|---|",
@@ -169,6 +183,7 @@ def collect_acceptance(
         "acceptance_date": acceptance_date.isoformat(),
         "status": status,
         "summary": summary,
+        "readiness": _readiness_summary(checks),
         "release": release,
         "scheduled": {
             "as_of": audit.get("as_of") or receipt.get("as_of"),
@@ -177,6 +192,42 @@ def collect_acceptance(
         },
         "checks": checks,
         "operational_observations": operational_observations,
+    }
+
+
+def _readiness_summary(checks: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
+    rows = {str(row.get("id") or ""): row for row in checks}
+    runtime_failures = [
+        check_id
+        for check_id in RUNTIME_INTEGRITY_CHECKS
+        if str((rows.get(check_id) or {}).get("status") or "FAIL") == "FAIL"
+    ]
+    strategy_failures = [
+        check_id
+        for check_id in STRATEGY_DECISION_CHECKS
+        if str((rows.get(check_id) or {}).get("status") or "FAIL") == "FAIL"
+    ]
+    strategy_warnings = [
+        check_id
+        for check_id in STRATEGY_DECISION_CHECKS
+        if str((rows.get(check_id) or {}).get("status") or "") == "WARN"
+    ]
+    return {
+        "runtime_integrity": {
+            "status": "FAIL" if runtime_failures else "PASS",
+            "failed_checks": sorted(runtime_failures),
+        },
+        "strategy_decision": {
+            "status": (
+                "FAIL"
+                if strategy_failures
+                else "WARN"
+                if strategy_warnings
+                else "PASS"
+            ),
+            "failed_checks": sorted(strategy_failures),
+            "warning_checks": sorted(strategy_warnings),
+        },
     }
 
 
@@ -530,15 +581,127 @@ def _collect_operational_observations(
         archive,
         attestation,
     )
+    external_migrations = _external_source_migration_observation(root, observed_at)
     warnings = []
     if retention["status"] == "WARN":
         warnings.append(f"runtime retention: {retention['detail']}")
     if market_admission["status"] == "WARN":
         warnings.append(f"market admission: {market_admission['detail']}")
+    if external_migrations["status"] == "WARN":
+        warnings.append(f"external source migrations: {external_migrations['detail']}")
     return {
         "runtime_retention": retention,
         "market_admission": market_admission,
+        "external_source_migrations": external_migrations,
     }, warnings
+
+
+def _external_source_migration_observation(
+    root: Path,
+    observed_at: datetime,
+) -> Dict[str, Any]:
+    path = Path(root) / ".hermes/logs/external/external_precheck_latest.json"
+    try:
+        payload = _read_json(path)
+        source_rows = payload.get("sources")
+        if not isinstance(source_rows, Mapping):
+            raise ValueError("precheck sources are missing or invalid")
+    except Exception as exc:
+        return {
+            "status": "WARN",
+            "detail": f"external precheck evidence unavailable: {exc}",
+            "evidence": str(path),
+            "sources": {},
+        }
+
+    observed_day = _local_datetime(observed_at).date()
+    expected = {
+        "aaii_sentiment": {"public_html", "official_insights_rss"},
+        "naaim_exposure": {"naaim_public_workbook", "naaim_subscriber"},
+    }
+    issues: list[str] = []
+    observing = False
+    result_sources: Dict[str, Dict[str, Any]] = {}
+    for source_id, automatic_channels in expected.items():
+        raw = source_rows.get(source_id)
+        if not isinstance(raw, Mapping):
+            issues.append(f"{source_id} missing")
+            continue
+        channel = str(raw.get("latest_source_channel") or raw.get("source_channel") or "")
+        migration_status = str(raw.get("migration_status") or "MISSING")
+        readiness = str(raw.get("migration_readiness") or "MISSING")
+        automated = channel in automatic_channels
+        source_issues: list[str] = []
+        if str(raw.get("status") or "") != "OK":
+            source_issues.append(f"status={raw.get('status') or 'MISSING'}")
+        if str(raw.get("evidence_status") or "") != "MATCH":
+            source_issues.append(
+                f"evidence={raw.get('evidence_status') or 'MISSING'}"
+            )
+        if str(raw.get("freshness_status") or "") not in {"OK", "DUE_SOON"}:
+            source_issues.append(
+                f"freshness={raw.get('freshness_status') or 'MISSING'}"
+            )
+        finished_at = _parse_timestamp(raw.get("finished_at") or raw.get("last_success_at"))
+        if finished_at is None or _local_datetime(finished_at).date() != observed_day:
+            source_issues.append(
+                f"precheck_date={_local_datetime(finished_at).date() if finished_at else 'MISSING'}"
+            )
+        try:
+            date.fromisoformat(str(raw.get("official_issue_as_of") or "")[:10])
+        except ValueError:
+            source_issues.append("official_issue_as_of invalid")
+        fingerprint = str(raw.get("official_file_sha256") or "")
+        if len(fingerprint) != 64 or any(ch not in "0123456789abcdef" for ch in fingerprint.lower()):
+            source_issues.append("official_file_sha256 invalid")
+        if not automated:
+            source_issues.append(f"manual/non-automatic channel={channel or 'MISSING'}")
+        if migration_status == "ACTION_REQUIRED":
+            source_issues.append("migration=ACTION_REQUIRED")
+
+        deadline = str(raw.get("migration_deadline") or "")[:10]
+        if source_id == "naaim_exposure" and migration_status == "MIGRATION_DUE":
+            try:
+                deadline_day = date.fromisoformat(deadline)
+            except ValueError:
+                source_issues.append("migration_deadline invalid")
+            else:
+                if observed_day > deadline_day:
+                    source_issues.append(
+                        f"migration=MIGRATION_DUE after deadline={deadline}"
+                    )
+                else:
+                    observing = True
+
+        if source_issues:
+            issues.append(f"{source_id}: " + ", ".join(source_issues))
+        result_sources[source_id] = {
+            "automated": automated,
+            "source_channel": channel,
+            "migration_status": migration_status,
+            "migration_readiness": readiness,
+            "official_issue_as_of": str(raw.get("official_issue_as_of") or "")[:10],
+            "official_file_sha256": fingerprint,
+        }
+
+    if issues:
+        status = "WARN"
+        detail = "; ".join(issues)
+    elif observing:
+        status = "OBSERVING"
+        detail = (
+            "AAII automatic official channel certified; NAAIM automatic public workbook "
+            "is under pre-deadline observation"
+        )
+    else:
+        status = "PASS"
+        detail = "AAII and NAAIM automatic official channels are certified"
+    return {
+        "status": status,
+        "detail": detail,
+        "evidence": str(path),
+        "sources": result_sources,
+    }
 
 
 def _retention_observation(

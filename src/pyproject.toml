@@ -1,12 +1,12 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta:__legacy__"
 
 [project]
 name = "hermes-escape-top"
 version = "0.1.0"
 description = "Hermes 逃顶 + 镜像防守系统 — read-only, never orders"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "certifi>=2024.0",
     "numpy>=1.24",
@@ -15,7 +15,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "pytest-cov"]
+dev = [
+    "mypy==2.3.0",
+    "pip-audit==2.10.1",
+    "pytest>=7",
+    "pytest-cov",
+    "ruff==0.15.22",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -25,6 +25,7 @@ from hermes_escape_top.core.backtest.validation import deflated_sharpe
 
 MANIFEST_SCHEMA = "hermes-formal-gate-v1"
 MANIFEST_SCHEMA_V2 = "hermes-formal-gate-v2"
+MANIFEST_SCHEMA_V3 = "hermes-formal-gate-v3"
 RESULT_SCHEMA = "hermes-formal-gate-result-v1"
 MIN_GATE_FOLDS = 8
 MAX_PBO_THRESHOLD = 0.5
@@ -47,6 +48,7 @@ _TOP_LEVEL_FIELDS = {
     "thresholds",
 }
 _TOP_LEVEL_FIELDS_V2 = _TOP_LEVEL_FIELDS | {"governance_lane"}
+_TOP_LEVEL_FIELDS_V3 = _TOP_LEVEL_FIELDS_V2 | {"turnover_objective"}
 _GOVERNANCE_LANES = {"alpha_experiment", "data_correctness_migration"}
 _WALK_FORWARD_FIELDS = {
     "is_years",
@@ -57,6 +59,8 @@ _WALK_FORWARD_FIELDS = {
 }
 _CPCV_FIELDS = {"n_groups", "n_test", "label_horizon", "embargo_pct"}
 _THRESHOLD_FIELDS = {"pbo_max", "min_oos_delta", "maxdd_tolerance", "min_dsr"}
+_TURNOVER_OBJECTIVE_FIELDS = {"metric", "max_delta_vs_baseline"}
+_TURNOVER_METRICS = {"total_turnover", "route_set_turnover"}
 
 
 class FormalGateError(ValueError):
@@ -109,6 +113,7 @@ class ExperimentManifest:
     cpcv: Mapping[str, Any]
     thresholds: Mapping[str, float]
     governance_lane: str
+    turnover_objective: Mapping[str, Any] | None
     manifest_sha256: str
 
     @property
@@ -123,15 +128,18 @@ class ExperimentManifest:
         if schema == MANIFEST_SCHEMA:
             _require_exact_fields("manifest", raw, _TOP_LEVEL_FIELDS)
             governance_lane = "alpha_experiment"
-        elif schema == MANIFEST_SCHEMA_V2:
-            _require_exact_fields("manifest", raw, _TOP_LEVEL_FIELDS_V2)
+        elif schema in {MANIFEST_SCHEMA_V2, MANIFEST_SCHEMA_V3}:
+            fields = _TOP_LEVEL_FIELDS_V3 if schema == MANIFEST_SCHEMA_V3 else _TOP_LEVEL_FIELDS_V2
+            _require_exact_fields("manifest", raw, fields)
             governance_lane = str(raw["governance_lane"])
             if governance_lane not in _GOVERNANCE_LANES:
                 raise FormalGateError(
                     "governance_lane must be alpha_experiment or data_correctness_migration"
                 )
         else:
-            raise FormalGateError(f"schema must be {MANIFEST_SCHEMA} or {MANIFEST_SCHEMA_V2}")
+            raise FormalGateError(
+                f"schema must be {MANIFEST_SCHEMA}, {MANIFEST_SCHEMA_V2}, or {MANIFEST_SCHEMA_V3}"
+            )
 
         experiment_id = str(raw["experiment_id"])
         if not _NAME_RE.fullmatch(experiment_id):
@@ -230,6 +238,34 @@ class ExperimentManifest:
         ):
             raise FormalGateError("gate thresholds cannot be weaker than policy")
 
+        turnover_objective = None
+        if schema == MANIFEST_SCHEMA_V3:
+            raw_turnover = raw["turnover_objective"]
+            if not isinstance(raw_turnover, Mapping):
+                raise FormalGateError("turnover_objective must be an object")
+            _require_exact_fields(
+                "turnover_objective",
+                raw_turnover,
+                _TURNOVER_OBJECTIVE_FIELDS,
+            )
+            metric = str(raw_turnover["metric"])
+            if metric not in _TURNOVER_METRICS:
+                raise FormalGateError(
+                    "turnover_objective.metric must be total_turnover or route_set_turnover"
+                )
+            max_delta = _finite_float(
+                "turnover_objective.max_delta_vs_baseline",
+                raw_turnover["max_delta_vs_baseline"],
+            )
+            if max_delta >= 0.0:
+                raise FormalGateError(
+                    "turnover_objective.max_delta_vs_baseline must be strictly negative"
+                )
+            turnover_objective = {
+                "metric": metric,
+                "max_delta_vs_baseline": max_delta,
+            }
+
         normalized = {
             "schema": schema,
             "experiment_id": experiment_id,
@@ -244,12 +280,27 @@ class ExperimentManifest:
             "cpcv": normalized_cpcv,
             "thresholds": normalized_thresholds,
         }
-        if schema == MANIFEST_SCHEMA_V2:
+        if schema in {MANIFEST_SCHEMA_V2, MANIFEST_SCHEMA_V3}:
             normalized["governance_lane"] = governance_lane
-        constructor_values = dict(normalized)
-        constructor_values["candidates"] = candidates
-        constructor_values["governance_lane"] = governance_lane
-        return cls(**constructor_values, manifest_sha256=_canonical_hash(normalized))
+        if turnover_objective is not None:
+            normalized["turnover_objective"] = turnover_objective
+        return cls(
+            schema=schema,
+            experiment_id=experiment_id,
+            created_at=str(raw["created_at"]),
+            hypothesis=hypothesis,
+            artifacts_dir=artifacts_dir,
+            baseline=baseline,
+            target=target,
+            candidates=candidates,
+            declared_trial_count=declared_trial_count,
+            walk_forward=normalized_walk,
+            cpcv=normalized_cpcv,
+            thresholds=normalized_thresholds,
+            governance_lane=governance_lane,
+            turnover_objective=turnover_objective,
+            manifest_sha256=_canonical_hash(normalized),
+        )
 
 
 @dataclass(frozen=True)
@@ -393,8 +444,27 @@ def evaluate_formal_gate(
         for variant in manifest.variants
         if artifact_statuses.get(variant, {}).get("status") != "FRESH"
     ]
+    turnover_values: dict[str, float] = {}
+    if manifest.turnover_objective is not None:
+        metric = str(manifest.turnover_objective["metric"])
+        for variant in manifest.variants:
+            value = (artifact_statuses.get(variant, {}).get("turnover_evidence") or {}).get(
+                metric
+            )
+            if value is None:
+                blocked.append(variant)
+                continue
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                blocked.append(variant)
+                continue
+            if not math.isfinite(numeric) or numeric < 0.0:
+                blocked.append(variant)
+                continue
+            turnover_values[variant] = numeric
     if blocked:
-        return _blocked_result(manifest, artifact_statuses, blocked)
+        return _blocked_result(manifest, artifact_statuses, sorted(set(blocked)))
 
     first_index = equities[manifest.baseline].index
     if any(not equity.index.equals(first_index) for equity in equities.values()):
@@ -447,6 +517,21 @@ def evaluate_formal_gate(
         "max_drawdown": target_dd <= baseline_dd + thresholds["maxdd_tolerance"],
         "deflated_sharpe": dsr >= thresholds["min_dsr"],
     }
+    turnover_result = None
+    if manifest.turnover_objective is not None:
+        metric = str(manifest.turnover_objective["metric"])
+        baseline_turnover = turnover_values[manifest.baseline]
+        target_turnover = turnover_values[manifest.target]
+        turnover_delta = target_turnover - baseline_turnover
+        max_delta = float(manifest.turnover_objective["max_delta_vs_baseline"])
+        checks["turnover_objective"] = turnover_delta <= max_delta
+        turnover_result = {
+            "metric": metric,
+            "baseline": baseline_turnover,
+            "target": target_turnover,
+            "delta_vs_baseline": turnover_delta,
+            "max_delta_vs_baseline": max_delta,
+        }
     passed = all(checks.values())
     if manifest.governance_lane == "data_correctness_migration":
         verdict = "MIGRATION_IMPACT_RECORDED"
@@ -454,7 +539,7 @@ def evaluate_formal_gate(
     else:
         verdict = "CANDIDATE_GATE_PASSED" if passed else "REJECTED"
         authorization = "HUMAN_FLIP_REQUIRED" if passed else "NO_FLIP"
-    return {
+    result = {
         "schema": RESULT_SCHEMA,
         "experiment_id": manifest.experiment_id,
         "governance_lane": manifest.governance_lane,
@@ -481,3 +566,6 @@ def evaluate_formal_gate(
         "verdict": verdict,
         "authorization": authorization,
     }
+    if turnover_result is not None:
+        result["turnover_objective"] = turnover_result
+    return result

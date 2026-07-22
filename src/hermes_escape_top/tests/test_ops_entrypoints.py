@@ -154,11 +154,23 @@ def test_production_dependency_lock_is_exact_and_hashed():
         "numpy==2.0.2",
         "pandas==2.3.3",
         "scipy==1.13.1",
-        "requests==2.32.5",
-        "yfinance==1.2.0",
+        "requests==2.33.0",
+        "curl-cffi==0.15.0",
+        "yfinance==1.2.1",
     ):
         assert requirement in lock
     assert "--hash=sha256:" in lock
+
+
+def test_ci_and_package_build_use_the_audited_runtime_contract():
+    workflow = (REPO_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    pyproject = (REPO_ROOT / "src/pyproject.toml").read_text(encoding="utf-8")
+
+    assert "python -m pip install -r requirements.lock" in workflow
+    assert "python -m pip install -r requirements.txt" not in workflow
+    assert "python -m pip_audit -r requirements.lock" in workflow
+    assert 'requires-python = ">=3.10"' in pyproject
+    assert 'build-backend = "setuptools.build_meta:__legacy__"' in pyproject
 
 
 def test_runtime_bootstrap_uses_hash_verified_immutable_environment():

@@ -132,10 +132,22 @@ def compute_health(
         summary_text = ", ".join(
             f"{key}={value}" for key, value in sorted(summary.items())
         )
+        evidence_parts = []
+        for label, field in (
+            ("price", "price_evidence_summary"),
+            ("volume", "volume_evidence_summary"),
+        ):
+            evidence = market_admission.get(field) or {}
+            if evidence:
+                values = ",".join(
+                    f"{key}={value}" for key, value in sorted(evidence.items())
+                )
+                evidence_parts.append(f"{label}[{values}]")
+        evidence_text = " ".join(evidence_parts) or summary_text
         add(
             "DEGRADED",
             "双源行情候选已隔离",
-            f"rejected={market_admission.get('rejected_rows', 0)} {summary_text}".strip()[:160],
+            f"rejected={market_admission.get('rejected_rows', 0)} {evidence_text}".strip()[:160],
         )
 
     # 4. Overall data-quality level

@@ -85,6 +85,8 @@ def test_market_admission_promotes_only_matching_supported_row() -> None:
             "close_diff_pct": 0.0,
             "max_ohlc_diff_pct": 0.0,
             "volume_diff_pct": 0.0,
+            "price_evidence_status": "MATCH",
+            "volume_evidence_status": "MATCH",
         }
     ]
     assert all(len(value) == 64 for value in hashes.values())
@@ -148,6 +150,34 @@ def test_market_admission_freezes_when_volume_is_not_comparable() -> None:
     assert admitted.empty
     assert evidence[0]["status"] == "VOLUME_MISMATCH"
     assert evidence[0]["reason"] == "raw volume must be comparable"
+
+
+def test_market_admission_preserves_separate_price_and_volume_evidence() -> None:
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"SHV": [_witness(volume=700.0)]},
+    )
+
+    admitted, evidence = session.admit("SHV", _candidate(volume=1_000.0))
+
+    assert admitted.empty
+    assert evidence[0]["status"] == "VOLUME_MISMATCH"
+    assert evidence[0]["price_evidence_status"] == "MATCH"
+    assert evidence[0]["volume_evidence_status"] == "MISMATCH"
+
+
+def test_market_admission_payload_summarizes_price_and_volume_evidence() -> None:
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"QQQ": [_witness()], "SHV": [_witness(volume=700.0)]},
+    )
+    session.admit("QQQ", _candidate())
+    session.admit("SHV", _candidate(volume=1_000.0))
+
+    payload = session.payload()
+
+    assert payload["price_evidence_summary"] == {"MATCH": 2}
+    assert payload["volume_evidence_summary"] == {"MATCH": 1, "MISMATCH": 1}
 
 
 def test_market_admission_does_not_gate_unsupported_index() -> None:

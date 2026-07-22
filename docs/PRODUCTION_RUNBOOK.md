@@ -67,6 +67,7 @@
 
 - 8766 由 launchd 常驻托管（开机自启 + 崩溃自拉起），入口 `~/.hermes/bin/serve_dashboard.sh`。
 - **从 LIVE 包服务，不是 repo**：launchd agent 无 `~/Documents` 的 TCC 授权（repo-served 模式下会 `Operation not permitted` 且 NO_CACHE）；且操作台应跟随部署版本而非 repo 半成品。**代码改动经 `deploy_to_live.sh` 才会出现在 8766**。
+- 探针分层：`/health` 与 `/livez` 只证明 HTTP 进程存活；`/readyz` 只在 `strategy_data.level=OK` 时返回 200，否则返回 503。IBKR 或 SIP 等辅助证据降级不会单独把策略 readiness 置为失败。部署脚本只用 `/livez` 判断服务已拉起，业务可用性仍由 `/readyz`、`/api/health_status` 和 morning acceptance 共同取证。
 - 数据根=live（`HERMES_DATA_DIR` 指向 live 包），显示的是当日真实决策。
 - 威胁模型：8766 只绑定 loopback，所有有效 POST 都校验本机 Host/Origin。`/api/confirm_execution` 会写决策确认状态，额外要求 `HERMES_CONFIRM_TOKEN`；数据刷新、重算和只读检查端点仅限 loopback。退休的 M4/demo URL 只有 HTTP 410 tombstone、没有执行实现。锁冲突返回 409，不并发执行。
 - 禁止将当前鉴权模式直接用在非 loopback/反向代理场景；如需对外暴露，必须先将全部 mutating POST 升级为 token 鉴权并重新审核 CSRF 与代理信任边界。

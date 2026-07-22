@@ -213,7 +213,15 @@ def load_artifacts(
             cached = json.loads(metrics_path.read_text(encoding="utf-8"))
             cfg = build_config(variant)
             window = {"start": gate_start, "end": gate_end} if gate_start and gate_end else {}
-            statuses[variant] = assess_artifact_freshness(variant, cached, cfg, **window)
+            status = dict(assess_artifact_freshness(variant, cached, cfg, **window))
+            if manifest.turnover_objective is not None:
+                metric = str(manifest.turnover_objective["metric"])
+                if metric == "route_set_turnover":
+                    value = (cached.get("route_set_turnover") or {}).get("total")
+                else:
+                    value = cached.get("turnover")
+                status["turnover_evidence"] = {metric: value}
+            statuses[variant] = status
         except (OSError, json.JSONDecodeError, SystemExit) as exc:
             statuses[variant] = {
                 "status": "STALE",
@@ -272,9 +280,20 @@ def render_report(manifest: ExperimentManifest, result: Mapping[str, Any]) -> st
         "",
         f"Target DSR: `{result['target']['dsr']:.6f}` using n_trials={result['target']['dsr_inputs']['n_trials']}, "
         f"skew={result['target']['dsr_inputs']['skew']:.6f}, kurtosis={result['target']['dsr_inputs']['kurtosis']:.6f}.",
-        "",
-        closing,
     ]
+    turnover = result.get("turnover_objective")
+    if isinstance(turnover, Mapping):
+        lines += [
+            "",
+            (
+                "Turnover objective: "
+                f"`{turnover.get('metric')}` baseline `{float(turnover.get('baseline')):.6f}`, "
+                f"target `{float(turnover.get('target')):.6f}`, "
+                f"delta `{float(turnover.get('delta_vs_baseline')):+.6f}`, "
+                f"required `<= {float(turnover.get('max_delta_vs_baseline')):+.6f}`."
+            ),
+        ]
+    lines += ["", closing]
     return "\n".join(lines) + "\n"
 
 

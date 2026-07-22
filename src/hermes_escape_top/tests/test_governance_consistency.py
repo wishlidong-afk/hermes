@@ -45,6 +45,7 @@ def test_repository_governance_evidence_matches_config_and_baseline():
     assert report["checks"]["baseline_metadata"] == "OK"
     assert report["checks"]["factor_capacity"] == "OK"
     assert report["checks"]["live_config_policy"] == "OK"
+    assert report["checks"]["execution_open_quality"] == "OK"
 
 
 def test_stale_baseline_requires_explicit_labels_in_both_docs(tmp_path):
@@ -185,6 +186,72 @@ def test_factor_capacity_governance_rejects_missing_or_stale_artifact(tmp_path):
     path.write_text(json.dumps({"schema_version": "stale"}), encoding="utf-8")
     errors = module._factor_capacity_errors(tmp_path, config)
     assert any("differs" in error for error in errors)
+
+
+def test_execution_open_quality_enforces_missing_and_modeled_budgets(tmp_path):
+    module = _module()
+    timing_path = (
+        tmp_path
+        / "building"
+        / "reports"
+        / "current_baseline"
+        / "execution_timing"
+        / "EXECUTION_TIMING_SENSITIVITY.json"
+    )
+    timing_path.parent.mkdir(parents=True)
+
+    def write_quality(*, missing: int, modeled: int, total: int) -> None:
+        timing_path.write_text(
+            json.dumps(
+                {
+                    "open_quality": {
+                        "required_missing_rows": missing,
+                        "required_modeled_rows": modeled,
+                        "required_total_rows": total,
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    write_quality(missing=0, modeled=13, total=100)
+    assert module._execution_open_quality_errors(tmp_path) == []
+
+    write_quality(missing=1, modeled=13, total=100)
+    assert any(
+        "required_missing_rows" in error
+        for error in module._execution_open_quality_errors(tmp_path)
+    )
+
+    write_quality(missing=0, modeled=16, total=100)
+    assert any(
+        "modeled share" in error
+        for error in module._execution_open_quality_errors(tmp_path)
+    )
+
+
+def test_execution_open_quality_fails_closed_on_missing_or_invalid_evidence(tmp_path):
+    module = _module()
+    assert any(
+        "missing execution timing" in error
+        for error in module._execution_open_quality_errors(tmp_path)
+    )
+
+    timing_path = (
+        tmp_path
+        / "building"
+        / "reports"
+        / "current_baseline"
+        / "execution_timing"
+        / "EXECUTION_TIMING_SENSITIVITY.json"
+    )
+    timing_path.parent.mkdir(parents=True)
+    timing_path.write_text(json.dumps({"open_quality": {}}), encoding="utf-8")
+
+    assert any(
+        "invalid" in error
+        for error in module._execution_open_quality_errors(tmp_path)
+    )
 
 
 def _semantic_sha256(value) -> str:

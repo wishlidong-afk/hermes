@@ -15,6 +15,7 @@ from typing import Any, Optional
 SNAPSHOT_START = "<!-- HERMES_GOVERNANCE_SNAPSHOT_START -->"
 SNAPSHOT_END = "<!-- HERMES_GOVERNANCE_SNAPSHOT_END -->"
 FLAG_ROW = re.compile(r"^\|\s*`([^`]+)`\s*\|\s*([^|]+)\|", re.MULTILINE)
+MAX_REQUIRED_MODELED_OPEN_SHARE = 0.15
 
 
 def parse_registry_defaults(markdown: str) -> dict[str, bool]:
@@ -135,6 +136,13 @@ def check_repository(root: Path) -> dict[str, Any]:
         errors.extend(f"baseline: {message}" for message in baseline_errors)
     else:
         checks["baseline_metadata"] = "OK"
+
+    execution_open_errors = _execution_open_quality_errors(root)
+    if execution_open_errors:
+        checks["execution_open_quality"] = "ERROR"
+        errors.extend(f"execution open quality: {message}" for message in execution_open_errors)
+    else:
+        checks["execution_open_quality"] = "OK"
 
     factor_capacity_errors = _factor_capacity_errors(root, config)
     if factor_capacity_errors:
@@ -263,6 +271,52 @@ def _baseline_source_errors(root: Path) -> list[str]:
         return ["full provenance source must be a JSON object"]
     errors.extend(_baseline_config_authorization_errors(root, source))
     return errors
+
+
+def _execution_open_quality_errors(root: Path) -> list[str]:
+    timing_path = (
+        Path(root)
+        / "building"
+        / "reports"
+        / "current_baseline"
+        / "execution_timing"
+        / "EXECUTION_TIMING_SENSITIVITY.json"
+    )
+    if not timing_path.exists():
+        return [f"missing execution timing evidence: {timing_path}"]
+    try:
+        timing = json.loads(timing_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"execution timing evidence unreadable: {exc}"]
+    quality = timing.get("open_quality")
+    if not isinstance(quality, dict):
+        return ["open_quality evidence is missing or invalid"]
+
+    fields = (
+        "required_missing_rows",
+        "required_modeled_rows",
+        "required_total_rows",
+    )
+    values: dict[str, int] = {}
+    for field in fields:
+        value = quality.get(field)
+        if type(value) is not int or value < 0:
+            return [f"open_quality.{field} is missing or invalid"]
+        values[field] = value
+    if values["required_total_rows"] <= 0:
+        return ["open_quality.required_total_rows is missing or invalid"]
+    if values["required_missing_rows"] > 0:
+        return [
+            "required_missing_rows must be 0, "
+            f"got {values['required_missing_rows']}"
+        ]
+    modeled_share = values["required_modeled_rows"] / values["required_total_rows"]
+    if modeled_share > MAX_REQUIRED_MODELED_OPEN_SHARE:
+        return [
+            f"required modeled share {modeled_share:.4%} exceeds "
+            f"{MAX_REQUIRED_MODELED_OPEN_SHARE:.2%} policy ceiling"
+        ]
+    return []
 
 
 def _baseline_config_authorization_errors(

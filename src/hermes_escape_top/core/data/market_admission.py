@@ -59,15 +59,20 @@ class MarketAdmissionSession:
 
         symbol = str(symbol).upper()
         if not self.enabled:
-            rows = [self._bypass_row(symbol, index, "DISABLED") for index in candidate.index]
-            self.evidence.extend(rows)
-            return candidate.copy(), rows
+            bypass_rows = [
+                self._bypass_row(symbol, index, "DISABLED") for index in candidate.index
+            ]
+            self.evidence.extend(bypass_rows)
+            return candidate.copy(), bypass_rows
         if self.btc_spot_witness_enabled and symbol == "BTC-USD":
             return self._admit_btc(candidate)
         if not is_alpaca_supported_symbol(symbol):
-            rows = [self._bypass_row(symbol, index, "NOT_APPLICABLE") for index in candidate.index]
-            self.evidence.extend(rows)
-            return candidate.copy(), rows
+            bypass_rows = [
+                self._bypass_row(symbol, index, "NOT_APPLICABLE")
+                for index in candidate.index
+            ]
+            self.evidence.extend(bypass_rows)
+            return candidate.copy(), bypass_rows
 
         witness_by_date = {
             str(row.get("t") or "")[:10]: row
@@ -125,6 +130,8 @@ class MarketAdmissionSession:
                 "close_diff_pct": comparison.get("close_diff_pct"),
                 "max_ohlc_diff_pct": comparison.get("max_ohlc_diff_pct"),
                 "volume_diff_pct": comparison.get("volume_diff_pct"),
+                "price_evidence_status": comparison.get("price_evidence_status"),
+                "volume_evidence_status": comparison.get("volume_evidence_status"),
                 "candidate_sha256": comparison.get("local_sha256"),
                 "witness_sha256": comparison.get("witness_sha256"),
             }
@@ -215,10 +222,20 @@ class MarketAdmissionSession:
 
     def payload(self, *, generated_at: str | None = None) -> dict[str, Any]:
         summary: dict[str, int] = {}
+        price_evidence_summary: dict[str, int] = {}
+        volume_evidence_summary: dict[str, int] = {}
         admitted_rows = 0
         for row in self.evidence:
             status = str(row.get("status") or "UNKNOWN")
             summary[status] = summary.get(status, 0) + 1
+            price_status = row.get("price_evidence_status")
+            if price_status:
+                key = str(price_status)
+                price_evidence_summary[key] = price_evidence_summary.get(key, 0) + 1
+            volume_status = row.get("volume_evidence_status")
+            if volume_status:
+                key = str(volume_status)
+                volume_evidence_summary[key] = volume_evidence_summary.get(key, 0) + 1
             admitted_rows += int(bool(row.get("admitted")))
         deferred_rows = sum(
             1
@@ -258,6 +275,8 @@ class MarketAdmissionSession:
             "run_error": self.run_error,
             "canonical_files": dict(self.canonical_files),
             "summary": summary,
+            "price_evidence_summary": price_evidence_summary,
+            "volume_evidence_summary": volume_evidence_summary,
             "admitted_rows": admitted_rows,
             "rejected_rows": rejected_rows,
             "rows": list(self.evidence),
@@ -343,7 +362,7 @@ def prepare_market_admission_session(
     if not btc_spot_witness_enabled:
         try:
             auth = dict(credentials or load_alpaca_credentials())
-            witness_bars = fetch_alpaca_daily_bar_range(
+            alpaca_witness_bars = fetch_alpaca_daily_bar_range(
                 symbols,
                 start,
                 end,
@@ -353,7 +372,7 @@ def prepare_market_admission_session(
             )
             return MarketAdmissionSession(
                 enabled=True,
-                witness_bars=witness_bars,
+                witness_bars=alpaca_witness_bars,
                 requested_start=str(start)[:10],
                 requested_end=str(end)[:10],
                 completed_through=completed_through,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from datetime import date
+from pathlib import Path
 from typing import Any, Dict, Protocol
 
 from .store import LocalStore
@@ -91,8 +92,6 @@ def _valuation_record(as_of: str, config: Dict[str, Any], store: LocalStore) -> 
     (B6 then scores 0 via the registry's missing handling).
     """
     import json as _json
-    from pathlib import Path as _Path
-
     sym_map = {
         "FNGU": ("FNGS", ["forward_pe_percentile", "pe_percentile", "valuation_percentile"]),
         "SOXL": ("SOXX", ["forward_pe_percentile", "pe_percentile", "valuation_percentile"]),
@@ -101,12 +100,12 @@ def _valuation_record(as_of: str, config: Dict[str, Any], store: LocalStore) -> 
     candidates = []
     cfg_path = config.get("valuation", {}).get("snapshot_path")
     if cfg_path:
-        candidates.append(_Path(cfg_path))
+        candidates.append(Path(cfg_path))
     try:
-        candidates.append(_Path(store.archive_dir).parent / "valuation_snapshot.json")
+        candidates.append(Path(store.archive_dir).parent / "valuation_snapshot.json")
     except Exception:
         pass
-    base = _Path(__file__).resolve().parents[2]  # escape-top/ skill root
+    base = Path(__file__).resolve().parents[2]  # escape-top/ skill root
     candidates.append(base / "data" / "valuation_snapshot.json")
     candidates.append(base.parent / "data" / "valuation_snapshot.json")
 

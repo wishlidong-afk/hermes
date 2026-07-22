@@ -306,7 +306,7 @@ dashboard_is_healthy() {
   local _
   for _ in 1 2 3 4 5 6 7 8; do
     sleep 1
-    curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8766/ 2>/dev/null \
+    curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8766/livez 2>/dev/null \
       | grep -q 200 && { ok=1; break; }
   done
   [ "$ok" = 1 ]

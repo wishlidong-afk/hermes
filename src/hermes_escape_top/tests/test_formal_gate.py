@@ -157,6 +157,38 @@ def test_v2_manifest_requires_an_immutable_governance_lane() -> None:
         _manifest(schema="hermes-formal-gate-v2", governance_lane="choose_after_results")
 
 
+def test_v3_manifest_requires_a_strict_preregistered_turnover_objective() -> None:
+    with pytest.raises(FormalGateError, match="turnover_objective"):
+        _manifest(
+            schema="hermes-formal-gate-v3",
+            governance_lane="alpha_experiment",
+        )
+
+    manifest = _manifest(
+        schema="hermes-formal-gate-v3",
+        governance_lane="alpha_experiment",
+        turnover_objective={
+            "metric": "route_set_turnover",
+            "max_delta_vs_baseline": -0.000001,
+        },
+    )
+
+    assert manifest.turnover_objective == {
+        "metric": "route_set_turnover",
+        "max_delta_vs_baseline": -0.000001,
+    }
+
+    with pytest.raises(FormalGateError, match="strictly negative"):
+        _manifest(
+            schema="hermes-formal-gate-v3",
+            governance_lane="alpha_experiment",
+            turnover_objective={
+                "metric": "total_turnover",
+                "max_delta_vs_baseline": 0.0,
+            },
+        )
+
+
 def test_selection_evidence_uses_is_winner_for_oos_pbo() -> None:
     matrix = PerformanceMatrix(
         variants=("baseline", "alpha"),
@@ -208,6 +240,57 @@ def test_formal_gate_passes_only_as_candidate_pending_human_flip() -> None:
     assert math.isfinite(result["target"]["dsr_inputs"]["skew"])
     assert math.isfinite(result["target"]["dsr_inputs"]["kurtosis"])
     assert all(result["checks"].values())
+
+
+def test_cost_governed_gate_requires_the_preregistered_turnover_improvement() -> None:
+    manifest = _manifest(
+        schema="hermes-formal-gate-v3",
+        governance_lane="alpha_experiment",
+        turnover_objective={
+            "metric": "route_set_turnover",
+            "max_delta_vs_baseline": -1.0,
+        },
+    )
+    statuses = {
+        "baseline": {
+            "status": "FRESH",
+            "turnover_evidence": {"route_set_turnover": 100.0},
+        },
+        "alpha": {
+            "status": "FRESH",
+            "turnover_evidence": {"route_set_turnover": 100.0},
+        },
+        "beta": {
+            "status": "FRESH",
+            "turnover_evidence": {"route_set_turnover": 90.0},
+        },
+    }
+
+    rejected = evaluate_formal_gate(
+        manifest,
+        _synthetic_equities(),
+        statuses,
+        walk_forward_splits=_splits(),
+        cpcv_splits=_splits(),
+    )
+
+    assert rejected["checks"]["turnover_objective"] is False
+    assert rejected["turnover_objective"]["delta_vs_baseline"] == 0.0
+    assert rejected["verdict"] == "REJECTED"
+    assert rejected["authorization"] == "NO_FLIP"
+
+    statuses["alpha"]["turnover_evidence"]["route_set_turnover"] = 98.0
+    passed = evaluate_formal_gate(
+        manifest,
+        _synthetic_equities(),
+        statuses,
+        walk_forward_splits=_splits(),
+        cpcv_splits=_splits(),
+    )
+
+    assert passed["checks"]["turnover_objective"] is True
+    assert passed["turnover_objective"]["delta_vs_baseline"] == -2.0
+    assert passed["verdict"] == "CANDIDATE_GATE_PASSED"
 
 
 def test_data_correctness_lane_records_impact_without_alpha_authorization() -> None:

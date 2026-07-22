@@ -24,7 +24,8 @@ hermes/
 ├── CONTRIBUTING.md      ← 开发规范：分支 / 提交 / 测试 / 部署门 / 三条红线
 ├── CHANGELOG.md         ← 变更流水
 ├── context.md           ← 给 AI agent 的深入技术总览
-├── requirements.txt
+├── requirements.txt     ← 人工维护的直接依赖
+├── requirements.lock    ← CI / live 共用的带哈希运行时锁
 │
 ├── src/hermes_escape_top/        ← 全部代码
 │   ├── core/            ── 引擎：data(取数+PIT) / scoring(打分+硬阀门) /

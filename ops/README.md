@@ -84,13 +84,16 @@ remains a visible nonblocking INFO. Other strategy or auxiliary-flow
 degradation fails acceptance.
 
 The seven primary checks remain stable for automation consumers. A separate
-`operational_observations` block tracks weekly retention APPLY evidence and
-dated market-admission evidence. Retention is PENDING before its first expected
-Sunday window, WARN when missing afterward or older than eight days, and PASS
-only for a recent successful APPLY report. Market admission is OBSERVING for
-one or two consecutive OK dates and mature after three (with five as the
-operational target). Only WARN observations are added to the summary; they do
-not change the seven-check schema.
+`operational_observations` block tracks weekly retention APPLY evidence, dated
+market-admission evidence, and AAII/NAAIM automatic-channel migration evidence.
+Retention is PENDING before its first expected Sunday window, WARN when missing
+afterward or older than eight days, and PASS only for a recent successful APPLY
+report. Market admission is OBSERVING for one or two consecutive OK dates and
+mature after three (with five as the operational target). AAII/NAAIM evidence
+is read from the same-day external precheck artifact and includes channel,
+official issue date, artifact SHA-256, freshness, and migration deadline; the
+observer never fetches either source. Only WARN observations are added to the
+summary; they do not change the seven-check schema.
 
 This command is an observer, not a repair command. It never runs daily, scores,
 refreshes data, or connects to IBKR. On FAIL, inspect the cited evidence and

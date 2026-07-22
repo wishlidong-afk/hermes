@@ -223,6 +223,37 @@ def _acceptance_fixture(tmp_path: Path) -> tuple[Path, datetime, dict]:
     watchdog.write_text(
         "2026-07-13T09:00:05 ok as_of=2026-07-10 lag=0\n", encoding="utf-8"
     )
+    _write_json(
+        home / ".hermes/logs/external/external_precheck_latest.json",
+        {
+            "ready": True,
+            "sources": {
+                "aaii_sentiment": {
+                    "status": "OK",
+                    "freshness_status": "OK",
+                    "evidence_status": "MATCH",
+                    "latest_source_channel": "official_insights_rss",
+                    "migration_status": "MONITORED",
+                    "migration_readiness": "NOT_APPLICABLE",
+                    "official_issue_as_of": "2026-07-11",
+                    "official_file_sha256": "a" * 64,
+                    "finished_at": "2026-07-13T06:45:05+08:00",
+                },
+                "naaim_exposure": {
+                    "status": "OK",
+                    "freshness_status": "OK",
+                    "evidence_status": "MATCH",
+                    "latest_source_channel": "naaim_public_workbook",
+                    "migration_status": "MIGRATION_DUE",
+                    "migration_readiness": "AUTOMATIC_PUBLIC",
+                    "migration_deadline": "2026-08-01",
+                    "official_issue_as_of": "2026-07-08",
+                    "official_file_sha256": "b" * 64,
+                    "finished_at": "2026-07-13T06:45:05+08:00",
+                },
+            },
+        },
+    )
     return home, now, health
 
 
@@ -237,6 +268,14 @@ def test_clean_morning_acceptance_passes_with_visible_expected_warnings(tmp_path
     )
 
     assert report["status"] == "PASS"
+    assert report["readiness"] == {
+        "runtime_integrity": {"status": "PASS", "failed_checks": []},
+        "strategy_decision": {
+            "status": "WARN",
+            "failed_checks": [],
+            "warning_checks": ["bound_health_report", "dashboard_health"],
+        },
+    }
     statuses = {row["id"]: row["status"] for row in report["checks"]}
     assert statuses == {
         "release_identity": "PASS",
@@ -253,6 +292,47 @@ def test_clean_morning_acceptance_passes_with_visible_expected_warnings(tmp_path
     assert report["operational_observations"]["runtime_retention"]["status"] == "PENDING"
     assert report["operational_observations"]["market_admission"]["status"] == "PASS"
     assert report["operational_observations"]["market_admission"]["consecutive_ok"] == 3
+    assert report["operational_observations"]["external_source_migrations"]["status"] == "OBSERVING"
+
+
+def test_strategy_failure_does_not_misreport_runtime_integrity(tmp_path):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    base = home / ".hermes/skills/investment/escape-top"
+    report_path = base / "reports/system_health_2026-07-10.json"
+    report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+    blocking = {
+        "level": "DEGRADED",
+        "label": "双源行情候选已隔离",
+        "detail": "VOLUME_MISMATCH=1",
+        "layer": "strategy_data",
+    }
+    report_payload["health"]["layers"]["strategy_data"] = {
+        "level": "DEGRADED",
+        "checks": [blocking],
+    }
+    _write_json(report_path, report_payload)
+    dashboard_health["layers"]["strategy_data"] = {
+        "level": "DEGRADED",
+        "checks": [blocking],
+    }
+
+    report = module.collect_acceptance(
+        home=home,
+        now=now,
+        dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    assert report["status"] == "FAIL"
+    assert report["readiness"]["runtime_integrity"] == {
+        "status": "PASS",
+        "failed_checks": [],
+    }
+    assert report["readiness"]["strategy_decision"] == {
+        "status": "FAIL",
+        "failed_checks": ["bound_health_report", "dashboard_health"],
+        "warning_checks": [],
+    }
 
 
 def test_morning_acceptance_rejects_self_attested_unapproved_live_config(tmp_path):
@@ -332,9 +412,9 @@ def test_retention_missing_warns_only_after_first_expected_window(tmp_path):
     )
 
     assert before["runtime_retention"]["status"] == "PENDING"
-    assert before_warnings == []
+    assert not any("runtime retention" in warning for warning in before_warnings)
     assert after["runtime_retention"]["status"] == "WARN"
-    assert "retention" in " ".join(after_warnings).lower()
+    assert any("runtime retention" in warning for warning in after_warnings)
 
 
 def test_retention_apply_evidence_older_than_eight_days_warns(tmp_path):
@@ -387,6 +467,94 @@ def test_market_admission_maturity_stops_at_a_missing_run_day(tmp_path):
 
     assert observation["status"] == "OBSERVING"
     assert observation["consecutive_ok"] == 1
+
+
+def test_external_source_migration_observation_accepts_automatic_official_channels(tmp_path):
+    module = _load_module()
+    path = tmp_path / ".hermes/logs/external/external_precheck_latest.json"
+    _write_json(
+        path,
+        {
+            "sources": {
+                "aaii_sentiment": {
+                    "status": "OK",
+                    "freshness_status": "OK",
+                    "evidence_status": "MATCH",
+                    "latest_source_channel": "official_insights_rss",
+                    "migration_status": "MONITORED",
+                    "migration_readiness": "NOT_APPLICABLE",
+                    "official_issue_as_of": "2026-07-18",
+                    "official_file_sha256": "a" * 64,
+                    "finished_at": "2026-07-22T06:45:05+08:00",
+                },
+                "naaim_exposure": {
+                    "status": "OK",
+                    "freshness_status": "OK",
+                    "evidence_status": "MATCH",
+                    "latest_source_channel": "naaim_public_workbook",
+                    "migration_status": "MIGRATION_DUE",
+                    "migration_readiness": "AUTOMATIC_PUBLIC",
+                    "migration_deadline": "2026-08-01",
+                    "official_issue_as_of": "2026-07-15",
+                    "official_file_sha256": "b" * 64,
+                    "finished_at": "2026-07-22T06:45:04+08:00",
+                },
+            }
+        },
+    )
+
+    observation = module._external_source_migration_observation(
+        tmp_path,
+        datetime(2026, 7, 22, 9, 5, tzinfo=ZoneInfo("Asia/Shanghai")),
+    )
+
+    assert observation["status"] == "OBSERVING"
+    assert observation["sources"]["aaii_sentiment"]["automated"] is True
+    assert observation["sources"]["naaim_exposure"]["automated"] is True
+    assert observation["sources"]["naaim_exposure"]["migration_status"] == "MIGRATION_DUE"
+
+
+def test_external_source_migration_observation_warns_after_manual_or_expired_evidence(tmp_path):
+    module = _load_module()
+    path = tmp_path / ".hermes/logs/external/external_precheck_latest.json"
+    _write_json(
+        path,
+        {
+            "sources": {
+                "aaii_sentiment": {
+                    "status": "OK",
+                    "freshness_status": "OK",
+                    "evidence_status": "MATCH",
+                    "latest_source_channel": "manual_official_file",
+                    "migration_status": "MONITORED",
+                    "official_issue_as_of": "2026-08-06",
+                    "official_file_sha256": "a" * 64,
+                    "finished_at": "2026-08-07T06:45:05+08:00",
+                },
+                "naaim_exposure": {
+                    "status": "OK",
+                    "freshness_status": "OK",
+                    "evidence_status": "MATCH",
+                    "latest_source_channel": "manual_official_file",
+                    "migration_status": "ACTION_REQUIRED",
+                    "migration_readiness": "MANUAL_FALLBACK",
+                    "migration_deadline": "2026-08-01",
+                    "official_issue_as_of": "2026-08-05",
+                    "official_file_sha256": "b" * 64,
+                    "finished_at": "2026-08-07T06:45:04+08:00",
+                },
+            }
+        },
+    )
+
+    observation = module._external_source_migration_observation(
+        tmp_path,
+        datetime(2026, 8, 7, 9, 5, tzinfo=ZoneInfo("Asia/Shanghai")),
+    )
+
+    assert observation["status"] == "WARN"
+    assert "manual" in observation["detail"].lower()
+    assert "ACTION_REQUIRED" in observation["detail"]
 
 
 def test_duplicate_scheduled_run_fails_acceptance(tmp_path):

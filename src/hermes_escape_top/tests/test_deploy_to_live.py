@@ -17,6 +17,12 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy_to_live.sh"
 
 
+def test_deploy_dashboard_probe_uses_liveness_endpoint() -> None:
+    script = DEPLOY_SCRIPT.read_text(encoding="utf-8")
+
+    assert "http://127.0.0.1:8766/livez" in script
+
+
 def _semantic_sha256(value: object) -> str:
     payload = json.dumps(
         value,

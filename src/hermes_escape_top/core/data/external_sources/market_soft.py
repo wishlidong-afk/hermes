@@ -295,7 +295,9 @@ class BtcMicroAdapter:
                 if pd.notna(row.get("date")) and pd.notna(row.get("funding_source"))
             }
         unified = backfill_crypto_micro.build_unified(funding, dvol, seed)
-        unified["is_proxy"] = unified["is_proxy"].fillna(True).astype(bool)
+        unified["is_proxy"] = (
+            unified["is_proxy"].astype("boolean").fillna(True).astype(bool)
+        )
         source = str((raw or {}).get("funding_source") or "unknown")
         unified["date"] = pd.to_datetime(unified["date"]).dt.date.astype(str)
         unified["funding_source"] = unified["date"].map(prior_sources).astype("object")
