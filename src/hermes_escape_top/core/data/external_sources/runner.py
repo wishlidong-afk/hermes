@@ -69,6 +69,9 @@ class ExternalSourceRun:
     promotion_status: str = "NOT_RUN"
     previous_promoted_as_of: str | None = None
     advanced: bool | None = None
+    history_revision_status: str | None = None
+    history_revision_count: int | None = None
+    history_revision_fingerprint: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -215,6 +218,10 @@ def _run_external_source_refresh_locked(
         )
     if not isinstance(frame, pd.DataFrame):
         frame = pd.DataFrame(frame)
+    revision_evidence = frame.attrs.get("history_revision")
+    if not isinstance(revision_evidence, dict):
+        revision_evidence = None
+    revision_metadata = _history_revision_metadata(revision_evidence)
 
     normalized_content = frame.to_csv(index=False).encode("utf-8")
     _write_content_addressed_evidence(archive_dir, normalized_path, normalized_content)
@@ -227,6 +234,8 @@ def _run_external_source_refresh_locked(
         "rows": int(len(frame)),
         "latest_as_of": latest_frame_date(spec, frame),
     }
+    if revision_evidence is not None:
+        validation_payload["history_revision"] = revision_evidence
     if validation_error is None:
         validation_error = _stale_target_error(spec, frame)
         validation_payload["status"] = "OK" if validation_error is None else "VALIDATION_ERROR"
@@ -257,6 +266,7 @@ def _run_external_source_refresh_locked(
             transport_status="OK",
             parse_status="OK",
             validation_status="ERROR",
+            **revision_metadata,
             **channel_metadata,
         )
 
@@ -296,6 +306,7 @@ def _run_external_source_refresh_locked(
             promotion_status="UNCHANGED",
             previous_promoted_as_of=previous_promoted_as_of,
             advanced=False,
+            **revision_metadata,
             **channel_metadata,
         )
 
@@ -329,6 +340,7 @@ def _run_external_source_refresh_locked(
             validation_status="OK",
             promotion_status="ERROR",
             previous_promoted_as_of=previous_promoted_as_of,
+            **revision_metadata,
             **channel_metadata,
         )
     try:
@@ -365,6 +377,7 @@ def _run_external_source_refresh_locked(
                 else previous_promoted_as_of is None
                 or latest_as_of > previous_promoted_as_of
             ),
+            **revision_metadata,
             **channel_metadata,
         )
     except BaseException as exc:
@@ -410,6 +423,9 @@ def _record(
     promotion_status: str = "NOT_RUN",
     previous_promoted_as_of: str | None = None,
     advanced: bool | None = None,
+    history_revision_status: str | None = None,
+    history_revision_count: int | None = None,
+    history_revision_fingerprint: str | None = None,
 ) -> ExternalSourceRun:
     error_message = _sanitize_persisted_text(error_message)
     primary_source = _sanitize_persisted_text(primary_source)
@@ -462,9 +478,33 @@ def _record(
         promotion_status=promotion_status,
         previous_promoted_as_of=previous_promoted_as_of,
         advanced=advanced,
+        history_revision_status=history_revision_status,
+        history_revision_count=history_revision_count,
+        history_revision_fingerprint=history_revision_fingerprint,
     )
     append_source_run(archive_dir, run.to_dict())
     return run
+
+
+def _history_revision_metadata(
+    evidence: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if evidence is None:
+        return {
+            "history_revision_status": None,
+            "history_revision_count": None,
+            "history_revision_fingerprint": None,
+        }
+    changed_cells = evidence.get("changed_cells")
+    return {
+        "history_revision_status": str(evidence.get("status") or "NONE"),
+        "history_revision_count": (
+            len(changed_cells) if isinstance(changed_cells, list) else 0
+        ),
+        "history_revision_fingerprint": (
+            str(evidence.get("fingerprint") or "") or None
+        ),
+    }
 
 
 def _sanitize_persisted_text(value: str | None) -> str | None:

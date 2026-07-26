@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -37,6 +38,11 @@ def _witness(date: str = "2026-07-13", close: float = 17.16) -> pd.DataFrame:
         {"Close": [close]},
         index=pd.DatetimeIndex([pd.Timestamp(date)], name="Date"),
     )
+
+
+def _validation_evidence(run) -> dict[str, object]:
+    assert run.validation_path is not None
+    return json.loads(Path(run.validation_path).read_text(encoding="utf-8"))
 
 
 def test_parse_cboe_ohlc_and_close_only_files_into_history_schema():
@@ -130,6 +136,7 @@ def test_yahoo_witness_mismatch_freezes_previous_canonical_and_records_failure(t
         fetch_text=lambda _url: OHLC_CSV,
         fetch_witness=lambda *_args: _witness(close=30.0),
         now=datetime(2026, 7, 14, 2, 0, tzinfo=timezone.utc),
+        seed_path=target,
     )
 
     run = run_external_source_refresh(
@@ -149,6 +156,7 @@ def test_lagging_yahoo_witness_trims_unconfirmed_official_tail(tmp_path):
     target.parent.mkdir(parents=True)
     target.write_text(
         "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-09,16.58,17.27,15.76,15.84,15.84,0\n"
         "2026-07-10,16.06,16.16,14.96,15.03,15.03,0\n",
         encoding="utf-8",
     )
@@ -157,6 +165,7 @@ def test_lagging_yahoo_witness_trims_unconfirmed_official_tail(tmp_path):
         fetch_text=lambda _url: OHLC_CSV,
         fetch_witness=lambda *_args: _witness(date="2026-07-10", close=15.03),
         now=datetime(2026, 7, 14, 2, 0, tzinfo=timezone.utc),
+        seed_path=target,
     )
 
     run = run_external_source_refresh(
@@ -336,6 +345,7 @@ def test_official_history_missing_existing_middle_date_is_rejected(tmp_path):
         fetch_text=lambda _url: csv_text,
         fetch_witness=lambda *_args: _witness(date="2026-07-13", close=17.0),
         now=datetime(2026, 7, 14, 22, 0, tzinfo=timezone.utc),
+        seed_path=target,
     )
 
     run = run_external_source_refresh(
@@ -412,6 +422,7 @@ def test_daily_continuity_rejects_changed_existing_cboe_row(tmp_path):
         fetch_text=lambda _url: csv_text,
         fetch_witness=lambda *_args: _witness(date="2026-07-10", close=15.0),
         now=datetime(2026, 7, 14, 2, 0, tzinfo=timezone.utc),
+        seed_path=target,
     )
 
     run = run_external_source_refresh(
@@ -422,6 +433,184 @@ def test_daily_continuity_rejects_changed_existing_cboe_row(tmp_path):
 
     assert run.status == "VALIDATION_ERROR"
     assert "changed existing row" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
+def test_historical_ohlc_revision_is_quarantined_while_new_tail_advances(tmp_path):
+    target = tmp_path / "history" / "_VIX3M.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2013-10-30,15.13,15.13,15.13,15.13,15.13,0\n"
+        "2026-07-22,18,18,18,18,18,0\n",
+        encoding="utf-8",
+    )
+    csv_text = (
+        "DATE,OPEN,HIGH,LOW,CLOSE\n"
+        "10/30/2013,14.68,15.45,14.68,15.13\n"
+        "07/22/2026,18,18,18,18\n"
+        "07/23/2026,19,19,19,19\n"
+        "07/24/2026,20,20,20,20\n"
+    )
+    definition = CBOE_INDEX_DEFINITIONS["cboe_vix3m"]
+    adapter = CboeVolatilityIndexAdapter(
+        definition,
+        fetch_text=lambda _url: csv_text,
+        fetch_witness=lambda *_args: _witness(date="2026-07-24", close=20.0),
+        now=datetime(2026, 7, 25, 22, 0, tzinfo=timezone.utc),
+        seed_path=target,
+    )
+
+    run = run_external_source_refresh(
+        cboe_index_spec(definition, target, min_rows=1),
+        adapter,
+        tmp_path / "archive",
+    )
+
+    canonical = pd.read_csv(target)
+    old_row = canonical[canonical["date"] == "2013-10-30"].iloc[0]
+    evidence = _validation_evidence(run)["history_revision"]
+    status = source_status(
+        tmp_path / "archive",
+        [cboe_index_spec(definition, target, min_rows=1)],
+    )["cboe_vix3m"]
+    assert run.status == "OK"
+    assert run.advanced is True
+    assert run.latest_promoted_as_of == "2026-07-24"
+    assert run.history_revision_status == "QUARANTINED"
+    assert run.history_revision_count == 3
+    assert status["history_revision_status"] == "QUARANTINED"
+    assert status["history_revision_count"] == 3
+    assert status["history_revision_fingerprint"] == evidence["fingerprint"]
+    assert old_row[["open", "high", "low", "close"]].tolist() == [
+        15.13,
+        15.13,
+        15.13,
+        15.13,
+    ]
+    assert canonical["date"].tolist()[-2:] == ["2026-07-23", "2026-07-24"]
+    assert evidence["status"] == "QUARANTINED"
+    assert evidence["changed_dates"] == ["2013-10-30"]
+    assert evidence["appended_dates"] == ["2026-07-23", "2026-07-24"]
+
+
+def test_lagging_witness_quarantines_revision_without_rewriting_certified_tail(
+    tmp_path,
+):
+    target = tmp_path / "history" / "_VIX3M.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2013-10-30,15.13,15.13,15.13,15.13,15.13,0\n"
+        "2026-07-17,17,17,17,17,17,0\n"
+        "2026-07-22,18,18,18,18,18,0\n",
+        encoding="utf-8",
+    )
+    before = target.read_bytes()
+    csv_text = (
+        "DATE,OPEN,HIGH,LOW,CLOSE\n"
+        "10/30/2013,14.68,15.45,14.68,15.13\n"
+        "07/17/2026,17,17,17,17\n"
+        "07/22/2026,18,18,18,18\n"
+        "07/23/2026,19,19,19,19\n"
+        "07/24/2026,20,20,20,20\n"
+    )
+    definition = CBOE_INDEX_DEFINITIONS["cboe_vix3m"]
+    adapter = CboeVolatilityIndexAdapter(
+        definition,
+        fetch_text=lambda _url: csv_text,
+        fetch_witness=lambda *_args: _witness(date="2026-07-17", close=17.0),
+        now=datetime(2026, 7, 25, 22, 0, tzinfo=timezone.utc),
+        seed_path=target,
+    )
+
+    run = run_external_source_refresh(
+        cboe_index_spec(definition, target, min_rows=1),
+        adapter,
+        tmp_path / "archive",
+    )
+
+    evidence = _validation_evidence(run)["history_revision"]
+    assert run.status == "OK"
+    assert run.promotion_status == "UNCHANGED"
+    assert run.advanced is False
+    assert run.history_revision_status == "QUARANTINED"
+    assert run.history_revision_count == 3
+    assert evidence["changed_dates"] == ["2013-10-30"]
+    assert evidence["appended_dates"] == []
+    assert target.read_bytes() == before
+
+
+def test_historical_close_revision_is_blocked_and_canonical_is_unchanged(tmp_path):
+    target = tmp_path / "history" / "_VIX3M.csv"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2013-10-30,15.13,15.13,15.13,15.13,15.13,0\n"
+        "2026-07-22,18,18,18,18,18,0\n",
+        encoding="utf-8",
+    )
+    before = target.read_bytes()
+    csv_text = (
+        "DATE,OPEN,HIGH,LOW,CLOSE\n"
+        "10/30/2013,15.14,15.14,15.14,15.14\n"
+        "07/22/2026,18,18,18,18\n"
+        "07/23/2026,19,19,19,19\n"
+    )
+    definition = CBOE_INDEX_DEFINITIONS["cboe_vix3m"]
+    adapter = CboeVolatilityIndexAdapter(
+        definition,
+        fetch_text=lambda _url: csv_text,
+        fetch_witness=lambda *_args: _witness(date="2026-07-23", close=19.0),
+        now=datetime(2026, 7, 24, 22, 0, tzinfo=timezone.utc),
+        seed_path=target,
+    )
+
+    run = run_external_source_refresh(
+        cboe_index_spec(definition, target, min_rows=1),
+        adapter,
+        tmp_path / "archive",
+    )
+
+    evidence = _validation_evidence(run)["history_revision"]
+    assert run.status == "VALIDATION_ERROR"
+    assert "certified close revision" in str(run.error_message)
+    assert run.history_revision_status == "BLOCKED"
+    assert evidence["status"] == "BLOCKED"
+    assert target.read_bytes() == before
+
+
+def test_unchanged_official_history_records_no_revision_and_does_not_rewrite(tmp_path):
+    target = tmp_path / "history" / "_VIX3M.csv"
+    target.parent.mkdir(parents=True)
+    csv_text = (
+        "DATE,OPEN,HIGH,LOW,CLOSE\n"
+        "07/21/2026,17,17,17,17\n"
+        "07/22/2026,18,18,18,18\n"
+    )
+    definition = CBOE_INDEX_DEFINITIONS["cboe_vix3m"]
+    parse_cboe_index_csv(definition, csv_text).to_csv(target, index=False)
+    before = target.read_bytes()
+    adapter = CboeVolatilityIndexAdapter(
+        definition,
+        fetch_text=lambda _url: csv_text,
+        fetch_witness=lambda *_args: _witness(date="2026-07-22", close=18.0),
+        now=datetime(2026, 7, 23, 2, 0, tzinfo=timezone.utc),
+        seed_path=target,
+    )
+
+    run = run_external_source_refresh(
+        cboe_index_spec(definition, target, min_rows=1),
+        adapter,
+        tmp_path / "archive",
+    )
+
+    evidence = _validation_evidence(run)["history_revision"]
+    assert run.status == "OK"
+    assert run.promotion_status == "UNCHANGED"
+    assert run.advanced is False
+    assert run.history_revision_status == "NONE"
+    assert evidence["status"] == "NONE"
     assert target.read_bytes() == before
 
 

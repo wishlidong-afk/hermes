@@ -18,7 +18,7 @@ def _module():
     return module
 
 
-def test_aaii_and_naaim_failure_drill_preserves_canonical_and_recovers(tmp_path: Path):
+def test_external_source_failure_drill_preserves_canonical_and_recovers(tmp_path: Path):
     module = _module()
 
     report = module.run_drill(tmp_path / "drill")
@@ -41,6 +41,15 @@ def test_aaii_and_naaim_failure_drill_preserves_canonical_and_recovers(tmp_path:
             "wrong_issue_file",
             "manual_import_recovery",
         )
+    } | {
+        ("cboe_vix3m", scenario)
+        for scenario in (
+            "historical_ohlc_revision_new_tail",
+            "historical_close_revision",
+            "missing_existing_date",
+            "tail_witness_mismatch",
+            "unchanged_history",
+        )
     }
     assert all(row["passed"] for row in scenarios.values())
 
@@ -60,3 +69,26 @@ def test_aaii_and_naaim_failure_drill_preserves_canonical_and_recovers(tmp_path:
         assert recovery["ledger_written"] is True
         assert recovery["canonical_sha256"]
         assert recovery["official_file_sha256"]
+
+    quarantined = scenarios[("cboe_vix3m", "historical_ohlc_revision_new_tail")]
+    assert quarantined["actual_status"] == "OK"
+    assert quarantined["canonical_advanced"] is True
+    assert quarantined["certified_rows_preserved"] is True
+    assert quarantined["history_revision_status"] == "QUARANTINED"
+    assert quarantined["history_revision_count"] == 3
+
+    for scenario in (
+        "historical_close_revision",
+        "missing_existing_date",
+        "tail_witness_mismatch",
+    ):
+        row = scenarios[("cboe_vix3m", scenario)]
+        assert row["actual_status"] == "VALIDATION_ERROR"
+        assert row["canonical_unchanged"] is True
+        assert row["ledger_written"] is True
+
+    unchanged = scenarios[("cboe_vix3m", "unchanged_history")]
+    assert unchanged["actual_status"] == "OK"
+    assert unchanged["promotion_status"] == "UNCHANGED"
+    assert unchanged["canonical_unchanged"] is True
+    assert unchanged["history_revision_status"] == "NONE"

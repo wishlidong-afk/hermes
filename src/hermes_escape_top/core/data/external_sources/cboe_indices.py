@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from io import StringIO
@@ -143,6 +144,8 @@ class CboeVolatilityIndexAdapter:
         frame.attrs["ohlc_repair_count"] = int(raw.get("ohlc_repair_count") or 0)
         frame.attrs["witness_rows"] = witness_rows
         frame.attrs["witness_error"] = raw.get("witness_error")
+        if self.seed_path is not None:
+            frame = _reconcile_certified_history(self.seed_path, frame)
         return frame
 
 
@@ -224,7 +227,7 @@ def cboe_index_spec(
             else "official_close_after_completed_us_session_with_yahoo_witness"
         ),
         source_url=definition.url,
-        allow_validated_same_date_promotion=True,
+        allow_validated_same_date_promotion=allow_initial_rebaseline,
     )
 
 
@@ -298,6 +301,11 @@ def _validate_history_continuity(
 ) -> str | None:
     if allow_initial_rebaseline:
         return None
+    revision = frame.attrs.get("history_revision")
+    if isinstance(revision, dict) and revision.get("status") == "BLOCKED":
+        reason = str(revision.get("reason") or "").strip()
+        if reason:
+            return reason
     if not target_path.exists():
         return (
             "history continuity: canonical missing; controlled initial "
@@ -361,6 +369,167 @@ def _validate_history_continuity(
             changed_day = str(common.loc[mismatch, "_day"].iloc[0])
             return f"history continuity: changed existing row {changed_day} column {column}"
     return None
+
+
+def _reconcile_certified_history(target_path: Path, frame: pd.DataFrame) -> pd.DataFrame:
+    incoming = frame.copy()
+    incoming.attrs = dict(frame.attrs)
+    evidence: dict[str, object] = {
+        "schema_version": "hermes-cboe-history-revision-v1",
+        "policy": "PRESERVE_EXISTING_APPEND_NEW",
+        "status": "NONE",
+        "reason": None,
+        "changed_dates": [],
+        "changed_cells": [],
+        "appended_dates": [],
+        "canonical_rows_preserved": False,
+    }
+
+    if not target_path.exists():
+        evidence.update(
+            status="BLOCKED",
+            reason="history continuity: canonical missing; controlled initial rebaseline is required",
+        )
+        return _with_revision_evidence(incoming, evidence)
+    try:
+        existing = pd.read_csv(target_path)
+    except Exception as exc:
+        evidence.update(
+            status="BLOCKED",
+            reason=f"history continuity: existing canonical cannot be read: {exc}",
+        )
+        return _with_revision_evidence(incoming, evidence)
+    if "date" not in existing or "date" not in incoming:
+        evidence.update(
+            status="BLOCKED",
+            reason="history continuity: missing date column",
+        )
+        return _with_revision_evidence(incoming, evidence)
+
+    existing = existing.copy()
+    incoming = incoming.copy()
+    incoming.attrs = dict(frame.attrs)
+    existing["_day"] = pd.to_datetime(existing["date"], errors="coerce").dt.strftime(
+        "%Y-%m-%d"
+    )
+    incoming["_day"] = pd.to_datetime(incoming["date"], errors="coerce").dt.strftime(
+        "%Y-%m-%d"
+    )
+    if existing["_day"].isna().any() or incoming["_day"].isna().any():
+        evidence.update(
+            status="BLOCKED",
+            reason="history continuity: canonical or incoming history has unparseable dates",
+        )
+        return _with_revision_evidence(incoming.drop(columns="_day"), evidence)
+
+    existing_days = set(existing["_day"])
+    incoming_days = set(incoming["_day"])
+    missing = sorted(existing_days - incoming_days)
+    if missing:
+        evidence.update(
+            status="BLOCKED",
+            reason=(
+                f"history continuity: missing {len(missing)} existing dates "
+                f"({', '.join(missing[:5])})"
+            ),
+        )
+        return _with_revision_evidence(incoming.drop(columns="_day"), evidence)
+
+    latest_existing = max(existing_days)
+    historical_additions = sorted(
+        day for day in incoming_days - existing_days if day <= latest_existing
+    )
+    if historical_additions:
+        evidence.update(
+            status="BLOCKED",
+            reason=(
+                "history continuity: unreviewed historical additions "
+                f"({', '.join(historical_additions[:5])})"
+            ),
+        )
+        return _with_revision_evidence(incoming.drop(columns="_day"), evidence)
+
+    common = existing.merge(incoming, on="_day", suffixes=("_existing", "_incoming"))
+    changed_cells: list[dict[str, object]] = []
+    for column in ("open", "high", "low", "close", "adj_close", "volume"):
+        old_name = f"{column}_existing"
+        new_name = f"{column}_incoming"
+        if old_name not in common or new_name not in common:
+            evidence.update(
+                status="BLOCKED",
+                reason=f"history continuity: missing comparison column {column}",
+            )
+            return _with_revision_evidence(incoming.drop(columns="_day"), evidence)
+        old = pd.to_numeric(common[old_name], errors="coerce")
+        new = pd.to_numeric(common[new_name], errors="coerce")
+        mismatch = old.isna() != new.isna()
+        mismatch |= (old - new).abs().fillna(0.0) > 1e-9
+        for index in common.index[mismatch]:
+            changed_cells.append(
+                {
+                    "date": str(common.loc[index, "_day"]),
+                    "column": column,
+                    "canonical": _json_number(old.loc[index]),
+                    "official": _json_number(new.loc[index]),
+                }
+            )
+
+    changed_dates = sorted({str(cell["date"]) for cell in changed_cells})
+    appended_dates = sorted(incoming_days - existing_days)
+    evidence["changed_cells"] = changed_cells
+    evidence["changed_dates"] = changed_dates
+    evidence["appended_dates"] = appended_dates
+    evidence["canonical_rows_preserved"] = True
+
+    close_changes = [
+        cell for cell in changed_cells if cell["column"] in {"close", "adj_close"}
+    ]
+    if close_changes:
+        first = close_changes[0]
+        evidence.update(
+            status="BLOCKED",
+            reason=(
+                f"history continuity: changed existing row {first['date']} column "
+                f"{first['column']}; certified close revision is not auto-promotable"
+            ),
+        )
+        return _with_revision_evidence(incoming.drop(columns="_day"), evidence)
+
+    columns = [column for column in frame.columns if column != "_day"]
+    existing_rows = existing[columns + ["_day"]].copy()
+    new_rows = incoming[~incoming["_day"].isin(existing_days)][columns + ["_day"]].copy()
+    candidate = pd.concat([existing_rows, new_rows], ignore_index=True)
+    candidate["date"] = candidate["_day"]
+    candidate = candidate.drop(columns="_day").sort_values("date").reset_index(drop=True)
+    candidate.attrs = dict(frame.attrs)
+    if changed_cells:
+        evidence["status"] = "QUARANTINED"
+    return _with_revision_evidence(candidate, evidence)
+
+
+def _with_revision_evidence(
+    frame: pd.DataFrame,
+    evidence: dict[str, object],
+) -> pd.DataFrame:
+    stable = {
+        "schema_version": evidence.get("schema_version"),
+        "policy": evidence.get("policy"),
+        "status": evidence.get("status"),
+        "reason": evidence.get("reason"),
+        "changed_dates": evidence.get("changed_dates"),
+        "changed_cells": evidence.get("changed_cells"),
+    }
+    evidence["fingerprint"] = hashlib.sha256(
+        json.dumps(stable, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    frame.attrs["history_revision"] = evidence
+    return frame
+
+
+def _json_number(value: object) -> float | None:
+    if pd.isna(value):
+        return None
+    return float(value)
 
 
 def _normalize_witness(frame: pd.DataFrame, expected_symbol: str) -> pd.DataFrame:

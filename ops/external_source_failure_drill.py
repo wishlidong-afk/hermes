@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline AAII/NAAIM failure drill using the production source runner."""
+"""Offline AAII/NAAIM/CBOE failure drill using the production source runner."""
 from __future__ import annotations
 
 import argparse
@@ -26,6 +26,11 @@ from hermes_escape_top.core.data.external_sources.aaii import (  # noqa: E402
 )
 from hermes_escape_top.core.data.external_sources.ledger import (  # noqa: E402
     latest_source_run,
+)
+from hermes_escape_top.core.data.external_sources.cboe_indices import (  # noqa: E402
+    CBOE_INDEX_DEFINITIONS,
+    CboeVolatilityIndexAdapter,
+    cboe_index_spec,
 )
 from hermes_escape_top.core.data.external_sources.naaim import (  # noqa: E402
     NaaimExposureImportAdapter,
@@ -73,6 +78,15 @@ def run_drill(work_dir: Path) -> dict[str, Any]:
                     now=datetime(2026, 7, 15, 1, sequence, tzinfo=timezone.utc),
                 )
             )
+    for scenario in (
+        "historical_ohlc_revision_new_tail",
+        "historical_close_revision",
+        "missing_existing_date",
+        "tail_witness_mismatch",
+        "unchanged_history",
+    ):
+        sequence += 1
+        scenarios.append(_run_cboe_scenario(root, scenario, sequence=sequence))
     return {
         "schema": "hermes-external-source-failure-drill-v1",
         "status": "PASS" if all(row["passed"] for row in scenarios) else "FAIL",
@@ -159,6 +173,151 @@ def _expected_status(_source_id: str, scenario: str) -> str:
     if scenario == "manual_import_recovery":
         return "OK"
     return "PARSE_ERROR"
+
+
+def _run_cboe_scenario(
+    root: Path,
+    scenario: str,
+    *,
+    sequence: int,
+) -> dict[str, Any]:
+    scenario_root = root / "cboe_vix3m" / scenario
+    target = scenario_root / "history" / "_VIX3M.csv"
+    archive = scenario_root / "archive"
+    _write_cboe_seed(target)
+    before = target.read_bytes()
+    before_frame = pd.read_csv(target)
+    before_latest = _latest_date(target)
+    csv_text, witness_date, witness_close = _cboe_scenario_input(scenario)
+    definition = CBOE_INDEX_DEFINITIONS["cboe_vix3m"]
+    adapter = CboeVolatilityIndexAdapter(
+        definition,
+        fetch_text=lambda _url: csv_text,
+        fetch_witness=lambda *_args: _cboe_witness(witness_date, witness_close),
+        now=datetime(2026, 7, 25, 22, sequence, tzinfo=timezone.utc),
+        seed_path=target,
+    )
+
+    run = run_external_source_refresh(
+        cboe_index_spec(definition, target, min_rows=1),
+        adapter,
+        archive,
+        now=datetime(2026, 7, 25, 23, sequence, tzinfo=timezone.utc),
+    )
+    after = target.read_bytes()
+    after_frame = pd.read_csv(target)
+    after_latest = _latest_date(target)
+    ledger = latest_source_run(archive, definition.source_id) or {}
+    validation = (
+        json.loads(Path(run.validation_path).read_text(encoding="utf-8"))
+        if run.validation_path
+        else {}
+    )
+    revision = validation.get("history_revision") or {}
+    certified_after = after_frame[
+        after_frame["date"].astype(str).isin(before_frame["date"].astype(str))
+    ].reset_index(drop=True)
+    certified_rows_preserved = certified_after.to_dict(
+        orient="records"
+    ) == before_frame.reset_index(drop=True).to_dict(orient="records")
+    canonical_unchanged = after == before
+    canonical_advanced = bool(
+        before_latest and after_latest and after_latest > before_latest
+    )
+    ledger_written = (
+        ledger.get("run_id") == run.run_id
+        and ledger.get("status") == run.status
+    )
+
+    if scenario == "historical_ohlc_revision_new_tail":
+        passed = bool(
+            run.status == "OK"
+            and canonical_advanced
+            and certified_rows_preserved
+            and run.history_revision_status == "QUARANTINED"
+            and run.history_revision_count == 3
+        )
+    elif scenario == "unchanged_history":
+        passed = bool(
+            run.status == "OK"
+            and run.promotion_status == "UNCHANGED"
+            and canonical_unchanged
+            and run.history_revision_status == "NONE"
+        )
+    else:
+        passed = run.status == "VALIDATION_ERROR" and canonical_unchanged
+    passed = bool(passed and ledger_written)
+    return {
+        "source_id": definition.source_id,
+        "scenario": scenario,
+        "expected_status": (
+            "OK"
+            if scenario in {"historical_ohlc_revision_new_tail", "unchanged_history"}
+            else "VALIDATION_ERROR"
+        ),
+        "actual_status": run.status,
+        "promotion_status": run.promotion_status,
+        "canonical_unchanged": canonical_unchanged,
+        "canonical_advanced": canonical_advanced,
+        "certified_rows_preserved": certified_rows_preserved,
+        "before_latest_as_of": before_latest,
+        "after_latest_as_of": after_latest,
+        "ledger_written": ledger_written,
+        "canonical_sha256": run.canonical_sha256,
+        "official_file_sha256": run.official_file_sha256,
+        "history_revision_status": run.history_revision_status,
+        "history_revision_count": run.history_revision_count,
+        "history_revision_fingerprint": run.history_revision_fingerprint,
+        "revision_evidence": revision,
+        "error_type": run.error_type,
+        "error_message": run.error_message,
+        "passed": passed,
+    }
+
+
+def _cboe_scenario_input(scenario: str) -> tuple[str, str, float]:
+    seed_rows = (
+        "10/30/2013,15.13,15.13,15.13,15.13\n"
+        "07/22/2026,18,18,18,18\n"
+    )
+    cases = {
+        "historical_ohlc_revision_new_tail": (
+            "10/30/2013,14.68,15.45,14.68,15.13\n"
+            "07/22/2026,18,18,18,18\n"
+            "07/23/2026,19,19,19,19\n"
+            "07/24/2026,20,20,20,20\n",
+            "2026-07-24",
+            20.0,
+        ),
+        "historical_close_revision": (
+            "10/30/2013,15.14,15.14,15.14,15.14\n"
+            "07/22/2026,18,18,18,18\n"
+            "07/23/2026,19,19,19,19\n",
+            "2026-07-23",
+            19.0,
+        ),
+        "missing_existing_date": (
+            "07/22/2026,18,18,18,18\n"
+            "07/23/2026,19,19,19,19\n",
+            "2026-07-23",
+            19.0,
+        ),
+        "tail_witness_mismatch": (
+            seed_rows + "07/23/2026,19,19,19,19\n",
+            "2026-07-23",
+            99.0,
+        ),
+        "unchanged_history": (seed_rows, "2026-07-22", 18.0),
+    }
+    body, witness_date, witness_close = cases[scenario]
+    return "DATE,OPEN,HIGH,LOW,CLOSE\n" + body, witness_date, witness_close
+
+
+def _cboe_witness(day: str, close: float) -> pd.DataFrame:
+    return pd.DataFrame(
+        {"Close": [close]},
+        index=pd.DatetimeIndex([pd.Timestamp(day)], name="Date"),
+    )
 
 
 def _aaii_fixture() -> _SourceFixture:
@@ -251,6 +410,16 @@ def _write_naaim_seed(path: Path) -> None:
             },
         ]
     ).to_csv(path, index=False)
+
+
+def _write_cboe_seed(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2013-10-30,15.13,15.13,15.13,15.13,15.13,0\n"
+        "2026-07-22,18,18,18,18,18,0\n",
+        encoding="utf-8",
+    )
 
 
 def _latest_date(path: Path) -> str | None:
