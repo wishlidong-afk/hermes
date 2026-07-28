@@ -1,0 +1,354 @@
+{
+  "schema_version": "hermes-market-admission-history-study-v1",
+  "generated_at": "2026-07-28T09:58:29.611343+00:00",
+  "evidence_status": "INSUFFICIENT_EVIDENCE",
+  "policy_decision": "HOLD_FAIL_CLOSED_POLICY",
+  "source_evidence": {
+    "artifact_manifest_sha256": "7451001a0c44db3b43373d60117665cf3dc0a6adcf48996b40ed96ada4edd901",
+    "artifacts": [
+      {
+        "artifact_date": "2026-07-14",
+        "path": "market_admission_2026-07-14.json",
+        "sha256": "5515f680ae62c0ef695756f36b0bb7da2fb2ec4db311c1bf5c078a7dff6743fb"
+      },
+      {
+        "artifact_date": "2026-07-15",
+        "path": "market_admission_2026-07-15.json",
+        "sha256": "5371f00214982586dd2451dd784ec374f6d8056137f56fc74493312c85914d4e"
+      },
+      {
+        "artifact_date": "2026-07-16",
+        "path": "market_admission_2026-07-16.json",
+        "sha256": "d8664b2a5d607a890b5a9f6e525cab00b0cbd264c50a722599571ba01dd6f8b0"
+      },
+      {
+        "artifact_date": "2026-07-17",
+        "path": "market_admission_2026-07-17.json",
+        "sha256": "b9564214c481b039094d71cc2579431ea13e15c992c4b677f8b5eb82c28ac9db"
+      },
+      {
+        "artifact_date": "2026-07-18",
+        "path": "market_admission_2026-07-18.json",
+        "sha256": "49965ad69c9a9dd14a20c1da2cf719f7810c7f6da5d8bbe9abe67afdb7c6f4d0"
+      },
+      {
+        "artifact_date": "2026-07-19",
+        "path": "market_admission_2026-07-19.json",
+        "sha256": "fb9ba1607e242baf10eb894e971985c4bd84264efd4e1110636665a3bacf1502"
+      },
+      {
+        "artifact_date": "2026-07-20",
+        "path": "market_admission_2026-07-20.json",
+        "sha256": "3715ef8c7ccf911ce85ce33dcd95abbbbb344af6387261d3c8496d7a08583f62"
+      },
+      {
+        "artifact_date": "2026-07-21",
+        "path": "market_admission_2026-07-21.json",
+        "sha256": "f138b84f6354d6fb2664a3c5e882ee6c4de02fcc02e9480d4bf2fbc9cd72c017"
+      },
+      {
+        "artifact_date": "2026-07-22",
+        "path": "market_admission_2026-07-22.json",
+        "sha256": "d43e85d37da2908ae6eca2d21c1056e867b7ab2a5aeb5aee445564f6fba52736"
+      },
+      {
+        "artifact_date": "2026-07-23",
+        "path": "market_admission_2026-07-23.json",
+        "sha256": "9a914c07772351f25bd9f87fd5266f9331f40f3aa6758a50408baf3380637f6c"
+      },
+      {
+        "artifact_date": "2026-07-24",
+        "path": "market_admission_2026-07-24.json",
+        "sha256": "6aa635aecaf81c392e2c088fd393205c6b1db94d0146ad288259b1378886465e"
+      },
+      {
+        "artifact_date": "2026-07-25",
+        "path": "market_admission_2026-07-25.json",
+        "sha256": "a9318896fe00b468103a99d7bd808e605f688548162e9a7abc6b0b19aca17759"
+      },
+      {
+        "artifact_date": "2026-07-26",
+        "path": "market_admission_2026-07-26.json",
+        "sha256": "dd81962f7f5b46909d23c7a8b14b8c9a9a9dc005b9f7780bed10fa9b40d40abb"
+      },
+      {
+        "artifact_date": "2026-07-27",
+        "path": "market_admission_2026-07-27.json",
+        "sha256": "153b3adf6429b6310718faedd8e03f437b589407b4c18b0fa0c749fb8123fbe1"
+      },
+      {
+        "artifact_date": "2026-07-28",
+        "path": "market_admission_2026-07-28.json",
+        "sha256": "6e37dd4fce0f41110f442bd49fcba3fad0b6e65ec15093a0e8e5170b22db3e97"
+      }
+    ]
+  },
+  "sample": {
+    "target_sessions": 30,
+    "available_sessions": 11,
+    "artifact_count": 15,
+    "session_selection_policy": "FIRST_ARTIFACT_PER_COMPLETED_THROUGH",
+    "start_completed_through": "2026-07-13",
+    "end_completed_through": "2026-07-27"
+  },
+  "session_summary": {
+    "blocked_sessions": 5,
+    "ok_sessions": 6,
+    "blocked_session_rate_pct": 45.45
+  },
+  "blocking_summary": {
+    "unique_events": 7,
+    "status_counts": {
+      "PRICE_MISMATCH": 1,
+      "VOLUME_MISMATCH": 6
+    },
+    "matured_events": 5,
+    "recovered_events": 5,
+    "matured_recovery_rate_pct": 100.0,
+    "next_run_recoveries": 5,
+    "pending_events": 2,
+    "close_within_match_band": 7,
+    "deferred_rows_excluded": 13
+  },
+  "sessions": [
+    {
+      "completed_through": "2026-07-13",
+      "artifact_date": "2026-07-14",
+      "status": "OK",
+      "admitted_rows": 40,
+      "rejected_rows": 0,
+      "deferred_rows": 0
+    },
+    {
+      "completed_through": "2026-07-14",
+      "artifact_date": "2026-07-15",
+      "status": "OK",
+      "admitted_rows": 199,
+      "rejected_rows": 0,
+      "deferred_rows": 1
+    },
+    {
+      "completed_through": "2026-07-15",
+      "artifact_date": "2026-07-16",
+      "status": "OK",
+      "admitted_rows": 122,
+      "rejected_rows": 0,
+      "deferred_rows": 1
+    },
+    {
+      "completed_through": "2026-07-16",
+      "artifact_date": "2026-07-17",
+      "status": "OK",
+      "admitted_rows": 161,
+      "rejected_rows": 0,
+      "deferred_rows": 1
+    },
+    {
+      "completed_through": "2026-07-17",
+      "artifact_date": "2026-07-18",
+      "status": "OK",
+      "admitted_rows": 200,
+      "rejected_rows": 0,
+      "deferred_rows": 1
+    },
+    {
+      "completed_through": "2026-07-20",
+      "artifact_date": "2026-07-21",
+      "status": "BLOCKED",
+      "admitted_rows": 198,
+      "rejected_rows": 2,
+      "deferred_rows": 1
+    },
+    {
+      "completed_through": "2026-07-21",
+      "artifact_date": "2026-07-22",
+      "status": "BLOCKED",
+      "admitted_rows": 127,
+      "rejected_rows": 1,
+      "deferred_rows": 1
+    },
+    {
+      "completed_through": "2026-07-22",
+      "artifact_date": "2026-07-23",
+      "status": "BLOCKED",
+      "admitted_rows": 122,
+      "rejected_rows": 1,
+      "deferred_rows": 1
+    },
+    {
+      "completed_through": "2026-07-23",
+      "artifact_date": "2026-07-24",
+      "status": "BLOCKED",
+      "admitted_rows": 160,
+      "rejected_rows": 1,
+      "deferred_rows": 1
+    },
+    {
+      "completed_through": "2026-07-24",
+      "artifact_date": "2026-07-25",
+      "status": "OK",
+      "admitted_rows": 200,
+      "rejected_rows": 0,
+      "deferred_rows": 1
+    },
+    {
+      "completed_through": "2026-07-27",
+      "artifact_date": "2026-07-28",
+      "status": "BLOCKED",
+      "admitted_rows": 159,
+      "rejected_rows": 2,
+      "deferred_rows": 1
+    }
+  ],
+  "symbols": {
+    "AMZN": {
+      "events": 1,
+      "volume_mismatches": 0,
+      "price_mismatches": 1,
+      "recovered": 1,
+      "pending": 0
+    },
+    "BRK.B": {
+      "events": 2,
+      "volume_mismatches": 2,
+      "price_mismatches": 0,
+      "recovered": 1,
+      "pending": 1
+    },
+    "DBMF": {
+      "events": 1,
+      "volume_mismatches": 1,
+      "price_mismatches": 0,
+      "recovered": 1,
+      "pending": 0
+    },
+    "IAU": {
+      "events": 1,
+      "volume_mismatches": 1,
+      "price_mismatches": 0,
+      "recovered": 1,
+      "pending": 0
+    },
+    "SHV": {
+      "events": 1,
+      "volume_mismatches": 1,
+      "price_mismatches": 0,
+      "recovered": 1,
+      "pending": 0
+    },
+    "SMH": {
+      "events": 1,
+      "volume_mismatches": 1,
+      "price_mismatches": 0,
+      "recovered": 0,
+      "pending": 1
+    }
+  },
+  "events": [
+    {
+      "symbol": "AMZN",
+      "date": "2026-07-23",
+      "first_artifact_date": "2026-07-24",
+      "status": "PRICE_MISMATCH",
+      "close_diff_pct": 0.0,
+      "max_ohlc_diff_pct": 3.7429,
+      "volume_diff_pct": 0.3239,
+      "price_evidence_status": null,
+      "volume_evidence_status": null,
+      "resolution_status": "RECOVERED",
+      "later_observations": 4,
+      "runs_to_recovery": 1,
+      "recovered_artifact_date": "2026-07-25"
+    },
+    {
+      "symbol": "BRK.B",
+      "date": "2026-07-20",
+      "first_artifact_date": "2026-07-21",
+      "status": "VOLUME_MISMATCH",
+      "close_diff_pct": 0.0,
+      "max_ohlc_diff_pct": 0.0123,
+      "volume_diff_pct": 26.3522,
+      "price_evidence_status": null,
+      "volume_evidence_status": null,
+      "resolution_status": "RECOVERED",
+      "later_observations": 4,
+      "runs_to_recovery": 1,
+      "recovered_artifact_date": "2026-07-22"
+    },
+    {
+      "symbol": "BRK.B",
+      "date": "2026-07-27",
+      "first_artifact_date": "2026-07-28",
+      "status": "VOLUME_MISMATCH",
+      "close_diff_pct": 0.0,
+      "max_ohlc_diff_pct": 0.001,
+      "volume_diff_pct": 37.414,
+      "price_evidence_status": null,
+      "volume_evidence_status": null,
+      "resolution_status": "PENDING_NO_LATER_EVIDENCE",
+      "later_observations": 0,
+      "runs_to_recovery": null,
+      "recovered_artifact_date": null
+    },
+    {
+      "symbol": "DBMF",
+      "date": "2026-07-20",
+      "first_artifact_date": "2026-07-21",
+      "status": "VOLUME_MISMATCH",
+      "close_diff_pct": 0.0,
+      "max_ohlc_diff_pct": 0.0,
+      "volume_diff_pct": 52.6064,
+      "price_evidence_status": null,
+      "volume_evidence_status": null,
+      "resolution_status": "RECOVERED",
+      "later_observations": 4,
+      "runs_to_recovery": 1,
+      "recovered_artifact_date": "2026-07-22"
+    },
+    {
+      "symbol": "IAU",
+      "date": "2026-07-22",
+      "first_artifact_date": "2026-07-23",
+      "status": "VOLUME_MISMATCH",
+      "close_diff_pct": 0.0,
+      "max_ohlc_diff_pct": 0.0,
+      "volume_diff_pct": 32.4847,
+      "price_evidence_status": null,
+      "volume_evidence_status": null,
+      "resolution_status": "RECOVERED",
+      "later_observations": 5,
+      "runs_to_recovery": 1,
+      "recovered_artifact_date": "2026-07-24"
+    },
+    {
+      "symbol": "SHV",
+      "date": "2026-07-21",
+      "first_artifact_date": "2026-07-22",
+      "status": "VOLUME_MISMATCH",
+      "close_diff_pct": 0.0,
+      "max_ohlc_diff_pct": 0.0,
+      "volume_diff_pct": 36.0426,
+      "price_evidence_status": null,
+      "volume_evidence_status": null,
+      "resolution_status": "RECOVERED",
+      "later_observations": 6,
+      "runs_to_recovery": 1,
+      "recovered_artifact_date": "2026-07-23"
+    },
+    {
+      "symbol": "SMH",
+      "date": "2026-07-27",
+      "first_artifact_date": "2026-07-28",
+      "status": "VOLUME_MISMATCH",
+      "close_diff_pct": 0.0,
+      "max_ohlc_diff_pct": 0.1216,
+      "volume_diff_pct": 26.4692,
+      "price_evidence_status": null,
+      "volume_evidence_status": null,
+      "resolution_status": "PENDING_NO_LATER_EVIDENCE",
+      "later_observations": 0,
+      "runs_to_recovery": null,
+      "recovered_artifact_date": null
+    }
+  ]
+}
