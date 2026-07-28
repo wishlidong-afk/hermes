@@ -13,7 +13,7 @@ from uuid import uuid4
 
 import pandas as pd
 
-from .alpaca_flow import load_alpaca_credentials
+from .alpaca_flow import DATA_URL, load_alpaca_credentials
 from .coinbase_witness import (
     COINBASE_CANDLES_URL,
     COINBASE_SOURCE,
@@ -23,12 +23,32 @@ from .coinbase_witness import (
 )
 from .external_sources.clock import timestamp_to_shanghai_date
 from .market_witness import (
+    ALPACA_WITNESS_SOURCE,
     compare_market_bar,
     fetch_alpaca_daily_bar_range,
     is_alpaca_supported_symbol,
+    normalize_alpaca_witness_bar,
 )
 from .market_clock import latest_completed_us_market_session
 from .store import safe_symbol
+
+
+_ALPACA_PROVENANCE_FIELDS = (
+    "schema_version",
+    "source",
+    "source_url",
+    "timeframe",
+    "feed",
+    "adjustment",
+    "fetched_at",
+    "requested_start",
+    "requested_end",
+    "completed_through",
+    "symbols",
+    "symbol_count",
+    "bar_count",
+    "normalized_bars_sha256",
+)
 
 
 @dataclass
@@ -135,6 +155,8 @@ class MarketAdmissionSession:
                 "candidate_sha256": comparison.get("local_sha256"),
                 "witness_sha256": comparison.get("witness_sha256"),
             }
+            if comparison.get("raw_comparison"):
+                evidence["raw_comparison"] = comparison["raw_comparison"]
             source_fetch_error = (
                 self.witness_errors.get("alpaca")
                 if self.btc_spot_witness_enabled
@@ -290,6 +312,10 @@ class MarketAdmissionSession:
                 "provenance": dict(self.witness_provenance.get("coinbase") or {}),
                 "error": self.witness_errors.get("coinbase"),
             }
+        if self.witness_provenance.get("alpaca"):
+            payload["equity_witness"] = _safe_alpaca_witness_provenance(
+                self.witness_provenance["alpaca"]
+            )
         return payload
 
     def bind_canonical_files(
@@ -370,9 +396,19 @@ def prepare_market_admission_session(
                 request_json=request_json,
                 now=now,
             )
+            witness_provenance = {
+                "alpaca": _alpaca_witness_provenance(
+                    alpaca_witness_bars,
+                    start=start,
+                    end=end,
+                    completed_through=completed_through,
+                    now=now,
+                )
+            }
             return MarketAdmissionSession(
                 enabled=True,
                 witness_bars=alpaca_witness_bars,
+                witness_provenance=witness_provenance,
                 requested_start=str(start)[:10],
                 requested_end=str(end)[:10],
                 completed_through=completed_through,
@@ -395,15 +431,21 @@ def prepare_market_admission_session(
     if alpaca_symbols:
         try:
             auth = dict(credentials or load_alpaca_credentials())
-            witness_bars.update(
-                fetch_alpaca_daily_bar_range(
-                    alpaca_symbols,
-                    start,
-                    end,
-                    auth,
-                    request_json=request_json,
-                    now=now,
-                )
+            alpaca_witness_bars = fetch_alpaca_daily_bar_range(
+                alpaca_symbols,
+                start,
+                end,
+                auth,
+                request_json=request_json,
+                now=now,
+            )
+            witness_bars.update(alpaca_witness_bars)
+            witness_provenance["alpaca"] = _alpaca_witness_provenance(
+                alpaca_witness_bars,
+                start=start,
+                end=end,
+                completed_through=completed_through,
+                now=now,
             )
         except Exception as exc:
             witness_errors["alpaca"] = f"{exc.__class__.__name__}: {exc}"
@@ -440,6 +482,51 @@ def prepare_market_admission_session(
         requested_end=str(end)[:10],
         completed_through=completed_through,
     )
+
+
+def _alpaca_witness_provenance(
+    witness_bars: Mapping[str, Iterable[Mapping[str, Any]]],
+    *,
+    start: str,
+    end: str,
+    completed_through: str,
+    now: datetime | None,
+) -> dict[str, Any]:
+    normalized = {
+        str(symbol): [
+            bar
+            for row in rows
+            if isinstance(row, Mapping)
+            for bar in [normalize_alpaca_witness_bar(row)]
+            if bar is not None
+        ]
+        for symbol, rows in sorted(witness_bars.items())
+    }
+    encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    fetched_at = now or datetime.now(timezone.utc)
+    if fetched_at.tzinfo is None:
+        fetched_at = fetched_at.replace(tzinfo=timezone.utc)
+    fetched_at = fetched_at.astimezone(timezone.utc).replace(microsecond=0)
+    return {
+        "schema_version": "hermes-alpaca-witness-provenance-v1",
+        "source": ALPACA_WITNESS_SOURCE,
+        "source_url": DATA_URL,
+        "timeframe": "1Day",
+        "feed": "sip",
+        "adjustment": "raw",
+        "fetched_at": fetched_at.isoformat(),
+        "requested_start": str(start)[:10],
+        "requested_end": str(end)[:10],
+        "completed_through": completed_through,
+        "symbols": sorted(normalized),
+        "symbol_count": len(normalized),
+        "bar_count": sum(len(rows) for rows in normalized.values()),
+        "normalized_bars_sha256": hashlib.sha256(encoded).hexdigest(),
+    }
+
+
+def _safe_alpaca_witness_provenance(value: Mapping[str, Any]) -> dict[str, Any]:
+    return {key: value[key] for key in _ALPACA_PROVENANCE_FIELDS if key in value}
 
 
 def write_market_admission_evidence(

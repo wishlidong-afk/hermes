@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 from datetime import datetime, timezone
 import hashlib
+import json
 
 import pandas as pd
 import pytest
@@ -103,6 +104,38 @@ def test_market_admission_freezes_price_mismatch() -> None:
     assert admitted.empty
     assert evidence[0]["status"] == "PRICE_MISMATCH"
     assert evidence[0]["admitted"] is False
+
+
+def test_market_admission_mismatch_carries_raw_evidence_without_changing_decision() -> None:
+    witness = _witness(close=80.0)
+    witness["APCA-API-SECRET-KEY"] = "must-not-leak"
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"QQQ": [witness]},
+    )
+
+    admitted, evidence = session.admit("QQQ", _candidate())
+
+    row = evidence[0]
+    assert admitted.empty
+    assert {
+        "status": row["status"],
+        "admitted": row["admitted"],
+        "reason": row["reason"],
+        "close_diff_pct": row["close_diff_pct"],
+        "max_ohlc_diff_pct": row["max_ohlc_diff_pct"],
+        "volume_diff_pct": row["volume_diff_pct"],
+    } == {
+        "status": "PRICE_MISMATCH",
+        "admitted": False,
+        "reason": "raw OHLC difference exceeds witness policy",
+        "close_diff_pct": 25.0,
+        "max_ohlc_diff_pct": 25.0,
+        "volume_diff_pct": 0.0,
+    }
+    assert row["raw_comparison"]["candidate"]["bar"]["close"] == 100.0
+    assert row["raw_comparison"]["witness"]["bar"]["close"] == 80.0
+    assert "must-not-leak" not in json.dumps(row, sort_keys=True)
 
 
 def test_market_admission_selects_matching_position_when_candidate_dates_repeat() -> None:
@@ -312,6 +345,74 @@ def test_prepare_market_admission_keeps_alpaca_evidence_when_coinbase_fails() ->
     assert payload["status"] == "FETCH_ERROR"
     assert "Coinbase unavailable" in payload["fetch_error"]
     assert payload["btc_spot_witness"]["completed_through"] == "2026-07-13"
+
+
+def test_prepare_market_admission_records_safe_equity_witness_provenance() -> None:
+    def alpaca_transport(_url, _headers):
+        return {"bars": {"QQQ": [_witness(close=80.0)]}, "next_page_token": None}
+
+    session = prepare_market_admission_session(
+        ["QQQ"],
+        "2026-07-10",
+        "2026-07-14",
+        credentials={"key": "private-key", "secret": "private-secret"},
+        request_json=alpaca_transport,
+        now=datetime(2026, 7, 14, 5, 0, tzinfo=timezone.utc),
+    )
+    session.admit("QQQ", _candidate())
+
+    payload = session.payload()
+    provenance = payload["equity_witness"]
+    assert provenance == {
+        "schema_version": "hermes-alpaca-witness-provenance-v1",
+        "source": "ALPACA_SIP_1DAY",
+        "source_url": "https://data.alpaca.markets/v2/stocks/bars",
+        "timeframe": "1Day",
+        "feed": "sip",
+        "adjustment": "raw",
+        "fetched_at": "2026-07-14T05:00:00+00:00",
+        "requested_start": "2026-07-10",
+        "requested_end": "2026-07-14",
+        "completed_through": "2026-07-13",
+        "symbols": ["QQQ"],
+        "symbol_count": 1,
+        "bar_count": 1,
+        "normalized_bars_sha256": provenance["normalized_bars_sha256"],
+    }
+    assert len(provenance["normalized_bars_sha256"]) == 64
+    serialized = json.dumps(payload, sort_keys=True)
+    assert "private-key" not in serialized
+    assert "private-secret" not in serialized
+    assert "APCA-API" not in serialized
+
+
+def test_market_admission_payload_whitelists_injected_equity_provenance() -> None:
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={},
+        witness_provenance={
+            "alpaca": {
+                "schema_version": "hermes-alpaca-witness-provenance-v1",
+                "source": "ALPACA_SIP_1DAY",
+                "source_url": "https://data.alpaca.markets/v2/stocks/bars",
+                "feed": "sip",
+                "adjustment": "raw",
+                "APCA-API-KEY-ID": "must-not-leak",
+                "nested": {"secret": "also-must-not-leak"},
+            }
+        },
+    )
+
+    provenance = session.payload()["equity_witness"]
+
+    assert provenance == {
+        "schema_version": "hermes-alpaca-witness-provenance-v1",
+        "source": "ALPACA_SIP_1DAY",
+        "source_url": "https://data.alpaca.markets/v2/stocks/bars",
+        "feed": "sip",
+        "adjustment": "raw",
+    }
+    assert "must-not-leak" not in json.dumps(provenance, sort_keys=True)
 
 
 def test_prepare_market_admission_keeps_partial_coinbase_failure_provenance() -> None:

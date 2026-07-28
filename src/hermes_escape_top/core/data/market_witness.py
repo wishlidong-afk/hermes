@@ -19,6 +19,9 @@ from .store import LocalStore
 
 
 SCHEMA_VERSION = "hermes-market-witness-v1"
+RAW_COMPARISON_SCHEMA_VERSION = "hermes-market-bar-comparison-evidence-v1"
+YAHOO_CANDIDATE_SOURCE = "YAHOO_FINANCE_1DAY"
+ALPACA_WITNESS_SOURCE = "ALPACA_SIP_1DAY"
 PRICE_MATCH_PCT = 0.5
 PRICE_WARN_PCT = 1.0
 VOLUME_MATCH_PCT = 10.0
@@ -269,28 +272,40 @@ def compare_market_bar(
     require_complete: bool = False,
 ) -> dict[str, Any]:
     if not local:
-        return {
-            "status": "DATE_MISMATCH",
-            "supported": True,
-            "reason": "canonical bar missing for as_of",
-        }
+        return _attach_raw_comparison(
+            {
+                "status": "DATE_MISMATCH",
+                "supported": True,
+                "reason": "canonical bar missing for as_of",
+            },
+            local,
+            witness,
+        )
     if not witness:
-        return {
-            "status": "NO_WITNESS",
-            "supported": True,
-            "reason": "Alpaca SIP returned no daily bar for as_of",
-            "local_sha256": _hash_mapping(local),
-        }
+        return _attach_raw_comparison(
+            {
+                "status": "NO_WITNESS",
+                "supported": True,
+                "reason": "Alpaca SIP returned no daily bar for as_of",
+                "local_sha256": _hash_mapping(local),
+            },
+            local,
+            witness,
+        )
     local_date = str(local.get("date") or "")[:10]
     witness_date = str(witness.get("t") or "")[:10]
     if not local_date or not witness_date or local_date != witness_date:
-        return {
-            "status": "DATE_MISMATCH",
-            "supported": True,
-            "reason": f"canonical date {local_date or 'NA'} != witness date {witness_date or 'NA'}",
-            "local_sha256": _hash_mapping(local),
-            "witness_sha256": _hash_mapping(witness),
-        }
+        return _attach_raw_comparison(
+            {
+                "status": "DATE_MISMATCH",
+                "supported": True,
+                "reason": f"canonical date {local_date or 'NA'} != witness date {witness_date or 'NA'}",
+                "local_sha256": _hash_mapping(local),
+                "witness_sha256": _hash_mapping(witness),
+            },
+            local,
+            witness,
+        )
     price_diffs = {
         field: _relative_diff_pct(local.get(field), witness.get(field[0]))
         for field in ("open", "high", "low", "close")
@@ -328,7 +343,7 @@ def compare_market_bar(
     else:
         status = "MATCH"
         reason = "raw OHLC and volume agree within witness policy"
-    return {
+    result = {
         "status": status,
         "supported": True,
         "reason": reason,
@@ -345,6 +360,69 @@ def compare_market_bar(
         "local_sha256": _hash_mapping(local),
         "witness_sha256": _hash_mapping(witness),
     }
+    return _attach_raw_comparison(result, local, witness)
+
+
+def normalize_yahoo_candidate_bar(
+    value: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    if not value:
+        return None
+    return {
+        "date": str(value.get("date") or "")[:10] or None,
+        "open": _number(value.get("open")),
+        "high": _number(value.get("high")),
+        "low": _number(value.get("low")),
+        "close": _number(value.get("close")),
+        "volume": _number(value.get("volume")),
+    }
+
+
+def normalize_alpaca_witness_bar(
+    value: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    if not value:
+        return None
+    timestamp = str(value.get("t") or "") or None
+    return {
+        "date": timestamp[:10] if timestamp else None,
+        "timestamp": timestamp,
+        "open": _number(value.get("o")),
+        "high": _number(value.get("h")),
+        "low": _number(value.get("l")),
+        "close": _number(value.get("c")),
+        "volume": _number(value.get("v")),
+    }
+
+
+def _attach_raw_comparison(
+    result: dict[str, Any],
+    local: Mapping[str, Any] | None,
+    witness: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    if result.get("status") == "MATCH":
+        return result
+    candidate_bar = normalize_yahoo_candidate_bar(local)
+    witness_bar = normalize_alpaca_witness_bar(witness)
+    result["raw_comparison"] = {
+        "schema_version": RAW_COMPARISON_SCHEMA_VERSION,
+        "candidate": {
+            "source": YAHOO_CANDIDATE_SOURCE,
+            "auto_adjust": False,
+            "bar": candidate_bar,
+            "sha256": _hash_mapping(candidate_bar) if candidate_bar else None,
+        },
+        "witness": {
+            "source": ALPACA_WITNESS_SOURCE,
+            "source_url": DATA_URL,
+            "timeframe": "1Day",
+            "feed": "sip",
+            "adjustment": "raw",
+            "bar": witness_bar,
+            "sha256": _hash_mapping(witness_bar) if witness_bar else None,
+        },
+    }
+    return result
 
 
 def _evidence_band(

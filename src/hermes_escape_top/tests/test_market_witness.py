@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -82,6 +83,119 @@ def test_market_witness_reports_mismatch_without_promoting_it() -> None:
 
     assert payload["status"] == "WARN"
     assert payload["symbols"]["MSTR"]["status"] == "PRICE_MISMATCH"
+
+
+def test_market_witness_mismatch_retains_recomputable_whitelisted_bars() -> None:
+    local = _local(volume=1_000.0)
+    local["internal_note"] = "candidate-secret"
+    witness = _alpaca(close=100.0, volume=700.0)
+    witness["authorization"] = "witness-secret"
+
+    payload = build_market_witness_payload(
+        "2026-07-10",
+        ["SHV"],
+        {"SHV": local},
+        {"SHV": [witness]},
+    )
+
+    row = payload["symbols"]["SHV"]
+    raw = row["raw_comparison"]
+    candidate_bar = raw["candidate"]["bar"]
+    witness_bar = raw["witness"]["bar"]
+    assert row["status"] == "VOLUME_MISMATCH"
+    assert set(candidate_bar) == {"date", "open", "high", "low", "close", "volume"}
+    assert set(witness_bar) == {
+        "date",
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+    }
+    assert raw["candidate"]["source"] == "YAHOO_FINANCE_1DAY"
+    assert raw["candidate"]["auto_adjust"] is False
+    assert raw["witness"]["source"] == "ALPACA_SIP_1DAY"
+    assert raw["witness"]["source_url"] == "https://data.alpaca.markets/v2/stocks/bars"
+    assert raw["witness"]["feed"] == "sip"
+    assert raw["witness"]["adjustment"] == "raw"
+    assert row["close_diff_pct"] == round(
+        abs(candidate_bar["close"] - witness_bar["close"])
+        / abs(witness_bar["close"])
+        * 100.0,
+        4,
+    )
+    recomputed_ohlc = [
+        round(
+            abs(candidate_bar[field] - witness_bar[field])
+            / abs(witness_bar[field])
+            * 100.0,
+            4,
+        )
+        for field in ("open", "high", "low", "close")
+    ]
+    assert row["max_ohlc_diff_pct"] == max(recomputed_ohlc)
+    assert row["volume_diff_pct"] == round(
+        abs(candidate_bar["volume"] - witness_bar["volume"])
+        / abs(witness_bar["volume"])
+        * 100.0,
+        4,
+    )
+    for side in ("candidate", "witness"):
+        encoded = json.dumps(
+            raw[side]["bar"],
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        assert raw[side]["sha256"] == hashlib.sha256(encoded).hexdigest()
+    serialized = json.dumps(raw, sort_keys=True)
+    assert "candidate-secret" not in serialized
+    assert "witness-secret" not in serialized
+    assert "authorization" not in serialized.lower()
+
+
+def test_market_witness_match_does_not_add_raw_comparison() -> None:
+    payload = build_market_witness_payload(
+        "2026-07-10",
+        ["MSTR"],
+        {"MSTR": _local()},
+        {"MSTR": [_alpaca()]},
+    )
+
+    assert "raw_comparison" not in payload["symbols"]["MSTR"]
+
+
+def test_market_witness_no_witness_retains_only_candidate_raw_bar() -> None:
+    payload = build_market_witness_payload(
+        "2026-07-10",
+        ["MSTR"],
+        {"MSTR": _local()},
+        {},
+    )
+
+    row = payload["symbols"]["MSTR"]
+    assert row["status"] == "NO_WITNESS"
+    assert row["raw_comparison"]["candidate"]["bar"]["date"] == "2026-07-10"
+    assert row["raw_comparison"]["witness"]["bar"] is None
+    assert row["raw_comparison"]["witness"]["sha256"] is None
+
+
+def test_market_witness_date_mismatch_retains_both_raw_bars() -> None:
+    witness = _alpaca()
+    witness["t"] = "2026-07-09T04:00:00Z"
+
+    payload = build_market_witness_payload(
+        "2026-07-10",
+        ["MSTR"],
+        {"MSTR": _local()},
+        {"MSTR": [witness]},
+    )
+
+    raw = payload["symbols"]["MSTR"]["raw_comparison"]
+    assert raw["candidate"]["bar"]["date"] == "2026-07-10"
+    assert raw["witness"]["bar"]["date"] == "2026-07-09"
+    assert len(raw["candidate"]["sha256"]) == 64
+    assert len(raw["witness"]["sha256"]) == 64
 
 
 def test_market_witness_separates_price_and_volume_evidence() -> None:
