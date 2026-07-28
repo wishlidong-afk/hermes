@@ -396,7 +396,7 @@ def prepare_market_admission_session(
                 request_json=request_json,
                 now=now,
             )
-            witness_provenance = {
+            alpaca_provenance = {
                 "alpaca": _alpaca_witness_provenance(
                     alpaca_witness_bars,
                     start=start,
@@ -408,7 +408,7 @@ def prepare_market_admission_session(
             return MarketAdmissionSession(
                 enabled=True,
                 witness_bars=alpaca_witness_bars,
-                witness_provenance=witness_provenance,
+                witness_provenance=alpaca_provenance,
                 requested_start=str(start)[:10],
                 requested_end=str(end)[:10],
                 completed_through=completed_through,
