@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import io
+import json
 import re
 import urllib.request
 import zipfile
@@ -24,6 +25,13 @@ from .registry import ExternalSourceSpec
 
 
 NAAIM_INDEX_URL = "https://www.naaim.org/programs/naaim-exposure-index/"
+NAAIM_MEDIA_API_URL = (
+    "https://www.naaim.org/wp-json/wp/v2/media"
+    "?search=Use+Data&per_page=100&orderby=date&order=desc"
+)
+NAAIM_XLSX_MIME_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
 USER_AGENT = "hermes-escape-top/1.0 (research; read-only)"
 _ISSUE_DATE_RE = re.compile(r"(?<!\d)(20\d{2}-\d{2}-\d{2})(?!\d)")
 
@@ -38,21 +46,48 @@ def discover_naaim_xlsx_url(html: str, base_url: str = NAAIM_INDEX_URL) -> str |
     parser.feed(html or "")
     candidates: list[str] = []
     for raw_url in parser.urls:
-        url = urljoin(base_url, unescape(raw_url).strip())
-        parsed = urlparse(url)
-        host = (parsed.hostname or "").lower()
-        path = unquote(parsed.path).lower()
-        if parsed.scheme not in {"http", "https"}:
-            continue
-        if host != "naaim.org" and not host.endswith(".naaim.org"):
-            continue
-        if not path.endswith(".xlsx"):
+        url = _official_naaim_xlsx_url(raw_url, base_url)
+        if not url:
             continue
         if url not in candidates:
             candidates.append(url)
     if not candidates:
         return None
     return max(candidates, key=_workbook_rank)
+
+
+def discover_naaim_media_xlsx_url(rows: Any) -> str | None:
+    if not isinstance(rows, list):
+        return None
+    candidates: list[str] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("mime_type") or "").lower() != NAAIM_XLSX_MIME_TYPE:
+            continue
+        url = _official_naaim_xlsx_url(
+            str(row.get("source_url") or ""),
+            NAAIM_INDEX_URL,
+        )
+        if url and urlparse(url).scheme == "https" and url not in candidates:
+            candidates.append(url)
+    if not candidates:
+        return None
+    return max(candidates, key=_workbook_rank)
+
+
+def _official_naaim_xlsx_url(raw_url: str, base_url: str) -> str | None:
+    url = urljoin(base_url, unescape(raw_url).strip())
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    path = unquote(parsed.path).lower()
+    if parsed.scheme not in {"http", "https"}:
+        return None
+    if host != "naaim.org" and not host.endswith(".naaim.org"):
+        return None
+    if not path.endswith(".xlsx"):
+        return None
+    return url
 
 
 class _NaaimWorkbookLinkParser(HTMLParser):
@@ -82,6 +117,7 @@ def _workbook_rank(url: str) -> tuple[date, int, str]:
 @dataclass(frozen=True)
 class NaaimExposureAdapter:
     index_url: str = NAAIM_INDEX_URL
+    media_api_url: str = NAAIM_MEDIA_API_URL
     seed_path: Path | None = None
     percentile_window: int = 252
     min_periods: int = 20
@@ -91,9 +127,20 @@ class NaaimExposureAdapter:
     def fetch_raw(self) -> dict[str, Any]:
         html = self.fetch_text(self.index_url)
         xlsx_url = discover_naaim_xlsx_url(html, self.index_url)
+        discovery_channel = "index_page_link"
+        if not xlsx_url:
+            try:
+                media_rows = json.loads(self.fetch_text(self.media_api_url))
+            except Exception as exc:
+                raise ValueError(
+                    f"could not query NAAIM official media API: {exc}"
+                ) from exc
+            xlsx_url = discover_naaim_media_xlsx_url(media_rows)
+            discovery_channel = "wordpress_media_api"
         if not xlsx_url:
             raise ValueError(
-                "could not discover NAAIM xlsx URL; download the official workbook "
+                "could not discover NAAIM xlsx URL from the index or official media API; "
+                "download the official workbook "
                 "and run refresh_external --source naaim_exposure --import-file PATH"
             )
         xlsx = self.fetch_bytes(xlsx_url)
@@ -102,6 +149,7 @@ class NaaimExposureAdapter:
         return {
             "source": "naaim_public_workbook",
             "provenance": source_provenance("naaim_public_workbook"),
+            "discovery_channel": discovery_channel,
             "index_url": _evidence_url(urlparse(self.index_url)),
             "xlsx_url": _evidence_url(urlparse(xlsx_url)),
             "xlsx_sha256": hashlib.sha256(xlsx).hexdigest(),

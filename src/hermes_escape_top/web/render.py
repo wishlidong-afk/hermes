@@ -6,7 +6,10 @@ from html import escape
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
-from ..core.data.external_sources.ledger import canonical_evidence_issue
+from ..core.data.external_sources.ledger import (
+    canonical_evidence_issue,
+    certified_canonical_is_current,
+)
 from ..core.data.external_sources.profiles import display_source_ids, profile_for
 from ..core.safe_io import atomic_write_text
 from ..core.scoring.explain_registry import explain_factor
@@ -1123,6 +1126,7 @@ def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
         ok = 0
         err = 0
         miss = 0
+        retry = 0
         evidence_errors = 0
         for row in external.values():
             if not isinstance(row, dict):
@@ -1136,13 +1140,17 @@ def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
                 err += 1
             elif status == "OK":
                 ok += 1
+            elif certified_canonical_is_current(row):
+                ok += 1
+                retry += 1
             elif status == "MISSING":
                 miss += 1
             else:
                 err += 1
-        kind = "danger" if err else ("warn" if miss else "ok")
+        kind = "danger" if err else ("warn" if miss or retry else "ok")
         evidence_text = f" · EVIDENCE {evidence_errors}" if evidence_errors else ""
-        return f"OK {ok} / ERR {err} / MISS {miss}{evidence_text}", kind
+        retry_text = f" · RETRY {retry}" if retry else ""
+        return f"OK {ok} / ERR {err} / MISS {miss}{evidence_text}{retry_text}", kind
     precheck = payload.get("external_precheck_status")
     if isinstance(precheck, dict):
         ready = bool(precheck.get("ready"))

@@ -865,6 +865,17 @@ def _health_policy(health: Mapping[str, Any]) -> Tuple[list[str], list[str]]:
     if str(positions.get("level") or "OK") not in {"OK", "INFO"}:
         failures.append(f"position layer={positions.get('level')}")
 
+    operations = layers.get("operations") or {}
+    for row in operations.get("checks") or []:
+        level = str(row.get("level") or "")
+        label = str(row.get("label") or "")
+        detail = str(row.get("detail") or "")
+        message = f"operations: {label} {detail}".strip()
+        if level == "CRITICAL":
+            failures.append(message)
+        elif level in {"DEGRADED", "INFO"}:
+            warnings.append(message)
+
     auxiliary = layers.get("auxiliary_flows") or {}
     auxiliary_level = str(auxiliary.get("level") or "OK")
     if auxiliary_level != "OK":

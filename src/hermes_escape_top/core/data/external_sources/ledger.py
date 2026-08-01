@@ -34,6 +34,14 @@ def canonical_evidence_issue(row: dict[str, Any]) -> str:
     return "" if status in CANONICAL_EVIDENCE_OK_STATUSES else status
 
 
+def certified_canonical_is_current(row: dict[str, Any]) -> bool:
+    return (
+        str(row.get("status") or "") == "OK"
+        and str(row.get("freshness_status") or "") in {"OK", "DUE_SOON"}
+        and str(row.get("evidence_status") or "") == "MATCH"
+    )
+
+
 def ledger_path(archive_dir: Path) -> Path:
     return Path(archive_dir) / "external_sources" / LEDGER_NAME
 

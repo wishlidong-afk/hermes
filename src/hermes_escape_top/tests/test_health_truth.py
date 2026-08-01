@@ -193,7 +193,7 @@ def test_external_source_failure_degrades_with_reason():
     )
 
 
-def test_latest_external_attempt_failure_degrades_even_when_cached_canonical_is_ok():
+def test_latest_external_attempt_failure_is_operational_warn_when_canonical_is_certified_and_fresh():
     payload = _payload()
     payload["external_source_status"] = {
         "cboe_vix": {
@@ -209,11 +209,39 @@ def test_latest_external_attempt_failure_degrades_even_when_cached_canonical_is_
 
     health = _health(payload)
 
-    assert health["level"] == "DEGRADED"
-    assert any(
-        check["label"] == "外部数据源刷新失败"
+    assert health["level"] == "OK"
+    assert health["layers"]["strategy_data"]["level"] == "OK"
+    assert health["layers"]["operations"]["level"] == "DEGRADED"
+    check = next(
+        check
+        for check in health["checks"]
+        if check["label"] == "外部数据源刷新失败（认证缓存仍有效）"
         and "cboe_vix" in check["detail"]
         and "Yahoo witness mismatch" in check["detail"]
+    )
+    assert check["layer"] == "operations"
+
+
+def test_latest_external_attempt_failure_still_degrades_when_canonical_is_stale():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "naaim_exposure": {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "freshness_status": "STALE",
+            "evidence_status": "MATCH",
+            "latest_attempt_status": "FETCH_ERROR",
+            "latest_attempt_error_message": "official workbook unavailable",
+        }
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "DEGRADED"
+    assert health["layers"]["strategy_data"]["level"] == "DEGRADED"
+    assert any(
+        check["label"] == "外部数据源刷新失败"
+        and "naaim_exposure" in check["detail"]
         for check in health["checks"]
     )
 

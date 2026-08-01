@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 from ..core.data.external_sources.ledger import (
     CANONICAL_EVIDENCE_CRITICAL_STATUSES,
     canonical_evidence_issue,
+    certified_canonical_is_current,
 )
 from ..core.data.external_sources.profiles import profile_for
 from .refresh import _completed_trading_days_after
@@ -34,6 +35,7 @@ _LAYER_LABELS = {
     "strategy_data": "策略数据",
     "position_reconciliation": "持仓对账",
     "auxiliary_flows": "辅助资金流",
+    "operations": "运行维护",
 }
 
 
@@ -304,7 +306,18 @@ def compute_health(
                     or ""
                 )
                 detail = f"{source_id}: {attempt_status} {attempt_error}".strip()
-                add_source(failure_level, "外部数据源刷新失败", detail[:160])
+                if certified_canonical_is_current(row):
+                    operational_level = (
+                        "INFO" if decision_role == "research" else "DEGRADED"
+                    )
+                    add(
+                        operational_level,
+                        "外部数据源刷新失败（认证缓存仍有效）",
+                        detail[:160],
+                        "operations",
+                    )
+                else:
+                    add_source(failure_level, "外部数据源刷新失败", detail[:160])
                 continue
             if status == "OK" and freshness == "STALE":
                 detail = (

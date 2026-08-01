@@ -10,9 +10,11 @@ import pandas as pd
 
 from hermes_escape_top.core.data.external_sources.ledger import latest_source_run, source_status
 from hermes_escape_top.core.data.external_sources.naaim import (
+    NAAIM_MEDIA_API_URL,
     NaaimExposureAdapter,
     NaaimExposureImportAdapter,
     NaaimSubscriberAdapter,
+    discover_naaim_media_xlsx_url,
     discover_naaim_xlsx_url,
     naaim_exposure_spec,
 )
@@ -117,6 +119,78 @@ def test_discover_naaim_xlsx_url_prefers_latest_issue_over_legacy_name():
     """
 
     assert discover_naaim_xlsx_url(html) == "https://www.naaim.org/member-downloads/NAAIM_2026-07-08.xlsx"
+
+
+def test_discover_naaim_media_xlsx_url_selects_latest_official_workbook():
+    rows = [
+        {
+            "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "source_url": "https://naaim.org/wp-content/uploads/2026/07/USE_Data-since-Inception_2026-07-22.xlsx",
+        },
+        {
+            "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "source_url": "https://naaim.org/wp-content/uploads/2026/07/USE_Data-since-Inception_2026-07-29.xlsx",
+        },
+    ]
+
+    assert discover_naaim_media_xlsx_url(rows) == (
+        "https://naaim.org/wp-content/uploads/2026/07/"
+        "USE_Data-since-Inception_2026-07-29.xlsx"
+    )
+
+
+def test_discover_naaim_media_xlsx_url_rejects_wrong_host_mime_and_extension():
+    rows = [
+        {
+            "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "source_url": "https://example.com/USE_Data-since-Inception_2099-12-31.xlsx",
+        },
+        {
+            "mime_type": "text/html",
+            "source_url": "https://naaim.org/wp-content/uploads/2099/12/USE_Data-since-Inception_2099-12-31.xlsx",
+        },
+        {
+            "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "source_url": "https://naaim.org/wp-content/uploads/2099/12/latest.pdf",
+        },
+        {
+            "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "source_url": "http://naaim.org/wp-content/uploads/2099/12/USE_Data-since-Inception_2099-12-31.xlsx",
+        },
+    ]
+
+    assert discover_naaim_media_xlsx_url(rows) is None
+
+
+def test_naaim_adapter_uses_official_media_api_when_index_has_no_workbook():
+    xlsx_url = (
+        "https://naaim.org/wp-content/uploads/2026/07/"
+        "USE_Data-since-Inception_2026-07-29.xlsx"
+    )
+    calls = []
+
+    def fetch_text(url):
+        calls.append(url)
+        if url == NAAIM_MEDIA_API_URL:
+            return json.dumps([
+                {
+                    "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "source_url": xlsx_url,
+                }
+            ])
+        return '<iframe src="https://index.naaim.org/embeddable/table"></iframe>'
+
+    adapter = NaaimExposureAdapter(
+        fetch_text=fetch_text,
+        fetch_bytes=lambda url: _naaim_xlsx() if url == xlsx_url else b"",
+    )
+
+    raw = adapter.fetch_raw()
+
+    assert calls == [adapter.index_url, NAAIM_MEDIA_API_URL]
+    assert raw["source"] == "naaim_public_workbook"
+    assert raw["discovery_channel"] == "wordpress_media_api"
+    assert raw["xlsx_url"] == xlsx_url
 
 
 def test_naaim_adapter_promotes_existing_soft_history_shape(tmp_path):

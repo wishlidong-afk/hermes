@@ -736,6 +736,36 @@ def test_unexpected_auxiliary_degradation_fails_acceptance(tmp_path):
     )["status"] == "FAIL"
 
 
+def test_operational_refresh_failure_is_visible_without_blocking_acceptance():
+    module = _load_module()
+    health = {
+        "layers": {
+            "strategy_data": {"level": "OK", "checks": []},
+            "position_reconciliation": {"level": "OK", "checks": []},
+            "auxiliary_flows": {"level": "OK", "checks": []},
+            "operations": {
+                "level": "DEGRADED",
+                "checks": [
+                    {
+                        "level": "DEGRADED",
+                        "label": "外部数据源刷新失败（认证缓存仍有效）",
+                        "detail": "naaim_exposure: FETCH_ERROR workbook unavailable",
+                        "layer": "operations",
+                    }
+                ],
+            },
+        }
+    }
+
+    failures, warnings = module._health_policy(health)
+
+    assert failures == []
+    assert warnings == [
+        "operations: 外部数据源刷新失败（认证缓存仍有效） "
+        "naaim_exposure: FETCH_ERROR workbook unavailable"
+    ]
+
+
 def test_duplicate_dollar_health_rows_are_one_visible_warning(tmp_path):
     module = _load_module()
     home, now, dashboard_health = _acceptance_fixture(tmp_path)

@@ -628,6 +628,42 @@ def test_external_source_ops_shows_latest_failed_attempt_over_cached_ok_status()
     assert "CBOE VIX" in html
 
 
+def test_external_chain_counts_failed_retry_with_current_certified_cache_as_warn():
+    payload = {
+        "external_source_status": {
+            "naaim_exposure": {
+                "status": "OK",
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "latest_attempt_status": "FETCH_ERROR",
+            }
+        }
+    }
+
+    text, kind = render_mod._external_precheck_metric(payload)
+
+    assert text == "OK 1 / ERR 0 / MISS 0 · RETRY 1"
+    assert kind == "warn"
+
+
+def test_external_chain_keeps_failed_retry_red_when_certified_cache_is_stale():
+    payload = {
+        "external_source_status": {
+            "naaim_exposure": {
+                "status": "OK",
+                "freshness_status": "STALE",
+                "evidence_status": "MATCH",
+                "latest_attempt_status": "FETCH_ERROR",
+            }
+        }
+    }
+
+    text, kind = render_mod._external_precheck_metric(payload)
+
+    assert text == "OK 0 / ERR 1 / MISS 0"
+    assert kind == "danger"
+
+
 def test_external_source_ops_discloses_fred_api_non_endorsement():
     payload = _payload()
     payload["external_source_status"] = {
