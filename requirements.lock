@@ -233,6 +233,10 @@ curl-cffi==0.15.0 \
     # via
     #   -r requirements.txt
     #   yfinance
+eventkit==1.0.3 \
+    --hash=sha256:0e199527a89aff9d195b9671ad45d2cc9f79ecda0900de8ecfb4c864d67ad6a2 \
+    --hash=sha256:99497f6f3c638a50ff7616f2f8cd887b18bbff3765dc1bd8681554db1467c933
+    # via ib-insync
 frozendict==2.4.7 \
     --hash=sha256:05dd27415f913cd11649009f53d97eb565ce7b76787d7869c4733738c10e8d27 \
     --hash=sha256:0664092614d2b9d0aa404731f33ad5459a54fe8dab9d1fd45aa714fa6de4d0ef \
@@ -326,6 +330,10 @@ frozendict==2.4.7 \
     --hash=sha256:ffd1a9f9babec9119712e76a39397d8aa0d72ef8c4ccad917c6175d7e7f81b74 \
     --hash=sha256:fff8584e3bbdc5c1713cd016fbf4b88babfffd4e5e89b39020f2a208dd24c900
     # via yfinance
+ib-insync==0.9.86 \
+    --hash=sha256:73af602ca2463f260999970c5bd937b1c4325e383686eff301743a4de08d381e \
+    --hash=sha256:a61fbe56ff405d93d211dad8238d7300de76dd6399eafc04c320470edec9a4a4
+    # via -r requirements.txt
 idna==3.18 \
     --hash=sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2 \
     --hash=sha256:ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848
@@ -342,6 +350,10 @@ multitasking==0.0.13 \
     --hash=sha256:d896b5df877c9ca5eeddbf0e5994124694d6cb535aba698fb23344c7025155a1 \
     --hash=sha256:ec9243af140c67bfe52dc98d7173c294512735a88e8425c458b250db99dc2b48
     # via yfinance
+nest-asyncio==1.6.0 \
+    --hash=sha256:6f172d5449aca15afd6c646851f4e31e02c598d553a667e38cafa997cfec55fe \
+    --hash=sha256:87af6efd6b5e897c81050477ef65c62e2b2f35d51703cae01aff2905b1852e1c
+    # via ib-insync
 numpy==2.0.2 \
     --hash=sha256:0123ffdaa88fa4ab64835dcbde75dcdf89c453c922f18dced6e27c90d1d0ec5a \
     --hash=sha256:11a76c372d1d37437857280aa142086476136a8c0f373b2e648ab2c8f18fb195 \
@@ -390,6 +402,7 @@ numpy==2.0.2 \
     --hash=sha256:f26b258c385842546006213344c50655ff1555a9338e2e5e02a0756dc3e803dd
     # via
     #   -r requirements.txt
+    #   eventkit
     #   pandas
     #   scipy
     #   yfinance

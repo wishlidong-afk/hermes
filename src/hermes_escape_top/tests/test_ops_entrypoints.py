@@ -148,6 +148,7 @@ def test_runbook_uses_explicit_validation_python_and_lists_external_wrapper():
 
 
 def test_production_dependency_lock_is_exact_and_hashed():
+    direct = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8")
     lock = (REPO_ROOT / "requirements.lock").read_text(encoding="utf-8")
 
     for requirement in (
@@ -157,7 +158,9 @@ def test_production_dependency_lock_is_exact_and_hashed():
         "requests==2.33.0",
         "curl-cffi==0.15.0",
         "yfinance==1.2.1",
+        "ib-insync==0.9.86",
     ):
+        assert requirement in direct
         assert requirement in lock
     assert "--hash=sha256:" in lock
 
@@ -178,6 +181,7 @@ def test_runtime_bootstrap_uses_hash_verified_immutable_environment():
 
     assert '"$UV_BIN" pip sync' in script
     assert "--require-hashes" in script
+    assert "ib_insync" in script
     assert 'runtime/$LOCK_SHA' not in script  # destination is supplied explicitly
     assert "os.replace" in script
 

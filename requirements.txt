@@ -8,3 +8,4 @@ certifi==2026.4.22
 yfinance==1.2.1
 requests==2.33.0
 curl-cffi==0.15.0
+ib-insync==0.9.86

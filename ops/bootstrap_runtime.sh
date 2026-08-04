@@ -16,7 +16,7 @@ DEST="$RUNTIME_PARENT/$LOCK_SHA"
 PY="$DEST/.venv/bin/python"
 
 validate_runtime() {
-  "$1" -c 'import ssl, numpy, pandas, scipy, requests, yfinance; assert ssl.OPENSSL_VERSION.startswith("OpenSSL "), ssl.OPENSSL_VERSION'
+  "$1" -c 'import ssl, ib_insync, numpy, pandas, scipy, requests, yfinance; assert ssl.OPENSSL_VERSION.startswith("OpenSSL "), ssl.OPENSSL_VERSION'
 }
 
 if [ -x "$PY" ]; then
