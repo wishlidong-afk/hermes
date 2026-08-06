@@ -204,6 +204,93 @@ def market_witness_symbols(config: dict[str, Any]) -> list[str]:
     return sorted(symbols)
 
 
+def market_admission_field_inventory(config: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    """Describe decision-relevant fields without changing admission behavior.
+
+    The inventory is research evidence for the 30-session field-aware review.
+    Production admission remains full-row fail-closed. Symbols used by scoring
+    or component-flow calculations conservatively require OHLCV; routing and
+    execution-reference symbols require a coherent OHLC price bar even when
+    their current decision path consumes only close-derived values.
+    """
+
+    trade_symbols = {str(symbol).upper() for symbol in (config.get("symbols") or {})}
+    component_symbols = {
+        str(symbol).upper()
+        for values in (config.get("component_proxies") or {}).values()
+        for symbol in values
+    }
+    full_ohlcv = trade_symbols | component_symbols | {"QQQ"}
+    routing = config.get("routing") or {}
+    defcon1 = routing.get("defcon1") or {}
+    defcon2 = routing.get("defcon2") or {}
+    defcon3 = routing.get("defcon3") or {}
+    route_destinations = {
+        str(symbol).upper()
+        for symbol in defcon3.values()
+        if symbol
+    }
+    route_destinations.update(
+        str(symbol).upper()
+        for symbol, weight in defcon1.items()
+        if symbol not in {"TREND", "trend_symbol", "extra_legs"}
+        and isinstance(weight, (int, float))
+    )
+    if defcon1.get("trend_symbol"):
+        route_destinations.add(str(defcon1["trend_symbol"]).upper())
+    route_destinations.update(
+        str(symbol).upper() for symbol in (defcon1.get("extra_legs") or {})
+    )
+    route_destinations.update(
+        str(defcon2.get(key)).upper()
+        for key in ("primary", "fallback")
+        if defcon2.get(key)
+    )
+
+    inventory: dict[str, dict[str, Any]] = {}
+    for raw_symbol in market_witness_symbols(dict(config)):
+        symbol = str(raw_symbol).upper()
+        roles: list[str] = []
+        if symbol in trade_symbols:
+            roles.append("scored_symbol")
+        if symbol in component_symbols:
+            roles.append("component_flow")
+        if symbol == "QQQ":
+            roles.append("macro_and_flow_context")
+        if symbol == str(defcon2.get("primary") or "").upper():
+            roles.append("defcon2_route")
+        elif symbol in route_destinations:
+            roles.append("capital_route")
+        if symbol in route_destinations:
+            roles.append("execution_reference")
+        if not roles:
+            roles.append("market_context")
+
+        if symbol == "BTC-USD":
+            channel = "coinbase_spot"
+        elif is_alpaca_supported_symbol(symbol):
+            channel = "alpaca_sip"
+        else:
+            channel = "not_applicable"
+        volume_required = symbol in full_ohlcv
+        inventory[symbol] = {
+            "admission_channel": channel,
+            "decision_fields": (
+                ["open", "high", "low", "close", "volume"]
+                if volume_required
+                else ["close"]
+            ),
+            "certification_fields": (
+                ["open", "high", "low", "close", "volume"]
+                if volume_required
+                else ["open", "high", "low", "close"]
+            ),
+            "volume_required": volume_required,
+            "roles": roles,
+        }
+    return inventory
+
+
 def write_market_witness(archive_dir: Path, payload: dict[str, Any]) -> dict[str, Any]:
     archive = Path(archive_dir)
     archive.mkdir(parents=True, exist_ok=True)

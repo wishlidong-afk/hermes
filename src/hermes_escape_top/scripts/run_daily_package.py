@@ -99,6 +99,10 @@ from hermes_escape_top.core.data.market_admission import (
     prepare_market_admission_session,
     read_market_admission_evidence,
 )
+from hermes_escape_top.core.data.market_third_source import (
+    collect_market_admission_third_source_shadow,
+    write_market_admission_third_source_shadow,
+)
 from hermes_escape_top.core.data.decision_as_of import last_bar_dates as decision_last_bar_dates
 from hermes_escape_top.core.data.store import LocalStore, safe_symbol
 from hermes_escape_top.core.data.run_transaction import recover_incomplete_score_run
@@ -215,6 +219,42 @@ def _prepare_daily_market_admission(
         str(end)[:10],
         **admission_kwargs,
     )
+
+
+def _collect_market_admission_third_source_shadow(
+    market_admission_status: Dict[str, Any],
+    config: Dict[str, Any],
+) -> Dict[str, Any] | None:
+    if (
+        str(market_admission_status.get("status") or "") != "BLOCKED"
+        or int(market_admission_status.get("rejected_rows") or 0) <= 0
+    ):
+        return None
+    try:
+        shadow = collect_market_admission_third_source_shadow(
+            market_admission_status
+        )
+        written = write_market_admission_third_source_shadow(
+            resolve_path(config, "archive_dir"),
+            shadow,
+        )
+        print(
+            "[M4-1t] Third-source shadow "
+            f"{shadow.get('status')} -> {written.get('cache_path')}"
+        )
+        return shadow
+    except Exception as exc:
+        print(
+            "[M4-1t] WARNING: third-source shadow unavailable "
+            f"({exc!r}); production admission remains unchanged."
+        )
+        return {
+            "schema_version": "hermes-market-admission-third-source-shadow-v1",
+            "research_only": True,
+            "status": "ERROR",
+            "error_type": exc.__class__.__name__,
+            "error": str(exc)[:240],
+        }
 
 
 def _heal_lagging_symbols(
@@ -1577,6 +1617,14 @@ def _execute_daily(
         )
         if market_admission_session is not None:
             market_admission_status = market_admission_session.payload()
+        if not shadow and market_admission_status is not None:
+            third_source_shadow = _collect_market_admission_third_source_shadow(
+                market_admission_status,
+                load_config(),
+            )
+            if third_source_shadow is not None:
+                market_admission_status = dict(market_admission_status)
+                market_admission_status["third_source_shadow"] = third_source_shadow
         _run_context["step"] = "external_source_refresh"
         try:
             refresh_external_sources(_lease=_lease)

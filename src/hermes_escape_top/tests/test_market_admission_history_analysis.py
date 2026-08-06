@@ -152,6 +152,29 @@ def test_loader_ignores_latest_alias_and_reads_dated_artifacts(tmp_path: Path):
     assert artifacts[0]["artifact_sha256"] == hashlib.sha256(dated.read_bytes()).hexdigest()
 
 
+def test_loader_ignores_separate_third_source_shadow_artifacts(tmp_path: Path):
+    module = _load_module()
+    payload = _artifact("ignored", "2026-08-05", "OK", [])
+    (tmp_path / "market_admission_2026-08-06.json").write_text(
+        json.dumps(payload),
+        encoding="utf-8",
+    )
+    shadow = {"schema_version": "hermes-market-admission-third-source-shadow-v1"}
+    (tmp_path / "market_admission_third_source_2026-08-06.json").write_text(
+        json.dumps(shadow),
+        encoding="utf-8",
+    )
+    (tmp_path / "market_admission_third_source_latest.json").write_text(
+        json.dumps(shadow),
+        encoding="utf-8",
+    )
+
+    artifacts = module.load_artifacts(tmp_path)
+
+    assert len(artifacts) == 1
+    assert artifacts[0]["artifact_date"] == "2026-08-06"
+
+
 def test_source_manifest_is_stable_across_archive_locations(tmp_path: Path):
     payload = _artifact("ignored", "2026-07-27", "OK", [])
     reports = []
@@ -174,3 +197,108 @@ def test_source_manifest_is_stable_across_archive_locations(tmp_path: Path):
         reports[0]["source_evidence"]["artifact_manifest_sha256"]
         == reports[1]["source_evidence"]["artifact_manifest_sha256"]
     )
+
+
+def test_field_aware_shadow_only_avoids_non_required_volume_blocks():
+    module = _load_module()
+    volume_only = _row(
+        "BRK.B",
+        "2026-08-05",
+        "VOLUME_MISMATCH",
+        admitted=False,
+        volume=36.4139,
+    )
+    volume_only.update(
+        price_evidence_status="MATCH",
+        volume_evidence_status="MISMATCH",
+    )
+    price_mismatch = _row(
+        "AMZN",
+        "2026-08-05",
+        "PRICE_MISMATCH",
+        admitted=False,
+    )
+    price_mismatch.update(
+        price_evidence_status="MISMATCH",
+        volume_evidence_status="MATCH",
+    )
+    inventory = {
+        "BRK.B": {"volume_required": False},
+        "AMZN": {"volume_required": True},
+    }
+
+    report = module.analyze_artifacts(
+        [
+            _artifact(
+                "2026-08-06",
+                "2026-08-05",
+                "BLOCKED",
+                [volume_only, price_mismatch],
+            )
+        ],
+        target_sessions=30,
+        field_inventory=inventory,
+    )
+
+    assert report["policy_decision"] == "HOLD_FAIL_CLOSED_POLICY"
+    assert report["field_aware_shadow"] == {
+        "research_only": True,
+        "current_blocked_sessions": 1,
+        "simulated_blocked_sessions": 1,
+        "avoided_blocked_sessions": 0,
+        "eligible_volume_only_events": 1,
+    }
+    events = {event["symbol"]: event for event in report["events"]}
+    assert events["BRK.B"]["field_aware_shadow_status"] == (
+        "WOULD_ADMIT_PRICE_CONSENSUS"
+    )
+    assert events["AMZN"]["field_aware_shadow_status"] == "REMAINS_BLOCKED"
+
+
+def test_field_aware_shadow_counts_session_avoided_when_all_blocks_are_eligible():
+    module = _load_module()
+    row = _row(
+        "BRK.B",
+        "2026-08-05",
+        "VOLUME_MISMATCH",
+        admitted=False,
+        volume=36.4139,
+    )
+    row.update(price_evidence_status="MATCH", volume_evidence_status="MISMATCH")
+
+    report = module.analyze_artifacts(
+        [_artifact("2026-08-06", "2026-08-05", "BLOCKED", [row])],
+        target_sessions=30,
+        field_inventory={"BRK.B": {"volume_required": False}},
+    )
+
+    assert report["field_aware_shadow"]["current_blocked_sessions"] == 1
+    assert report["field_aware_shadow"]["simulated_blocked_sessions"] == 0
+    assert report["field_aware_shadow"]["avoided_blocked_sessions"] == 1
+
+
+def test_field_inventory_evidence_is_bound_and_order_independent():
+    module = _load_module()
+    artifacts = [_artifact("2026-08-06", "2026-08-05", "OK", [])]
+    first = {
+        "BRK.B": {"volume_required": False, "decision_fields": ["close"]},
+        "QQQ": {"volume_required": True, "decision_fields": ["close", "volume"]},
+    }
+    second = dict(reversed(list(first.items())))
+
+    report_a = module.analyze_artifacts(
+        artifacts,
+        target_sessions=30,
+        field_inventory=first,
+    )
+    report_b = module.analyze_artifacts(
+        artifacts,
+        target_sessions=30,
+        field_inventory=second,
+    )
+
+    evidence = report_a["field_inventory_evidence"]
+    assert evidence["schema_version"] == "hermes-market-field-inventory-v1"
+    assert evidence["symbols"] == first
+    assert len(evidence["sha256"]) == 64
+    assert evidence["sha256"] == report_b["field_inventory_evidence"]["sha256"]

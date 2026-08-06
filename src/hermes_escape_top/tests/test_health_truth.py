@@ -288,6 +288,52 @@ def test_market_admission_blocked_explains_price_and_volume_evidence():
     assert "volume[MISMATCH=1]" in check["detail"]
 
 
+def test_market_admission_blocked_names_the_first_quarantined_row():
+    payload = _payload()
+    payload["market_admission_status"] = {
+        "mode": "enforce_consensus",
+        "status": "BLOCKED",
+        "rejected_rows": 1,
+        "summary": {"VOLUME_MISMATCH": 1},
+        "price_evidence_summary": {"MATCH": 1},
+        "volume_evidence_summary": {"MISMATCH": 1},
+        "rows": [
+            {
+                "symbol": "BRK.B",
+                "date": "2026-08-05",
+                "status": "VOLUME_MISMATCH",
+                "admitted": False,
+                "price_evidence_status": "MATCH",
+                "volume_evidence_status": "MISMATCH",
+                "volume_diff_pct": 36.4139,
+            }
+        ],
+        "third_source_shadow": {
+            "status": "OK",
+            "research_only": True,
+            "rows": [
+                {
+                    "symbol": "BRK.B",
+                    "date": "2026-08-05",
+                    "third_source_support": "ALPACA_WITNESS",
+                }
+            ],
+        },
+    }
+
+    health = _health(payload)
+
+    check = next(
+        check
+        for check in health["checks"]
+        if check["label"] == "双源行情候选已隔离"
+    )
+    assert "BRK.B 2026-08-05" in check["detail"]
+    assert "volume diff=36.4139%" in check["detail"]
+    assert "price=MATCH" in check["detail"]
+    assert "third=ALPACA_WITNESS" in check["detail"]
+
+
 def test_market_admission_fetch_error_never_falls_back_silently():
     payload = _payload()
     payload["market_admission_status"] = {

@@ -146,10 +146,17 @@ def compute_health(
                 )
                 evidence_parts.append(f"{label}[{values}]")
         evidence_text = " ".join(evidence_parts) or summary_text
+        rejected_detail = _market_admission_rejected_detail(
+            market_admission.get("rows") or [],
+            market_admission.get("third_source_shadow") or {},
+        )
+        detail = " · ".join(
+            part for part in (rejected_detail, evidence_text) if part
+        )
         add(
             "DEGRADED",
             "双源行情候选已隔离",
-            f"rejected={market_admission.get('rejected_rows', 0)} {evidence_text}".strip()[:160],
+            f"rejected={market_admission.get('rejected_rows', 0)} {detail}".strip()[:240],
         )
 
     # 4. Overall data-quality level
@@ -361,6 +368,46 @@ def _layers(checks: List[Dict[str, str]]) -> Dict[str, Dict[str, Any]]:
             "checks": subset,
         }
     return out
+
+
+def _market_admission_rejected_detail(rows: Any, shadow: Any = None) -> str:
+    if not isinstance(rows, list):
+        return ""
+    shadow_support: dict[tuple[str, str], str] = {}
+    if isinstance(shadow, dict):
+        for item in shadow.get("rows") or []:
+            if not isinstance(item, dict):
+                continue
+            key = (
+                str(item.get("symbol") or ""),
+                str(item.get("date") or "")[:10],
+            )
+            support = str(item.get("third_source_support") or "")
+            if all(key) and support:
+                shadow_support[key] = support
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if row.get("admitted") is not False or row.get("blocking") is False:
+            continue
+        symbol = str(row.get("symbol") or "?")
+        day = str(row.get("date") or "?")[:10]
+        status = str(row.get("status") or "UNKNOWN")
+        parts = [f"{symbol} {day} {status}"]
+        price_status = row.get("price_evidence_status")
+        if price_status:
+            parts.append(f"price={price_status}")
+        volume_diff = row.get("volume_diff_pct")
+        if volume_diff is not None:
+            try:
+                parts.append(f"volume diff={float(volume_diff):.4f}%")
+            except (TypeError, ValueError):
+                pass
+        support = shadow_support.get((symbol, day))
+        if support:
+            parts.append(f"third={support}")
+        return " ".join(parts)
+    return ""
 
 
 def _level_from_checks(checks: List[Dict[str, str]]) -> str:

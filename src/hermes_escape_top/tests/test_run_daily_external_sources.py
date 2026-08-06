@@ -278,3 +278,61 @@ def test_daily_market_admission_passes_btc_spot_witness_flag(tmp_path, monkeypat
     assert captured["symbols"] == ["BTC-USD"]
     assert captured["end"] == "2026-07-14"
     assert captured["kwargs"] == {"btc_spot_witness_enabled": True}
+
+
+def test_market_third_source_shadow_writes_only_for_blocked_admission(
+    tmp_path, monkeypatch
+):
+    calls = []
+    expected = {
+        "schema_version": "hermes-market-admission-third-source-shadow-v1",
+        "research_only": True,
+        "status": "OK",
+        "rows": [],
+    }
+    monkeypatch.setattr(
+        rdp,
+        "collect_market_admission_third_source_shadow",
+        lambda payload: calls.append(("collect", payload["status"])) or expected,
+    )
+    monkeypatch.setattr(
+        rdp,
+        "write_market_admission_third_source_shadow",
+        lambda archive, payload: calls.append(("write", archive, payload["status"]))
+        or {**payload, "cache_path": str(archive / "shadow.json")},
+    )
+    config = {"paths": {"archive_dir": str(tmp_path)}}
+
+    skipped = rdp._collect_market_admission_third_source_shadow(
+        {"status": "OK", "rejected_rows": 0},
+        config,
+    )
+    actual = rdp._collect_market_admission_third_source_shadow(
+        {"status": "BLOCKED", "rejected_rows": 1},
+        config,
+    )
+
+    assert skipped is None
+    assert actual == expected
+    assert calls == [
+        ("collect", "BLOCKED"),
+        ("write", tmp_path, "OK"),
+    ]
+
+
+def test_market_third_source_shadow_failure_is_nonblocking(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        rdp,
+        "collect_market_admission_third_source_shadow",
+        lambda _payload: (_ for _ in ()).throw(TimeoutError("shadow timeout")),
+    )
+
+    result = rdp._collect_market_admission_third_source_shadow(
+        {"status": "BLOCKED", "rejected_rows": 1},
+        {"paths": {"archive_dir": str(tmp_path)}},
+    )
+
+    assert result["status"] == "ERROR"
+    assert result["research_only"] is True
+    assert result["error_type"] == "TimeoutError"
+    assert "shadow timeout" in result["error"]

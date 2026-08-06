@@ -1,0 +1,50 @@
+{
+  "admission_operation_id": "0ebcd2685e2642feb8439ec27711b0e6",
+  "completed_through": "2026-08-05",
+  "fetched_at": "2026-08-06T01:55:43.640492+00:00",
+  "requested_rows": 1,
+  "research_only": true,
+  "rows": [
+    {
+      "admission_status_unchanged": "VOLUME_MISMATCH",
+      "candidate_vs_third": {
+        "close_diff_pct": 0.0,
+        "max_ohlc_diff_pct": 0.0,
+        "price_evidence_status": "MATCH",
+        "reason": "raw volume difference exceeds witness policy",
+        "status": "VOLUME_MISMATCH",
+        "volume_diff_pct": 35.3595,
+        "volume_evidence_status": "MISMATCH"
+      },
+      "date": "2026-08-05",
+      "symbol": "BRK.B",
+      "third_source": {
+        "bar": {
+          "close": 518.85,
+          "date": "2026-08-05",
+          "high": 519.7677,
+          "low": 512.2,
+          "open": 519.0,
+          "volume": 3697372.0
+        },
+        "bar_sha256": "2739a8ac6cdef2c604cdc50b0fb7ace6503461e0634a0b05f936e6b2fab8444b",
+        "requested_symbol": "BRK.B",
+        "source": "ALPHA_VANTAGE_TIME_SERIES_DAILY",
+        "source_url": "https://www.alphavantage.co/query",
+        "vendor_symbol": "BRK-B"
+      },
+      "third_source_support": "ALPACA_WITNESS",
+      "witness_vs_third": {
+        "close_diff_pct": 0.0,
+        "max_ohlc_diff_pct": 0.0,
+        "price_evidence_status": "MATCH",
+        "reason": "raw OHLC and volume agree within witness policy",
+        "status": "MATCH",
+        "volume_diff_pct": 1.6583,
+        "volume_evidence_status": "MATCH"
+      }
+    }
+  ],
+  "schema_version": "hermes-market-admission-third-source-shadow-v1",
+  "status": "OK"
+}

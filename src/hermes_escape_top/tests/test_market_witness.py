@@ -10,10 +10,13 @@ from threading import Barrier
 
 import pandas as pd
 
+from hermes_escape_top.config import load_config
 from hermes_escape_top.core.data.market_witness import (
     build_market_witness_payload,
     fetch_alpaca_daily_bar_range,
     fetch_alpaca_daily_bars,
+    market_admission_field_inventory,
+    market_witness_symbols,
     refresh_market_witness,
     write_market_witness,
 )
@@ -217,6 +220,32 @@ def test_market_witness_separates_price_and_volume_evidence() -> None:
         "volume_warn_pct": 25.0,
         "admission_mode": "FAIL_CLOSED",
     }
+
+
+def test_market_field_inventory_covers_every_witness_symbol_conservatively() -> None:
+    config = load_config()
+
+    inventory = market_admission_field_inventory(config)
+
+    assert set(inventory) == set(market_witness_symbols(config))
+    assert inventory["BRK.B"] == {
+        "admission_channel": "alpaca_sip",
+        "decision_fields": ["close"],
+        "certification_fields": ["open", "high", "low", "close"],
+        "volume_required": False,
+        "roles": ["defcon2_route", "execution_reference"],
+    }
+    for symbol in ("MSTR", "QQQ", "AMZN", "NVDA"):
+        assert inventory[symbol]["volume_required"] is True
+        assert inventory[symbol]["certification_fields"] == [
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+        ]
+    assert inventory["BTC-USD"]["admission_channel"] == "coinbase_spot"
+    assert inventory["^VIX"]["admission_channel"] == "not_applicable"
 
 
 def test_market_witness_reports_date_mismatch_before_price_comparison() -> None:

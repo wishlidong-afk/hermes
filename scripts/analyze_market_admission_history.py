@@ -13,6 +13,7 @@ from typing import Any, Iterable, Mapping
 
 
 SCHEMA_VERSION = "hermes-market-admission-history-study-v1"
+FIELD_INVENTORY_SCHEMA_VERSION = "hermes-market-field-inventory-v1"
 DEFAULT_PRICE_MATCH_PCT = 0.5
 DEFERRED_STATUSES = {"DEFERRED_UNFINALIZED", "UNFINALIZED_SESSION"}
 
@@ -20,9 +21,7 @@ DEFERRED_STATUSES = {"DEFERRED_UNFINALIZED", "UNFINALIZED_SESSION"}
 def load_artifacts(archive_dir: Path) -> list[dict[str, Any]]:
     archive = Path(archive_dir)
     artifacts: list[dict[str, Any]] = []
-    for path in sorted(archive.glob("market_admission_*.json")):
-        if path.name == "market_admission_latest.json":
-            continue
+    for path in sorted(archive.glob("market_admission_????-??-??.json")):
         suffix = path.stem.removeprefix("market_admission_")
         try:
             datetime.strptime(suffix, "%Y-%m-%d")
@@ -49,6 +48,7 @@ def analyze_artifacts(
     artifacts: Iterable[Mapping[str, Any]],
     *,
     target_sessions: int = 30,
+    field_inventory: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if target_sessions <= 0:
         raise ValueError("target_sessions must be positive")
@@ -71,6 +71,22 @@ def analyze_artifacts(
         default=0,
     )
 
+    inventory = {
+        str(symbol).upper(): dict(policy)
+        for symbol, policy in (field_inventory or {}).items()
+    }
+    inventory_payload = {
+        symbol: inventory[symbol]
+        for symbol in sorted(inventory)
+    }
+    inventory_sha256 = hashlib.sha256(
+        json.dumps(
+            inventory_payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
     session_rows = [
         {
             "completed_through": day,
@@ -85,6 +101,10 @@ def analyze_artifacts(
         )
     ]
     blocked_sessions = sum(row["status"] == "BLOCKED" for row in session_rows)
+    simulated_blocked_sessions = sum(
+        _artifact_remains_blocked_under_field_shadow(first_by_session[day][1], inventory)
+        for day in selected_sessions
+    )
 
     histories: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     deferred_keys: set[tuple[str, str, str]] = set()
@@ -148,6 +168,11 @@ def analyze_artifacts(
                 recovery_row.get("artifact_date")
                 if recovery_row is not None
                 else None
+            ),
+            "field_aware_shadow_status": (
+                "WOULD_ADMIT_PRICE_CONSENSUS"
+                if _field_aware_shadow_admits(failure, inventory)
+                else "REMAINS_BLOCKED"
             ),
         }
         events.append(event)
@@ -215,6 +240,11 @@ def analyze_artifacts(
             "artifact_manifest_sha256": source_manifest_sha256,
             "artifacts": source_artifacts,
         },
+        "field_inventory_evidence": {
+            "schema_version": FIELD_INVENTORY_SCHEMA_VERSION,
+            "sha256": inventory_sha256,
+            "symbols": inventory_payload,
+        },
         "sample": {
             "target_sessions": target_sessions,
             "available_sessions": available,
@@ -227,6 +257,19 @@ def analyze_artifacts(
             "blocked_sessions": blocked_sessions,
             "ok_sessions": sum(row["status"] == "OK" for row in session_rows),
             "blocked_session_rate_pct": _percentage(blocked_sessions, available),
+        },
+        "field_aware_shadow": {
+            "research_only": True,
+            "current_blocked_sessions": blocked_sessions,
+            "simulated_blocked_sessions": simulated_blocked_sessions,
+            "avoided_blocked_sessions": max(
+                0, blocked_sessions - simulated_blocked_sessions
+            ),
+            "eligible_volume_only_events": sum(
+                event["field_aware_shadow_status"]
+                == "WOULD_ADMIT_PRICE_CONSENSUS"
+                for event in events
+            ),
         },
         "blocking_summary": {
             "unique_events": len(events),
@@ -249,6 +292,7 @@ def render_markdown(report: Mapping[str, Any], *, archive_dir: Path) -> str:
     sample = report.get("sample") or {}
     sessions = report.get("session_summary") or {}
     blocking = report.get("blocking_summary") or {}
+    shadow = report.get("field_aware_shadow") or {}
     lines = [
         "# Market Admission Reliability Study",
         "",
@@ -272,6 +316,7 @@ def render_markdown(report: Mapping[str, Any], *, archive_dir: Path) -> str:
         f"| Admission artifacts | {sample.get('artifact_count')} |",
         f"| Session selection | {sample.get('session_selection_policy')} |",
         f"| Artifact manifest SHA-256 | `{(report.get('source_evidence') or {}).get('artifact_manifest_sha256')}` |",
+        f"| Field inventory SHA-256 | `{(report.get('field_inventory_evidence') or {}).get('sha256')}` |",
         f"| Independent completed sessions | {sample.get('available_sessions')} |",
         f"| Blocked sessions | {sessions.get('blocked_sessions')} ({sessions.get('blocked_session_rate_pct')}%) |",
         f"| Unique blocking symbol/dates | {blocking.get('unique_events')} |",
@@ -280,15 +325,17 @@ def render_markdown(report: Mapping[str, Any], *, archive_dir: Path) -> str:
         f"| Recovered on next observed run | {blocking.get('next_run_recoveries')} |",
         f"| Pending with no later evidence | {blocking.get('pending_events')} |",
         f"| Blocking events with close inside 0.5% band | {blocking.get('close_within_match_band')} |",
+        f"| Field-aware shadow eligible events | {shadow.get('eligible_volume_only_events')} |",
+        f"| Field-aware shadow avoided blocked sessions | {shadow.get('avoided_blocked_sessions')} |",
         "",
         "## Blocking Events",
         "",
-        "| Symbol | Session | First seen | Status | Close diff | Max OHLC diff | Volume diff | Resolution | Recovery run |",
-        "|---|---|---|---|---:|---:|---:|---|---:|",
+        "| Symbol | Session | First seen | Status | Close diff | Max OHLC diff | Volume diff | Shadow | Resolution | Recovery run |",
+        "|---|---|---|---|---:|---:|---:|---|---|---:|",
     ]
     for event in report.get("events") or []:
         lines.append(
-            "| {symbol} | {date} | {first} | {status} | {close} | {ohlc} | {volume} | {resolution} | {runs} |".format(
+            "| {symbol} | {date} | {first} | {status} | {close} | {ohlc} | {volume} | {shadow} | {resolution} | {runs} |".format(
                 symbol=event.get("symbol"),
                 date=event.get("date"),
                 first=event.get("first_artifact_date"),
@@ -296,6 +343,7 @@ def render_markdown(report: Mapping[str, Any], *, archive_dir: Path) -> str:
                 close=_format_pct(event.get("close_diff_pct")),
                 ohlc=_format_pct(event.get("max_ohlc_diff_pct")),
                 volume=_format_pct(event.get("volume_diff_pct")),
+                shadow=event.get("field_aware_shadow_status"),
                 resolution=event.get("resolution_status"),
                 runs=event.get("runs_to_recovery") or "-",
             )
@@ -356,6 +404,37 @@ def _is_admitted(row: Mapping[str, Any]) -> bool:
     return row.get("admitted") is True or str(row.get("status") or "") == "MATCH"
 
 
+def _field_aware_shadow_admits(
+    row: Mapping[str, Any],
+    inventory: Mapping[str, Mapping[str, Any]],
+) -> bool:
+    policy = inventory.get(str(row.get("symbol") or "").upper()) or {}
+    return (
+        bool(policy)
+        and policy.get("volume_required") is False
+        and str(row.get("status") or "") == "VOLUME_MISMATCH"
+        and str(row.get("price_evidence_status") or "") == "MATCH"
+        and str(row.get("volume_evidence_status") or "") == "MISMATCH"
+    )
+
+
+def _artifact_remains_blocked_under_field_shadow(
+    artifact: Mapping[str, Any],
+    inventory: Mapping[str, Mapping[str, Any]],
+) -> int:
+    if str(artifact.get("status") or "") != "BLOCKED":
+        return 0
+    blocking_rows = [row for row in _artifact_rows(artifact) if _is_blocking(row)]
+    if not blocking_rows:
+        return 1
+    return int(
+        any(
+            not _field_aware_shadow_admits(row, inventory)
+            for row in blocking_rows
+        )
+    )
+
+
 def _number(value: Any) -> float | None:
     try:
         return float(value)
@@ -390,13 +469,27 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--archive", type=Path, required=True)
     parser.add_argument("--target-sessions", type=int, default=30)
+    parser.add_argument(
+        "--config",
+        type=Path,
+        help="Optional Hermes config used to build the research-only field inventory.",
+    )
     parser.add_argument("--output-json", type=Path)
     parser.add_argument("--output-md", type=Path)
     args = parser.parse_args()
 
+    field_inventory = None
+    if args.config:
+        from hermes_escape_top.config import load_config
+        from hermes_escape_top.core.data.market_witness import (
+            market_admission_field_inventory,
+        )
+
+        field_inventory = market_admission_field_inventory(load_config(args.config))
     report = analyze_artifacts(
         load_artifacts(args.archive),
         target_sessions=args.target_sessions,
+        field_inventory=field_inventory,
     )
     encoded = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=False) + "\n"
     if args.output_json:
