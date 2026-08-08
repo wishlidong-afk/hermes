@@ -24,6 +24,7 @@ if [ "$TEST_MODE" = "1" ]; then
   DASHBOARD_RESTART_CMD="${HERMES_DEPLOY_DASHBOARD_RESTART_CMD:-}"
   DASHBOARD_HEALTH_CMD="${HERMES_DEPLOY_DASHBOARD_HEALTH_CMD:-}"
   EXTERNAL_PRECHECK_RELOAD_CMD="${HERMES_DEPLOY_EXTERNAL_PRECHECK_RELOAD_CMD:-}"
+  MARKET_THIRD_SOURCE_RELOAD_CMD="${HERMES_DEPLOY_MARKET_THIRD_SOURCE_RELOAD_CMD:-}"
   RETENTION_RELOAD_CMD="${HERMES_DEPLOY_RETENTION_RELOAD_CMD:-}"
   RUNTIME_PREP_CMD="${HERMES_DEPLOY_RUNTIME_PREP_CMD:-}"
   SMOKE_IMPORT_CMD="${HERMES_DEPLOY_SMOKE_IMPORT_CMD:-}"
@@ -47,6 +48,7 @@ else
   DASHBOARD_RESTART_CMD=""
   DASHBOARD_HEALTH_CMD=""
   EXTERNAL_PRECHECK_RELOAD_CMD=""
+  MARKET_THIRD_SOURCE_RELOAD_CMD=""
   RETENTION_RELOAD_CMD=""
   RUNTIME_PREP_CMD=""
   SMOKE_IMPORT_CMD=""
@@ -78,6 +80,7 @@ RELEASE_ID="${HASH}_${STAMP}"
 NEW_RELEASE="$RELEASES/$RELEASE_ID"
 NEW_PKG="$NEW_RELEASE/hermes_escape_top"
 EXTERNAL_PRECHECK_LAUNCHAGENT="$LAUNCHAGENTS_DIR/com.hermes.external-precheck.plist"
+MARKET_THIRD_SOURCE_LAUNCHAGENT="$LAUNCHAGENTS_DIR/com.hermes.market-third-source.plist"
 RETENTION_LAUNCHAGENT="$LAUNCHAGENTS_DIR/com.hermes.runtime-retention.plist"
 
 if [ -d "$CURRENT/hermes_escape_top" ]; then
@@ -111,6 +114,7 @@ validate_test_contract() {
     HERMES_DEPLOY_GUARD_CMD HERMES_DEPLOY_DASHBOARD_STOP_CMD \
     HERMES_DEPLOY_DASHBOARD_RESTART_CMD HERMES_DEPLOY_DASHBOARD_HEALTH_CMD \
     HERMES_DEPLOY_EXTERNAL_PRECHECK_RELOAD_CMD \
+    HERMES_DEPLOY_MARKET_THIRD_SOURCE_RELOAD_CMD \
     HERMES_DEPLOY_RETENTION_RELOAD_CMD \
     HERMES_DEPLOY_RUNTIME_PREP_CMD \
     HERMES_DEPLOY_SMOKE_IMPORT_CMD HERMES_DEPLOY_SMOKE_CMD \
@@ -280,6 +284,21 @@ reload_external_precheck_launchagent() {
     launchctl bootout "$target" >/dev/null 2>&1 || return 1
   fi
   launchctl bootstrap "$domain" "$EXTERNAL_PRECHECK_LAUNCHAGENT" >/dev/null 2>&1
+}
+
+reload_market_third_source_launchagent() {
+  if [ "$TEST_MODE" = "1" ]; then
+    [ -e "$MARKET_THIRD_SOURCE_LAUNCHAGENT" ] || return 0
+    run_override "$MARKET_THIRD_SOURCE_RELOAD_CMD"
+    return
+  fi
+  local domain="gui/$(id -u)"
+  local target="$domain/com.hermes.market-third-source"
+  if launchctl print "$target" >/dev/null 2>&1; then
+    launchctl bootout "$target" >/dev/null 2>&1 || return 1
+  fi
+  [ -e "$MARKET_THIRD_SOURCE_LAUNCHAGENT" ] || return 0
+  launchctl bootstrap "$domain" "$MARKET_THIRD_SOURCE_LAUNCHAGENT" >/dev/null 2>&1
 }
 
 reload_runtime_retention_launchagent() {
@@ -511,9 +530,11 @@ create_backup() {
   backup_entry "$BIN/serve_dashboard.sh" serve_dashboard.sh || return 1
   backup_entry "$BIN/refresh_external_precheck.sh" refresh_external_precheck.sh || return 1
   backup_entry "$BIN/refresh_external.sh" refresh_external.sh || return 1
+  backup_entry "$BIN/retry_market_third_source.sh" retry_market_third_source.sh || return 1
   backup_entry "$BIN/hermes_watchdog.py" hermes_watchdog.py || return 1
   backup_entry "$BIN/prune_runtime_artifacts.py" prune_runtime_artifacts.py || return 1
   backup_entry "$EXTERNAL_PRECHECK_LAUNCHAGENT" external_precheck_launchagent.plist || return 1
+  backup_entry "$MARKET_THIRD_SOURCE_LAUNCHAGENT" market_third_source_launchagent.plist || return 1
   backup_entry "$RETENTION_LAUNCHAGENT" runtime_retention_launchagent.plist || return 1
   backup_link_state "$CURRENT" current || return 1
   backup_link_state "$PREVIOUS" previous || return 1
@@ -544,9 +565,11 @@ rollback_locked() {
   restore_entry "$BIN/serve_dashboard.sh" serve_dashboard.sh || failed=1
   restore_entry "$BIN/refresh_external_precheck.sh" refresh_external_precheck.sh || failed=1
   restore_entry "$BIN/refresh_external.sh" refresh_external.sh || failed=1
+  restore_entry "$BIN/retry_market_third_source.sh" retry_market_third_source.sh || failed=1
   restore_entry "$BIN/hermes_watchdog.py" hermes_watchdog.py || failed=1
   restore_entry "$BIN/prune_runtime_artifacts.py" prune_runtime_artifacts.py || failed=1
   restore_entry "$EXTERNAL_PRECHECK_LAUNCHAGENT" external_precheck_launchagent.plist || failed=1
+  restore_entry "$MARKET_THIRD_SOURCE_LAUNCHAGENT" market_third_source_launchagent.plist || failed=1
   restore_entry "$RETENTION_LAUNCHAGENT" runtime_retention_launchagent.plist || failed=1
   restore_link_state "$CURRENT" current || failed=1
   restore_link_state "$PREVIOUS" previous || failed=1
@@ -590,24 +613,29 @@ sync_entries() {
   install_entry_atomic "$src" "$BIN/refresh_external_precheck.sh" 0755 || return 1
   src="$REPO/ops/refresh_external.sh"
   install_entry_atomic "$src" "$BIN/refresh_external.sh" 0755 || return 1
+  src="$REPO/ops/retry_market_third_source.sh"
+  install_entry_atomic "$src" "$BIN/retry_market_third_source.sh" 0755 || return 1
   src="$REPO/ops/hermes_watchdog.py"
   install_entry_atomic "$src" "$BIN/hermes_watchdog.py" 0755 || return 1
   src="$REPO/ops/prune_runtime_artifacts.py"
   install_entry_atomic "$src" "$BIN/prune_runtime_artifacts.py" 0755 || return 1
   src="$REPO/ops/launchagents/com.hermes.external-precheck.plist"
   install_entry_atomic "$src" "$EXTERNAL_PRECHECK_LAUNCHAGENT" 0644 || return 1
+  src="$REPO/ops/launchagents/com.hermes.market-third-source.plist"
+  install_entry_atomic "$src" "$MARKET_THIRD_SOURCE_LAUNCHAGENT" 0644 || return 1
   src="$REPO/ops/launchagents/com.hermes.runtime-retention.plist"
   install_entry_atomic "$src" "$RETENTION_LAUNCHAGENT" 0644 || return 1
   src="$REPO/ops/run_daily.py"
   install_entry_atomic "$src" "$NEW_RELEASE/scripts/run_daily.py" 0755 || return 1
   install_entry_atomic "$src" "$LIVE/scripts/run_daily.py" 0755 || return 1
   chmod +x "$BIN/run_daily.sh" "$BIN/serve_dashboard.sh" "$BIN/refresh_external_precheck.sh" \
-    "$BIN/refresh_external.sh" \
+    "$BIN/refresh_external.sh" "$BIN/retry_market_third_source.sh" \
     "$NEW_RELEASE/scripts/run_daily.py" "$LIVE/scripts/run_daily.py" \
     2>/dev/null || true
   chmod +x "$BIN/hermes_watchdog.py" || return 1
   chmod +x "$BIN/prune_runtime_artifacts.py" || return 1
-  chmod 0644 "$EXTERNAL_PRECHECK_LAUNCHAGENT" "$RETENTION_LAUNCHAGENT" 2>/dev/null || true
+  chmod 0644 "$EXTERNAL_PRECHECK_LAUNCHAGENT" "$MARKET_THIRD_SOURCE_LAUNCHAGENT" \
+    "$RETENTION_LAUNCHAGENT" 2>/dev/null || true
 }
 
 prepare_shared_runtime() {
@@ -693,9 +721,11 @@ sync_entries_legacy() {
     "serve_dashboard.sh:$BIN/serve_dashboard.sh" \
     "refresh_external_precheck.sh:$BIN/refresh_external_precheck.sh" \
     "refresh_external.sh:$BIN/refresh_external.sh" \
+    "retry_market_third_source.sh:$BIN/retry_market_third_source.sh" \
     "hermes_watchdog.py:$BIN/hermes_watchdog.py" \
     "prune_runtime_artifacts.py:$BIN/prune_runtime_artifacts.py" \
     "launchagents/com.hermes.external-precheck.plist:$EXTERNAL_PRECHECK_LAUNCHAGENT" \
+    "launchagents/com.hermes.market-third-source.plist:$MARKET_THIRD_SOURCE_LAUNCHAGENT" \
     "launchagents/com.hermes.runtime-retention.plist:$RETENTION_LAUNCHAGENT" \
     "run_daily.py:$LIVE/scripts/run_daily.py"; do
     src="$REPO/ops/${pair%%:*}"
@@ -703,7 +733,8 @@ sync_entries_legacy() {
     install_entry_atomic "$src" "$dst" || return 1
   done
   chmod +x "$BIN/run_daily.sh" "$BIN/serve_dashboard.sh" "$BIN/refresh_external_precheck.sh" \
-    "$BIN/refresh_external.sh" "$LIVE/scripts/run_daily.py" \
+    "$BIN/refresh_external.sh" "$BIN/retry_market_third_source.sh" \
+    "$LIVE/scripts/run_daily.py" \
     2>/dev/null || true
   chmod +x "$BIN/hermes_watchdog.py" || return 1
   chmod +x "$BIN/prune_runtime_artifacts.py" || return 1
@@ -765,6 +796,7 @@ deploy_git_pathspecs() {
     'bin/serve_dashboard.sh' \
     'bin/refresh_external_precheck.sh' \
     'bin/refresh_external.sh' \
+    'bin/retry_market_third_source.sh' \
     'bin/hermes_watchdog.py' \
     'bin/prune_runtime_artifacts.py'
   [ -L "$PREVIOUS" ] && printf '%s\n' 'skills/investment/escape-top/previous'
@@ -803,6 +835,8 @@ rollback_after_release() {
   fi
   reload_external_precheck_launchagent \
     || die "!! DOUBLE FAILURE: $message; rollback restored plist but external precheck reload failed; dashboard remains stopped; backup: $BACKUP" 90
+  reload_market_third_source_launchagent \
+    || die "!! DOUBLE FAILURE: $message; rollback restored plist but market third-source reload failed; dashboard remains stopped; backup: $BACKUP" 90
   reload_runtime_retention_launchagent \
     || die "!! DOUBLE FAILURE: $message; rollback restored plist but runtime retention reload failed; dashboard remains stopped; backup: $BACKUP" 90
   restart_dashboard
@@ -855,6 +889,11 @@ maybe_fail external_precheck_reload \
   || rollback_after_release "!! external precheck LaunchAgent reload failed" 2
 reload_external_precheck_launchagent \
   || rollback_after_release "!! external precheck LaunchAgent reload failed" 2
+
+maybe_fail market_third_source_reload \
+  || rollback_after_release "!! market third-source LaunchAgent reload failed" 2
+reload_market_third_source_launchagent \
+  || rollback_after_release "!! market third-source LaunchAgent reload failed" 2
 
 maybe_fail runtime_retention_reload \
   || rollback_after_release "!! runtime retention LaunchAgent reload failed" 2

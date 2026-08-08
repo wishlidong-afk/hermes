@@ -9,6 +9,9 @@ from ..core.data.market_admission import (
     read_market_admission_evidence,
     validate_market_admission_evidence,
 )
+from ..core.data.market_third_source import (
+    read_matching_market_admission_third_source_shadow,
+)
 
 
 def attach_market_admission_status(
@@ -84,6 +87,13 @@ def attach_market_admission_status(
                     (validated_current, validated_persisted),
                     key=lambda row: severity.get(str(row.get("status") or ""), 4),
                 )
+            selected = dict(selected)
+            delayed_shadow = read_matching_market_admission_third_source_shadow(
+                archive_dir,
+                selected,
+            )
+            if delayed_shadow is not None:
+                selected["third_source_shadow"] = delayed_shadow
             payload["market_admission_status"] = selected
     except Exception as exc:
         payload["market_admission_status"] = {

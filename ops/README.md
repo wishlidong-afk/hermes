@@ -18,6 +18,7 @@ reviewer can see the *whole* execution path, not just the package.
 |---|---|---|
 | `run_daily.sh` | `~/.hermes/bin/run_daily.sh` | launchd `com.hermes.daily` ExecStart; `$HOME`-relative (portable) |
 | `refresh_external_precheck.sh` | `~/.hermes/bin/refresh_external_precheck.sh` | launchd `com.hermes.external-precheck` ExecStart; runs external source readiness before daily, no scoring/official run write |
+| `retry_market_third_source.sh` | `~/.hermes/bin/retry_market_third_source.sh` | launchd `com.hermes.market-third-source` ExecStart; retries delayed Alpha Vantage evidence at 09:02 without touching canonical history or scoring |
 | `prune_runtime_artifacts.py` | `~/.hermes/bin/prune_runtime_artifacts.py` | launchd `com.hermes.runtime-retention`; weekly bounded cleanup under the pipeline lock |
 | `run_daily.py` | `~/.hermes/skills/investment/escape-top/scripts/run_daily.py` | runs the package via `-m` (single engine) |
 | `serve_dashboard.sh` | `~/.hermes/bin/serve_dashboard.sh` | launchd `com.hermes.dashboard` ExecStart; `$HOME`-relative |
@@ -60,10 +61,20 @@ receipt/state is written) — the one check that would have caught B at deploy t
 instead of at the next 07:10 without creating a second scheduled run. Wired as
 the final gate of `deploy_to_live.sh`.
 
-## morning_acceptance.py — 09:05 read-only acceptance
+## Delayed market evidence
 
-Run from the repository after the 07:10 scheduled daily and the 09:00
-watchdog:
+`com.hermes.market-third-source` runs at 09:02, after the US daily-bar vendor's
+publication window. It only retries the Alpha Vantage shadow for the latest
+market-admission operation. The dashboard accepts that delayed evidence only
+when both `admission_operation_id` and `completed_through` exactly match the
+selected admission payload. It never changes canonical history, admission
+status, scoring, official receipts, or `input_hash`. The write uses the shared
+pipeline lock; lock contention returns `BUSY` instead of writing concurrently.
+
+## morning_acceptance.py — 09:10 read-only acceptance
+
+Run from the repository after the 07:10 scheduled daily, the 09:00 watchdog,
+and the 09:02 delayed market-evidence retry:
 
 ```bash
 /usr/bin/python3 ops/morning_acceptance.py

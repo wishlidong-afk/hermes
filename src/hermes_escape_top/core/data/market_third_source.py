@@ -230,6 +230,69 @@ def write_market_admission_third_source_shadow(
     return {**dict(payload), "cache_path": str(exact)}
 
 
+def read_matching_market_admission_third_source_shadow(
+    archive_dir: Path,
+    admission_payload: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    path = Path(archive_dir) / "market_admission_third_source_latest.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("schema_version") != SCHEMA_VERSION:
+        return None
+    if payload.get("research_only") is not True:
+        return None
+    operation_id = str(admission_payload.get("operation_id") or "")
+    completed_through = str(admission_payload.get("completed_through") or "")[:10]
+    if not operation_id or not completed_through:
+        return None
+    if str(payload.get("admission_operation_id") or "") != operation_id:
+        return None
+    if str(payload.get("completed_through") or "")[:10] != completed_through:
+        return None
+    return payload
+
+
+def retry_market_admission_third_source_shadow(
+    archive_dir: Path,
+    *,
+    admission_payload: Mapping[str, Any] | None = None,
+    api_key: str | None = None,
+    request_json: Callable[[str], Mapping[str, Any]] | None = None,
+    fetched_at: str | None = None,
+) -> dict[str, Any]:
+    archive = Path(archive_dir)
+    if admission_payload is None:
+        from .market_admission import read_market_admission_evidence
+
+        admission_payload = read_market_admission_evidence(archive)
+    if not isinstance(admission_payload, Mapping):
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "research_only": True,
+            "status": "NO_ADMISSION",
+            "rows": [],
+        }
+    existing = read_matching_market_admission_third_source_shadow(
+        archive,
+        admission_payload,
+    )
+    if existing is not None and str(existing.get("status") or "") == "OK":
+        return {**existing, "retry_status": "ALREADY_AVAILABLE"}
+    shadow = collect_market_admission_third_source_shadow(
+        admission_payload,
+        api_key=api_key,
+        request_json=request_json,
+        fetched_at=fetched_at,
+    )
+    if str(shadow.get("status") or "") == "NOT_NEEDED":
+        return shadow
+    return write_market_admission_third_source_shadow(archive, shadow)
+
+
 def _support_label(
     candidate_comparison: Mapping[str, Any],
     witness_comparison: Mapping[str, Any],

@@ -114,12 +114,20 @@ def parse_aaii_insights_feed(xml: str) -> list[dict[str, Any]]:
         text = unescape(re.sub(r"<[^>]+>", " ", body))
         text = re.sub(r"\s+", " ", text).strip()
         marker = re.search(r"this week(?:'|’)?s sentiment survey results\s*:", text, re.IGNORECASE)
-        if marker is None:
-            continue
-        result_text = re.split(r"historical averages\s*:", text[marker.end():], maxsplit=1, flags=re.IGNORECASE)[0]
-        bull = _labeled_percent(result_text, "bullish")
-        neutral = _labeled_percent(result_text, "neutral")
-        bear = _labeled_percent(result_text, "bearish")
+        result_text = re.split(
+            r"historical averages\s*:",
+            text[marker.end():] if marker is not None else text,
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0]
+        if marker is not None:
+            bull = _labeled_percent(result_text, "bullish")
+            neutral = _labeled_percent(result_text, "neutral")
+            bear = _labeled_percent(result_text, "bearish")
+        else:
+            bull = _narrative_sentiment_percent(result_text, "bullish")
+            neutral = _narrative_sentiment_percent(result_text, "neutral")
+            bear = _narrative_sentiment_percent(result_text, "bearish")
         if any(value is None for value in (bull, neutral, bear)):
             continue
         reported = _previous_weekday(published, weekday=2)
@@ -345,6 +353,19 @@ def _previous_weekday(day: date, *, weekday: int) -> date:
 
 def _labeled_percent(text: str, label: str) -> float | None:
     match = re.search(rf"\b{re.escape(label)}\s*:\s*([0-9]+(?:\.[0-9]+)?)%", text, re.IGNORECASE)
+    if match is None:
+        return None
+    return round(float(match.group(1)) / 100.0, 3)
+
+
+def _narrative_sentiment_percent(text: str, label: str) -> float | None:
+    match = re.search(
+        rf"\b{re.escape(label)}\s+sentiment\b"
+        rf"(?:(?!\b(?:bullish|neutral|bearish)\s+sentiment\b).)*?"
+        rf"\bto\s+([0-9]+(?:\.[0-9]+)?)%",
+        text,
+        re.IGNORECASE,
+    )
     if match is None:
         return None
     return round(float(match.group(1)) / 100.0, 3)

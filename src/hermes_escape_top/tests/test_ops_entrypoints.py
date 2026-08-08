@@ -68,6 +68,7 @@ def test_shell_entrypoints_prefer_current_release_when_present():
     dashboard = (REPO_ROOT / "ops" / "serve_dashboard.sh").read_text(encoding="utf-8")
     external = (REPO_ROOT / "ops" / "refresh_external_precheck.sh").read_text(encoding="utf-8")
     external_manual = (REPO_ROOT / "ops" / "refresh_external.sh").read_text(encoding="utf-8")
+    third_source = (REPO_ROOT / "ops" / "retry_market_third_source.sh").read_text(encoding="utf-8")
 
     assert 'if [ -d "$BASE/current/hermes_escape_top" ]; then' in daily
     assert 'RUNTIME="$BASE/current"' in daily
@@ -83,7 +84,9 @@ def test_shell_entrypoints_prefer_current_release_when_present():
     assert 'REFRESH_ARG="--pre-daily-check"' in external
     assert 'REFRESH_ARG="--retry-needed"' in external
     assert 'hermes_escape_top.scripts.refresh_external "$@"' in external_manual
-    for script in (daily, dashboard, external, external_manual):
+    assert "hermes_escape_top.scripts.retry_market_third_source" in third_source
+    assert '--lock-timeout "${HERMES_MARKET_THIRD_SOURCE_LOCK_TIMEOUT:-600}"' in third_source
+    for script in (daily, dashboard, external, external_manual, third_source):
         assert "RUNTIME_LOCK_SHA256" in script
         assert 'runtime/$LOCK_SHA/.venv/bin/python' in script
         assert "/usr/bin/python3" not in script
@@ -128,6 +131,47 @@ def test_manual_external_entry_uses_managed_runtime_and_forwards_args(tmp_path):
     payload = json.loads(result.stdout)
     assert payload == {
         "args": ["--status"],
+        "runtime": str(runtime),
+        "data": str(runtime / "hermes_escape_top"),
+    }
+
+
+def test_market_third_source_entry_uses_managed_runtime(tmp_path):
+    home = tmp_path / "home"
+    base = home / ".hermes/skills/investment/escape-top"
+    runtime = base / "current"
+    scripts = runtime / "hermes_escape_top/scripts"
+    scripts.mkdir(parents=True)
+    (runtime / "hermes_escape_top/RUNTIME_LOCK_SHA256").write_text(
+        "test-runtime\n", encoding="utf-8"
+    )
+    managed_python = base / "runtime/test-runtime/.venv/bin/python"
+    managed_python.parent.mkdir(parents=True)
+    managed_python.symlink_to(sys.executable)
+    (runtime / "hermes_escape_top/__init__.py").write_text("", encoding="utf-8")
+    scripts.joinpath("__init__.py").write_text("", encoding="utf-8")
+    scripts.joinpath("retry_market_third_source.py").write_text(
+        "import json, os\n"
+        "print(json.dumps({\n"
+        "    'runtime': os.environ['HERMES_RUNTIME_ROOT'],\n"
+        "    'data': os.environ['HERMES_DATA_DIR'],\n"
+        "}))\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["HOME"] = str(home)
+    env.pop("HERMES_DATA_DIR", None)
+
+    result = subprocess.run(
+        ["bash", str(REPO_ROOT / "ops/retry_market_third_source.sh")],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=10,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {
         "runtime": str(runtime),
         "data": str(runtime / "hermes_escape_top"),
     }
@@ -198,6 +242,21 @@ def test_external_precheck_launchagent_runs_before_daily():
     ]
     assert data["StandardOutPath"].endswith("/logs/external_precheck.launchd.out.log")
     assert data["StandardErrorPath"].endswith("/logs/external_precheck.launchd.err.log")
+
+
+def test_market_third_source_retry_runs_after_vendor_publication_window():
+    plist_path = REPO_ROOT / "ops" / "launchagents" / "com.hermes.market-third-source.plist"
+    data = plistlib.loads(plist_path.read_bytes())
+
+    assert data["Label"] == "com.hermes.market-third-source"
+    assert data["ProgramArguments"] == [
+        "/bin/bash",
+        "/Users/liweishi/.hermes/bin/retry_market_third_source.sh",
+    ]
+    assert data["StartCalendarInterval"] == {"Hour": 9, "Minute": 2}
+    assert data["RunAtLoad"] is False
+    assert data["StandardOutPath"].endswith("/logs/market_third_source.launchd.out.log")
+    assert data["StandardErrorPath"].endswith("/logs/market_third_source.launchd.err.log")
 
 
 def test_runtime_retention_launchagent_runs_weekly_with_audited_apply():

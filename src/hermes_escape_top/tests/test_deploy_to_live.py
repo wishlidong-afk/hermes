@@ -139,9 +139,11 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(repo / "ops/serve_dashboard.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/refresh_external_precheck.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/refresh_external.sh", "#!/bin/sh\nexit 0\n", 0o755)
+    _write(repo / "ops/retry_market_third_source.sh", "#!/bin/sh\nexit 0\n", 0o755)
     _write(repo / "ops/hermes_watchdog.py", "#!/usr/bin/env python3\nprint('new watchdog')\n", 0o644)
     _write(repo / "ops/prune_runtime_artifacts.py", "#!/usr/bin/env python3\nprint('new retention')\n", 0o644)
     _write(repo / "ops/launchagents/com.hermes.external-precheck.plist", "<plist><dict><key>new</key><true/></dict></plist>\n")
+    _write(repo / "ops/launchagents/com.hermes.market-third-source.plist", "<plist><dict><key>new-third-source</key><true/></dict></plist>\n")
     _write(repo / "ops/launchagents/com.hermes.runtime-retention.plist", "<plist><dict><key>new-retention</key><true/></dict></plist>\n")
     _write(repo / "ops/run_daily.py", "print('new entry')\n", 0o755)
     _init_git(repo)
@@ -165,9 +167,11 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     _write(bin_dir / "serve_dashboard.sh", "#!/bin/sh\nexit 11\n", 0o740)
     _write(bin_dir / "refresh_external_precheck.sh", "#!/bin/sh\nexit 12\n", 0o730)
     _write(bin_dir / "refresh_external.sh", "#!/bin/sh\nexit 13\n", 0o720)
+    _write(bin_dir / "retry_market_third_source.sh", "#!/bin/sh\nexit 14\n", 0o710)
     _write(bin_dir / "hermes_watchdog.py", "#!/usr/bin/env python3\nprint('old watchdog')\n", 0o640)
     _write(bin_dir / "prune_runtime_artifacts.py", "#!/usr/bin/env python3\nprint('old retention')\n", 0o640)
     _write(launchagents_dir / "com.hermes.external-precheck.plist", "<plist><dict><key>old</key><true/></dict></plist>\n")
+    _write(launchagents_dir / "com.hermes.market-third-source.plist", "<plist><dict><key>old-third-source</key><true/></dict></plist>\n")
     _write(launchagents_dir / "com.hermes.runtime-retention.plist", "<plist><dict><key>old-retention</key><true/></dict></plist>\n")
     # Replicate the real ~/.hermes/.gitignore: it ignores bin/ and tests/, so the
     # allowlist entry scripts are untracked+ignored and the commit step must
@@ -215,6 +219,9 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
             ),
             "HERMES_DEPLOY_EXTERNAL_PRECHECK_RELOAD_CMD": (
                 f"echo external-reload-${{HERMES_PIPELINE_LOCK_FD:+locked}} >> '{quoted_events}'"
+            ),
+            "HERMES_DEPLOY_MARKET_THIRD_SOURCE_RELOAD_CMD": (
+                f"echo market-third-source-reload-${{HERMES_PIPELINE_LOCK_FD:+locked}} >> '{quoted_events}'"
             ),
             "HERMES_DEPLOY_RETENTION_RELOAD_CMD": (
                 f"echo retention-reload-${{HERMES_PIPELINE_LOCK_FD:+locked}} >> '{quoted_events}'"
@@ -290,6 +297,7 @@ def test_deploy_script_exposes_isolated_fixture_contract() -> None:
         "HERMES_DEPLOY_DASHBOARD_STOP_CMD",
         "HERMES_DEPLOY_DASHBOARD_RESTART_CMD",
         "HERMES_DEPLOY_EXTERNAL_PRECHECK_RELOAD_CMD",
+        "HERMES_DEPLOY_MARKET_THIRD_SOURCE_RELOAD_CMD",
         "HERMES_DEPLOY_RETENTION_RELOAD_CMD",
         "HERMES_DEPLOY_FAIL_AT",
         "--locked-swap",
@@ -299,6 +307,7 @@ def test_deploy_script_exposes_isolated_fixture_contract() -> None:
     ):
         assert marker in script
     assert 'chmod +x "$BIN/hermes_watchdog.py" || return 1' in script
+    assert '"$BIN/retry_market_third_source.sh"' in script
 
 
 @pytest.mark.parametrize(
@@ -372,6 +381,7 @@ def test_stable_entry_install_and_restore_use_same_directory_atomic_replace() ->
         ("post_sync", 1),
         ("smoke", 2),
         ("external_precheck_reload", 2),
+        ("market_third_source_reload", 2),
         ("runtime_retention_reload", 2),
         ("dashboard_restart", 2),
         ("verify_live", 3),
@@ -420,6 +430,31 @@ def test_first_retention_install_can_roll_back_to_absent_launchagent(
     assert "ROLLBACK" in result.stderr
     assert "DOUBLE FAILURE" not in result.stderr
     assert not retention_plist.exists()
+    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
+
+
+def test_first_market_third_source_install_can_roll_back_to_absent_entries(
+    deploy_fixture: dict[str, object],
+) -> None:
+    retry_entry = Path(deploy_fixture["bin"]) / "retry_market_third_source.sh"
+    retry_plist = (
+        Path(deploy_fixture["launchagents"])
+        / "com.hermes.market-third-source.plist"
+    )
+    retry_entry.unlink()
+    retry_plist.unlink()
+    deploy_fixture["env"]["HERMES_DEPLOY_MARKET_THIRD_SOURCE_RELOAD_CMD"] = (
+        f"test -e '{retry_plist}'"
+    )
+    deploy_fixture["before"] = _snapshot(*deploy_fixture["roots"])
+
+    result = _run(deploy_fixture, "dashboard_restart")
+
+    assert result.returncode == 2
+    assert "ROLLBACK" in result.stderr
+    assert "DOUBLE FAILURE" not in result.stderr
+    assert not retry_entry.exists()
+    assert not retry_plist.exists()
     assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
 
 
@@ -491,6 +526,7 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         "bin/serve_dashboard.sh",
         "bin/refresh_external_precheck.sh",
         "bin/refresh_external.sh",
+        "bin/retry_market_third_source.sh",
         "bin/hermes_watchdog.py",
         "bin/prune_runtime_artifacts.py",
         "skills/investment/escape-top/current",
@@ -518,6 +554,10 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         Path(deploy_fixture["launchagents"]) / "com.hermes.external-precheck.plist"
     ).read_text(encoding="utf-8") == "<plist><dict><key>new</key><true/></dict></plist>\n"
     assert (
+        Path(deploy_fixture["launchagents"])
+        / "com.hermes.market-third-source.plist"
+    ).read_text(encoding="utf-8") == "<plist><dict><key>new-third-source</key><true/></dict></plist>\n"
+    assert (
         Path(deploy_fixture["launchagents"]) / "com.hermes.runtime-retention.plist"
     ).read_text(encoding="utf-8") == "<plist><dict><key>new-retention</key><true/></dict></plist>\n"
     watchdog = Path(deploy_fixture["bin"]) / "hermes_watchdog.py"
@@ -526,6 +566,9 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
     retention = Path(deploy_fixture["bin"]) / "prune_runtime_artifacts.py"
     assert retention.read_text(encoding="utf-8") == "#!/usr/bin/env python3\nprint('new retention')\n"
     assert retention.stat().st_mode & stat.S_IXUSR
+    retry_entry = Path(deploy_fixture["bin"]) / "retry_market_third_source.sh"
+    assert retry_entry.read_text(encoding="utf-8") == "#!/bin/sh\nexit 0\n"
+    assert retry_entry.stat().st_mode & stat.S_IXUSR
     assert "999" in runtime.read_text(encoding="utf-8")
     assert _snapshot(("repo-soft", Path(deploy_fixture["repo"]) / "src/hermes_escape_top/data/soft_history")) == {
         key: value
@@ -540,6 +583,7 @@ def test_isolated_success_reaches_single_success_exit(deploy_fixture: dict[str, 
         "smoke-import-locked",
         "smoke-locked",
         "external-reload-",
+        "market-third-source-reload-",
         "retention-reload-",
         "restart-",
         "health-",

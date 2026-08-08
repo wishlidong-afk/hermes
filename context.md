@@ -172,11 +172,13 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 | `aaii_sentiment` | `soft_history/aaii_sentiment.csv` | AAII 结果页 → AAII 官方 Insights RSS → official-file import | 结果页按 reported `+1d`；RSS 只按自身 artifact `pubDate` 可用，不向前回填 | Imperva 不再是自动化单点；RSS 可能比结果页晚约 2 天，两条官方发布面均失败时才需人工文件 |
 
 - 06:45 全量预检，07:05 只重试当日失败/证据未就绪的源，07:10 daily 优先复用当日完整 ledger，不连续重打限流源。
+- 09:02 独立重试 Alpha Vantage market-admission 第三源 shadow，给供应商最新日线留出发布窗口；该任务只补证据，不改 canonical、准入、评分或官方 run。8766 必须同时匹配 operation ID 与 completed-through 才展示；09:10 再执行只读 morning acceptance。
 - 所有外部软数据先写 raw/staging，通过 schema + semantic validation 后才原子晋升；成功 ledger 绑定 canonical SHA-256、最新日期、来源 URL 和 PIT 规则。
 - canonical 字节与最新成功 ledger 不一致时显示 `EVIDENCE_DRIFT`，不会把人工改写重新认证为 OK。
 - AAII 结果页受阻时自动切换官方 Insights RSS，ledger 记录实际 URL 与 XML 指纹；AAII/NAAIM 下载文件按 SHA-256 去重，已消费或已失败的旧文件不会在每次预检被当成新候选。
 - 可靠性按 `Asia/Shanghai` 自然日去重；同日失败后重试成功只算一个成功日，避免重试次数虚增成功率。transport/parse/validation/promotion 中 `promotion=UNCHANGED` 是成功检查而不是失败；任何 30/90 日比率在样本少于 5 时显示 `INSUFFICIENT_EVIDENCE`，不把 0%/100% 冒充稳定统计。
 - Alpaca SIP 见证只对比 Yahoo/local canonical 的最近 OHLCV，写 `market_witness_*.json`；`NO_WITNESS`/`FETCH_ERROR` 不改评分、不改 `input_hash`。
+- Alpha Vantage 是被双源准入隔离后的延迟第三源 shadow，只解释候选侧或 witness 侧更可信，不参与自动仲裁；07:10 不可用时由 09:02 任务重试。
 - Coinbase BTC 见证属于 canonical admission 而非评分因子：0.5%-1.0% close 差异标黄但可晋升，>1.0% 或缺日冻结旧值；当前 UTC 日延后且不制造健康红灯。
 
 ---

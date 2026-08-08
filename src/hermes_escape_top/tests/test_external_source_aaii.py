@@ -99,6 +99,39 @@ def test_parse_aaii_insights_feed_uses_official_weekly_issue_date():
     ]
 
 
+def test_parse_aaii_insights_feed_supports_narrative_result_format():
+    feed = """<?xml version="1.0" encoding="UTF-8"?>
+    <rss xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
+      <channel>
+        <item>
+          <title>AAII Sentiment Survey: Optimism Bounces Back</title>
+          <pubDate>Sat, 01 Aug 2026 15:30:26 GMT</pubDate>
+          <content:encoded><![CDATA[
+            <p>Bullish sentiment, expectations that stock prices will rise over the next six months,
+            increased 1.4 percentage points to 31.0%.</p>
+            <p>Neutral sentiment, expectations that stock prices will stay essentially unchanged,
+            decreased 1.2 percentage points to 26.9%.</p>
+            <p>Bearish sentiment, expectations that stock prices will fall over the next six months,
+            decreased 0.2 percentage points to 42.1%.</p>
+            <p>Historical averages: Bullish: 37.5% Neutral: 31.5% Bearish: 31.0%</p>
+          ]]></content:encoded>
+        </item>
+      </channel>
+    </rss>"""
+
+    rows = parse_aaii_insights_feed(feed)
+
+    assert rows == [
+        {
+            "reported": date(2026, 7, 29),
+            "publish_date": date(2026, 8, 1),
+            "bull": 0.31,
+            "neutral": 0.269,
+            "bear": 0.421,
+        }
+    ]
+
+
 def test_aaii_adapter_merges_public_rows_with_seed_history(tmp_path):
     seed_path = tmp_path / "soft_history" / "aaii_sentiment.csv"
     _seed_aaii(seed_path, end="2026-06-18", rows=80)

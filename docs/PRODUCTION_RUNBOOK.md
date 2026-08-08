@@ -9,6 +9,8 @@
 - daily 的 M4-1a 优先复用当天 06:45/07:05 的完整 ledger 证据；只有当天证据不完整时才补跑全量 ExternalSourceRunner。runner 当前统一管理 FRED、CBOE PCR、CFTC COT、OCC PCR、BTC funding、NAAIM、AAII；AAII 结果页被 Imperva 阻断或结构变化时会转用 AAII 官方 Insights RSS，RSS 也失败后才尝试未被 ledger 消费过的官方下载文件。AAII/NAAIM 文件先按 SHA-256 进入 `external_import_queue/<source>/{inbox,processed,rejected}`，原始 Downloads 文件不移动，同内容不重复处理。每次 run 的 raw/normalized 路径与 `external_sources/blobs/sha256/` 认证 blob 是不同 inode 的只读副本；篡改单次副本不会污染 blob 或其它 run。失败不 abort official run，但会写 ledger 并在 8766 health 暴露；评分只使用已验证/已存在的 canonical 缓存。
 - scheduled run 结束并写入 OK receipt 后，会落盘 `reports/system_health_<as_of>.json` 与 `.md`：这是运行健康审计快照，区分策略数据、持仓对账、辅助资金流三层；它不是交易指令，交易仍以 official dashboard/daily_report 为准。
 - **09:00 CST** `com.hermes.watchdog` → audit_log 落后 >2 个 NYSE 交易日则弹通知。日志：`~/.hermes/logs/watchdog.log`。
+- **09:02 CST** `com.hermes.market-third-source` 在共享 pipeline lock 下只重试最新 market-admission operation 的 Alpha Vantage 第三源 shadow，解决 07:10 时供应商尚未发布最新日线的问题；锁忙返回 `BUSY`，不并发写入。它不修改 canonical history、准入状态、评分、官方回执或 `input_hash`；8766 仅在 `admission_operation_id` 与 `completed_through` 同时匹配时展示该延迟证据。日志：`~/.hermes/logs/market_third_source.launchd.{out,err}.log`。
+- **09:10 CST** Codex heartbeat 只读运行 `ops/morning_acceptance.py`，位于 09:00 watchdog 和 09:02 延迟证据之后；不得借验收触发 daily、行情/外部源刷新或 IBKR 连接。
 - **每周日 08:30 CST** `com.hermes.runtime-retention` 在同一把非阻塞 pipeline lock 下清理超出保留策略的旧 release、部署备份、压缩 audit 与已结束评分事务；`current`、`previous` 和 active transaction 永不删除。锁忙则记录 `BUSY` 并零删除，证据在 `~/.hermes/logs/retention/runtime_retention_{<date>|latest}.json`。
 - 健康判断三步：① 日志末行 `exit 0`；② preflight 段无 STALE/NOT WRITABLE；③ `[M4-diff]` 段解释今日 vs 昨日变化。
 - 手动补跑：`bash ~/.hermes/bin/run_daily.sh`（幂等，非交易日跑了也无害）。
@@ -75,8 +77,8 @@
 
 ## 8. launchd 维护
 
-- 状态：`launchctl print gui/$(id -u)/com.hermes.daily`；外部源预检看 `com.hermes.external-precheck`；运行态保留看 `com.hermes.runtime-retention`。手动触发必须先确认无 daily/deploy，再用 `launchctl kickstart gui/$(id -u)/com.hermes.runtime-retention`；默认无需人工触发。
-- 停用：`launchctl bootout gui/$(id -u)/com.hermes.<external-precheck|daily|watchdog|runtime-retention>`。
+- 状态：`launchctl print gui/$(id -u)/com.hermes.daily`；外部源预检看 `com.hermes.external-precheck`；延迟行情证据看 `com.hermes.market-third-source`；运行态保留看 `com.hermes.runtime-retention`。手动触发必须先确认无 daily/deploy，再用对应 label 的 `launchctl kickstart`；默认无需人工触发。
+- 停用：`launchctl bootout gui/$(id -u)/com.hermes.<external-precheck|market-third-source|daily|watchdog|runtime-retention>`。
 - watchdog 节假日表覆盖到 2028，到期告警文本会自带提醒（`~/.hermes/bin/hermes_watchdog.py`）。
 
 > 待办（T12 余项）：health 页面各非绿状态直接链接到本文对应小节（web/render 改动，与 T20 仪表板一起做）。

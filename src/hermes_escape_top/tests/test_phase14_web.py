@@ -203,6 +203,77 @@ class Phase14WebTest(unittest.TestCase):
 
         self.assertEqual(payload["market_admission_status"]["status"], "BLOCKED")
 
+    def test_market_admission_attachment_loads_matching_delayed_third_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp)
+            history = archive / "history"
+            history.mkdir()
+            canonical = history / "QQQ.csv"
+            canonical.write_text("date,close\n2026-07-13,100\n", encoding="utf-8")
+            admission = {
+                "mode": "enforce_consensus",
+                "status": "BLOCKED",
+                "rejected_rows": 1,
+                "generated_at": "2026-07-14T00:05:00+00:00",
+                "completed_through": "2026-07-13",
+                "operation_id": "current-run",
+                "canonical_files": {
+                    "QQQ.csv": {
+                        "sha256": hashlib.sha256(canonical.read_bytes()).hexdigest(),
+                        "latest_as_of": "2026-07-13",
+                    }
+                },
+            }
+            (archive / "market_admission_latest.json").write_text(
+                json.dumps(admission),
+                encoding="utf-8",
+            )
+            shadow = {
+                "schema_version": "hermes-market-admission-third-source-shadow-v1",
+                "research_only": True,
+                "admission_operation_id": "current-run",
+                "completed_through": "2026-07-13",
+                "status": "OK",
+                "rows": [{"third_source_support": "ALPACA_WITNESS"}],
+            }
+            (archive / "market_admission_third_source_latest.json").write_text(
+                json.dumps(shadow),
+                encoding="utf-8",
+            )
+            payload = {"as_of": "2026-07-13"}
+            with mock.patch(
+                "hermes_escape_top.web.server.load_config",
+                return_value={
+                    "features": {"use_market_admission_gate": True},
+                    "paths": {"archive_dir": tmp, "history_dir": str(history)},
+                },
+            ):
+                _attach_market_admission_status(payload)
+
+            shadow["admission_operation_id"] = "prior-run"
+            (archive / "market_admission_third_source_latest.json").write_text(
+                json.dumps(shadow),
+                encoding="utf-8",
+            )
+            stale_payload = {"as_of": "2026-07-13"}
+            with mock.patch(
+                "hermes_escape_top.web.server.load_config",
+                return_value={
+                    "features": {"use_market_admission_gate": True},
+                    "paths": {"archive_dir": tmp, "history_dir": str(history)},
+                },
+            ):
+                _attach_market_admission_status(stale_payload)
+
+        self.assertEqual(
+            payload["market_admission_status"]["third_source_shadow"],
+            {**shadow, "admission_operation_id": "current-run"},
+        )
+        self.assertNotIn(
+            "third_source_shadow",
+            stale_payload["market_admission_status"],
+        )
+
     def test_market_admission_attachment_rejects_stale_ok_from_prior_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

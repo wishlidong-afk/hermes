@@ -1,15 +1,22 @@
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from hermes_escape_top.core.data.market_third_source import (
+    SCHEMA_VERSION,
     collect_market_admission_third_source_shadow,
     fetch_alpha_vantage_daily_bar,
     load_alpha_vantage_api_key,
+    read_matching_market_admission_third_source_shadow,
+    retry_market_admission_third_source_shadow,
     write_market_admission_third_source_shadow,
 )
+from hermes_escape_top.core.safe_io import PipelineBusy
+from hermes_escape_top.scripts import retry_market_third_source as retry_script
+from hermes_escape_top.scripts.retry_market_third_source import run_retry
 
 
 def _alpha_response(*, volume: int = 3_697_372) -> dict:
@@ -209,3 +216,129 @@ def test_shadow_writer_is_separate_from_canonical_admission_evidence(tmp_path: P
     assert latest.exists()
     assert written["cache_path"] == str(exact)
     assert not (tmp_path / "market_admission_2026-08-06.json").exists()
+
+
+def test_shadow_reader_requires_matching_operation_and_completed_through(tmp_path: Path) -> None:
+    admission = _blocked_payload()
+    shadow = collect_market_admission_third_source_shadow(
+        admission,
+        api_key="secret-key",
+        request_json=lambda _url: _alpha_response(),
+        fetched_at="2026-08-06T01:00:00+00:00",
+    )
+    write_market_admission_third_source_shadow(tmp_path, shadow)
+
+    assert read_matching_market_admission_third_source_shadow(tmp_path, admission) == shadow
+    assert read_matching_market_admission_third_source_shadow(
+        tmp_path,
+        {**admission, "operation_id": "op-2"},
+    ) is None
+    assert read_matching_market_admission_third_source_shadow(
+        tmp_path,
+        {**admission, "completed_through": "2026-08-06"},
+    ) is None
+
+
+def test_shadow_reader_rejects_untyped_or_non_research_evidence(tmp_path: Path) -> None:
+    admission = _blocked_payload()
+    path = tmp_path / "market_admission_third_source_latest.json"
+    base = {
+        "schema_version": SCHEMA_VERSION,
+        "research_only": True,
+        "admission_operation_id": admission["operation_id"],
+        "completed_through": admission["completed_through"],
+        "status": "OK",
+        "rows": [],
+    }
+    path.write_text(json.dumps({**base, "schema_version": "unknown"}), encoding="utf-8")
+    assert read_matching_market_admission_third_source_shadow(tmp_path, admission) is None
+
+    path.write_text(json.dumps({**base, "research_only": False}), encoding="utf-8")
+    assert read_matching_market_admission_third_source_shadow(tmp_path, admission) is None
+
+
+def test_retry_replaces_unavailable_shadow_without_writing_admission(tmp_path: Path) -> None:
+    admission = _blocked_payload()
+    unavailable = collect_market_admission_third_source_shadow(
+        admission,
+        api_key="secret-key",
+        request_json=lambda _url: {"Time Series (Daily)": {}},
+        fetched_at="2026-08-06T00:10:00+00:00",
+    )
+    write_market_admission_third_source_shadow(tmp_path, unavailable)
+
+    result = retry_market_admission_third_source_shadow(
+        tmp_path,
+        admission_payload=admission,
+        api_key="secret-key",
+        request_json=lambda _url: _alpha_response(),
+        fetched_at="2026-08-06T01:02:00+00:00",
+    )
+
+    assert result["status"] == "OK"
+    assert result["rows"][0]["third_source_support"] == "ALPACA_WITNESS"
+    assert read_matching_market_admission_third_source_shadow(tmp_path, admission)["status"] == "OK"
+    assert not (tmp_path / "market_admission_latest.json").exists()
+
+
+def test_retry_skips_network_when_matching_shadow_is_already_available(tmp_path: Path) -> None:
+    admission = _blocked_payload()
+    available = collect_market_admission_third_source_shadow(
+        admission,
+        api_key="secret-key",
+        request_json=lambda _url: _alpha_response(),
+        fetched_at="2026-08-06T00:10:00+00:00",
+    )
+    write_market_admission_third_source_shadow(tmp_path, available)
+
+    result = retry_market_admission_third_source_shadow(
+        tmp_path,
+        admission_payload=admission,
+        request_json=lambda _url: (_ for _ in ()).throw(AssertionError("must not fetch")),
+    )
+
+    assert result["status"] == "OK"
+    assert result["retry_status"] == "ALREADY_AVAILABLE"
+
+
+def test_retry_script_resolves_archive_without_entering_scoring(tmp_path: Path) -> None:
+    seen = []
+    lock_calls = []
+
+    @contextmanager
+    def fake_lock(**kwargs):
+        lock_calls.append(kwargs)
+        yield
+
+    result = run_retry(
+        config={"paths": {"archive_dir": str(tmp_path)}},
+        retry_fn=lambda archive: seen.append(Path(archive)) or {"status": "NOT_NEEDED"},
+        lock_fn=fake_lock,
+        lock_timeout=12.0,
+    )
+
+    assert seen == [tmp_path]
+    assert lock_calls == [
+        {
+            "blocking": True,
+            "timeout": 12.0,
+            "path": tmp_path / ".pipeline.lock",
+        }
+    ]
+    assert result == {"status": "NOT_NEEDED"}
+
+
+def test_retry_script_reports_pipeline_busy_without_writing(
+    monkeypatch,
+    capsys,
+) -> None:
+    def busy_retry(**_kwargs):
+        raise PipelineBusy("pipeline busy (test)")
+
+    monkeypatch.setattr(retry_script, "run_retry", busy_retry)
+
+    assert retry_script.main(["--lock-timeout", "0"]) == 75
+    assert json.loads(capsys.readouterr().out) == {
+        "status": "BUSY",
+        "error": "pipeline busy (test)",
+    }
