@@ -1,6 +1,6 @@
 #!/bin/bash
-# Hermes daily live run wrapper — invoked by launchd (com.hermes.daily)
-# or manually: bash ~/.hermes/bin/run_daily.sh
+# Hermes daily live run wrapper — launchd passes --scheduled-launchd.
+# A plain manual invocation is always a non-official manual_rerun.
 # Roadmap: docs/OPTIMIZATION_ROADMAP.md T1
 set -u
 
@@ -27,24 +27,37 @@ MARKER="$RUNTIME/hermes_escape_top/RUNTIME_LOCK_SHA256"
 LOCK_SHA="$(tr -d '[:space:]' < "$MARKER")"
 PY="$BASE/runtime/$LOCK_SHA/.venv/bin/python"
 [ -x "$PY" ] || { echo "Hermes managed Python missing: $PY" >&2; exit 65; }
-DEPLOY_VERIFY=0
-[ "${1:-}" = "--deploy-verify" ] && DEPLOY_VERIFY=1
+OFFICIAL_RUN=0
+if [ "${1:-}" = "--scheduled-launchd" ]; then
+  OFFICIAL_RUN=1
+  shift
+fi
+for arg in "$@"; do
+  case "$arg" in
+    --run-type|--run-type=*)
+      echo "--run-type is internal; use the wrapper trigger mode" >&2
+      exit 64
+      ;;
+  esac
+done
 
 {
   echo "=== hermes daily run start $(date '+%F %T %Z') ==="
   "$PY" -c 'import ssl, numpy, pandas, scipy; assert ssl.OPENSSL_VERSION.startswith("OpenSSL ")'
   if [ "${1:-}" = "--deploy-verify" ]; then
     HERMES_RUNTIME_ROOT="$RUNTIME" "$PY" "$RUNTIME/scripts/run_daily.py" --deploy-verify
-  else
+  elif [ "$OFFICIAL_RUN" -eq 1 ]; then
     HERMES_RUNTIME_ROOT="$RUNTIME" "$PY" "$RUNTIME/scripts/run_daily.py" --run-type scheduled "$@"
+  else
+    HERMES_RUNTIME_ROOT="$RUNTIME" "$PY" "$RUNTIME/scripts/run_daily.py" --run-type manual_rerun "$@"
   fi
 } >>"$LOG" 2>&1
 rc=$?
 echo "=== exit $rc at $(date '+%F %T') ===" >>"$LOG"
 
-if [ "$rc" -ne 0 ] && [ "$DEPLOY_VERIFY" -eq 0 ]; then
+if [ "$rc" -ne 0 ] && [ "$OFFICIAL_RUN" -eq 1 ]; then
   /usr/bin/osascript -e "display notification \"exit $rc — see ${LOG/#$HOME/~}\" with title \"Hermes daily run FAILED\" sound name \"Basso\"" || true
-elif [ "$rc" -eq 0 ] && [ "$DEPLOY_VERIFY" -eq 0 ]; then
+elif [ "$rc" -eq 0 ] && [ "$OFFICIAL_RUN" -eq 1 ]; then
   # Success heartbeat: best-effort, never affects the run's exit code.
   gh api "gists/$HEARTBEAT_GIST" -X PATCH \
     -f "files[heartbeat.txt][content]=$(date '+%F %T %Z') daily run OK" \

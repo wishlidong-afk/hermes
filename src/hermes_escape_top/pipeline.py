@@ -19,6 +19,7 @@ from .core.data.run_transaction import recover_incomplete_score_run, score_run_t
 from .core.data.market import MarketData
 from .core.data.audit import write_audit_record
 from .core.data.quality import analyze_missing_fields, quality_from_snapshots
+from .core.data.source_relevance import soft_record_decision_role
 from .core.data.state_store import (
     latest_decision_statuses,
     latest_execution_confirmations,
@@ -97,6 +98,7 @@ def empty_score_pipeline(as_of: str, config_path: Path = CONFIG_PATH) -> Dict[st
         "snapshots": {symbol: snap.to_dict() for symbol, snap in snapshots.items()},
         "scores": {symbol: score.to_dict() for symbol, score in scores.items()},
         "data_quality": quality.to_dict(),
+        "all_source_data_quality": quality.to_dict(),
     }
     payload["input_hash"] = stable_hash(payload["snapshots"])
     return payload
@@ -319,6 +321,7 @@ def _score_pipeline_locked(
             portfolio_value=portfolio_value,
         )
         mirror_pnl = mirror_posterior_pnl(mirror, histories, as_of, portfolio_value=portfolio_value)
+        decision_quality, all_source_quality = _quality_payloads(snapshots, soft_data, config)
         payload = {
             "schema_version": "escape-top-greenfield-phase3-score-v1",
             "as_of": as_of,
@@ -359,7 +362,8 @@ def _score_pipeline_locked(
                 "escape": {symbol: row.to_dict() for symbol, row in sorted(escape_pnl.items())},
                 "mirror": {sleeve: row.to_dict() for sleeve, row in sorted(mirror_pnl.items())},
             },
-            "data_quality": quality_from_snapshots(snapshots.values()).to_dict(),
+            "data_quality": decision_quality,
+            "all_source_data_quality": all_source_quality,
             "ibkr": ibkr_payload,
         }
         if market_admission_status is not None:
@@ -368,7 +372,7 @@ def _score_pipeline_locked(
             payload["portfolio_target_weights"] = portfolio_target_weights
             payload["route_transition"] = route_transition.to_dict()
         payload["input_hash"] = stable_hash(payload["snapshots"])
-        payload["data_quality_breakdown"] = _quality_breakdown(payload, snapshots, flow)
+        payload["data_quality_breakdown"] = _quality_breakdown(payload, snapshots, flow, config)
         payload.update(build_action_context(payload, snapshots))
         payload["state"] = write_state_snapshot(state_db_path, payload, retention=config.get("state_retention"))
         _persistence_checkpoint("unified_state")
@@ -579,8 +583,10 @@ def _quality_breakdown(
     payload: Dict[str, Any],
     snapshots: Dict[str, SymbolSnapshot],
     flow: Dict[str, Any],
+    config: Dict[str, Any],
 ) -> Dict[str, Any]:
     dq = payload.get("data_quality") or {}
+    all_source_dq = payload.get("all_source_data_quality") or dq
     sources = []
     price_stale = []
     for symbol in ["MSTR", "FNGU", "SOXL", "QQQ", "SOXX", "SPY", "^VIX"]:
@@ -608,6 +614,7 @@ def _quality_breakdown(
         is_proxy = bool(record.get("is_proxy"))
         latency = int(record.get("latency_days") or 0)
         available = bool(record.get("data_available"))
+        decision_role = soft_record_decision_role(config, name)
         soft_proxy += int(is_proxy)
         soft_latency += int(latency > 0)
         sources.append({
@@ -619,6 +626,8 @@ def _quality_breakdown(
             "latency_days": latency,
             "quality_penalty": record.get("quality_penalty", 0.0),
             "reason": record.get("reason", ""),
+            "decision_role": decision_role,
+            "decision_bearing": decision_role in {"strategy", "hard_gate"},
         })
     flow_stale = []
     for sleeve, row in sorted((flow.get("component_baskets") or {}).items()):
@@ -658,8 +667,10 @@ def _quality_breakdown(
     if price_stale:
         upgrade.append("刷新价格历史: " + ", ".join(price_stale))
     return {
-        "level": dq.get("level"),
-        "overall_score": dq.get("overall_score"),
+        "level": all_source_dq.get("level"),
+        "overall_score": all_source_dq.get("overall_score"),
+        "strategy_level": dq.get("level"),
+        "strategy_overall_score": dq.get("overall_score"),
         "components": {
             "price_fresh": not price_stale,
             "soft_proxy_count": soft_proxy,
@@ -1145,6 +1156,33 @@ def _soft_snapshot(soft_data: Dict[str, Any], as_of: str) -> SymbolSnapshot:
                 ),
             )
     return SymbolSnapshot("SOFT", day, fields)
+
+
+def _decision_quality_excluded_fields(
+    soft_data: Dict[str, Any],
+    config: Dict[str, Any],
+) -> set[str]:
+    excluded: set[str] = set()
+    for name, record in (soft_data.get("records") or {}).items():
+        if soft_record_decision_role(config, str(name)) not in {"auxiliary", "research"}:
+            continue
+        excluded.add(f"SOFT.{name}")
+        if isinstance(record, dict):
+            excluded.update(f"SOFT.{field_name}" for field_name in (record.get("fields") or {}))
+    return excluded
+
+
+def _quality_payloads(
+    snapshots: Dict[str, SymbolSnapshot],
+    soft_data: Dict[str, Any],
+    config: Dict[str, Any],
+) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    all_source = quality_from_snapshots(snapshots.values())
+    decision = quality_from_snapshots(
+        snapshots.values(),
+        excluded_fields=_decision_quality_excluded_fields(soft_data, config),
+    )
+    return decision.to_dict(), all_source.to_dict()
 
 
 def stable_hash(payload: Any) -> str:

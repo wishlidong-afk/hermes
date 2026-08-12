@@ -29,7 +29,7 @@ of four states:
 | `data_skew_vvix` | **ON** ✅ | live | CBOE SKEW + VVIX term-structure inputs (A7) |
 | `data_net_liquidity` | **ON** ✅ | live | FRED net-liquidity (WALCL − WTREGEN − RRP) |
 | `data_aaii` | **ON** ✅ | best-effort | AAII bull/bear sentiment (A2) |
-| `data_naaim` | **ON** ✅ | live/history-retired | NAAIM Exposure Index (A2); public feed is `RETIRED_PAYWALL` from 2026-08-01, certified history stays immutable, and stale rows continue through missing_weight without a flag flip |
+| `data_naaim` | **ON** ✅ | live/history-retired | NAAIM Exposure Index (A2); public feed is `RETIRED_PAYWALL` from 2026-08-01, certified history stays immutable, and stale rows continue through missing_weight without a flag flip. Reporting label: `已退役来源，等待 SLO 缺失路径` |
 | `data_cnn_fgi` | OFF | rejected-for-performance | CNN Fear & Greed — wired/full coverage, but system marginal effect is noise |
 | `data_component_breadth` | **ON** ✅ | live | NDX/SOX breadth from FNGU/SOXL component proxies (A3) |
 | `data_cboe_pcr` | **ON** ✅ | live | CBOE equity put/call ratio (A2) |
@@ -67,7 +67,7 @@ of four states:
 | `use_hm2_buffer` | OFF | gate-failed | Downgrade lone H-M2 (single -15% day) from EXIT to DEFENSIVE_EXIT — real path rejected |
 | `use_soft_data_max_age` | **ON** ✅ | live | Treat over-age soft records as missing; `slo_only` no-op and live staleness behavior verified; rollback sets the flag false |
 | `use_full_confidence_spine` | **ON** ✅ | live | Wire fragility/disagreement into confidence spine; historical 13-fold evidence passed and the human-approved flag is deployed |
-| `use_b6_mnav_valuation` | OFF | gate-failed | Consume `SOFT.MSTR_valuation_pctl` as B6 mNAV valuation heat; failed full in-system gate, stays OFF |
+| `use_b6_mnav_valuation` | OFF | gate-failed | Consume `SOFT.MSTR_valuation_pctl` as B6 mNAV valuation heat; failed full in-system gate, stays OFF. MSTR B6 remains a 5-point scored input gap, not a zero-point placeholder |
 | `use_no_advice_state` | **ON** ✅ | live | Emit an explicit no-advice state when required decision evidence is blocked instead of fabricating a normal recommendation |
 | `use_indicator_cache` | OFF | candidate | Cache indicator frames by symbol/history identity; OFF preserves the uncached scoring path |
 | `use_market_admission_gate` | **ON (live config; repo default OFF)** ✅ | live | Live since 2026-07-14: require Yahoo + Alpaca SIP consensus before supported U.S. equity/ETF OHLCV rows can replace canonical history; mismatch or missing witness preserves the prior certified row |
@@ -164,8 +164,10 @@ B1=5, B2=5, B3=5, B4=6, B6=5. B5 is a zero-point non-scoring placeholder.
 - MSTR: B6 consumption remains OFF, so configured reachable max is **21**, below the cap.
 - FNGU/SOXL: B6 is wired, so configured reachable max is **26** and the scorer clips it to **25**.
 
+Reporting lifecycle is binding in [`2026-08-12_naaim_b6_lifecycle_decision.md`](history/2026-08-12_naaim_b6_lifecycle_decision.md): MSTR B6 is shown as `计分输入缺失 5 分`; B5 and the other `max_score=0` definitions are shown only as non-scoring placeholders.
+
 The generated SSOT is `building/reports/factor_capacity/FACTOR_CAPACITY_INVENTORY.md`; the governance check fails when code/config and this artifact differ. Historical “effective B cap = 16” language is retired because it no longer describes the current registry.
 
 ---
 
-*Last updated: 2026-07-22 (route-transition and C/D ownership experiments rejected; current baseline rebuilt with both flags OFF)*
+*Last updated: 2026-08-12 (NAAIM retirement, MSTR B6 scored gap, and zero-point placeholder reporting lifecycle clarified)*

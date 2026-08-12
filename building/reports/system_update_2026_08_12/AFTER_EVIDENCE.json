@@ -1,0 +1,234 @@
+{
+  "schema_version": "hermes-system-relevance-update-after-evidence-v1",
+  "generated_at": "2026-08-13T04:55:26+08:00",
+  "baseline_head": "c6aaa144902ea885f61fac98dac0e800c8de0ac7",
+  "candidate_state": "UNCOMMITTED_WORKTREE",
+  "release_status": "INDEPENDENT_AUDIT_APPROVED_READY_TO_COMMIT",
+  "safety_contract": {
+    "config_changed": false,
+    "feature_flags_flipped": false,
+    "scoring_or_routing_changed": false,
+    "ibkr_readonly": true,
+    "official_daily_run_started": false,
+    "live_data_modified": false,
+    "ibkr_connected": false,
+    "order_path_added": false
+  },
+  "config_evidence": {
+    "repo_config_sha256": "1a08fbbd2c72ce2cee9e1b13253a884be145503dc3c14a611d14b151d423c253",
+    "live_config_sha256": "5cff823ecaec5a5e9b8595f102e7f25d888ab9d1b2f7efb5dc856ec832d67d09",
+    "approved_live_only_true_flags": [
+      "use_btc_spot_witness",
+      "use_cboe_official_indices",
+      "use_market_admission_gate"
+    ],
+    "policy": "Preserve live config during R6 deployment"
+  },
+  "source_lanes_under_live_config": {
+    "ordinary_weekday": {
+      "decision": [
+        "dollar",
+        "real_rate",
+        "fred_net_liquidity",
+        "cboe_equity_pcr",
+        "aaii_sentiment",
+        "cboe_vix",
+        "cboe_vix3m",
+        "cboe_skew",
+        "cboe_vvix"
+      ],
+      "shadow": [
+        "btc_funding_basis",
+        "cboe_vix9d"
+      ],
+      "manual": [
+        "cot_nq",
+        "occ_equity_pcr"
+      ]
+    },
+    "friday_delta": {
+      "decision_add": [
+        "naaim_exposure"
+      ],
+      "reason": "RETIRED_PAYWALL lifecycle probe only"
+    },
+    "ordinary_schedule_non_decision_count_before": 4,
+    "ordinary_decision_lane_non_decision_count_after": 0
+  },
+  "quality_scope": {
+    "as_of": "2026-08-11",
+    "input_hash": "79f294f84f8975b4d4a5c6557985e2b25764d8c9be273083bd4726debaa63071",
+    "decision_data_quality": {
+      "quality_score": 94.0,
+      "overall_score": 93.4,
+      "level": "HIGH"
+    },
+    "all_source_data_quality": {
+      "quality_score": 90.0,
+      "overall_score": 92.2,
+      "level": "HIGH"
+    },
+    "research_penalty_removed_from_strategy_confidence": [
+      "SOFT.btc_funding_basis",
+      "SOFT.btc_basis_annual",
+      "SOFT.btc_basis_pctl"
+    ],
+    "evidence": "TASK3_CURRENT_QUALITY_SPLIT.json",
+    "evidence_sha256": "48101e16ae2b792f624c68e31edfd264d436842d19e598d85cda2887b4b99398"
+  },
+  "runtime_and_lifecycle": {
+    "repo_production_entrypoints_require_explicit_data_root": true,
+    "r6_packaged_fallback_preserved": true,
+    "naaim_label": "已退役来源，等待 SLO 缺失路径",
+    "mstr_b6_label": "计分输入缺失 5 分",
+    "zero_point_placeholders_are_non_scoring": true,
+    "post_deploy_state": "PENDING_POST_DEPLOY",
+    "pending_authorizes_trading": false,
+    "pending_authorizes_deployment": false,
+    "natural_scheduled_run_required_for_recertification": true
+  },
+  "task9_audit_remediation": {
+    "refresh_status_requires_explicit_runtime_root": true,
+    "plain_manual_daily_run_type": "manual_rerun",
+    "launchd_scheduled_marker": "--scheduled-launchd",
+    "post_deploy_certification_boundary": "first natural 07:10 Asia/Shanghai after attestation",
+    "fred_credential_priority": [
+      "process FRED_API_KEY",
+      "explicit config, including refresh_external injection from ~/.hermes/.env",
+      "legacy fred_api_key.txt compatibility fallback"
+    ],
+    "equivalence_contract": "read-only git baseline versus current candidate under decision-quality-v1",
+    "daily_launchagent_r6_lifecycle": "sync, backup, rollback and reload are symmetric",
+    "caller_supplied_run_type_rejected": true,
+    "daily_parser_allows_long_option_abbreviation": false,
+    "auxiliary_health_blocks_morning_acceptance": false,
+    "readiness_filters_shadow_in_status_and_refresh_run_passes": true,
+    "initial_independent_findings": {
+      "p1": 3,
+      "p2": 1,
+      "status": "REMEDIATED"
+    },
+    "second_independent_findings": {
+      "p1": 3,
+      "p3": 1,
+      "status": "REMEDIATED_PENDING_REAUDIT"
+    },
+    "third_independent_findings": {
+      "p1": 1,
+      "status": "REMEDIATED_PENDING_REAUDIT",
+      "finding": "argparse long-option abbreviation allowed --run-ty scheduled"
+    }
+  },
+  "publisher_freshness": {
+    "instrumented_sources": [
+      "aaii_sentiment",
+      "dollar",
+      "real_rate",
+      "fred_net_liquidity"
+    ],
+    "evidence_fields": [
+      "latest_expected_release_date",
+      "publisher_issue_or_release_id",
+      "content_fingerprint",
+      "grace_status",
+      "recovery_evidence"
+    ],
+    "minimum_matured_samples_before_enforcement": 5,
+    "initial_policy": "warning-only expected-release evidence; existing SLO and fail-closed validation unchanged"
+  },
+  "final_verification": {
+    "tasks_1_to_8_focused_tests": "478 passed in 42.40s",
+    "task9_first_remediation_focused_tests": "260 passed in 17.63s",
+    "task9_second_remediation_focused_tests": "218 passed in 18.95s",
+    "task9_final_remediation_focused_tests": "243 passed in 18.95s",
+    "full_suite": "1348 passed in 120.57s",
+    "governance": "7/7 OK",
+    "compileall": "PASS",
+    "ruff_severe_whole_project": "PASS",
+    "ruff_default_changed_files": {
+      "tool": "ruff 0.15.22 --isolated",
+      "baseline_findings": 39,
+      "candidate_findings": 39,
+      "new_file_findings": 0,
+      "finding_distribution_equal": true,
+      "note": "Pre-existing debt was not mass-refactored; this batch adds no default-rule finding."
+    },
+    "shell_syntax": "PASS; run_daily, decision precheck, shadow refresh, deploy",
+    "plist_lint": "PASS; daily and external-shadow",
+    "secret_scan": "PASS; one deliberate fake test fixture SECRET='runtime-data'",
+    "live_data_scan": "PASS; no runtime CSV/database/archive payload in candidate changes",
+    "git_diff_check": "PASS",
+    "four_date_equivalence": {
+      "all_equal": true,
+      "dates_exactly_equal_to_task8": true,
+      "valid_input_hashes": 4,
+      "artifact_count_per_date": 7,
+      "path": "FINAL_FOUR_DATE_EQUIVALENCE.json",
+      "sha256": "dfb41a9404a7794779f4dd878b92b33260596092bbf2ae48738f29c8e5854662",
+      "baseline_label": "git:c6aaa144902ea885f61fac98dac0e800c8de0ac7",
+      "baseline_source_manifest_sha256": "4975a1365f0c8447f77f1ff6e5958e4de69f2b2769145dec08aa157d9599ef85",
+      "candidate_label": "uncommitted-worktree-before-review",
+      "candidate_source_manifest_sha256": "15f26a6c53f42b92fa526e3056d985eaf0ede0e5d027c2008edb7d97e8f8606f",
+      "seed_source": "R6 shared certified data mirror (read-only during comparison)",
+      "seed_manifest_sha256": "bbc77edc006574f93de21af8661e54fa94d3f54910ed9502c1ba8f9783b3aca6",
+      "python": "3.11.15",
+      "numpy": "2.4.4",
+      "pandas": "3.0.3",
+      "strict_differences_per_date": [
+        "payload",
+        "artifact:audit_log.jsonl",
+        "artifact:hermes_state.sqlite"
+      ],
+      "contract_differences_per_date": []
+    },
+    "external_failure_drill": {
+      "status": "PASS",
+      "scenarios": 13,
+      "network_used": false,
+      "live_data_touched": false,
+      "path": "FINAL_EXTERNAL_FAILURE_DRILL.json",
+      "sha256": "87d2e2a1c7af49397a5e48cd6a971facee14f8086eb04b8aa8c5e45819670f30"
+    }
+  },
+  "independent_audit": {
+    "status": "APPROVED",
+    "initial_result": "BLOCKED_3_P1_1_P2",
+    "second_result": "BLOCKED_3_P1_1_P3",
+    "third_result": "BLOCKED_1_P1",
+    "final_result": "APPROVE_COMMIT_PUSH",
+    "final_findings": {
+      "p0": 0,
+      "p1": 0,
+      "p2": 0,
+      "p3": 0
+    },
+    "independent_full_suite": "1348 passed in 120.83s",
+    "required_scope": [
+      "source lane classification",
+      "decision versus all-source quality",
+      "explicit runtime data-root refusal",
+      "post-deploy pending certification",
+      "config and IBKR safety",
+      "four-date and persistence evidence"
+    ]
+  },
+  "deployment": {
+    "status": "NOT_STARTED",
+    "method": "single R6 deployment under pipeline lock",
+    "preserve_live_config": true,
+    "official_daily_as_verification": false
+  },
+  "observation": {
+    "status": "NOT_STARTED",
+    "required_natural_trading_days": 5,
+    "manual_refresh_allowed": false,
+    "required_jobs": [
+      "06:45 decision precheck",
+      "07:05 decision retry",
+      "07:10 scheduled daily",
+      "09:00 watchdog",
+      "09:20 shadow refresh",
+      "morning acceptance"
+    ]
+  }
+}

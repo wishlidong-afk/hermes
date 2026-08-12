@@ -31,11 +31,18 @@ def test_fred_vintage_flag_off_keeps_legacy_source_order_and_adapters(tmp_path) 
         "real_rate",
         "fred_net_liquidity",
     )
-    assert isinstance(refresh_external.dollar_source(config)[1], FredPercentileAdapter)
-    assert isinstance(
-        refresh_external.fred_net_liquidity_source(config)[1],
-        FredNetLiquidityAdapter,
-    )
+    dollar = refresh_external.dollar_source(config)[1]
+    real_rate = refresh_external.real_rate_source(config)[1]
+    net_liquidity = refresh_external.fred_net_liquidity_source(config)[1]
+    assert isinstance(dollar, FredPercentileAdapter)
+    assert isinstance(real_rate, FredPercentileAdapter)
+    assert isinstance(net_liquidity, FredNetLiquidityAdapter)
+    assert dollar.publisher_release_ids == ("17",)
+    assert real_rate.publisher_release_ids == ("18",)
+    assert net_liquidity.publisher_release_ids == ("20", "379")
+    assert dollar.config is config
+    assert real_rate.config is config
+    assert net_liquidity.config is config
 
 
 def test_fred_vintage_flag_on_registers_event_store_before_exact_derivatives(
@@ -78,6 +85,7 @@ def test_refresh_all_freezes_fred_derivatives_when_vintage_refresh_fails(
     tmp_path,
 ) -> None:
     config = _config(tmp_path, enabled=True)
+    config["features"]["data_cboe_pcr"] = True
     source_ids = (
         "fred_vintages",
         "dollar_vintage",
@@ -148,6 +156,7 @@ def test_retry_freezes_selected_derivatives_when_vintage_retry_fails(
     tmp_path,
 ) -> None:
     config = _config(tmp_path, enabled=True)
+    config["features"]["data_cboe_pcr"] = True
     source_ids = (
         "fred_vintages",
         "dollar_vintage",

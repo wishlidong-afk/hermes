@@ -1,0 +1,78 @@
+{
+  "schema_version": "hermes-task4-runtime-root-evidence-v1",
+  "as_of": "2026-08-12",
+  "status": "PASS",
+  "guard_contract": {
+    "git_checkout_requires": "HERMES_DATA_DIR",
+    "guarded_entrypoints": [
+      "cli score",
+      "cli dashboard/mirror-dashboard",
+      "cli serve/serve-mirror",
+      "web create_server and its refresh routes",
+      "run_daily_package main"
+    ],
+    "guard_runs_before": [
+      "pipeline lock",
+      "scheduled receipt",
+      "score persistence",
+      "dashboard output",
+      "HTTP port bind"
+    ],
+    "global_resolve_path_changed": false,
+    "r6_packaged_fallback_preserved": true
+  },
+  "process_proof": {
+    "repo_missing_data_root_cases": 4,
+    "all_nonzero": true,
+    "all_errors_name_HERMES_DATA_DIR": true,
+    "package_data_file_size_and_mtime_snapshot_equal": true,
+    "dashboard_output_created": false
+  },
+  "predeploy_smoke": {
+    "ok": true,
+    "fatal_ok": true,
+    "as_of": "2026-08-11",
+    "selected_data_root": "/Users/liweishi/.hermes/skills/investment/escape-top/releases/c6aaa14_20260812_161823/hermes_escape_top",
+    "fatal_checks_passed": 6,
+    "warning_checks_passed": 2,
+    "live_writes": false
+  },
+  "repo_runtime_inventory": {
+    "artifact": "TASK4_REPO_RUNTIME_INVENTORY.json",
+    "read_only": true,
+    "deletions_performed": 0,
+    "file_count": 2144,
+    "total_bytes": 619209329,
+    "archive_file_count": 2121,
+    "path_size_manifest_sha256": "eb5d0463cbdefac42bae21b89817646c6f2839f06baf633b71f960ea6c156437"
+  },
+  "four_date_equivalence": {
+    "artifact": "TASK4_FOUR_DATE_SELF_EQUIVALENCE.json",
+    "isolated_self_replay_all_equal": true,
+    "task3_input_hash_continuity": {
+      "2022-06-30": "cec545d25b63688c07d2536214c0be4daef1c8b5547766dd83b3c4e1c7e98428",
+      "2024-06-28": "68f631b24b6b9c3cd15196fed0b54c787ea0b061ebcceccb0749f3c52a5e620f",
+      "2026-05-29": "0f910bfaa76b27a558a1a23820578ba0b695c5f82f841900635aff790c94e9a3",
+      "2026-07-10": "18ffe225053fc71844fcdd06408478aabe25d9da279c19805b854aceb0c5ef9c"
+    },
+    "all_task3_hashes_equal": true,
+    "scope_note": "This is a post-change deterministic self-replay plus exact continuity against Task 3 input hashes. Task 4 changed entrypoints only and did not edit pipeline, scoring, routing, config, or factor modules; it is not represented as an independent source-tree before/after comparison."
+  },
+  "verification": {
+    "focused_tests": "99 passed",
+    "full_suite": "1305 passed",
+    "governance": "7/7 OK",
+    "compileall": "PASS",
+    "git_diff_check": "PASS",
+    "ruff": "NOT RUN: ruff is not installed in the repository development environment"
+  },
+  "prohibited_actions": {
+    "official_daily_run": false,
+    "market_or_external_refresh": false,
+    "ibkr_connection": false,
+    "live_mutation": false,
+    "runtime_file_deletion": false,
+    "config_or_flag_change": false,
+    "commit_push_or_deploy": false
+  }
+}

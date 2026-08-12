@@ -8,6 +8,7 @@
     <array>
         <string>/bin/bash</string>
         <string>/Users/liweishi/.hermes/bin/run_daily.sh</string>
+        <string>--scheduled-launchd</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>

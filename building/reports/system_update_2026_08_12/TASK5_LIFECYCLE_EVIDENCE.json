@@ -1,0 +1,63 @@
+{
+  "schema_version": "hermes-task5-input-lifecycle-evidence-v1",
+  "as_of": "2026-08-12",
+  "status": "PASS",
+  "reporting_contract": {
+    "retired_naaim": "已退役来源，等待 SLO 缺失路径",
+    "mstr_b6": "计分输入缺失 5 分",
+    "non_scoring_placeholders": {
+      "label": "非计分占位",
+      "factor_ids": [
+        "A2_CNN_FEAR_GREED",
+        "B5_SOCIAL_EUPHORIA",
+        "D_M4_BALANCE_SHEET_PROXY",
+        "D_M5_CRYPTO_SENTIMENT"
+      ],
+      "max_score": 0,
+      "enters_strategy_missing_weight": false
+    }
+  },
+  "webui": {
+    "scoring_table_excludes_zero_point_placeholders": true,
+    "placeholder_section_folded": true,
+    "naaim_lifecycle_visible_in_scoring_table": true,
+    "mstr_b6_five_point_gap_visible_in_scoring_table": true
+  },
+  "system_health": {
+    "dimension_count_before": 20,
+    "dimension_count_after": 20,
+    "lifecycle_evidence_merged_into": "factor_scores_present",
+    "mstr_b6_gap_status": "WARN",
+    "retired_and_placeholder_evidence_is_explanatory": true
+  },
+  "four_date_continuity": {
+    "artifact": "TASK5_FOUR_DATE_SELF_EQUIVALENCE.json",
+    "isolated_self_replay_all_equal": true,
+    "equal_to_task4_payload_sha256_each_date": true,
+    "equal_to_task4_artifacts_each_date": true,
+    "input_hashes": {
+      "2022-06-30": "cec545d25b63688c07d2536214c0be4daef1c8b5547766dd83b3c4e1c7e98428",
+      "2024-06-28": "68f631b24b6b9c3cd15196fed0b54c787ea0b061ebcceccb0749f3c52a5e620f",
+      "2026-05-29": "0f910bfaa76b27a558a1a23820578ba0b695c5f82f841900635aff790c94e9a3",
+      "2026-07-10": "18ffe225053fc71844fcdd06408478aabe25d9da279c19805b854aceb0c5ef9c"
+    },
+    "all_input_hashes_equal_to_task4": true
+  },
+  "verification": {
+    "focused_tests": "113 passed",
+    "full_suite": "1307 passed",
+    "governance": "7/7 OK",
+    "compileall": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "decision_record": "docs/history/2026-08-12_naaim_b6_lifecycle_decision.md",
+  "prohibited_changes": {
+    "config_or_flag_change": false,
+    "factor_registry_change": false,
+    "score_or_missing_weight_change": false,
+    "routing_or_sizing_change": false,
+    "official_daily_run": false,
+    "live_or_ibkr_write": false,
+    "commit_push_or_deploy": false
+  }
+}

@@ -67,6 +67,7 @@ def test_shell_entrypoints_prefer_current_release_when_present():
     daily = (REPO_ROOT / "ops" / "run_daily.sh").read_text(encoding="utf-8")
     dashboard = (REPO_ROOT / "ops" / "serve_dashboard.sh").read_text(encoding="utf-8")
     external = (REPO_ROOT / "ops" / "refresh_external_precheck.sh").read_text(encoding="utf-8")
+    external_shadow = (REPO_ROOT / "ops" / "refresh_external_shadow.sh").read_text(encoding="utf-8")
     external_manual = (REPO_ROOT / "ops" / "refresh_external.sh").read_text(encoding="utf-8")
     third_source = (REPO_ROOT / "ops" / "retry_market_third_source.sh").read_text(encoding="utf-8")
 
@@ -80,13 +81,28 @@ def test_shell_entrypoints_prefer_current_release_when_present():
     assert 'HERMES_RUNTIME_ROOT="$RUNTIME"' in external
     assert 'export PYTHONPATH="$RUNTIME"' in external
     assert 'hermes_escape_top.scripts.refresh_external "$REFRESH_ARG"' in external
+    assert '--lane decision' in external
     assert '--lock-timeout "${HERMES_EXTERNAL_PRECHECK_LOCK_TIMEOUT:-600}"' in external
     assert 'REFRESH_ARG="--pre-daily-check"' in external
     assert 'REFRESH_ARG="--retry-needed"' in external
     assert 'hermes_escape_top.scripts.refresh_external "$@"' in external_manual
+    assert 'if [ -d "$BASE/current/hermes_escape_top" ]; then' in external_shadow
+    assert 'RUNTIME="$BASE/current"' in external_shadow
+    assert 'HERMES_RUNTIME_ROOT="$RUNTIME"' in external_shadow
+    assert 'export PYTHONPATH="$RUNTIME"' in external_shadow
+    assert "hermes_escape_top.scripts.refresh_external" in external_shadow
+    assert "--all --lane shadow" in external_shadow
+    assert '--lock-timeout "${HERMES_EXTERNAL_SHADOW_LOCK_TIMEOUT:-0}"' in external_shadow
     assert "hermes_escape_top.scripts.retry_market_third_source" in third_source
     assert '--lock-timeout "${HERMES_MARKET_THIRD_SOURCE_LOCK_TIMEOUT:-600}"' in third_source
-    for script in (daily, dashboard, external, external_manual, third_source):
+    for script in (
+        daily,
+        dashboard,
+        external,
+        external_shadow,
+        external_manual,
+        third_source,
+    ):
         assert "RUNTIME_LOCK_SHA256" in script
         assert 'runtime/$LOCK_SHA/.venv/bin/python' in script
         assert "/usr/bin/python3" not in script
@@ -189,6 +205,9 @@ def test_runbook_uses_explicit_validation_python_and_lists_external_wrapper():
         line for line in runbook.splitlines() if ".hermes` 只提交 allowlist" in line
     )
     assert "`bin/refresh_external.sh`" in allowlist_line
+    assert "`bin/refresh_external_shadow.sh`" in allowlist_line
+    assert "**09:20 CST** `com.hermes.external-shadow`" in runbook
+    assert "--all --lane shadow" in runbook
 
 
 def test_production_dependency_lock_is_exact_and_hashed():
@@ -242,6 +261,21 @@ def test_external_precheck_launchagent_runs_before_daily():
     ]
     assert data["StandardOutPath"].endswith("/logs/external_precheck.launchd.out.log")
     assert data["StandardErrorPath"].endswith("/logs/external_precheck.launchd.err.log")
+
+
+def test_external_shadow_launchagent_runs_after_morning_acceptance():
+    plist_path = REPO_ROOT / "ops" / "launchagents" / "com.hermes.external-shadow.plist"
+    data = plistlib.loads(plist_path.read_bytes())
+
+    assert data["Label"] == "com.hermes.external-shadow"
+    assert data["ProgramArguments"] == [
+        "/bin/bash",
+        "/Users/liweishi/.hermes/bin/refresh_external_shadow.sh",
+    ]
+    assert data["StartCalendarInterval"] == {"Hour": 9, "Minute": 20}
+    assert data["RunAtLoad"] is False
+    assert data["StandardOutPath"].endswith("/logs/external_shadow.launchd.out.log")
+    assert data["StandardErrorPath"].endswith("/logs/external_shadow.launchd.err.log")
 
 
 def test_market_third_source_retry_runs_after_vendor_publication_window():
@@ -404,6 +438,60 @@ def test_external_precheck_writes_latest_and_dated_reports():
     assert "--retry-needed" in script
 
 
+@pytest.mark.parametrize("exit_code", [0, 75])
+def test_external_shadow_uses_managed_runtime_and_preserves_evidence(tmp_path, exit_code):
+    home = tmp_path / "home"
+    base = home / ".hermes/skills/investment/escape-top"
+    runtime = base / "current"
+    scripts = runtime / "hermes_escape_top/scripts"
+    scripts.mkdir(parents=True)
+    (runtime / "hermes_escape_top/RUNTIME_LOCK_SHA256").write_text(
+        "test-runtime\n", encoding="utf-8"
+    )
+    managed_python = base / "runtime/test-runtime/.venv/bin/python"
+    managed_python.parent.mkdir(parents=True)
+    managed_python.symlink_to(sys.executable)
+    (runtime / "hermes_escape_top/__init__.py").write_text("", encoding="utf-8")
+    scripts.joinpath("__init__.py").write_text("", encoding="utf-8")
+    scripts.joinpath("refresh_external.py").write_text(
+        "import json, os, sys\n"
+        "print(json.dumps({\n"
+        "    'ok': int(os.environ['TEST_EXIT_CODE']) == 0,\n"
+        "    'busy': int(os.environ['TEST_EXIT_CODE']) == 75,\n"
+        "    'args': sys.argv[1:],\n"
+        "    'runtime': os.environ['HERMES_RUNTIME_ROOT'],\n"
+        "    'data': os.environ['HERMES_DATA_DIR'],\n"
+        "}))\n"
+        "raise SystemExit(int(os.environ['TEST_EXIT_CODE']))\n",
+        encoding="utf-8",
+    )
+    env = {
+        **os.environ,
+        "HOME": str(home),
+        "TEST_EXIT_CODE": str(exit_code),
+    }
+    env.pop("HERMES_DATA_DIR", None)
+
+    result = subprocess.run(
+        ["bash", str(REPO_ROOT / "ops/refresh_external_shadow.sh")],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == exit_code, result.stdout + result.stderr
+    report_dir = home / ".hermes/logs/external-shadow"
+    latest = report_dir / "external_shadow_latest.json"
+    assert latest.exists()
+    payload = json.loads(latest.read_text(encoding="utf-8"))
+    assert payload["args"] == ["--all", "--lane", "shadow", "--lock-timeout", "0"]
+    assert payload["runtime"] == str(runtime)
+    assert payload["data"] == str(runtime / "hermes_escape_top")
+    immutable = list(report_dir.glob("external_shadow_????-??-??_*.json"))
+    assert len(immutable) == 1
+
+
 def test_external_precheck_markdown_includes_top_level_source_status(tmp_path):
     home = tmp_path / "home"
     runtime = home / ".hermes" / "skills" / "investment" / "escape-top" / "current"
@@ -557,6 +645,50 @@ def test_run_daily_entry_uses_current_release_runtime_and_data_root(tmp_path):
     assert payload["HERMES_RUNTIME_ROOT"] == str(current)
     assert payload["HERMES_DATA_DIR"] == str(package)
 
+    manual = subprocess.run(
+        ["bash", str(REPO_ROOT / "ops" / "run_daily.sh")],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert manual.returncode == 0, manual.stdout + manual.stderr
+    payload = json.loads(marker.read_text(encoding="utf-8"))
+    assert payload["argv"] == ["--run-type", "manual_rerun"]
+
+    for override in (["--run-type", "scheduled"], ["--run-type=scheduled"]):
+        before = marker.read_bytes()
+        rejected = subprocess.run(
+            ["bash", str(REPO_ROOT / "ops" / "run_daily.sh"), *override],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert rejected.returncode == 64
+        assert "--run-type is internal" in rejected.stderr
+        assert marker.read_bytes() == before
+
+    scheduled = subprocess.run(
+        [
+            "bash",
+            str(REPO_ROOT / "ops" / "run_daily.sh"),
+            "--scheduled-launchd",
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert scheduled.returncode == 0, scheduled.stdout + scheduled.stderr
+    payload = json.loads(marker.read_text(encoding="utf-8"))
+    assert payload["argv"] == ["--run-type", "scheduled"]
+
+    plist = plistlib.loads(
+        (REPO_ROOT / "ops/launchagents/com.hermes.daily.plist").read_bytes()
+    )
+    assert plist["ProgramArguments"][-1] == "--scheduled-launchd"
+
 
 def test_daily_entry_leaves_alpaca_flow_to_package_engine():
     source = (REPO_ROOT / "ops" / "run_daily.py").read_text(encoding="utf-8")
@@ -674,4 +806,4 @@ def test_deploy_verify_skips_live_log_side_effects():
     script = (REPO_ROOT / "ops" / "run_daily.sh").read_text(encoding="utf-8")
 
     assert 'LOG="${HERMES_RUN_LOG:-' in script
-    assert '[ "$rc" -eq 0 ] && [ "$DEPLOY_VERIFY" -eq 0 ]' in script
+    assert '[ "$rc" -eq 0 ] && [ "$OFFICIAL_RUN" -eq 1 ]' in script

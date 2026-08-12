@@ -54,6 +54,7 @@ bash scripts/deploy_to_live.sh
 - **PIT（point-in-time）只认发布日。** `asof_pick` 按 `publish_date` 取数；FRED 的 `publish_date = 数据日 + 1 天`，**不是** `realtime_start`（用查询日会让所有行同值、PIT 失效——A10 real_rate 曾因此被清零）。
 - **run_type 标记。** `scheduled`=当日官方；`manual_rerun`=盘中预览。两者在 audit / UI 里必须分得清，不能让盘中重算污染官方记录（SOXL「REDUCE→斩仓→REDUCE」假翻转的根因之一）。
 - **不给假数据、不给假建议。** 取数失败就如实标 MISSING + 走盲区惩罚，绝不用 0 / 上一日 / 猜测值顶替。指标前后一致性 > 一切。
+- **仓库不是运行数据根。** 从 git checkout 直接启动 `score`、dashboard/Web refresh 或 daily 时必须显式设置 `HERMES_DATA_DIR`；缺失时入口会在加锁、写回执或评分前拒绝运行。测试、回放和研究任务应指向隔离副本；R6 live 入口继续显式指向 shared runtime。
 - 大型 append-only 文件（`audit_log.jsonl` 100MB+）用 tail-read，别整文件读；由 `rotate_audit_log` 无损归档后压缩保留。
 
 ## 5. 文件该放哪

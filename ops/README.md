@@ -18,6 +18,7 @@ reviewer can see the *whole* execution path, not just the package.
 |---|---|---|
 | `run_daily.sh` | `~/.hermes/bin/run_daily.sh` | launchd `com.hermes.daily` ExecStart; `$HOME`-relative (portable) |
 | `refresh_external_precheck.sh` | `~/.hermes/bin/refresh_external_precheck.sh` | launchd `com.hermes.external-precheck` ExecStart; runs external source readiness before daily, no scoring/official run write |
+| `refresh_external_shadow.sh` | `~/.hermes/bin/refresh_external_shadow.sh` | launchd `com.hermes.external-shadow` ExecStart; refreshes auxiliary/research evidence at 09:20 without entering strategy readiness |
 | `retry_market_third_source.sh` | `~/.hermes/bin/retry_market_third_source.sh` | launchd `com.hermes.market-third-source` ExecStart; retries delayed Alpha Vantage evidence at 09:02 without touching canonical history or scoring |
 | `prune_runtime_artifacts.py` | `~/.hermes/bin/prune_runtime_artifacts.py` | launchd `com.hermes.runtime-retention`; weekly bounded cleanup under the pipeline lock |
 | `run_daily.py` | `~/.hermes/skills/investment/escape-top/scripts/run_daily.py` | runs the package via `-m` (single engine) |
@@ -39,8 +40,10 @@ nonblocking `.pipeline.lock` as scoring and deployment; a busy lock records
 
 ## External precheck severity
 
-`com.hermes.external-precheck` runs at 06:45 and 07:05. A stale source normally
-keeps the precheck non-ready. Dollar remains a narrow publication-lag exception: when the
+`com.hermes.external-precheck` runs the `decision` lane at 06:45 and 07:05.
+Disabled, inactive, auxiliary, and research sources are not requested by this
+job. A stale decision source normally keeps the precheck non-ready. Dollar
+remains a narrow publication-lag exception: when the
 current refresh attempt succeeded, `use_soft_data_max_age` and `data_dollar`
 are enabled, and its age exceeds the configured strategy SLO, it remains a
 visible policy WARN instead of generating a FAILED notification. The report
@@ -56,6 +59,17 @@ certified file remains blocking.
 Any Dollar fetch/parse failure, missing policy evidence, or stale second source
 remains blocking. This exception does not change scoring or the configured
 Dollar SLO.
+
+## External shadow refresh
+
+`com.hermes.external-shadow` runs the `shadow` lane at 09:20 with a nonblocking
+pipeline-lock attempt. It schedules the active BTC funding/basis research feed;
+auxiliary VIX9D joins only when `use_cboe_official_indices` is enabled. Inactive
+OCC and disabled COT stay manual; explicit `refresh_external.sh --source <id>`
+remains available for research collection. A busy lock returns exit 75, and
+every result is preserved under `~/.hermes/logs/external-shadow/`. Shadow
+evidence never enters pre-daily readiness, scoring, routing, official receipts,
+or `input_hash`.
 
 ## verify_live.sh — post-deploy end-to-end gate
 
@@ -95,10 +109,27 @@ written atomically to:
 - `~/.hermes/logs/acceptance/morning_acceptance_<date>.md`
 - matching `morning_acceptance_latest.*` aliases
 
-Exit `0` means PASS; exit `2` means one or more acceptance checks failed.
+Exit `0` means PASS; exit `2` means one or more acceptance checks failed. Exit
+`3` means `PENDING_POST_DEPLOY`: runtime integrity and current strategy
+readiness are healthy, but the immutable official health report has not yet
+crossed the first natural 07:10 schedule boundary after the currently attested
+R6 deployment. Pending is neither PASS nor FAIL and must not authorize trading
+or another deployment. The verifier never rewrites the old report or reruns
+daily; only a matching generator-bound report at or after that boundary can move
+acceptance to PASS. A plain manual `run_daily.sh` invocation is always
+`manual_rerun`; launchd alone uses the `--scheduled-launchd` wrapper mode.
+
+Every newly generated health report records `generator_release_hash` and
+`generator_policy_sha256`. The verifier also requires the report timestamp to
+be at or after the next 07:10 schedule boundary following the current live
+attestation, so a same-commit redeploy or an early manual preview cannot reuse
+or manufacture certification. During pending, 8766 shows
+`策略待认证 / WAIT` rather than `策略可用 / READY`.
+
 Stale Dollar data remains a visible permitted WARN, and stale/unavailable IBKR
 remains a visible nonblocking INFO. Other strategy or auxiliary-flow
-degradation fails acceptance.
+degradation fails acceptance and can never be converted to pending by a
+deployment.
 
 The seven primary checks remain stable for automation consumers. A separate
 `operational_observations` block tracks weekly retention APPLY evidence, dated

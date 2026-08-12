@@ -5,9 +5,37 @@ synthetic reproduction of each (and passes a clean one).
 """
 from __future__ import annotations
 
+import json
+
 import pandas as pd
+import pytest
 
 from hermes_escape_top.scripts import predeploy_smoke as smoke
+
+
+def test_recent_official_payloads_rejects_malformed_audit_evidence(
+    tmp_path,
+    monkeypatch,
+):
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    (archive / "audit_log.jsonl").write_text(
+        json.dumps(
+            {
+                "payload": {
+                    "as_of": "2026-08-11",
+                    "run_type": "scheduled",
+                    "scores": {"MSTR": {}},
+                }
+            }
+        )
+        + "\n{not-json\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(smoke, "resolve_path", lambda _config, _key: archive)
+
+    with pytest.raises(ValueError, match="malformed audit evidence"):
+        smoke._read_recent_official_payloads({})
 
 
 def _dollar_slo_config(max_age: int = 6, *, guard_enabled: bool = True):
@@ -327,5 +355,25 @@ def test_repo_live_data_root_respects_explicit_data_root(monkeypatch, tmp_path):
     monkeypatch.setenv("HERMES_DATA_DIR", str(explicit))
 
     with smoke.repo_live_data_root() as data_root:
-        assert data_root is None
+        assert data_root == explicit.resolve()
         assert smoke.os.environ["HERMES_DATA_DIR"] == str(explicit)
+
+
+def test_run_smoke_reports_selected_explicit_data_root(monkeypatch, tmp_path):
+    explicit = tmp_path / "explicit"
+    explicit.mkdir()
+    monkeypatch.setenv("HERMES_DATA_DIR", str(explicit))
+    monkeypatch.setattr(smoke, "load_config", lambda: {"features": {}})
+    monkeypatch.setattr(smoke, "_read_recent_official_payloads", lambda cfg, n=2: [])
+    monkeypatch.setattr(smoke, "check_fred_publish_dates", lambda cfg: ("fred", True, "OK"))
+    monkeypatch.setattr(smoke, "check_on_sources_available", lambda cfg, payload: ("on", True, "OK"))
+    monkeypatch.setattr(smoke, "check_always_on_daily_available", lambda payload: ("daily", True, "OK"))
+    monkeypatch.setattr(smoke, "check_no_source_regression", lambda prev, curr, cfg: ("regression", True, "OK"))
+    monkeypatch.setattr(smoke, "check_no_na_in_evidence", lambda payload: ("evidence", True, "OK"))
+    monkeypatch.setattr(smoke, "check_manifest_not_drift", lambda cfg: ("manifest", True, "OK"))
+    monkeypatch.setattr(smoke, "check_expected_slo_stale", lambda cfg, payload: ("stale", True, "OK"))
+    monkeypatch.setattr(smoke, "check_no_unexplained_flip", lambda prev, curr: ("flip", True, "OK"))
+
+    result = smoke.run_smoke()
+
+    assert result["data_root"] == str(explicit.resolve())

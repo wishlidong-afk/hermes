@@ -276,3 +276,42 @@ def test_registry_drives_import_and_display_metadata():
     display = profiles.display_source_ids()
     assert display.index("fred_vintages") < display.index("aaii_sentiment")
     assert profiles.profile_for("cboe_skew").label == "CBOE SKEW"
+
+
+def test_registry_owns_soft_record_aliases_without_a_second_source_registry():
+    assert profiles.profile_for("aaii_sentiment").soft_record_names == ("aaii",)
+    assert profiles.profile_for("naaim_exposure").soft_record_names == ("naaim",)
+    assert profiles.profile_for("fred_net_liquidity").soft_record_names == (
+        "net_liquidity",
+    )
+    assert profiles.profile_for("cboe_equity_pcr").soft_record_names == (
+        "cboe_pcr",
+    )
+    assert profiles.profile_for("btc_funding_basis").soft_record_names == (
+        "btc_funding_basis",
+    )
+    assert "cboe_indices" in profiles.profile_for("cboe_vix").soft_record_names
+    assert "cboe_indices" in profiles.profile_for("cboe_vix9d").soft_record_names
+
+
+def test_soft_record_aliases_do_not_change_existing_status_payload_shape():
+    payload = profiles.profile_for("aaii_sentiment").to_dict()
+
+    assert "soft_record_names" not in payload
+
+
+def test_fred_and_aaii_profiles_require_verified_publisher_calendars():
+    expected = {
+        "dollar": ("fred_release_calendar", ("17",)),
+        "real_rate": ("fred_release_calendar", ("18",)),
+        "fred_net_liquidity": ("fred_release_calendar", ("20", "379")),
+        "aaii_sentiment": ("publisher_issue_sequence", ()),
+    }
+
+    for source_id, (policy, release_ids) in expected.items():
+        profile = profiles.profile_for(source_id)
+        assert profile is not None
+        assert profile.expected_release_policy == policy
+        assert profile.publisher_release_ids == release_ids
+        assert profile.publisher_availability_lag_days == 1
+        assert profile.expected_release_weekdays == ()

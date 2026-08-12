@@ -1,0 +1,216 @@
+{
+  "schema_version": "hermes-repo-runtime-storage-inventory-v1",
+  "measured_at": "2026-08-13",
+  "status": "REVIEW_REQUIRED_NO_DELETION_PERFORMED",
+  "repository": {
+    "path": "/Users/liweishi/Documents/github/hermes",
+    "branch": "hermes-docs",
+    "head": "c6aaa144902ea885f61fac98dac0e800c8de0ac7",
+    "ignored_files": 3092,
+    "ignored_bytes": 653363999,
+    "ignored_buckets": {
+      "src/hermes_escape_top/data": 2143,
+      "src_other": 614,
+      "mypy_cache": 171,
+      "building": 98,
+      "ruff_cache": 26,
+      "scripts": 22,
+      "worktree_metadata": 6,
+      "ops": 5,
+      "logs": 2,
+      "reports": 2,
+      "data": 1,
+      "docs": 1,
+      "orders": 1
+    },
+    "physical_kib": {
+      "src/hermes_escape_top/data": 622228,
+      "building": 96904,
+      ".worktrees": 651448,
+      ".mypy_cache": 21152,
+      ".ruff_cache": 1276
+    },
+    "gitignore_change_required": false,
+    "note": "All demonstrated runtime and credential artifacts are already covered; evidence reports intentionally remain reviewable untracked files."
+  },
+  "worktrees": [
+    {
+      "path": "/Users/liweishi/Documents/github/hermes",
+      "head": "c6aaa144902ea885f61fac98dac0e800c8de0ac7",
+      "branch": "hermes-docs",
+      "exists": true,
+      "dirty_entries": 66,
+      "head_merged_into_hermes_docs": true,
+      "size_kib": 1460608,
+      "recommended_action": "KEEP_ACTIVE"
+    },
+    {
+      "path": "/private/tmp/hermes-cd-baseline.tLsC0B",
+      "head": "ab8f1719ead4587582aa02e7f063f8ebcb1dd6e2",
+      "branch": null,
+      "exists": false,
+      "dirty_entries": null,
+      "head_merged_into_hermes_docs": null,
+      "size_kib": 0,
+      "recommended_action": "PRUNE_METADATA_ONLY",
+      "reason": "gitdir file points to non-existent location"
+    },
+    {
+      "path": "/private/tmp/hermes-route-baseline.YCstg9",
+      "head": "d363fddc43d8cc98b7fb22b538b36f4f676fbcfe",
+      "branch": null,
+      "exists": false,
+      "dirty_entries": null,
+      "head_merged_into_hermes_docs": null,
+      "size_kib": 0,
+      "recommended_action": "PRUNE_METADATA_ONLY",
+      "reason": "gitdir file points to non-existent location"
+    },
+    {
+      "path": "/Users/liweishi/Documents/github/hermes-dollar-slo-alignment",
+      "head": "36d8276aa3e5833eb964cdafd3eb17664b47d67a",
+      "branch": "codex/dollar-slo-alignment",
+      "exists": true,
+      "dirty_entries": 0,
+      "head_merged_into_hermes_docs": false,
+      "size_kib": 106640,
+      "recommended_action": "KEEP_UNTIL_BRANCH_REVIEW"
+    },
+    {
+      "path": "/Users/liweishi/Documents/github/hermes-dollar-slo-baseline",
+      "head": "8a2709e2c039bdbb74f23b51d68887958a51a3ed",
+      "branch": null,
+      "exists": true,
+      "dirty_entries": 0,
+      "head_merged_into_hermes_docs": true,
+      "size_kib": 100596,
+      "recommended_action": "REVIEW_THEN_REMOVE"
+    },
+    {
+      "path": "/Users/liweishi/Documents/github/hermes-dollar-slo-rejected-archive",
+      "head": "11034f534749f8a9bc30f7c7da017c3504d33ce0",
+      "branch": "codex/dollar-slo-rejected-archive",
+      "exists": true,
+      "dirty_entries": 0,
+      "head_merged_into_hermes_docs": false,
+      "size_kib": 106620,
+      "recommended_action": "KEEP_UNTIL_BRANCH_REVIEW"
+    },
+    {
+      "path": "/Users/liweishi/Documents/github/hermes-morning-acceptance",
+      "head": "dbc9d112186ba5bd91fd5991e8b1634b82f48cad",
+      "branch": "codex/morning-acceptance",
+      "exists": true,
+      "dirty_entries": 0,
+      "head_merged_into_hermes_docs": true,
+      "size_kib": 106888,
+      "recommended_action": "REVIEW_THEN_REMOVE"
+    },
+    {
+      "path": "/Users/liweishi/Documents/github/hermes-morning-alert-policy",
+      "head": "feab9c5a4768c7944588c0307ec158205b40f0a8",
+      "branch": "codex/morning-alert-policy",
+      "exists": true,
+      "dirty_entries": 0,
+      "head_merged_into_hermes_docs": true,
+      "size_kib": 106920,
+      "recommended_action": "REVIEW_THEN_REMOVE"
+    },
+    {
+      "path": "/Users/liweishi/Documents/github/hermes-watchdog-hardening",
+      "head": "f2750bd5cc5a89c054fd51004f3a41174fb13b88",
+      "branch": "codex/watchdog-hardening",
+      "exists": true,
+      "dirty_entries": 0,
+      "head_merged_into_hermes_docs": false,
+      "size_kib": 106748,
+      "recommended_action": "KEEP_UNTIL_BRANCH_REVIEW"
+    },
+    {
+      "path": "/Users/liweishi/Documents/github/hermes/.worktrees/btc-spot-witness",
+      "head": "22aeb42aba27eccc0120166005eaed25d04ca1fe",
+      "branch": "codex/btc-spot-witness",
+      "exists": true,
+      "dirty_entries": 0,
+      "head_merged_into_hermes_docs": true,
+      "size_kib": 108244,
+      "recommended_action": "REVIEW_THEN_REMOVE"
+    },
+    {
+      "path": "/Users/liweishi/Documents/github/hermes/.worktrees/cboe-official-indices",
+      "head": "03fdc05e427f42be805acf8799f068f131c267e4",
+      "branch": "codex/cboe-official-indices",
+      "exists": true,
+      "dirty_entries": 0,
+      "head_merged_into_hermes_docs": true,
+      "size_kib": 108028,
+      "recommended_action": "REVIEW_THEN_REMOVE"
+    },
+    {
+      "path": "/Users/liweishi/Documents/github/hermes/.worktrees/data-quality-hardening",
+      "head": "b7816b507a7b4f8f34efe725b98d323458528074",
+      "branch": "codex/data-quality-hardening",
+      "exists": true,
+      "dirty_entries": 0,
+      "head_merged_into_hermes_docs": true,
+      "size_kib": 109152,
+      "recommended_action": "REVIEW_THEN_REMOVE"
+    },
+    {
+      "path": "/Users/liweishi/Documents/github/hermes/.worktrees/external-import-fallback-fix",
+      "head": "b743407e7aa3ad32e313217b75917ff88b870f68",
+      "branch": "codex/external-import-fallback-fix",
+      "exists": true,
+      "dirty_entries": 0,
+      "head_merged_into_hermes_docs": true,
+      "size_kib": 107588,
+      "recommended_action": "REVIEW_THEN_REMOVE"
+    },
+    {
+      "path": "/Users/liweishi/Documents/github/hermes/.worktrees/fred-vintage-pit",
+      "head": "7a5fe42c2ab53213b2e41d3221a54a1f02819d98",
+      "branch": "codex/fred-vintage-pit",
+      "exists": true,
+      "dirty_entries": 0,
+      "head_merged_into_hermes_docs": true,
+      "size_kib": 108976,
+      "recommended_action": "REVIEW_THEN_REMOVE"
+    },
+    {
+      "path": "/Users/liweishi/Documents/github/hermes/.worktrees/market-admission-gate",
+      "head": "825710a070ec4a303a6f74fcdea039fdc7144d24",
+      "branch": "codex/market-admission-gate",
+      "exists": true,
+      "dirty_entries": 0,
+      "head_merged_into_hermes_docs": true,
+      "size_kib": 109460,
+      "recommended_action": "REVIEW_THEN_REMOVE"
+    }
+  ],
+  "hermes_home_git": {
+    "path": "/Users/liweishi/.hermes",
+    "branch": "main",
+    "head": "5edb8bd0",
+    "last_commit": "deploy escape-top @c6aaa14 (20260812_161823)",
+    "tracked_files": 24407,
+    "escape_top_tracked_files": 12284,
+    "changed_tracked_entries": 10493,
+    "untracked_entries": 10354,
+    "git_dir_kib": 1255460,
+    "git_pack_size": "1.19 GiB",
+    "escape_top_runtime_kib": 1955852,
+    "assessment": "WHOLE_HOME_GIT_IS_NOT_A_BOUNDED_DEPLOYMENT_LEDGER"
+  },
+  "fred_credential_migration": {
+    "runtime_source": "/Users/liweishi/.hermes/.env:FRED_API_KEY",
+    "repo_legacy_copy": "src/hermes_escape_top/data/fred_api_key.txt",
+    "repo_legacy_was_tracked": false,
+    "repo_legacy_was_ignored": true,
+    "predelete_hash_match_smoke": "PASS",
+    "postdelete_production_resolver_smoke": "PASS",
+    "repo_legacy_copy_present_after": false,
+    "live_legacy_copies_present_and_untouched": 2,
+    "secret_value_recorded_in_report": false
+  },
+  "automatic_deletions": []
+}

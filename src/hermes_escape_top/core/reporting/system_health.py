@@ -7,6 +7,72 @@ from ..data.external_sources.ledger import (
     canonical_evidence_issue,
 )
 
+NON_SCORING_PLACEHOLDER_IDS = frozenset(
+    {
+        "A2_CNN_FEAR_GREED",
+        "B5_SOCIAL_EUPHORIA",
+        "D_M4_BALANCE_SHEET_PROXY",
+        "D_M5_CRYPTO_SENTIMENT",
+    }
+)
+
+
+def decision_input_lifecycle(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Classify reporting-only input gaps without changing score semantics."""
+    external = payload.get("external_source_status") or {}
+    naaim = external.get("naaim_exposure") if isinstance(external, dict) else {}
+    retired_naaim = bool(
+        isinstance(naaim, dict)
+        and str(naaim.get("lifecycle_status") or "") == "RETIRED_PAYWALL"
+    )
+    placeholders: set[str] = set()
+    mstr_b6_missing_points = 0.0
+    scores = payload.get("scores") or {}
+    if isinstance(scores, dict):
+        for symbol, score in scores.items():
+            if not isinstance(score, dict):
+                continue
+            for rows in (score.get("factor_scores") or {}).values():
+                if not isinstance(rows, list):
+                    continue
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    factor_id = str(row.get("factor_id") or "")
+                    try:
+                        max_score = float(row.get("max_score") or 0.0)
+                    except (TypeError, ValueError):
+                        max_score = 0.0
+                    if factor_id in NON_SCORING_PLACEHOLDER_IDS and max_score <= 0:
+                        placeholders.add(factor_id)
+                    if (
+                        str(symbol) == "MSTR"
+                        and factor_id == "B6_VALUATION_HEAT"
+                        and max_score > 0
+                        and bool(row.get("missing_fields"))
+                    ):
+                        mstr_b6_missing_points = max_score
+    return {
+        "retired_naaim": retired_naaim,
+        "mstr_b6_missing_points": mstr_b6_missing_points,
+        "non_scoring_placeholders": sorted(placeholders),
+    }
+
+
+def decision_input_lifecycle_detail(payload: Dict[str, Any]) -> str:
+    lifecycle = decision_input_lifecycle(payload)
+    details: list[str] = []
+    if lifecycle["retired_naaim"]:
+        details.append("NAAIM：已退役来源，等待 SLO 缺失路径")
+    missing_points = float(lifecycle["mstr_b6_missing_points"] or 0.0)
+    if missing_points > 0:
+        points = int(missing_points) if missing_points.is_integer() else missing_points
+        details.append(f"MSTR B6：计分输入缺失 {points} 分")
+    placeholder_count = len(lifecycle["non_scoring_placeholders"])
+    if placeholder_count:
+        details.append(f"非计分占位 {placeholder_count} 项（不进入策略 missing_weight）")
+    return "；".join(details) or "计分输入生命周期无已知缺口"
+
 
 def system_health_run_stem(
     as_of: str,
@@ -52,6 +118,7 @@ def build_system_health_audit_dimensions(
     receipt = report.get("run_receipt") or {}
     external_sources = payload.get("external_source_status") or {}
     data_quality = payload.get("data_quality") or {}
+    all_source_data_quality = payload.get("all_source_data_quality") or data_quality
     sip_status = payload.get("alpaca_daily_flow_status") or {}
     sip_flow = payload.get("alpaca_daily_flow") or {}
     ibkr = payload.get("ibkr") or {}
@@ -100,6 +167,12 @@ def build_system_health_audit_dimensions(
     factor_symbols = factor_score_symbol_count(payload)
     coverage_score = (report.get("decision_input_coverage") or {}).get("coverage_score")
     witness_status = (report.get("market_witness_status") or {}).get("status")
+    input_lifecycle = decision_input_lifecycle(payload)
+    input_lifecycle_present = bool(
+        input_lifecycle["retired_naaim"]
+        or input_lifecycle["mstr_b6_missing_points"]
+        or input_lifecycle["non_scoring_placeholders"]
+    )
 
     return [
         audit_row(
@@ -130,9 +203,11 @@ def build_system_health_audit_dimensions(
         ),
         audit_row(
             "data_quality",
-            "数据质量",
+            "策略输入质量",
             "PASS" if dq_level == "HIGH" else "WARN" if dq_level == "MEDIUM" else "FAIL" if dq_level in {"LOW", "BLOCKED", "NO_CACHE"} else "INFO",
             f"{dq_level or 'NA'} overall={data_quality.get('overall_score')} "
+            f"all_source={all_source_data_quality.get('level') or 'NA'} "
+            f"all_source_overall={all_source_data_quality.get('overall_score')} "
             f"decision_coverage={coverage_score} market_witness={witness_status or 'NA'}",
         ),
         audit_row("strategy_data_layer", "策略数据层", layer_status("strategy_data"), layer_detail(layers, "strategy_data")),
@@ -187,8 +262,17 @@ def build_system_health_audit_dimensions(
         audit_row(
             "factor_scores_present",
             "因子贡献",
-            "PASS" if factor_symbols else "WARN",
-            f"symbols={factor_symbols}",
+            "WARN"
+            if input_lifecycle["mstr_b6_missing_points"]
+            else "PASS"
+            if factor_symbols
+            else "WARN",
+            f"symbols={factor_symbols}"
+            + (
+                f"; {decision_input_lifecycle_detail(payload)}"
+                if input_lifecycle_present
+                else ""
+            ),
         ),
         audit_row("sizing_present", "系统目标仓位", "PASS" if payload.get("sizing") else "WARN", f"symbols={len(payload.get('sizing') or {})}"),
         audit_row(
@@ -255,6 +339,8 @@ def render_system_health_markdown(report: Dict[str, Any]) -> str:
         f"# Hermes System Health — {report.get('as_of')}",
         "",
         f"- generated_at: `{report.get('generated_at')}`",
+        f"- generator_release_hash: `{report.get('generator_release_hash', 'NA')}`",
+        f"- generator_policy_sha256: `{report.get('generator_policy_sha256', 'NA')}`",
         f"- overall_strategy_level: `{health.get('level')}`",
         f"- input_hash: `{str(report.get('input_hash') or 'NA')[:16]}`",
         f"- manifest: `{(report.get('manifest_status') or {}).get('status', 'NA')}`",

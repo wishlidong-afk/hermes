@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from hermes_escape_top.core.data.runtime_root import require_explicit_runtime_data_root
 from hermes_escape_top.scripts import check_next5_unlock as next5
 
 
@@ -32,3 +33,11 @@ def test_next5_source_has_no_repo_write_candidates():
     assert "Documents/github" not in source
     assert "building/logs" not in source
     assert "REPO_STATUS_PATH" not in source
+
+
+def test_next5_runtime_archive_stays_under_explicit_data_root(monkeypatch, tmp_path):
+    monkeypatch.setenv("HERMES_DATA_DIR", str(tmp_path))
+    runtime_root = require_explicit_runtime_data_root("next5")
+    archive = runtime_root / "data" / "archive"
+
+    assert archive.is_relative_to(runtime_root)

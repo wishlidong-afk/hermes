@@ -1,0 +1,358 @@
+{
+  "schema": "hermes-external-source-failure-drill-v1",
+  "status": "PASS",
+  "generated_at": "2026-08-12T20:34:52.596252+00:00",
+  "network_used": false,
+  "live_data_touched": false,
+  "scenarios": [
+    {
+      "source_id": "aaii_sentiment",
+      "scenario": "primary_fetch_failure",
+      "expected_status": "FETCH_ERROR",
+      "actual_status": "FETCH_ERROR",
+      "canonical_unchanged": true,
+      "canonical_advanced": false,
+      "before_latest_as_of": "2026-07-02",
+      "after_latest_as_of": "2026-07-02",
+      "ledger_written": true,
+      "canonical_sha256": null,
+      "official_file_sha256": null,
+      "error_type": "RuntimeError",
+      "error_message": "simulated primary endpoint failure",
+      "passed": true
+    },
+    {
+      "source_id": "aaii_sentiment",
+      "scenario": "older_official_file",
+      "expected_status": "PARSE_ERROR",
+      "actual_status": "PARSE_ERROR",
+      "canonical_unchanged": true,
+      "canonical_advanced": false,
+      "before_latest_as_of": "2026-07-02",
+      "after_latest_as_of": "2026-07-02",
+      "ledger_written": true,
+      "canonical_sha256": null,
+      "official_file_sha256": "859139fa32265dc16fea77ab92ca5508e29688ee6f2ab838e1e3b3d066ee316f",
+      "error_type": "ValueError",
+      "error_message": "AAII import file is older than current AAII seed: import latest 2026-06-25, seed latest 2026-07-02",
+      "passed": true
+    },
+    {
+      "source_id": "aaii_sentiment",
+      "scenario": "wrong_issue_file",
+      "expected_status": "PARSE_ERROR",
+      "actual_status": "PARSE_ERROR",
+      "canonical_unchanged": true,
+      "canonical_advanced": false,
+      "before_latest_as_of": "2026-07-02",
+      "after_latest_as_of": "2026-07-02",
+      "ledger_written": true,
+      "canonical_sha256": null,
+      "official_file_sha256": "352e00290b1ced6ed91dc09158546ebaeb17e46c6b458aabdb14829f9a6d4c75",
+      "error_type": "ValueError",
+      "error_message": "AAII import file contained no usable sentiment rows",
+      "passed": true
+    },
+    {
+      "source_id": "aaii_sentiment",
+      "scenario": "manual_import_recovery",
+      "expected_status": "OK",
+      "actual_status": "OK",
+      "canonical_unchanged": false,
+      "canonical_advanced": true,
+      "before_latest_as_of": "2026-07-02",
+      "after_latest_as_of": "2026-07-09",
+      "ledger_written": true,
+      "canonical_sha256": "a68877f63e41b5b6a8d548f1097e0e6f49a6e1554046f9607e6b9251270edf49",
+      "official_file_sha256": "5216fc5fd8a43b5f1d47672662c73888efd91ec33ccf0f5ba4cb8b4072e5c4e1",
+      "error_type": null,
+      "error_message": null,
+      "passed": true
+    },
+    {
+      "source_id": "naaim_exposure",
+      "scenario": "primary_fetch_failure",
+      "expected_status": "FETCH_ERROR",
+      "actual_status": "FETCH_ERROR",
+      "canonical_unchanged": true,
+      "canonical_advanced": false,
+      "before_latest_as_of": "2026-07-01",
+      "after_latest_as_of": "2026-07-01",
+      "ledger_written": true,
+      "canonical_sha256": null,
+      "official_file_sha256": null,
+      "error_type": "RuntimeError",
+      "error_message": "simulated primary endpoint failure",
+      "passed": true
+    },
+    {
+      "source_id": "naaim_exposure",
+      "scenario": "older_official_file",
+      "expected_status": "PARSE_ERROR",
+      "actual_status": "PARSE_ERROR",
+      "canonical_unchanged": true,
+      "canonical_advanced": false,
+      "before_latest_as_of": "2026-07-01",
+      "after_latest_as_of": "2026-07-01",
+      "ledger_written": true,
+      "canonical_sha256": null,
+      "official_file_sha256": "189430c3a11e2648a3c400c696707ddabcf98a3fc1d16c02c3785c42df4d95d7",
+      "error_type": "ValueError",
+      "error_message": "NAAIM import file is older than current NAAIM seed",
+      "passed": true
+    },
+    {
+      "source_id": "naaim_exposure",
+      "scenario": "wrong_issue_file",
+      "expected_status": "PARSE_ERROR",
+      "actual_status": "PARSE_ERROR",
+      "canonical_unchanged": true,
+      "canonical_advanced": false,
+      "before_latest_as_of": "2026-07-01",
+      "after_latest_as_of": "2026-07-01",
+      "ledger_written": true,
+      "canonical_sha256": null,
+      "official_file_sha256": "be4083fc69ff9ea6ab1e5753dc94123a786b078407b8c60d1aa4479aadeee6f2",
+      "error_type": "ValueError",
+      "error_message": "NAAIM import file contained no usable exposure rows",
+      "passed": true
+    },
+    {
+      "source_id": "naaim_exposure",
+      "scenario": "manual_import_recovery",
+      "expected_status": "OK",
+      "actual_status": "OK",
+      "canonical_unchanged": false,
+      "canonical_advanced": true,
+      "before_latest_as_of": "2026-07-01",
+      "after_latest_as_of": "2026-07-08",
+      "ledger_written": true,
+      "canonical_sha256": "5e4618426658027a623f52a032ac308e7a7cd32cbe757c5de8109f43f4fd2f81",
+      "official_file_sha256": "6d35964ce8019602624a64347af62bbbe7e91b491ebcb865b3afe9264fd6ff64",
+      "error_type": null,
+      "error_message": null,
+      "passed": true
+    },
+    {
+      "source_id": "cboe_vix3m",
+      "scenario": "historical_ohlc_revision_new_tail",
+      "expected_status": "OK",
+      "actual_status": "OK",
+      "promotion_status": "OK",
+      "canonical_unchanged": false,
+      "canonical_advanced": true,
+      "certified_rows_preserved": true,
+      "before_latest_as_of": "2026-07-22",
+      "after_latest_as_of": "2026-07-24",
+      "ledger_written": true,
+      "canonical_sha256": "f468f20e242c1e064a6177960666a2a3982beef58558c58d08fc32118726c607",
+      "official_file_sha256": "e67b08adf30289710408298afe8318a740db397b1277647859ac5b68d919e1b4",
+      "history_revision_status": "QUARANTINED",
+      "history_revision_count": 3,
+      "history_revision_fingerprint": "318e907fdcd50844f026a807cca4212a7eedce52b119a1a41f4c2089e665a82d",
+      "revision_evidence": {
+        "appended_dates": [
+          "2026-07-23",
+          "2026-07-24"
+        ],
+        "canonical_rows_preserved": true,
+        "changed_cells": [
+          {
+            "canonical": 15.13,
+            "column": "open",
+            "date": "2013-10-30",
+            "official": 14.68
+          },
+          {
+            "canonical": 15.13,
+            "column": "high",
+            "date": "2013-10-30",
+            "official": 15.45
+          },
+          {
+            "canonical": 15.13,
+            "column": "low",
+            "date": "2013-10-30",
+            "official": 14.68
+          }
+        ],
+        "changed_dates": [
+          "2013-10-30"
+        ],
+        "fingerprint": "318e907fdcd50844f026a807cca4212a7eedce52b119a1a41f4c2089e665a82d",
+        "policy": "PRESERVE_EXISTING_APPEND_NEW",
+        "reason": null,
+        "schema_version": "hermes-cboe-history-revision-v1",
+        "status": "QUARANTINED"
+      },
+      "error_type": null,
+      "error_message": null,
+      "passed": true
+    },
+    {
+      "source_id": "cboe_vix3m",
+      "scenario": "historical_close_revision",
+      "expected_status": "VALIDATION_ERROR",
+      "actual_status": "VALIDATION_ERROR",
+      "promotion_status": "NOT_RUN",
+      "canonical_unchanged": true,
+      "canonical_advanced": false,
+      "certified_rows_preserved": true,
+      "before_latest_as_of": "2026-07-22",
+      "after_latest_as_of": "2026-07-22",
+      "ledger_written": true,
+      "canonical_sha256": null,
+      "official_file_sha256": "605da7b6bded6bb04da79823e7ace2878d571bf1e1556143f43313aed7cadc8d",
+      "history_revision_status": "BLOCKED",
+      "history_revision_count": 5,
+      "history_revision_fingerprint": "8e93807bb06c6aca7f4fc8e799f73dd3ee8174a15331a2e036ce03dbdf4f80d9",
+      "revision_evidence": {
+        "appended_dates": [
+          "2026-07-23"
+        ],
+        "canonical_rows_preserved": true,
+        "changed_cells": [
+          {
+            "canonical": 15.13,
+            "column": "open",
+            "date": "2013-10-30",
+            "official": 15.14
+          },
+          {
+            "canonical": 15.13,
+            "column": "high",
+            "date": "2013-10-30",
+            "official": 15.14
+          },
+          {
+            "canonical": 15.13,
+            "column": "low",
+            "date": "2013-10-30",
+            "official": 15.14
+          },
+          {
+            "canonical": 15.13,
+            "column": "close",
+            "date": "2013-10-30",
+            "official": 15.14
+          },
+          {
+            "canonical": 15.13,
+            "column": "adj_close",
+            "date": "2013-10-30",
+            "official": 15.14
+          }
+        ],
+        "changed_dates": [
+          "2013-10-30"
+        ],
+        "fingerprint": "8e93807bb06c6aca7f4fc8e799f73dd3ee8174a15331a2e036ce03dbdf4f80d9",
+        "policy": "PRESERVE_EXISTING_APPEND_NEW",
+        "reason": "history continuity: changed existing row 2013-10-30 column close; certified close revision is not auto-promotable",
+        "schema_version": "hermes-cboe-history-revision-v1",
+        "status": "BLOCKED"
+      },
+      "error_type": "ValidationError",
+      "error_message": "history continuity: changed existing row 2013-10-30 column close; certified close revision is not auto-promotable",
+      "passed": true
+    },
+    {
+      "source_id": "cboe_vix3m",
+      "scenario": "missing_existing_date",
+      "expected_status": "VALIDATION_ERROR",
+      "actual_status": "VALIDATION_ERROR",
+      "promotion_status": "NOT_RUN",
+      "canonical_unchanged": true,
+      "canonical_advanced": false,
+      "certified_rows_preserved": true,
+      "before_latest_as_of": "2026-07-22",
+      "after_latest_as_of": "2026-07-22",
+      "ledger_written": true,
+      "canonical_sha256": null,
+      "official_file_sha256": "5139ac9e8cbf637ccc80354f0ad37e9d3c2eea8f033555591c1a4b9b95546f70",
+      "history_revision_status": "BLOCKED",
+      "history_revision_count": 0,
+      "history_revision_fingerprint": "49c0832c624bd8370d32603598a7524ac1b79365b3861ff385598f8d39ad6087",
+      "revision_evidence": {
+        "appended_dates": [],
+        "canonical_rows_preserved": false,
+        "changed_cells": [],
+        "changed_dates": [],
+        "fingerprint": "49c0832c624bd8370d32603598a7524ac1b79365b3861ff385598f8d39ad6087",
+        "policy": "PRESERVE_EXISTING_APPEND_NEW",
+        "reason": "history continuity: missing 1 existing dates (2013-10-30)",
+        "schema_version": "hermes-cboe-history-revision-v1",
+        "status": "BLOCKED"
+      },
+      "error_type": "ValidationError",
+      "error_message": "history continuity: missing 1 existing dates (2013-10-30)",
+      "passed": true
+    },
+    {
+      "source_id": "cboe_vix3m",
+      "scenario": "tail_witness_mismatch",
+      "expected_status": "VALIDATION_ERROR",
+      "actual_status": "VALIDATION_ERROR",
+      "promotion_status": "NOT_RUN",
+      "canonical_unchanged": true,
+      "canonical_advanced": false,
+      "certified_rows_preserved": true,
+      "before_latest_as_of": "2026-07-22",
+      "after_latest_as_of": "2026-07-22",
+      "ledger_written": true,
+      "canonical_sha256": null,
+      "official_file_sha256": "74cc82c9ca0fa1262fb69985b32b35d2f228eb8a59899ddd985fbd64ea454aa9",
+      "history_revision_status": "NONE",
+      "history_revision_count": 0,
+      "history_revision_fingerprint": "8fdaafd6d8b9920ec54ed97c0f879e1074678fc4d225e9474cb40403ec472822",
+      "revision_evidence": {
+        "appended_dates": [
+          "2026-07-23"
+        ],
+        "canonical_rows_preserved": true,
+        "changed_cells": [],
+        "changed_dates": [],
+        "fingerprint": "8fdaafd6d8b9920ec54ed97c0f879e1074678fc4d225e9474cb40403ec472822",
+        "policy": "PRESERVE_EXISTING_APPEND_NEW",
+        "reason": null,
+        "schema_version": "hermes-cboe-history-revision-v1",
+        "status": "NONE"
+      },
+      "error_type": "ValidationError",
+      "error_message": "Yahoo witness mismatch 2026-07-23: official=19.0000 witness=99.0000 tolerance=0.3800",
+      "passed": true
+    },
+    {
+      "source_id": "cboe_vix3m",
+      "scenario": "unchanged_history",
+      "expected_status": "OK",
+      "actual_status": "OK",
+      "promotion_status": "UNCHANGED",
+      "canonical_unchanged": true,
+      "canonical_advanced": false,
+      "certified_rows_preserved": true,
+      "before_latest_as_of": "2026-07-22",
+      "after_latest_as_of": "2026-07-22",
+      "ledger_written": true,
+      "canonical_sha256": "0868a3694af291c71ac9f93149455abc7deb560b119fd479ed68e49eb95393ef",
+      "official_file_sha256": "83aa01098ef07f2116623bf934aaee36f63c4a29793e440884cb7fa272315c7c",
+      "history_revision_status": "NONE",
+      "history_revision_count": 0,
+      "history_revision_fingerprint": "8fdaafd6d8b9920ec54ed97c0f879e1074678fc4d225e9474cb40403ec472822",
+      "revision_evidence": {
+        "appended_dates": [],
+        "canonical_rows_preserved": true,
+        "changed_cells": [],
+        "changed_dates": [],
+        "fingerprint": "8fdaafd6d8b9920ec54ed97c0f879e1074678fc4d225e9474cb40403ec472822",
+        "policy": "PRESERVE_EXISTING_APPEND_NEW",
+        "reason": null,
+        "schema_version": "hermes-cboe-history-revision-v1",
+        "status": "NONE"
+      },
+      "error_type": null,
+      "error_message": null,
+      "passed": true
+    }
+  ]
+}

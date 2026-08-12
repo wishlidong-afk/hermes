@@ -40,6 +40,7 @@ BASE_DIR = _runtime_root()
 
 from ..config import load_config, resolve_path
 from ..core.data.alpaca_flow import load_daily_flow_snapshot
+from ..core.data.runtime_root import require_explicit_runtime_data_root  # noqa: E402
 from ..core.data.run_transaction import (
     pending_score_run_transaction,
     recover_incomplete_score_run,
@@ -753,6 +754,7 @@ def _current_health_status(as_of: str) -> dict:
     score["run_receipt"] = _read_run_receipt()
     _attach_market_admission_status(score)
     _attach_external_precheck_status(score)
+    _attach_system_health_report(score)
     try:
         manifest = manifest_status()
     except Exception:
@@ -1137,4 +1139,5 @@ def make_handler(default_as_of: str) -> type[BaseHTTPRequestHandler]:
 
 
 def create_server(host: str, port: int, default_as_of: str) -> ThreadingHTTPServer:
+    require_explicit_runtime_data_root("dashboard")
     return ThreadingHTTPServer((host, port), make_handler(default_as_of))

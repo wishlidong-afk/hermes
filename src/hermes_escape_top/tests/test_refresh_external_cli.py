@@ -14,6 +14,7 @@ from hermes_escape_top.core.data.external_sources.profiles import (
     enrich_source_status,
     profile_for,
 )
+from hermes_escape_top.core.data import risk_signals
 from hermes_escape_top.scripts import backfill_soft_data, refresh_external
 
 
@@ -39,6 +40,58 @@ def _config(tmp_path):
             },
         },
     }
+
+
+def _lane_config(tmp_path, *, fred_vintage: bool = False):
+    config = _config(tmp_path)
+    config["features"].update(
+        {
+            "data_btc_funding": True,
+            "data_cboe_pcr": True,
+            "data_cot_nq": False,
+            "use_cboe_official_indices": True,
+            "use_fred_vintage_pit": fred_vintage,
+        }
+    )
+    return config
+
+
+def test_runtime_fred_key_prefers_process_environment(monkeypatch, tmp_path):
+    env_file = tmp_path / ".hermes" / ".env"
+    env_file.parent.mkdir(parents=True)
+    env_file.write_text("FRED_API_KEY=file-key\n", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("FRED_API_KEY", "process-key")
+
+    assert refresh_external._runtime_fred_api_key() == "process-key"
+
+
+def test_fred_source_reads_only_named_key_from_hermes_env(monkeypatch, tmp_path):
+    env_file = tmp_path / ".hermes" / ".env"
+    env_file.parent.mkdir(parents=True)
+    env_file.write_text(
+        "OTHER_SECRET=do-not-load\nexport FRED_API_KEY='file-key'\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("FRED_API_KEY", raising=False)
+    config = _config(tmp_path)
+
+    _spec, adapter = refresh_external.dollar_source(config)
+
+    assert adapter.config["fred_api_key"] == "file-key"
+    assert "fred_api_key" not in config
+    assert "OTHER_SECRET" not in adapter.config
+
+
+def test_explicit_fred_key_precedes_legacy_runtime_file(monkeypatch, tmp_path):
+    config = _config(tmp_path)
+    config["fred_api_key"] = "explicit-key"
+    legacy_path = tmp_path / "fred_api_key.txt"
+    legacy_path.write_text("legacy-key\n", encoding="utf-8")
+    monkeypatch.delenv("FRED_API_KEY", raising=False)
+
+    assert risk_signals.fred_api_key(config) == "explicit-key"
 
 
 def test_refresh_external_source_dollar_calls_runner(monkeypatch, tmp_path):
@@ -392,13 +445,109 @@ def test_refresh_external_all_sources_keeps_going_on_single_failure(monkeypatch,
         today=date(2026, 7, 31),
     )
 
-    assert calls == list(refresh_external.SOURCE_IDS)
+    expected = list(refresh_external.scheduled_source_ids(cfg, date(2026, 7, 31)))
+    assert calls == expected
     assert result["ok"] is False
-    assert result["ok_count"] == len(refresh_external.SOURCE_IDS) - 1
+    assert result["ok_count"] == len(expected) - 1
     assert result["error_count"] == 1
-    assert [row["source_id"] for row in result["runs"]] == list(refresh_external.SOURCE_IDS)
+    assert [row["source_id"] for row in result["runs"]] == expected
     assert result["runs"][-1]["status"] == "ERROR"
     assert "blocked" in result["runs"][-1]["error"]
+
+
+def test_scheduled_decision_sources_exclude_manual_and_shadow_sources_on_weekday(tmp_path):
+    selected = refresh_external.scheduled_source_ids(
+        _lane_config(tmp_path),
+        date(2026, 8, 12),
+        lane="decision",
+    )
+
+    assert selected == (
+        "dollar",
+        "real_rate",
+        "fred_net_liquidity",
+        "cboe_equity_pcr",
+        "aaii_sentiment",
+        "cboe_vix",
+        "cboe_vix3m",
+        "cboe_skew",
+        "cboe_vvix",
+    )
+    assert not {
+        "cot_nq",
+        "occ_equity_pcr",
+        "btc_funding_basis",
+        "cboe_vix9d",
+        "naaim_exposure",
+    }.intersection(selected)
+
+
+def test_scheduled_decision_sources_include_due_retired_naaim_probe(tmp_path):
+    selected = refresh_external.scheduled_source_ids(
+        _lane_config(tmp_path),
+        date(2026, 8, 14),
+        lane="decision",
+    )
+
+    assert "naaim_exposure" in selected
+
+
+def test_scheduled_decision_sources_include_exact_fred_gate_and_derivatives(tmp_path):
+    selected = refresh_external.scheduled_source_ids(
+        _lane_config(tmp_path, fred_vintage=True),
+        date(2026, 8, 12),
+        lane="decision",
+    )
+
+    assert selected[:4] == (
+        "fred_vintages",
+        "dollar_vintage",
+        "real_rate_vintage",
+        "fred_net_liquidity_vintage",
+    )
+    assert not {"dollar", "real_rate", "fred_net_liquidity"}.intersection(selected)
+
+
+def test_scheduled_shadow_sources_include_only_active_auxiliary_and_research(tmp_path):
+    selected = refresh_external.scheduled_source_ids(
+        _lane_config(tmp_path),
+        date(2026, 8, 12),
+        lane="shadow",
+    )
+
+    assert selected == ("btc_funding_basis", "cboe_vix9d")
+    assert "occ_equity_pcr" not in selected
+    assert "cot_nq" not in selected
+
+
+def test_scheduled_sources_reject_unknown_lane(tmp_path):
+    with pytest.raises(ValueError, match="unsupported refresh lane"):
+        refresh_external.scheduled_source_ids(
+            _lane_config(tmp_path),
+            date(2026, 8, 12),
+            lane="other",
+        )
+
+
+def test_refresh_all_shadow_runs_only_shadow_sources(monkeypatch, tmp_path):
+    cfg = _lane_config(tmp_path)
+    calls = []
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_source",
+        lambda source_id, *_args, **_kwargs: calls.append(source_id)
+        or {"source_id": source_id, "status": "OK"},
+    )
+
+    result = refresh_external.refresh_all_sources(
+        cfg,
+        today=date(2026, 8, 12),
+        lane="shadow",
+    )
+
+    assert calls == ["btc_funding_basis", "cboe_vix9d"]
+    assert result["lane"] == "shadow"
+    assert result["selected_sources"] == calls
 
 
 def test_refresh_all_skips_retired_naaim_outside_weekly_probe(monkeypatch, tmp_path):
@@ -667,6 +816,50 @@ def test_daily_source_check_ignores_inactive_sources_for_same_day_reuse(monkeypa
     assert result["refresh"]["error_count"] == 0
 
 
+def test_daily_source_check_ignores_shadow_sources_for_same_day_reuse(monkeypatch, tmp_path):
+    cfg = _lane_config(tmp_path)
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "active": True,
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "finished_at": "2026-08-11T23:05:00+00:00",
+            },
+            "btc_funding_basis": {
+                "source_id": "btc_funding_basis",
+                "status": "FETCH_ERROR",
+                "active": True,
+                "freshness_status": "STALE",
+                "evidence_status": "MATCH",
+                "finished_at": "2026-08-10T01:20:00+00:00",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "pre_daily_check",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("shadow source must not force a decision refresh")
+        ),
+    )
+
+    result = refresh_external.daily_source_check(
+        cfg,
+        today=date(2026, 8, 12),
+        now=datetime(2026, 8, 11, 23, 10, tzinfo=timezone.utc),
+    )
+
+    assert result["ready"] is True
+    assert result["blocking_sources"] == []
+    assert result["refresh"]["mode"] == "reuse_same_day"
+    assert "btc_funding_basis" in result["sources"]
+
+
 def test_daily_source_check_does_not_refetch_retired_naaim_on_non_probe_day(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
     monkeypatch.setattr(
@@ -727,6 +920,31 @@ def test_retry_needed_cli_runs_selective_precheck(monkeypatch, capsys):
     assert calls[0]["retry_only"] is True
     assert calls[0]["_lease"] is not None
     assert '"mode": "retry_needed"' in capsys.readouterr().out
+
+
+def test_shadow_lane_cli_routes_all_refresh_without_readiness(monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda *args, **kwargs: calls.append(kwargs)
+        or {"ok": True, "runs": [], "mode": "all", "lane": "shadow"},
+    )
+
+    rc = refresh_external.main(["--all", "--lane", "shadow", "--lock-timeout", "0"])
+
+    assert rc == 0
+    assert calls[0]["lane"] == "shadow"
+    assert calls[0]["_lease"] is not None
+    assert json.loads(capsys.readouterr().out)["lane"] == "shadow"
+
+
+def test_shadow_lane_cli_rejects_pre_daily_readiness(capsys):
+    with pytest.raises(SystemExit) as exc:
+        refresh_external.main(["--pre-daily-check", "--lane", "shadow"])
+
+    assert exc.value.code == 2
+    assert "--lane shadow is supported only with --all" in capsys.readouterr().err
 
 
 def test_mutating_cli_holds_pipeline_lock(monkeypatch, capsys):
@@ -1167,6 +1385,37 @@ def test_refresh_external_pre_daily_check_separates_nonblocking_refresh_errors(m
     assert result["blocking_sources"] == []
     assert result["warning_sources"] == ["dollar"]
     assert result["nonblocking_refresh_error_sources"] == ["aaii_sentiment"]
+    assert result["blocking_refresh_error_sources"] == []
+
+
+def test_decision_readiness_ignores_shadow_runs_even_when_injected(tmp_path):
+    cfg = _lane_config(tmp_path)
+    source_id = "btc_funding_basis"
+
+    result = refresh_external._evaluate_readiness(
+        cfg,
+        {
+            "runs": [
+                {
+                    "source_id": source_id,
+                    "status": "FETCH_ERROR",
+                    "error_message": "research feed unavailable",
+                }
+            ]
+        },
+        {
+            source_id: {
+                "source_id": source_id,
+                "active": True,
+                "status": "FETCH_ERROR",
+                "freshness_status": "UNKNOWN",
+            }
+        },
+    )
+
+    assert result["ready"] is True
+    assert result["blocking_sources"] == []
+    assert result["nonblocking_refresh_error_sources"] == []
     assert result["blocking_refresh_error_sources"] == []
 
 

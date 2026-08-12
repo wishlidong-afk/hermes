@@ -11,6 +11,7 @@ from ..core.data.external_sources.ledger import (
     certified_canonical_is_current,
 )
 from ..core.data.external_sources.profiles import display_source_ids, profile_for
+from ..core.reporting.system_health import decision_input_lifecycle
 from ..core.safe_io import atomic_write_text
 from ..core.scoring.explain_registry import explain_factor
 from ..core.scoring.module_a import module_a_factors
@@ -538,7 +539,7 @@ def render_dashboard(
         <h1>Hermes Escape Top / Hermes 逃顶驾驶舱</h1>
         <div class="subtle">as_of={esc(as_of)} · schema={esc(schema)} · 新系统 package payload</div>
         <div class="status-line">
-          {_badge('Data ' + str(data_quality.get('level', 'NA')), _quality_kind(data_quality.get('level')))}
+          {_badge('策略输入 ' + str(data_quality.get('level', 'NA')), _quality_kind(data_quality.get('level')))}
           {_badge('Cache ' + ('hit' if cache.get('hit') else 'live/none'), 'ok' if cache.get('hit') else 'warn')}
           {_badge('IBKR ' + str(ibkr.get('source', 'disabled')), _ibkr_kind(ibkr))}
           {_badge('Regime ' + str(regime.get('current', 'NA')), 'watch')}
@@ -610,7 +611,7 @@ def _render_strategy_console(payload: Dict[str, Any], health: Dict[str, Any]) ->
           <div class="subtle">结论：{statuses} · 防守路由：{route_text} · 主要证据：硬阀门 {hard_total} 个 / 穿透流 {esc(flow_text)}</div>
           <div class="strategy-metrics">
             {_metric('动作数', esc(ops.get('action_count', 0)))}
-            {_metric('数据质量', f"{esc(ops.get('data_quality', 'NA'))} {_fmt_num(ops.get('data_quality_score'))}")}
+            {_metric('策略输入质量', f"{esc(ops.get('data_quality', 'NA'))} {_fmt_num(ops.get('data_quality_score'))}")}
             {_metric('IBKR', esc(ops.get('ibkr_source', 'NA')) + (' / STALE' if ops.get('ibkr_stale') else ''))}
             {_metric('资金流最弱桶', esc(flow_text))}
           </div>
@@ -630,16 +631,30 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
     strategy_layer = ((health or {}).get("layers") or {}).get("strategy_data") or {}
     strategy_level = str(strategy_layer.get("level") or health_level)
     strategy_usable = strategy_level != "CRITICAL" and str(dq.get("level") or "") not in {"BLOCKED", "NO_CACHE"}
-    action_mode = "STOP" if not strategy_usable else ("READY" if health_level == "OK" else "REVIEW ONLY")
+    certification_status = str(
+        ((health or {}).get("post_deploy_certification") or {}).get("status") or ""
+    )
+    certification_pending = certification_status == "PENDING_POST_DEPLOY"
+    action_mode = (
+        "STOP"
+        if not strategy_usable
+        else "WAIT"
+        if certification_pending
+        else "READY"
+        if health_level == "OK"
+        else "REVIEW ONLY"
+    )
     summary_text = (
-        "策略链路正常；当前黄灯来自可解释的外部/日历/对账因素。"
+        "策略链路不可直接使用，请先处理红色阻断项。"
+        if not strategy_usable
+        else "新版本运行正常，但尚未经过下一次自然日跑再认证；当前不得据此授权交易。"
+        if certification_pending
+        else "策略链路正常；当前黄灯来自可解释的外部/日历/对账因素。"
         if strategy_usable and health_level != "OK"
         else "策略链路正常，数据证据齐备。"
-        if strategy_usable
-        else "策略链路不可直接使用，请先处理红色阻断项。"
     )
     receipt_text = _receipt_status_text(receipt)
-    health_report_text = _health_report_evidence_text(payload)
+    health_report_text = _health_report_evidence_text(payload, health)
     sip_text = _sip_evidence_text(payload)
     warnings = _trust_warning_rows(health)
     latest_market = _latest_certified_market_date(payload)
@@ -648,7 +663,7 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
       <h2>今日可信度与系统状态 / Trust &amp; System Health</h2>
       <div class="trust-summary trust-compact-head">
         <div class="trust-verdict">
-          {_badge('策略可用' if strategy_usable else '策略不可用', 'ok' if strategy_usable else 'danger')}
+          {_badge('策略不可用' if not strategy_usable else '策略待认证' if certification_pending else '策略可用', 'danger' if not strategy_usable else 'warn' if certification_pending else 'ok')}
           <div class="action">今日操作：{esc(action_mode)}</div>
         </div>
         <div class="trust-context">
@@ -656,10 +671,10 @@ def _render_trust_section(payload: Dict[str, Any], manifest_status: Dict[str, An
             <span><b>官方</b> {esc(receipt_text)}</span>
             <span><b>as_of</b> {esc(str(payload.get('as_of') or 'NA'))}</span>
             <span><b>认证行情</b> {esc(latest_market)}</span>
-            <span><b>质量</b> {esc(str(dq.get('level', 'NA')))} {_fmt_num(dq.get('overall_score'))}</span>
+            <span><b>策略输入质量</b> {esc(str(dq.get('level', 'NA')))} {_fmt_num(dq.get('overall_score'))}</span>
           </div>
           <div class="trust-headline">{esc(summary_text)}</div>
-          <div class="mini-note">质量分描述输入完整性；策略可用性由策略数据链单独决定。</div>
+          <div class="mini-note">策略输入质量只统计会影响决策的数据；研究/辅助源另计入全源观测质量，不阻断策略。</div>
         </div>
       </div>
 
@@ -723,14 +738,24 @@ def _render_quality_dimensions(payload: Dict[str, Any]) -> str:
             "timeliness": dq.get("latency_score"),
             "decision_input_coverage": None,
         }
+    decision_quality = payload.get("data_quality") or {}
+    all_source_quality = payload.get("all_source_data_quality") or decision_quality
     return (
         "<div class='trust-evidence-grid quality-dimensions'>"
+        + _trust_evidence(
+            "策略输入质量",
+            f"{decision_quality.get('level', 'NA')} {_fmt_num(decision_quality.get('overall_score'))}",
+        )
+        + _trust_evidence(
+            "全源观测质量",
+            f"{all_source_quality.get('level', 'NA')} {_fmt_num(all_source_quality.get('overall_score'))}",
+        )
         + _trust_evidence("行情完整度", _fmt_num(dimensions.get("market_completeness")))
         + _trust_evidence("来源真实性", _fmt_num(dimensions.get("provenance")))
         + _trust_evidence("数据时效性", _fmt_num(dimensions.get("timeliness")))
         + _trust_evidence("评分置信权重覆盖", _fmt_num(dimensions.get("decision_input_coverage")))
         + "</div>"
-        + "<div class='mini-note'>每个标的按 100 分归一化后等权统计可用评分置信权重；不是因子数量覆盖率，也不含永久非计分占位。</div>"
+        + "<div class='mini-note'>策略输入质量用于策略置信度；全源观测质量用于研究/辅助源运维。评分置信权重按每个标的 100 分归一化后等权统计，不是因子数量覆盖率。</div>"
     )
 
 
@@ -787,8 +812,8 @@ def _render_quality_penalty_summary(payload: Dict[str, Any]) -> str:
         return (
             "<div class='precheck-evidence-card'>"
             "<div class='precheck-evidence-head'>"
-            "<div><b>数据质量扣分账本</b>"
-            "<div class='mini-note'>暂无数据质量惩罚；当前总分来自完整度、质量、延迟三项综合。</div></div>"
+            "<div><b>策略输入质量扣分账本</b>"
+            "<div class='mini-note'>暂无策略输入质量惩罚；当前总分来自完整度、质量、延迟三项综合。</div></div>"
             f"{_badge('CLEAN', 'ok')}"
             "</div>"
             "</div>"
@@ -811,8 +836,8 @@ def _render_quality_penalty_summary(payload: Dict[str, Any]) -> str:
     return (
         "<div class='precheck-evidence-card'>"
         "<div class='precheck-evidence-head'>"
-        "<div><b>数据质量扣分账本</b>"
-        f"<div class='mini-note'>{count_text or '无扣分'} · 影响：不阻断策略；降低置信度</div></div>"
+        "<div><b>策略输入质量扣分账本</b>"
+        f"<div class='mini-note'>{count_text or '无扣分'} · 影响策略置信度；是否阻断由策略数据链综合判定</div></div>"
         f"{_badge(str(dq.get('level') or 'NA') + ' ' + _fmt_num(dq.get('overall_score')), _quality_kind(dq.get('level')))}"
         "</div>"
         "<div class='table-scroll' style='margin-top:8px'>"
@@ -867,7 +892,16 @@ def _receipt_status_text(receipt: Dict[str, Any]) -> str:
     return status
 
 
-def _health_report_evidence_text(payload: Dict[str, Any]) -> str:
+def _health_report_evidence_text(
+    payload: Dict[str, Any],
+    health: Dict[str, Any] | None = None,
+) -> str:
+    certification = (health or {}).get("post_deploy_certification") or {}
+    certification_status = str(certification.get("status") or "")
+    if certification_status == "PENDING_POST_DEPLOY":
+        return "待当前版本自然日跑再认证"
+    if certification_status in {"GENERATOR_MISMATCH", "RUNTIME_IDENTITY_INVALID"}:
+        return "生成器身份异常"
     report = payload.get("system_health_report")
     if not isinstance(report, dict):
         return "无报告"
@@ -2168,9 +2202,14 @@ def _render_top_factor_panel(payload: Dict[str, Any]) -> str:
 def _render_factor_map_panel(payload: Dict[str, Any]) -> str:
     observed = _observed_factor_rows(payload)
     catalog = _factor_catalog(payload, observed)
+    lifecycle = decision_input_lifecycle(payload)
     table_rows: List[str] = []
     for module in ("A", "B", "C", "D"):
-        module_rows = [row for row in catalog if row["module"] == module]
+        module_rows = [
+            row
+            for row in catalog
+            if row["module"] == module and _float(row.get("max_score"), 0.0) > 0
+        ]
         if not module_rows:
             continue
         table_rows.append(
@@ -2187,13 +2226,37 @@ def _render_factor_map_panel(payload: Dict[str, Any]) -> str:
                 f"<td>{_fmt_num(row.get('max_score'))}</td>"
                 f"<td>{esc(meta.get('plain_explain') or meta.get('professional_explain') or '—')}</td>"
                 f"<td>{esc(meta.get('professional_explain') or meta.get('plain_explain') or '—')}</td>"
-                f"<td>{_factor_current_score_text(row['factor_id'], observed)}<div class='subtle'>{esc(meta.get('data_hint') or '—')}</div></td>"
+                f"<td>{_factor_current_score_html(row['factor_id'], observed, lifecycle)}<div class='subtle'>{esc(meta.get('data_hint') or '—')}</div></td>"
                 "</tr>"
             )
+    placeholder_rows: List[str] = []
+    for row in catalog:
+        if _float(row.get("max_score"), 0.0) > 0:
+            continue
+        meta = row["meta"]
+        placeholder_rows.append(
+            "<tr>"
+            f"<td>{esc(row['module'])}</td>"
+            f"<td><b>{esc(row['factor_id'])}</b></td>"
+            f"<td>{esc(meta.get('plain_explain') or meta.get('professional_explain') or '—')}</td>"
+            f"<td>{_factor_current_score_text(row['factor_id'], observed)}"
+            "<div class='subtle'>不计分 · 不进入策略 missing_weight</div></td>"
+            "</tr>"
+        )
+    placeholder_html = (
+        "<details class='non-scoring-placeholders' style='margin-top:10px'>"
+        "<summary>非计分占位 <span class='subtle'>max_score=0，不影响策略缺失权重</span></summary>"
+        "<div class='detail-body'><div class='table-scroll'><table>"
+        "<thead><tr><th>模块</th><th>占位因子</th><th>用途</th><th>当前状态</th></tr></thead>"
+        f"<tbody>{''.join(placeholder_rows)}</tbody>"
+        "</table></div></div></details>"
+        if placeholder_rows
+        else ""
+    )
     empty_rows = "<tr><td colspan='6'>暂无因子定义。</td></tr>"
     return (
         "<details class='work-card factor-map' style='margin-top:10px'>"
-        "<summary>全量打分因子表 / Factor Map <span class='subtle'>按 A/B/C/D 分组，Top 5 之外的因子也在这里查</span></summary>"
+        "<summary>全量打分因子表 / Factor Map <span class='subtle'>计分因子按 A/B/C/D 分组，非计分占位单独折叠</span></summary>"
         "<div class='detail-body'>"
         "<div class='table-scroll'>"
         "<table>"
@@ -2201,6 +2264,7 @@ def _render_factor_map_panel(payload: Dict[str, Any]) -> str:
         f"<tbody>{''.join(table_rows) if table_rows else empty_rows}</tbody>"
         "</table>"
         "</div>"
+        f"{placeholder_html}"
         "</div>"
         "</details>"
     )
@@ -2280,6 +2344,23 @@ def _factor_current_score_text(factor_id: str, observed: Dict[str, Dict[str, Dic
             continue
         parts.append(f"{symbol} {_fmt_num(row.get('score'))}/{_fmt_num(row.get('max_score'))}")
     return esc(" · ".join(parts) if parts else "—")
+
+
+def _factor_current_score_html(
+    factor_id: str,
+    observed: Dict[str, Dict[str, Dict[str, Any]]],
+    lifecycle: Dict[str, Any],
+) -> str:
+    base = _factor_current_score_text(factor_id, observed)
+    notes: List[str] = []
+    if factor_id == "A2_NAAIM" and lifecycle.get("retired_naaim"):
+        notes.append("已退役来源，等待 SLO 缺失路径")
+    if factor_id == "B6_VALUATION_HEAT":
+        missing_points = _float(lifecycle.get("mstr_b6_missing_points"), 0.0)
+        if missing_points > 0:
+            points = int(missing_points) if missing_points.is_integer() else missing_points
+            notes.append(f"MSTR：计分输入缺失 {points} 分")
+    return base + "".join(f"<div class='subtle'>{esc(note)}</div>" for note in notes)
 
 
 def _render_p3_visuals(payload: Dict[str, Any]) -> str:
@@ -2451,7 +2532,7 @@ def _render_kpis(payload: Dict[str, Any]) -> str:
       <h2>System Health / Portfolio Risk / 系统状态</h2>
       <div class="kpis" style="margin:0">
       <div class="kpi">
-        <div class="label">数据质量</div>
+        <div class="label">策略输入质量</div>
         <div class="value">{esc(dq.get('level', 'NA'))}</div>
         <div class="note">overall {_fmt_num(dq.get('overall_score'))} · latency {_fmt_num(dq.get('latency_score'))}</div>
       </div>
@@ -2510,7 +2591,7 @@ def _render_today_ops(
         <div class="ops-main">
           <div class="subtle">advisory only · 不下单 · state_db={esc(Path(str(state.get('db_path', ''))).name if state.get('db_path') else 'NA')} · run={esc(state.get('score_run_id', 'NA'))}</div>
           {headline_html}
-          <div class="subtle">动作数 {esc(ops.get('action_count', 0))} · 数据 {esc(ops.get('data_quality', 'NA'))} {_fmt_num(ops.get('data_quality_score'))} · IBKR {esc(ops.get('ibkr_source', 'NA'))}{' · STALE' if ops.get('ibkr_stale') else ''}</div>
+          <div class="subtle">动作数 {esc(ops.get('action_count', 0))} · 策略输入质量 {esc(ops.get('data_quality', 'NA'))} {_fmt_num(ops.get('data_quality_score'))} · IBKR {esc(ops.get('ibkr_source', 'NA'))}{' · STALE' if ops.get('ibkr_stale') else ''}</div>
           <div style="margin-top:10px"><b>DEFCON 路由：</b>{route_text}</div>
           <div style="margin-top:6px"><b>{destination_label}：</b>{dest_text}</div>
           {amount_warning}
@@ -4017,7 +4098,7 @@ def _trust_slo_badge(label: str, kind: str) -> str:
 
 def _render_quality_detail_body(payload: Dict[str, Any], manifest_status: Dict[str, Any] | None = None) -> str:
     manifest_status = manifest_status or {}
-    dq = payload.get("data_quality") or {}
+    dq = payload.get("all_source_data_quality") or payload.get("data_quality") or {}
     breakdown = payload.get("data_quality_breakdown") or {}
     components = breakdown.get("components") or {}
     upgrades = breakdown.get("upgrade_to_high") or []
@@ -4031,6 +4112,7 @@ def _render_quality_detail_body(payload: Dict[str, Any], manifest_status: Dict[s
         "<tr>"
         f"<td>{esc(row.get('category'))}</td><td><b>{esc(row.get('name'))}</b></td>"
         f"<td>{esc(row.get('status'))}</td><td>{esc(row.get('as_of'))}</td>"
+        f"<td>{esc(row.get('decision_role', 'strategy'))}</td>"
         f"<td>{'是' if row.get('is_proxy') else '否'}</td><td>{_fmt_num(row.get('latency_days'))}</td>"
         "</tr>"
         for row in sources[:16]
@@ -4046,7 +4128,8 @@ def _render_quality_detail_body(payload: Dict[str, Any], manifest_status: Dict[s
         f'<span class="subtle" id="manifest-refresh-status" style="margin-left:8px"></span></div>'
     )
     return f"""
-      <h3>Audit Detail / 数据质量</h3>
+      <h3>Audit Detail / 全源观测质量 {_badge(str(dq.get('level') or 'NA') + ' ' + _fmt_num(dq.get('overall_score')), _quality_kind(dq.get('level')))}</h3>
+      <div class="mini-note" style="margin-bottom:8px">包含策略、辅助与研究源；研究/辅助源扣分只用于运维观察，不作为策略阻断项。</div>
       <div class="facts" style="margin-bottom:10px">
         {_metric('Completeness', _fmt_num(dq.get('completeness_score')))}
         {_metric('Quality', _fmt_num(dq.get('quality_score')))}
@@ -4066,8 +4149,8 @@ def _render_quality_detail_body(payload: Dict[str, Any], manifest_status: Dict[s
         <summary>数据源明细 / source freshness</summary>
         <div class="detail-body">
           <table>
-            <thead><tr><th>类别</th><th>名称</th><th>状态</th><th>日期</th><th>代理</th><th>延迟天</th></tr></thead>
-            <tbody>{''.join(source_rows) if source_rows else '<tr><td colspan="6">暂无数据源明细</td></tr>'}</tbody>
+            <thead><tr><th>类别</th><th>名称</th><th>状态</th><th>日期</th><th>角色</th><th>代理</th><th>延迟天</th></tr></thead>
+            <tbody>{''.join(source_rows) if source_rows else '<tr><td colspan="7">暂无数据源明细</td></tr>'}</tbody>
           </table>
         </div>
       </details>

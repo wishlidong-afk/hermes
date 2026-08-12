@@ -1,0 +1,99 @@
+{
+  "acceptance": {
+    "all_source_overall_is_92_2": true,
+    "all_source_quality_is_90": true,
+    "decision_overall_is_93_4": true,
+    "decision_quality_is_94": true
+  },
+  "accepted": true,
+  "all_source_data_quality": {
+    "completeness_score": 100.0,
+    "latency_score": 76.0,
+    "level": "HIGH",
+    "overall_score": 92.2,
+    "penalties": [
+      {
+        "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+        "penalty": 2.0,
+        "reason": "proxy"
+      },
+      {
+        "field": "SOFT.btc_funding_basis",
+        "penalty": 2.0,
+        "reason": "proxy"
+      },
+      {
+        "field": "SOFT.btc_basis_annual,SOFT.btc_basis_pctl",
+        "penalty": 2.0,
+        "reason": "proxy"
+      },
+      {
+        "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+        "penalty": 2.0,
+        "reason": "proxy"
+      },
+      {
+        "field": "SOFT.valuation",
+        "penalty": 2.0,
+        "reason": "proxy"
+      },
+      {
+        "field": "SOFT.aaii,SOFT.aaii_bull,SOFT.aaii_bear,SOFT.aaii_bull_bear_spread,SOFT.aaii_bull_pctl,SOFT.aaii_spread_pctl",
+        "penalty": 9.0,
+        "reason": "latency"
+      },
+      {
+        "field": "SOFT.naaim,SOFT.naaim_exposure,SOFT.naaim_pctl",
+        "penalty": 15.0,
+        "reason": "latency"
+      }
+    ],
+    "quality_score": 90.0
+  },
+  "as_of": "2026-08-11",
+  "before_evidence": {
+    "latency_score": 76.0,
+    "level": "HIGH",
+    "overall_score": 92.2,
+    "quality_score": 90.0
+  },
+  "decision_data_quality": {
+    "completeness_score": 100.0,
+    "latency_score": 76.0,
+    "level": "HIGH",
+    "overall_score": 93.4,
+    "penalties": [
+      {
+        "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+        "penalty": 2.0,
+        "reason": "proxy"
+      },
+      {
+        "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+        "penalty": 2.0,
+        "reason": "proxy"
+      },
+      {
+        "field": "SOFT.valuation",
+        "penalty": 2.0,
+        "reason": "proxy"
+      },
+      {
+        "field": "SOFT.aaii,SOFT.aaii_bull,SOFT.aaii_bear,SOFT.aaii_bull_bear_spread,SOFT.aaii_bull_pctl,SOFT.aaii_spread_pctl",
+        "penalty": 9.0,
+        "reason": "latency"
+      },
+      {
+        "field": "SOFT.naaim,SOFT.naaim_exposure,SOFT.naaim_pctl",
+        "penalty": 15.0,
+        "reason": "latency"
+      }
+    ],
+    "quality_score": 94.0
+  },
+  "input_hash": "79f294f84f8975b4d4a5c6557985e2b25764d8c9be273083bd4726debaa63071",
+  "live_data_modified": false,
+  "method": "candidate code against a temporary clone of live history and soft_history; include_ibkr=false",
+  "official_daily_run_started": false,
+  "schema_version": "hermes-task3-current-quality-split-v1"
+}

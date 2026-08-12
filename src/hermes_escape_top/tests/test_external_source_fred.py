@@ -13,6 +13,7 @@ from hermes_escape_top.core.data.macro import fetch_fred_graph_csv
 from hermes_escape_top.core.data.external_sources.fred import (
     FredBoardH10PercentileAdapter,
     FredNetLiquidityAdapter,
+    fetch_fred_release_calendar,
     fred_net_liquidity_spec,
     FredPercentileAdapter,
     fred_percentile_spec,
@@ -43,6 +44,52 @@ def _fred_dollar_frame(values: list[tuple[str, float]]) -> pd.DataFrame:
             "value": [value for _day, value in values],
         }
     )
+
+
+def test_fred_release_calendar_uses_exact_release_ids_and_keeps_holiday_shift(
+    monkeypatch,
+):
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return json.dumps(self.payload).encode("utf-8")
+
+    requested = []
+
+    def fake_urlopen(request, timeout=30):
+        requested.append(request.full_url)
+        release_id = "17" if "release_id=17" in request.full_url else "20"
+        rows = {
+            "17": [
+                {"release_id": 17, "date": "2026-05-18"},
+                {"release_id": 17, "date": "2026-05-26"},
+            ],
+            "20": [{"release_id": 20, "date": "2026-05-28"}],
+        }[release_id]
+        return Response({"release_dates": rows})
+
+    monkeypatch.setenv("FRED_API_KEY", "test-key")
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    result = fetch_fred_release_calendar(("17", "20"), {})
+
+    assert result == {
+        "status": "VERIFIED",
+        "release_dates_by_id": {
+            "17": ["2026-05-18", "2026-05-26"],
+            "20": ["2026-05-28"],
+        },
+    }
+    assert len(requested) == 2
+    assert all("include_release_dates_with_no_data=true" in url for url in requested)
 
 
 def test_parse_federal_reserve_h10_broad_extracts_release_and_daily_values():

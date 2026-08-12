@@ -64,6 +64,7 @@ publish_copy() {
   cd "$RUNTIME" || exit 1
   echo "[external-precheck] mode=$MODE"
   "$PY" -m hermes_escape_top.scripts.refresh_external "$REFRESH_ARG" \
+    --lane decision \
     --lock-timeout "${HERMES_EXTERNAL_PRECHECK_LOCK_TIMEOUT:-600}" >"$TMP_JSON"
 } >>"$LOG" 2>&1
 rc=$?

@@ -72,6 +72,12 @@ class ExternalSourceRun:
     history_revision_status: str | None = None
     history_revision_count: int | None = None
     history_revision_fingerprint: str | None = None
+    publisher_release_id: str | None = None
+    publisher_content_fingerprint: str | None = None
+    publisher_release_dates: tuple[str, ...] | None = None
+    publisher_expected_release_dates: tuple[str, ...] | None = None
+    publisher_calendar_status: str | None = None
+    publisher_recovery_evidence: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -426,6 +432,12 @@ def _record(
     history_revision_status: str | None = None,
     history_revision_count: int | None = None,
     history_revision_fingerprint: str | None = None,
+    publisher_release_id: str | None = None,
+    publisher_content_fingerprint: str | None = None,
+    publisher_release_dates: tuple[str, ...] | None = None,
+    publisher_expected_release_dates: tuple[str, ...] | None = None,
+    publisher_calendar_status: str | None = None,
+    publisher_recovery_evidence: dict[str, Any] | None = None,
 ) -> ExternalSourceRun:
     error_message = _sanitize_persisted_text(error_message)
     primary_source = _sanitize_persisted_text(primary_source)
@@ -481,6 +493,18 @@ def _record(
         history_revision_status=history_revision_status,
         history_revision_count=history_revision_count,
         history_revision_fingerprint=history_revision_fingerprint,
+        publisher_release_id=_sanitize_persisted_text(publisher_release_id),
+        publisher_content_fingerprint=_sanitize_persisted_text(
+            publisher_content_fingerprint
+        ),
+        publisher_release_dates=publisher_release_dates,
+        publisher_expected_release_dates=publisher_expected_release_dates,
+        publisher_calendar_status=_sanitize_persisted_text(
+            publisher_calendar_status
+        ),
+        publisher_recovery_evidence=_sanitize_recovery_evidence(
+            publisher_recovery_evidence
+        ),
     )
     append_source_run(archive_dir, run.to_dict())
     return run
@@ -517,6 +541,15 @@ def _sanitize_persisted_text(value: str | None) -> str | None:
         text,
     )
     return _BEARER_TOKEN_RE.sub("Bearer <redacted>", text)
+
+
+def _sanitize_recovery_evidence(value: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    return {
+        str(key): _sanitize_persisted_text(str(item)) if item is not None else None
+        for key, item in value.items()
+    }
 
 
 def _redact_url_match(match: re.Match[str]) -> str:
@@ -744,6 +777,7 @@ def _source_channel_metadata(raw: Any) -> dict[str, Any]:
             "primary_source": None,
             "fallback_used": None,
             "primary_failure": None,
+            **_publisher_metadata(None, None, None, None),
         }
     provenance = raw.get("provenance")
     if not isinstance(provenance, dict):
@@ -775,18 +809,96 @@ def _source_channel_metadata(raw: Any) -> dict[str, Any]:
             fallback_used=fallback_used,
             primary_failure=primary_failure,
         )
-        return {
+        result = {
             "source_channel": normalized["source"],
             "primary_source": normalized["primary_source"],
             "fallback_used": normalized["fallback_used"],
             "primary_failure": normalized["primary_failure"],
         }
-    return {
+        result.update(
+            _publisher_metadata(
+                raw,
+                normalized["source"],
+                normalized["primary_source"],
+                normalized["primary_failure"],
+                fallback_used=normalized["fallback_used"],
+            )
+        )
+        return result
+    result = {
         "source_channel": channel,
         "primary_source": primary_source,
         "fallback_used": fallback_used,
         "primary_failure": primary_failure,
     }
+    result.update(
+        _publisher_metadata(
+            raw,
+            channel,
+            primary_source,
+            primary_failure,
+            fallback_used=fallback_used,
+        )
+    )
+    return result
+
+
+def _publisher_metadata(
+    raw: Any,
+    source_channel: str | None,
+    primary_source: str | None,
+    primary_failure: str | None,
+    *,
+    fallback_used: bool | None = None,
+) -> dict[str, Any]:
+    evidence = raw.get("publisher_evidence") if isinstance(raw, dict) else None
+    if not isinstance(evidence, dict):
+        evidence = {}
+    release_dates = _publisher_dates(evidence.get("release_dates"))
+    expected_release_dates = _publisher_dates(
+        evidence.get("expected_release_dates")
+    )
+    recovery = None
+    if fallback_used is True and source_channel and primary_source and primary_failure:
+        recovery = {
+            "status": "RECOVERED_VIA_FALLBACK",
+            "source_channel": source_channel,
+            "primary_source": primary_source,
+            "primary_failure": primary_failure,
+        }
+    elif source_channel:
+        recovery = {
+            "status": "PRIMARY_OK",
+            "source_channel": source_channel,
+            "primary_source": primary_source or source_channel,
+            "primary_failure": None,
+        }
+    return {
+        "publisher_release_id": str(evidence.get("release_id") or "") or None,
+        "publisher_content_fingerprint": (
+            str(evidence.get("content_fingerprint") or "") or None
+        ),
+        "publisher_release_dates": release_dates,
+        "publisher_expected_release_dates": expected_release_dates,
+        "publisher_calendar_status": (
+            str(evidence.get("calendar_status") or "") or None
+        ),
+        "publisher_recovery_evidence": recovery,
+    }
+
+
+def _publisher_dates(values: Any) -> tuple[str, ...] | None:
+    if not isinstance(values, list):
+        return None
+    return tuple(
+        sorted(
+            {
+                str(value)[:10]
+                for value in values
+                if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(value)[:10])
+            }
+        )
+    )
 
 
 def _official_metadata(raw: Any, latest_as_of: str | None) -> dict[str, str | None]:
@@ -815,8 +927,8 @@ def _stale_target_error(spec: ExternalSourceSpec, frame: pd.DataFrame) -> str | 
         return None
     try:
         existing = pd.read_csv(target)
-    except Exception:
-        return None
+    except Exception as exc:
+        return f"existing canonical unreadable: {exc.__class__.__name__}: {exc}"
     incoming_latest = latest_frame_date(spec, frame)
     existing_latest = latest_frame_date(spec, existing)
     if incoming_latest and existing_latest and incoming_latest < existing_latest:

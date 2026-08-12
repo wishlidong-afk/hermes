@@ -779,7 +779,7 @@ def test_explicit_backfill_cannot_bypass_cboe_single_writer(monkeypatch, tmp_pat
     assert target.read_bytes() == before
 
 
-def test_refresh_all_adds_cboe_sources_only_when_feature_is_enabled(monkeypatch, tmp_path):
+def test_refresh_lanes_split_cboe_decision_and_auxiliary_sources(monkeypatch, tmp_path):
     calls: list[str] = []
 
     def fake_refresh(source_id, _config, **_kwargs):
@@ -795,10 +795,16 @@ def test_refresh_all_adds_cboe_sources_only_when_feature_is_enabled(monkeypatch,
     assert not set(refresh_external.CBOE_INDEX_SOURCE_IDS).intersection(calls)
 
     calls.clear()
-    refresh_external.refresh_all_sources(
-        {**base, "features": {"use_cboe_official_indices": True}}
-    )
-    assert set(refresh_external.CBOE_INDEX_SOURCE_IDS).issubset(calls)
+    enabled = {**base, "features": {"use_cboe_official_indices": True}}
+    refresh_external.refresh_all_sources(enabled, lane="decision")
+    assert set(refresh_external.CBOE_INDEX_SOURCE_IDS) - {"cboe_vix9d"} <= set(calls)
+    assert "cboe_vix9d" not in calls
+
+    calls.clear()
+    refresh_external.refresh_all_sources(enabled, lane="shadow")
+    assert set(refresh_external.CBOE_INDEX_SOURCE_IDS).intersection(calls) == {
+        "cboe_vix9d"
+    }
 
 
 def test_direct_cboe_refresh_is_rejected_while_feature_is_off(monkeypatch, tmp_path):

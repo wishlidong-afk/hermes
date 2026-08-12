@@ -4,21 +4,22 @@
 
 ## 1. 正常运行（全自动）
 
-- **06:45 CST** `com.hermes.external-precheck` 全量刷新并验收外部源；**07:05 CST** 同一任务只重试当天失败或 canonical 证据未就绪的源。两次都只写 source ledger 与已验证的 soft_history，不评分、不写官方 run。07:10 daily 若看到完整的当天预检证据会直接复用，避免对 FRED/AAII 连续重复请求。NAAIM 自 2026-08-01 标记为 `RETIRED_PAYWALL`，仅在周五上海时间做一次官方访问探测，非探测日不请求，也不迫使 07:10 补跑第三次。`ready=false` 时弹通知并返回非 0。`external_precheck_latest.{json,md}` 与 `external_precheck_<date>.{json,md}` 是原子更新的兼容视图；每次运行另保留不可变的 `external_precheck_<date>_<timestamp>_<mode>_<pid>.{json,md}`，06:45 与 07:05 不互相覆盖。
-- **每个自然日 07:10 CST** `com.hermes.daily`（launchd `StartCalendarInterval` 无 `Weekday` 过滤，包含周末/休市日）→ `~/.hermes/bin/run_daily.sh` → live `scripts/run_daily.py` → `python -m hermes_escape_top.scripts.run_daily_package --live --commit-state`。日志：`~/.hermes/logs/daily/daily_<date>.log`。Health 对 OK 回执的 26 小时阈值依赖这个日历日调度事实，与行情的交易日陈旧规则分开。
-- daily 的 M4-1a 优先复用当天 06:45/07:05 的完整 ledger 证据；只有当天证据不完整时才补跑全量 ExternalSourceRunner。runner 当前统一管理 FRED、CBOE PCR、CFTC COT、OCC PCR、BTC funding、NAAIM、AAII；AAII 结果页被 Imperva 阻断或结构变化时会转用 AAII 官方 Insights RSS，RSS 也失败后才尝试未被 ledger 消费过的官方下载文件。AAII/NAAIM 文件先按 SHA-256 进入 `external_import_queue/<source>/{inbox,processed,rejected}`，原始 Downloads 文件不移动，同内容不重复处理。每次 run 的 raw/normalized 路径与 `external_sources/blobs/sha256/` 认证 blob 是不同 inode 的只读副本；篡改单次副本不会污染 blob 或其它 run。失败不 abort official run，但会写 ledger 并在 8766 health 暴露；评分只使用已验证/已存在的 canonical 缓存。
-- scheduled run 结束并写入 OK receipt 后，会落盘 `reports/system_health_<as_of>.json` 与 `.md`：这是运行健康审计快照，区分策略数据、持仓对账、辅助资金流三层；它不是交易指令，交易仍以 official dashboard/daily_report 为准。
+- **06:45 CST** `com.hermes.external-precheck` 只刷新并验收 `decision` 通道；**07:05 CST** 同一任务只重试当天失败或 canonical 证据未就绪的决策源。禁用、inactive、auxiliary 与 research 源不进这两次早间请求。两次都只写 source ledger 与已验证的 canonical，不评分、不写官方 run。07:10 daily 若看到完整的当天预检证据会直接复用，避免对 FRED/AAII 连续重复请求。NAAIM 自 2026-08-01 标记为 `RETIRED_PAYWALL`，仅在周五上海时间做一次官方访问探测，非探测日不请求，也不迫使 07:10 补跑第三次。`ready=false` 时弹通知并返回非 0。`external_precheck_latest.{json,md}` 与 `external_precheck_<date>.{json,md}` 是原子更新的兼容视图；每次运行另保留不可变的 `external_precheck_<date>_<timestamp>_<mode>_<pid>.{json,md}`，06:45 与 07:05 不互相覆盖。
+- **每个自然日 07:10 CST** `com.hermes.daily`（launchd `StartCalendarInterval` 无 `Weekday` 过滤，包含周末/休市日）→ `~/.hermes/bin/run_daily.sh --scheduled-launchd` → live `scripts/run_daily.py` → `python -m hermes_escape_top.scripts.run_daily_package --live --commit-state --run-type scheduled`。无参数手工执行同一 wrapper 时固定为 `manual_rerun`，不能写官方 receipt 或冒充自然调度。日志：`~/.hermes/logs/daily/daily_<date>.log`。Health 对 OK 回执的 26 小时阈值依赖这个日历日调度事实，与行情的交易日陈旧规则分开。
+- daily 的 M4-1a 优先复用当天 06:45/07:05 的完整 ledger 证据；只有当天决策源证据不完整时才补跑 `decision` 通道 ExternalSourceRunner。它不会因 COT flag OFF、inactive OCC、research BTC funding 或 auxiliary VIX9D 再发起早间请求。AAII 结果页被 Imperva 阻断或结构变化时会转用 AAII 官方 Insights RSS，RSS 也失败后才尝试未被 ledger 消费过的官方下载文件。AAII/NAAIM 文件先按 SHA-256 进入 `external_import_queue/<source>/{inbox,processed,rejected}`，原始 Downloads 文件不移动，同内容不重复处理。每次 run 的 raw/normalized 路径与 `external_sources/blobs/sha256/` 认证 blob 是不同 inode 的只读副本；篡改单次副本不会污染 blob 或其它 run。失败不 abort official run，但会写 ledger 并在 8766 health 暴露；评分只使用已验证/已存在的 canonical 缓存。
+- scheduled run 结束并写入 OK receipt 后，会落盘 `reports/system_health_<as_of>.json` 与 `.md`：这是运行健康审计快照，区分策略数据、持仓对账、辅助资金流三层；每份新报告绑定 `generator_release_hash` 与 `generator_policy_sha256`，并以 `generated_at` 证明它是否晚于当前 R6 attestation。它不是交易指令，交易仍以 official dashboard/daily_report 为准。
 - **09:00 CST** `com.hermes.watchdog` → audit_log 落后 >2 个 NYSE 交易日则弹通知。日志：`~/.hermes/logs/watchdog.log`。
 - **09:02 CST** `com.hermes.market-third-source` 在共享 pipeline lock 下只重试最新 market-admission operation 的 Alpha Vantage 第三源 shadow，解决 07:10 时供应商尚未发布最新日线的问题；锁忙返回 `BUSY`，不并发写入。它不修改 canonical history、准入状态、评分、官方回执或 `input_hash`；8766 仅在 `admission_operation_id` 与 `completed_through` 同时匹配时展示该延迟证据。日志：`~/.hermes/logs/market_third_source.launchd.{out,err}.log`。
-- **09:10 CST** Codex heartbeat 只读运行 `ops/morning_acceptance.py`，位于 09:00 watchdog 和 09:02 延迟证据之后；不得借验收触发 daily、行情/外部源刷新或 IBKR 连接。
+- **09:10 CST** Codex heartbeat 只读运行 `ops/morning_acceptance.py`，位于 09:00 watchdog 和 09:02 延迟证据之后；不得借验收触发 daily、行情/外部源刷新或 IBKR 连接。退出码 `0=PASS`、`2=FAIL`、`3=PENDING_POST_DEPLOY`。后者只在 runtime 五项完整、旧官方报告本身有效、当前策略 readiness 为 OK，且当前 release 尚未获得“部署后下一个 07:10 调度点及其后”的同 release/policy 报告时出现；它不授权交易或下一次部署。8766 显示“策略待认证 / WAIT”，下一次自然 07:10 scheduled run 是唯一自动转回 PASS 的路径，禁止覆盖旧报告或无参数手工预览来制造认证。
+- **09:20 CST** `com.hermes.external-shadow` 以非阻塞锁刷新 `shadow` 通道：active research BTC funding/basis 会调度；auxiliary VIX9D 仅在 `use_cboe_official_indices` 开启时加入。本任务不会暗中翻 flag。锁忙原样返回 75，结果保存在 `~/.hermes/logs/external-shadow/external_shadow_{<date>_<timestamp>_<pid>|latest}.json`；该证据不进策略 readiness、评分、路由、官方回执或 `input_hash`。
 - **每周日 08:30 CST** `com.hermes.runtime-retention` 在同一把非阻塞 pipeline lock 下清理超出保留策略的旧 release、部署备份、压缩 audit 与已结束评分事务；`current`、`previous` 和 active transaction 永不删除。锁忙则记录 `BUSY` 并零删除，证据在 `~/.hermes/logs/retention/runtime_retention_{<date>|latest}.json`。
 - 健康判断三步：① 日志末行 `exit 0`；② preflight 段无 STALE/NOT WRITABLE；③ `[M4-diff]` 段解释今日 vs 昨日变化。
-- 手动补跑：`bash ~/.hermes/bin/run_daily.sh`（幂等，非交易日跑了也无害）。
+- 手工诊断预览：`bash ~/.hermes/bin/run_daily.sh`。它固定写 `manual_rerun`，不替代官方 07:10 run、不写官方 receipt、也不能完成部署再认证。需要恢复官方调度时按事故流程显式运行 `launchctl kickstart -k gui/$UID/com.hermes.daily`，并保留人工授权与日志证据。
 
 ## 2. 数据缺失 / 过期
 
-- preflight 出现 `STALE` 或 watchdog 报警：先手动 `bash ~/.hermes/bin/run_daily.sh`，看 M4-1b 四个刷新步骤哪个 WARNING。
-- 外部源统一刷新+验收：`~/.hermes/bin/refresh_external.sh --pre-daily-check`。只看 ledger：`~/.hermes/bin/refresh_external.sh --status`。单源刷新：`~/.hermes/bin/refresh_external.sh --source {dollar|real_rate|fred_net_liquidity|cboe_equity_pcr|cot_nq|occ_equity_pcr|btc_funding_basis|naaim_exposure|aaii_sentiment}`。该稳定入口按 live `RUNTIME_LOCK_SHA256` 选择 managed Python，不使用 shell 的 ambient `python3`。`--all` 默认会在 AAII/NAAIM 自动抓取失败后尝试尚未被 ledger 消费过的官方下载文件；同一文件哈希不会反复导入。
+- preflight 出现 `STALE` 或 watchdog 报警：先运行 `~/.hermes/bin/refresh_external.sh --pre-daily-check` 查看决策源证据；需要完整链路诊断时再运行 `bash ~/.hermes/bin/run_daily.sh` 生成非官方 `manual_rerun` 预览。不要把预览当成官方恢复。
+- 决策外部源统一刷新+验收：`~/.hermes/bin/refresh_external.sh --pre-daily-check`（默认 `decision`）。手动只刷新影子通道：`~/.hermes/bin/refresh_external.sh --all --lane shadow --lock-timeout 0`。只看 ledger：`~/.hermes/bin/refresh_external.sh --status`。单源刷新：`~/.hermes/bin/refresh_external.sh --source {dollar|real_rate|fred_net_liquidity|cboe_equity_pcr|cot_nq|occ_equity_pcr|btc_funding_basis|naaim_exposure|aaii_sentiment}`，显式 `--source` 不受自动调度分通道限制。该稳定入口按 live `RUNTIME_LOCK_SHA256` 选择 managed Python，不使用 shell 的 ambient `python3`。`--all` 默认会在 AAII/NAAIM 自动抓取失败后尝试尚未被 ledger 消费过的官方下载文件；同一文件哈希不会反复导入。
 - AAII 403/Imperva：runner 会自动尝试 AAII 官方 `https://insights.aaii.com/feed`，从每周 Sentiment Survey 正文解析同一组 Bullish/Neutral/Bearish 数值，并在 raw/ledger 记录 RSS URL、XML SHA-256 和实际 artifact `pubDate`；RSS 路径以该 `pubDate` 作为 PIT 可用日，不回填到更早的周四。这是官方自动化 fallback，不是第三方镜像。只有结果页与 RSS 都失败时，才运行 `~/.hermes/bin/refresh_external.sh --source aaii_sentiment --open-official-download`。若浏览器无法自动下载，则用已登录浏览器下载官方 `sentiment.xls`，复制到 `~/.hermes/external_imports/`，再执行 `~/.hermes/bin/refresh_external.sh --source aaii_sentiment --import-file ~/.hermes/external_imports/sentiment.xls`。
 - NAAIM 公共 XLSX 自 2026-08-01 起付费退役：不购买时无需人工刷新。最后一份认证 canonical 与 ledger 保持冻结；超龄后评分按既有 `use_soft_data_max_age`/missing_weight 处理。周五探测失败只记运维告警，不把结构性不可用误报成 daily 故障；`EVIDENCE_DRIFT`、canonical 缺失或 ledger 绑定失效仍阻断。禁止用镜像、新闻、AAII/PCR 或推算值回填 NAAIM。未来只有实际配置且验证通过的官方订阅通道才能恢复 `ACTIVE_SUBSCRIBER`。
 - 可靠性字段：`--status` 与 8766 展示按 Asia/Shanghai 自然日去重的 `success_rate_30d/90d`、样本数、连续失败、最近成功/恢复，并分开统计 transport/parse/validation/promotion 四段；另显示 canonical 推进率与有确定发布日源的 expected-release 状态。同日 06:45 失败、07:05 成功只算一个成功日。`MIGRATION_DUE` 是治理提醒；`ACTION_REQUIRED` 是仍应可获取的官方源需要人工处置；`RETIRED_PAYWALL` 表示历史冻结、周频探测、无需购买或日常干预。
@@ -40,7 +41,7 @@
 
 ## 5. 回测 / gate 失败
 
-- 单变体独立进程跑（同进程多回测 OOM）；用 `HERMES_DATA_DIR` 指向隔离数据副本，绝不直接读写包内 data/。
+- 单变体独立进程跑（同进程多回测 OOM）；用 `HERMES_DATA_DIR` 指向隔离数据副本，绝不直接读写包内 data/。git checkout 内的 `score`、dashboard/Web refresh 和 daily 入口缺少该变量时会在任何运行态写入前 fail closed；不要绕过此保护。
 - alpha gate FAIL = 正常产出：flag 保持 OFF，失败原因归档进 FLAG_REGISTRY Rejected 区，**不二次调参**。
 - 同一经济数据从近似/非 PIT 表示迁到更权威的真实 PIT 表示时，必须预先声明为 data-correctness migration，按 [`ADR-001-pit-data-correctness-migrations.md`](adr/ADR-001-pit-data-correctness-migrations.md) 验收。该门仍强制完整影响报告和人工批准，但不以正 alpha 作为通过条件；不得在看到 alpha gate 结果后临时换轨。
 
@@ -55,8 +56,9 @@
 - 脚本先停 dashboard，再由 Python `fcntl` helper **一次 acquire** 同一把 `<archive_dir>/.pipeline.lock`，连续完成：精确目录备份 → 构建 `releases/<hash>_<stamp>/` staging → 共享运行态挂载（`data/`、`reports/`、`orders/`、package `data/config` 不进 release）→ 同步 [`ops/`](../ops/) 入口 → config diff 人工 y/N → staging import/predeploy smoke → `current` symlink 原子切换。整段中间不释放锁，daily、Web refresh、CLI score 都不能插入。
 - 真正的持锁边界是 `pipeline_lock_exec` 父进程的单次 `fcntl` lease。内部 `--locked-swap/--locked-rollback` 还会校验继承 FD 与目标 lock 是同一 inode，并用新 OFD 非阻塞抢锁必须得到 `EWOULDBLOCK`；这是防止 agent/人工直接调内部模式的 guardrail，不宣称能对抗拥有本机同用户代码执行权限的恶意调用者。
 - smoke 成功后释放部署锁并重启 dashboard；`verify_live` 再按正常事务获取锁。验证仍走真实 `run_daily.sh --deploy-verify` 与新 live 代码，但 `HERMES_DATA_DIR`、日志和 audit/SQLite 指向 APFS 临时隔离副本；它必须产生 `manual_rerun`，不得改官方 receipt/state、live audit、live SQLite、heartbeat 或 live 日志。
+- `predeploy_smoke --json` 的 `data_root` 是本次检查实际读取的数据根证据：仓库运行会临时选择 live mirror，显式 `HERMES_DATA_DIR` 原样优先，staging/R6 release 使用其 package-level shared symlink。该字段为空视为验收证据不完整。
 - live 运行数据不再反向同步到 repo。需要研究快照时使用显式导出到独立目录；部署本身不修改 repo 的 `data/soft_history`。
-- 全部验收通过后，`.hermes` 只提交 allowlist：`current`/`previous` 指针、当前 release 内 package Python（排除 tests/config/data）、`VERSION`、release `scripts/run_daily.py`、稳定入口 `scripts/run_daily.py`、`bin/run_daily.sh`、`bin/serve_dashboard.sh`、`bin/refresh_external_precheck.sh`、`bin/refresh_external.sh`、`bin/hermes_watchdog.py`、`bin/prune_runtime_artifacts.py`。SQLite、audit/journal、持仓、order preview、logs/reports、备份、token/key/config 不进入部署 commit。
+- 全部验收通过后，`.hermes` 只提交 allowlist：`current`/`previous` 指针、当前 release 内 package Python（排除 tests/config/data）、`VERSION`、release `scripts/run_daily.py`、稳定入口 `scripts/run_daily.py`、`bin/run_daily.sh`、`bin/serve_dashboard.sh`、`bin/refresh_external_precheck.sh`、`bin/refresh_external_shadow.sh`、`bin/refresh_external.sh`、`bin/hermes_watchdog.py`、`bin/prune_runtime_artifacts.py`。SQLite、audit/journal、持仓、order preview、logs/reports、备份、token/key/config 不进入部署 commit。
 - 回滚：任何同步、smoke、dashboard、verify 或 `.hermes` commit 失败都会停止 dashboard、重新获取同一把锁，并用隔离备份目录 `~/.hermes-deploy-backups/escape-top/hermes_escape_top.predeploy_backup_<stamp>/` 恢复入口脚本、`current/previous` 指针、共享运行态初始状态和原 git index；如果已切到新 release，则把 `current` 原子切回旧 release 或恢复 legacy 原目录模式；随后重启 dashboard、非零退出，且绝不打印 `deploy OK`。rollback 本身失败会输出 `DOUBLE FAILURE` 与保留的 backup 路径，不自动重试。
 - daily 入口：launchd `com.hermes.daily` → `~/.hermes/bin/run_daily.sh` → `~/.hermes/skills/investment/escape-top/current/scripts/run_daily.py`（若 `current` 尚不存在则回退 legacy root），后者经 `python -m hermes_escape_top.scripts.run_daily_package` 跑**唯一的包引擎**。R6 原子化部署后，`HERMES_RUNTIME_ROOT` 指向 `current` release，`HERMES_DATA_DIR` 默认指向 `current/hermes_escape_top`，而 package `data/`、根 `reports/`、`orders/` 再由 release 内 symlink 落到 shared runtime。不要把 daily 的 runtime root 指回稳定 live 根，否则会写入 legacy `escape-top/hermes_escape_top/data`，dashboard 看不到。
 
@@ -77,8 +79,8 @@
 
 ## 8. launchd 维护
 
-- 状态：`launchctl print gui/$(id -u)/com.hermes.daily`；外部源预检看 `com.hermes.external-precheck`；延迟行情证据看 `com.hermes.market-third-source`；运行态保留看 `com.hermes.runtime-retention`。手动触发必须先确认无 daily/deploy，再用对应 label 的 `launchctl kickstart`；默认无需人工触发。
-- 停用：`launchctl bootout gui/$(id -u)/com.hermes.<external-precheck|market-third-source|daily|watchdog|runtime-retention>`。
+- 状态：`launchctl print gui/$(id -u)/com.hermes.daily`；决策外部源预检看 `com.hermes.external-precheck`；研究/辅助影子刷新看 `com.hermes.external-shadow`；延迟行情证据看 `com.hermes.market-third-source`；运行态保留看 `com.hermes.runtime-retention`。手动触发必须先确认无 daily/deploy，再用对应 label 的 `launchctl kickstart`；默认无需人工触发。
+- 停用：`launchctl bootout gui/$(id -u)/com.hermes.<external-precheck|external-shadow|market-third-source|daily|watchdog|runtime-retention>`。
 - watchdog 节假日表覆盖到 2028，到期告警文本会自带提醒（`~/.hermes/bin/hermes_watchdog.py`）。
 
 > 待办（T12 余项）：health 页面各非绿状态直接链接到本文对应小节（web/render 改动，与 T20 仪表板一起做）。

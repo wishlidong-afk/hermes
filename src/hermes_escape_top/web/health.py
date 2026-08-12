@@ -9,8 +9,12 @@ Levels: OK (green) · DEGRADED (amber) · CRITICAL (red).
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+import hashlib
+import json
+from datetime import date, datetime, time, timedelta, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 from ..core.data.external_sources.ledger import (
     CANONICAL_EVIDENCE_CRITICAL_STATUSES,
@@ -24,6 +28,7 @@ from .refresh import _completed_trading_days_after
 # Sources that are off/unwired BY DESIGN — their absence is the steady-state
 # baseline, not a degradation, so excluding them keeps "no alarm" meaningful.
 _EXPECTED_OFF_SOURCES = {"gex", "valuation"}
+_LOCAL_TZ = ZoneInfo("Asia/Shanghai")
 
 # Soft sources backed by live market data (ETF price ratios / index levels).
 # These update on every trading day; staleness is immediately actionable.
@@ -38,6 +43,109 @@ _LAYER_LABELS = {
     "auxiliary_flows": "辅助资金流",
     "operations": "运行维护",
 }
+
+
+def runtime_release_identity(package_root: Optional[Path] = None) -> Dict[str, Any]:
+    """Read the current R6 identity without mutating runtime state."""
+    root = Path(package_root or Path(__file__).resolve().parents[1])
+    version_path = root / "VERSION"
+    attestation_path = root / "LIVE_CONFIG_ATTESTATION.json"
+    policy_path = root / "governance" / "approved_live_config.json"
+    if not version_path.is_file() and not attestation_path.is_file():
+        return {}
+    try:
+        fields = version_path.read_text(encoding="utf-8").splitlines()[0].split()
+        if not fields or not fields[0]:
+            raise ValueError(f"invalid VERSION: {version_path}")
+        release_hash = fields[0]
+        attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+        policy_sha256 = hashlib.sha256(policy_path.read_bytes()).hexdigest()
+        if str(attestation.get("release_hash") or "") != release_hash:
+            raise ValueError("VERSION and live attestation release hash differ")
+        if str(attestation.get("policy_sha256") or "") != policy_sha256:
+            raise ValueError("live attestation and policy sha256 differ")
+        attested_at = str(attestation.get("generated_at") or "")
+        if _parse_timestamp(attested_at) is None:
+            raise ValueError("live attestation generated_at is missing or invalid")
+        return {
+            "status": "VERIFIED",
+            "release_hash": release_hash,
+            "policy_sha256": policy_sha256,
+            "attested_at": attested_at,
+        }
+    except Exception as exc:
+        return {"status": "INVALID", "error": str(exc)}
+
+
+def post_deploy_certification(
+    report: Any,
+    runtime_identity: Any,
+) -> Dict[str, Any]:
+    """Classify immutable health evidence against the currently deployed code."""
+    if not isinstance(runtime_identity, dict) or not runtime_identity:
+        return {"status": "UNINSTRUMENTED"}
+    if str(runtime_identity.get("status") or "VERIFIED") == "INVALID":
+        return {
+            "status": "RUNTIME_IDENTITY_INVALID",
+            "detail": str(runtime_identity.get("error") or "runtime identity invalid"),
+        }
+    if not isinstance(report, dict) or not report:
+        return {"status": "NO_BOUND_REPORT"}
+    current_release = str(runtime_identity.get("release_hash") or "")
+    current_policy = str(runtime_identity.get("policy_sha256") or "")
+    report_release = str(report.get("generator_release_hash") or "")
+    report_policy = str(report.get("generator_policy_sha256") or "")
+    base = {
+        "report_generator_release_hash": report_release or None,
+        "report_generator_policy_sha256": report_policy or None,
+        "current_release_hash": current_release or None,
+        "current_policy_sha256": current_policy or None,
+        "report_generated_at": report.get("generated_at"),
+        "current_attested_at": runtime_identity.get("attested_at"),
+    }
+    report_time = _parse_timestamp(report.get("generated_at"))
+    attested_at = _parse_timestamp(runtime_identity.get("attested_at"))
+    next_scheduled_at = _next_natural_daily_at(attested_at)
+    base["next_scheduled_at"] = (
+        next_scheduled_at.isoformat() if next_scheduled_at is not None else None
+    )
+    generator_matches = bool(
+        current_release
+        and current_policy
+        and report_release == current_release
+        and report_policy == current_policy
+    )
+    if (
+        report_time is not None
+        and attested_at is not None
+        and report_time < attested_at
+    ):
+        return {"status": "PENDING_POST_DEPLOY", **base}
+    if (
+        report_time is not None
+        and next_scheduled_at is not None
+        and report_time < next_scheduled_at
+        and generator_matches
+    ):
+        return {"status": "PENDING_POST_DEPLOY", **base}
+    if (
+        report_time is not None
+        and next_scheduled_at is not None
+        and report_time >= next_scheduled_at
+        and generator_matches
+    ):
+        return {"status": "CERTIFIED", **base}
+    return {"status": "GENERATOR_MISMATCH", **base}
+
+
+def _next_natural_daily_at(attested_at: Optional[datetime]) -> Optional[datetime]:
+    if attested_at is None:
+        return None
+    local = attested_at.astimezone(_LOCAL_TZ)
+    candidate = datetime.combine(local.date(), time(7, 10), tzinfo=_LOCAL_TZ)
+    if candidate <= local:
+        candidate += timedelta(days=1)
+    return candidate
 
 
 def compute_health(
@@ -69,6 +177,13 @@ def compute_health(
     sip_status = payload.get("alpaca_daily_flow_status") or {}
     external_sources = payload.get("external_source_status") or {}
     market_admission = payload.get("market_admission_status") or {}
+    runtime_identity = payload.get("runtime_release_identity")
+    if not isinstance(runtime_identity, dict):
+        runtime_identity = runtime_release_identity()
+    certification = post_deploy_certification(
+        payload.get("system_health_report"),
+        runtime_identity,
+    )
     retired_soft_names = {
         "naaim"
         for source_id, row in external_sources.items()
@@ -184,6 +299,8 @@ def compute_health(
     stale_critical: List[str] = []
     stale_degraded: List[str] = []
     missing_unexpected: List[str] = []
+    research_unready: List[str] = []
+    auxiliary_unready: List[str] = []
     for s in sources:
         name = str(s.get("name") or "")
         status = str(s.get("status") or "")
@@ -195,6 +312,13 @@ def compute_health(
         if name in retired_soft_names:
             continue
         if "feature disabled" in reason:
+            continue
+        decision_role = str(s.get("decision_role") or "strategy")
+        if decision_role == "research":
+            research_unready.append(name)
+            continue
+        if decision_role == "auxiliary":
+            auxiliary_unready.append(name)
             continue
         if "stale" in reason:
             if name in _ONLINE_SOFT_SOURCES:
@@ -209,6 +333,20 @@ def compute_health(
         add("DEGRADED", f"软数据源过期 {len(stale_degraded)}", ", ".join(stale_degraded[:6]))
     if missing_unexpected:
         add("DEGRADED", f"软数据源意外缺失 {len(missing_unexpected)}", ", ".join(missing_unexpected[:6]))
+    if research_unready:
+        add(
+            "INFO",
+            "研究数据源未就绪",
+            ", ".join(research_unready[:6]),
+            "auxiliary_flows",
+        )
+    if auxiliary_unready:
+        add(
+            "INFO",
+            "辅助数据源未就绪",
+            ", ".join(auxiliary_unready[:6]),
+            "auxiliary_flows",
+        )
 
     # 6. Today's scheduled receipt is the orchestration truth. The 26-hour age
     #    limit relies on com.hermes.daily running at 07:10 on EVERY calendar day
@@ -379,6 +517,24 @@ def compute_health(
             detail = f"{source_id}: {status} {row.get('error_message') or row.get('error') or ''}".strip()
             add_source(failure_level, "外部数据源刷新失败", detail[:160])
 
+    certification_status = str(certification.get("status") or "")
+    if certification_status == "PENDING_POST_DEPLOY":
+        add(
+            "INFO",
+            "新版本待自然日跑再认证",
+            (
+                f"report={certification.get('report_generator_release_hash') or 'legacy'} "
+                f"live={certification.get('current_release_hash') or 'unknown'}"
+            ),
+            "operations",
+        )
+    elif certification_status in {"GENERATOR_MISMATCH", "RUNTIME_IDENTITY_INVALID"}:
+        add(
+            "CRITICAL",
+            "健康报告生成器身份异常",
+            str(certification.get("detail") or certification_status),
+        )
+
     layers = _layers(checks)
     overall = layers["strategy_data"]["level"]
 
@@ -391,6 +547,7 @@ def compute_health(
         "receipt_age_seconds": receipt_age,
         "ibkr_age_seconds": ibkr_age,
         "sip_as_of": sip_as_of,
+        "post_deploy_certification": certification,
         "checks": checks,
         "summary": _summary(overall, checks),
     }

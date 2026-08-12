@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import date, datetime, timedelta, timezone
 
-from hermes_escape_top.web.health import compute_health
+from hermes_escape_top.core.reporting.system_health import build_system_health_audit_dimensions
+from hermes_escape_top.web.health import (
+    compute_health,
+    post_deploy_certification,
+    runtime_release_identity,
+)
 from hermes_escape_top.web.refresh import _completed_trading_days_after
 
 
@@ -105,6 +112,128 @@ def test_stuck_running_receipt_is_critical():
 
     assert health["level"] == "CRITICAL"
     assert any("官方 run 超时" in check["label"] for check in health["checks"])
+
+
+def test_old_health_report_after_release_swap_is_visible_as_nonblocking_pending():
+    payload = _payload()
+    payload["system_health_report"] = {
+        "generated_at": "2026-06-18T07:11:00+00:00",
+        "generator_release_hash": "old123",
+        "generator_policy_sha256": "policy-old",
+    }
+    payload["runtime_release_identity"] = {
+        "release_hash": "new456",
+        "policy_sha256": "policy-new",
+        "attested_at": "2026-06-18T08:00:00+00:00",
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "OK"
+    assert health["post_deploy_certification"]["status"] == "PENDING_POST_DEPLOY"
+    pending = next(
+        row for row in health["checks"] if row["label"] == "新版本待自然日跑再认证"
+    )
+    assert pending["level"] == "INFO"
+    assert pending["layer"] == "operations"
+
+
+def test_health_report_generator_mismatch_after_deploy_is_critical():
+    payload = _payload()
+    payload["system_health_report"] = {
+        "generated_at": "2026-06-18T08:01:00+00:00",
+        "generator_release_hash": "old123",
+        "generator_policy_sha256": "policy-old",
+    }
+    payload["runtime_release_identity"] = {
+        "release_hash": "new456",
+        "policy_sha256": "policy-new",
+        "attested_at": "2026-06-18T08:00:00+00:00",
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "CRITICAL"
+    assert health["post_deploy_certification"]["status"] == "GENERATOR_MISMATCH"
+
+
+def test_same_hash_redeploy_still_waits_for_a_post_attestation_report():
+    certification = compute_health(
+        {
+            **_payload(),
+            "system_health_report": {
+                "generated_at": "2026-06-18T07:11:00+00:00",
+                "generator_release_hash": "same123",
+                "generator_policy_sha256": "same-policy",
+            },
+            "runtime_release_identity": {
+                "release_hash": "same123",
+                "policy_sha256": "same-policy",
+                "attested_at": "2026-06-18T08:00:00+00:00",
+            },
+        },
+        {"status": "OK"},
+        today=DAY,
+        now=NOW,
+    )["post_deploy_certification"]
+
+    assert certification["status"] == "PENDING_POST_DEPLOY"
+
+
+def test_matching_post_deploy_report_waits_until_next_natural_schedule():
+    runtime = {
+        "release_hash": "same123",
+        "policy_sha256": "same-policy",
+        "attested_at": "2026-06-18T08:00:00+00:00",
+    }
+    before_schedule = post_deploy_certification(
+        {
+            "generated_at": "2026-06-18T08:01:00+00:00",
+            "generator_release_hash": "same123",
+            "generator_policy_sha256": "same-policy",
+        },
+        runtime,
+    )
+    after_schedule = post_deploy_certification(
+        {
+            "generated_at": "2026-06-18T23:11:00+00:00",
+            "generator_release_hash": "same123",
+            "generator_policy_sha256": "same-policy",
+        },
+        runtime,
+    )
+
+    assert before_schedule["status"] == "PENDING_POST_DEPLOY"
+    assert before_schedule["next_scheduled_at"] == "2026-06-19T07:10:00+08:00"
+    assert after_schedule["status"] == "CERTIFIED"
+
+
+def test_runtime_release_identity_fails_closed_on_policy_drift(tmp_path):
+    policy = tmp_path / "governance/approved_live_config.json"
+    policy.parent.mkdir(parents=True)
+    policy.write_text('{"schema_version":"policy"}\n', encoding="utf-8")
+    policy_sha = hashlib.sha256(policy.read_bytes()).hexdigest()
+    (tmp_path / "VERSION").write_text("abc123 20260812_090000\n", encoding="utf-8")
+    (tmp_path / "LIVE_CONFIG_ATTESTATION.json").write_text(
+        json.dumps(
+            {
+                "release_hash": "abc123",
+                "policy_sha256": policy_sha,
+                "generated_at": "2026-08-12T09:00:00+08:00",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    verified = runtime_release_identity(tmp_path)
+    policy.write_text('{"schema_version":"drifted"}\n', encoding="utf-8")
+    drifted = runtime_release_identity(tmp_path)
+
+    assert verified["status"] == "VERIFIED"
+    assert verified["release_hash"] == "abc123"
+    assert drifted["status"] == "INVALID"
+    assert "policy sha256" in drifted["error"]
 
 
 def test_stale_sip_as_of_degrades_without_failing_core_receipt():
@@ -350,6 +479,76 @@ def test_retired_naaim_same_day_probe_failure_degrades_operations_only():
     assert health["level"] == "OK"
     assert health["layers"]["strategy_data"]["level"] == "OK"
     assert health["layers"]["operations"]["level"] == "DEGRADED"
+
+
+def test_system_health_reports_retired_naaim_scored_b6_gap_and_non_scoring_placeholders_separately():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "naaim_exposure": {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "lifecycle_status": "RETIRED_PAYWALL",
+            "freshness_status": "OK",
+            "evidence_status": "MATCH",
+        }
+    }
+    payload["scores"] = {
+        "MSTR": {
+            "factor_scores": {
+                "A": [
+                    {
+                        "factor_id": "A2_CNN_FEAR_GREED",
+                        "max_score": 0,
+                        "missing_fields": ["A2 cnn_fear_greed"],
+                    },
+                    {
+                        "factor_id": "A2_NAAIM",
+                        "max_score": 2,
+                        "missing_fields": [],
+                    },
+                ],
+                "B": [
+                    {
+                        "factor_id": "B5_SOCIAL_EUPHORIA",
+                        "max_score": 0,
+                        "missing_fields": ["B5 social"],
+                    },
+                    {
+                        "factor_id": "B6_VALUATION_HEAT",
+                        "max_score": 5,
+                        "missing_fields": ["B6 valuation"],
+                    },
+                ],
+                "D": [
+                    {
+                        "factor_id": "D_M4_BALANCE_SHEET_PROXY",
+                        "max_score": 0,
+                        "missing_fields": ["D-M4"],
+                    },
+                    {
+                        "factor_id": "D_M5_CRYPTO_SENTIMENT",
+                        "max_score": 0,
+                        "missing_fields": ["D-M5"],
+                    },
+                ],
+            }
+        }
+    }
+    report = {
+        "as_of": DAY.isoformat(),
+        "health": {"layers": {}},
+        "manifest_status": {"status": "OK"},
+        "run_receipt": payload["run_receipt"],
+    }
+
+    dimensions = build_system_health_audit_dimensions(payload, report)
+    lifecycle = next(row for row in dimensions if row["id"] == "factor_scores_present")
+
+    assert lifecycle["status"] == "WARN"
+    assert "NAAIM：已退役来源，等待 SLO 缺失路径" in lifecycle["detail"]
+    assert "MSTR B6：计分输入缺失 5 分" in lifecycle["detail"]
+    assert "非计分占位 4 项" in lifecycle["detail"]
+    assert "A2_CNN_FEAR_GREED" not in lifecycle["detail"]
 
 
 def test_market_admission_blocked_degrades_with_quarantine_count():
@@ -610,6 +809,37 @@ def test_stale_active_research_source_is_visible_without_degrading_strategy():
         check
         for check in health["checks"]
         if "btc_funding_basis" in check["detail"]
+    )
+    assert check["level"] == "INFO"
+    assert check["layer"] == "auxiliary_flows"
+
+
+def test_research_only_quality_penalty_is_visible_without_degrading_strategy():
+    payload = _payload()
+    payload["all_source_data_quality"] = {
+        "level": "LOW",
+        "overall_score": 61.0,
+    }
+    payload["data_quality_breakdown"] = {
+        "sources": [
+            {
+                "name": "btc_funding_basis",
+                "category": "soft",
+                "status": "MISSING",
+                "reason": "stale 8d exceeds max_age_days=6",
+                "decision_role": "research",
+            }
+        ]
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "OK"
+    assert health["layers"]["strategy_data"]["level"] == "OK"
+    check = next(
+        check
+        for check in health["checks"]
+        if check["label"] == "研究数据源未就绪"
     )
     assert check["level"] == "INFO"
     assert check["layer"] == "auxiliary_flows"

@@ -13,7 +13,13 @@ from hermes_escape_top.core.data.flow import basket_flow, chaikin_money_flow, mo
 from hermes_escape_top.core.data.network_guard import assert_no_network
 from hermes_escape_top.core.data.quality import quality_from_snapshots
 from hermes_escape_top.core.data.store import LocalStore
-from hermes_escape_top.pipeline import archive_soft_inputs, flow_snapshot
+from hermes_escape_top.pipeline import (
+    _decision_quality_excluded_fields,
+    _quality_breakdown,
+    _quality_payloads,
+    archive_soft_inputs,
+    flow_snapshot,
+)
 
 
 def synthetic_ohlcv(close_location: str) -> pd.DataFrame:
@@ -97,6 +103,175 @@ class Phase1DataFlowTest(unittest.TestCase):
         quality = quality_from_snapshots([snap])
         self.assertEqual(quality.latency_score, 97.0)
         self.assertEqual(quality.quality_score, 98.5)
+
+    def test_quality_can_exclude_research_fields_without_hiding_decision_penalties(self) -> None:
+        day = pd.Timestamp("2026-05-29").date()
+        snap = SymbolSnapshot(
+            "SOFT",
+            day,
+            {
+                "btc_funding_basis": Field(
+                    "btc_funding_basis",
+                    0.01,
+                    "BTC_FUNDING_PROXY",
+                    day,
+                    is_proxy=True,
+                    quality_penalty=2.0,
+                ),
+                "component_breadth": Field(
+                    "component_breadth",
+                    0.55,
+                    "LOCAL_COMPONENT_HISTORY",
+                    day,
+                    is_proxy=True,
+                    quality_penalty=2.0,
+                ),
+                "unknown_record": Field(
+                    "unknown_record",
+                    1.0,
+                    "UNKNOWN_WEEKLY",
+                    day,
+                    latency_days=9,
+                ),
+            },
+        )
+
+        all_source = quality_from_snapshots([snap])
+        decision = quality_from_snapshots(
+            [snap],
+            excluded_fields={"SOFT.btc_funding_basis"},
+        )
+
+        self.assertEqual(all_source.quality_score, 96.0)
+        self.assertEqual(decision.quality_score, 98.0)
+        self.assertEqual(decision.latency_score, 80.0)
+        self.assertTrue(
+            any("SOFT.component_breadth" in row["field"] for row in decision.penalties)
+        )
+        self.assertTrue(
+            any("SOFT.unknown_record" in row["field"] for row in decision.penalties)
+        )
+        self.assertFalse(
+            any("SOFT.btc_funding_basis" in row["field"] for row in decision.penalties)
+        )
+
+    def test_decision_quality_excludes_only_known_nondecision_soft_records(self) -> None:
+        config = {
+            "features": {
+                "data_btc_funding": True,
+                "data_aaii": True,
+            }
+        }
+        soft_data = {
+            "records": {
+                "btc_funding_basis": {
+                    "fields": {
+                        "btc_funding_pctl": 91.0,
+                        "btc_basis_pctl": 88.0,
+                    }
+                },
+                "aaii": {"fields": {"aaii_spread": -0.1}},
+                "unknown_record": {"fields": {"unknown_child": 1.0}},
+            }
+        }
+
+        excluded = _decision_quality_excluded_fields(soft_data, config)
+
+        self.assertEqual(
+            excluded,
+            {
+                "SOFT.btc_funding_basis",
+                "SOFT.btc_funding_pctl",
+                "SOFT.btc_basis_pctl",
+            },
+        )
+
+    def test_quality_payloads_keep_decision_and_all_source_scores_separate(self) -> None:
+        day = pd.Timestamp("2026-05-29").date()
+        snapshots = {
+            "SOFT": SymbolSnapshot(
+                "SOFT",
+                day,
+                {
+                    "btc_funding_basis": Field(
+                        "btc_funding_basis",
+                        0.01,
+                        "BTC_FUNDING_PROXY",
+                        day,
+                        is_proxy=True,
+                        quality_penalty=2.0,
+                    ),
+                    "btc_basis_pctl": Field(
+                        "btc_basis_pctl",
+                        88.0,
+                        "BTC_BASIS_FROM_FUNDING_PROXY",
+                        day,
+                        is_proxy=True,
+                        quality_penalty=2.0,
+                    ),
+                    "component_breadth": Field(
+                        "component_breadth",
+                        0.55,
+                        "LOCAL_COMPONENT_HISTORY",
+                        day,
+                        is_proxy=True,
+                        quality_penalty=2.0,
+                    ),
+                },
+            )
+        }
+        soft_data = {
+            "records": {
+                "btc_funding_basis": {"fields": {"btc_basis_pctl": 88.0}},
+                "component_breadth": {"fields": {}},
+            }
+        }
+        config = {"features": {"data_btc_funding": True}}
+
+        decision, all_source = _quality_payloads(snapshots, soft_data, config)
+
+        self.assertEqual(decision["quality_score"], 98.0)
+        self.assertEqual(all_source["quality_score"], 94.0)
+        self.assertTrue(
+            any("SOFT.component_breadth" in row["field"] for row in decision["penalties"])
+        )
+        self.assertFalse(
+            any("btc_" in row["field"] for row in decision["penalties"])
+        )
+
+    def test_quality_breakdown_labels_soft_sources_by_decision_role(self) -> None:
+        payload = {
+            "data_quality": {"level": "HIGH", "overall_score": 93.4},
+            "all_source_data_quality": {"level": "HIGH", "overall_score": 92.2},
+            "soft_data": {
+                "records": {
+                    "btc_funding_basis": {
+                        "as_of": "2026-05-29",
+                        "data_available": False,
+                        "reason": "stale research input",
+                    },
+                    "aaii": {
+                        "as_of": "2026-05-29",
+                        "data_available": True,
+                    },
+                }
+            },
+            "ibkr": {"source": "disabled"},
+        }
+        config = {
+            "features": {
+                "data_btc_funding": True,
+                "data_aaii": True,
+            }
+        }
+
+        breakdown = _quality_breakdown(payload, {}, {}, config)
+        rows = {row["name"]: row for row in breakdown["sources"]}
+
+        self.assertEqual(breakdown["overall_score"], 92.2)
+        self.assertEqual(breakdown["strategy_overall_score"], 93.4)
+        self.assertEqual(rows["btc_funding_basis"]["decision_role"], "research")
+        self.assertEqual(rows["aaii"]["decision_role"], "strategy")
 
 
 if __name__ == "__main__":

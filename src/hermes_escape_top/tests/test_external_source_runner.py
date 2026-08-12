@@ -359,6 +359,11 @@ def test_source_reliability_reports_stage_rates_recovery_and_advancement(tmp_pat
         promotion_status="OK",
         advanced=True,
         latest_promoted_as_of="2026-07-10",
+        publisher_release_dates=["2026-07-10"],
+        publisher_expected_release_dates=["2026-07-10"],
+        publisher_release_id="AAII:2026-07-10",
+        publisher_content_fingerprint="issue-2026-07-10",
+        publisher_calendar_status="VERIFIED",
     )
     unchanged = _ledger_record("aaii_sentiment", "OK", "2026-07-12T06:45:00+08:00")
     unchanged.update(
@@ -368,6 +373,11 @@ def test_source_reliability_reports_stage_rates_recovery_and_advancement(tmp_pat
         promotion_status="UNCHANGED",
         advanced=False,
         latest_promoted_as_of="2026-07-10",
+        publisher_release_dates=["2026-07-10"],
+        publisher_expected_release_dates=["2026-07-10"],
+        publisher_release_id="AAII:2026-07-10",
+        publisher_content_fingerprint="issue-2026-07-10",
+        publisher_calendar_status="VERIFIED",
     )
     for row in (first, recovered, unchanged):
         append_source_run(archive, row)
@@ -408,7 +418,15 @@ def test_source_reliability_reports_stage_rates_recovery_and_advancement(tmp_pat
 def test_expected_release_stays_pending_through_final_grace_day(tmp_path):
     archive = tmp_path / "archive"
     unchanged = _ledger_record("aaii_sentiment", "OK", "2026-07-10T06:45:00+08:00")
-    unchanged.update(advanced=False, latest_promoted_as_of="2026-07-03")
+    unchanged.update(
+        advanced=False,
+        latest_promoted_as_of="2026-07-03",
+        publisher_release_dates=["2026-07-10"],
+        publisher_expected_release_dates=["2026-07-10"],
+        publisher_release_id="AAII:2026-07-10",
+        publisher_content_fingerprint="issue-2026-07-03",
+        publisher_calendar_status="VERIFIED",
+    )
     append_source_run(archive, unchanged)
 
     final_grace_day = source_reliability(
@@ -777,6 +795,23 @@ def test_stale_source_frame_preserves_newer_existing_target(tmp_path):
     assert run.status == "VALIDATION_ERROR"
     assert "older than existing target" in str(run.error_message)
     assert target.read_text(encoding="utf-8") == "date,value\n2026-07-07,9.9\n"
+    assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "VALIDATION_ERROR"
+
+
+def test_runner_fails_closed_when_existing_canonical_is_unreadable(tmp_path):
+    target = tmp_path / "soft_history" / "dollar.csv"
+    target.mkdir(parents=True)
+    spec = ExternalSourceSpec(
+        source_id="dollar",
+        target_path=target,
+        required_columns=("date", "value"),
+    )
+
+    run = run_external_source_refresh(spec, FakeAdapter(), tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert "existing canonical unreadable" in str(run.error_message)
+    assert target.is_dir()
     assert latest_source_run(tmp_path / "archive", "dollar")["status"] == "VALIDATION_ERROR"
 
 

@@ -8,7 +8,6 @@ from typing import Any
 
 from .clock import shanghai_today, timestamp_to_shanghai_date
 
-
 DECISION_ROLES = frozenset({"strategy", "hard_gate", "auxiliary", "research"})
 
 
@@ -22,6 +21,7 @@ class ExternalSourceProfile:
     primary: str
     fallback: str
     decision_role: str
+    soft_record_names: tuple[str, ...] = ()
     import_globs: tuple[str, ...] = ()
     feature_flag: str | None = None
     decision_weight: float = 0.0
@@ -38,6 +38,9 @@ class ExternalSourceProfile:
     depends_on: str | None = None
     expected_release_weekdays: tuple[int, ...] = ()
     expected_advance_grace_days: int = 1
+    expected_release_policy: str = "weekday"
+    publisher_release_ids: tuple[str, ...] = ()
+    publisher_availability_lag_days: int = 0
     lifecycle_policy: str = "ACTIVE"
     lifecycle_effective_date: str | None = None
     lifecycle_reason: str = ""
@@ -55,8 +58,10 @@ class ExternalSourceProfile:
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
+        payload.pop("soft_record_names")
         payload["import_globs"] = list(self.import_globs)
         payload["expected_release_weekdays"] = list(self.expected_release_weekdays)
+        payload["publisher_release_ids"] = list(self.publisher_release_ids)
         payload["probe_weekdays"] = list(self.probe_weekdays)
         payload["grace_days"] = self.grace_days
         return payload
@@ -88,6 +93,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="FRED/ALFRED exact vintage event store",
         fallback="freeze last certified exact-vintage Dollar canonical",
         decision_role="strategy",
+        soft_record_names=("dollar",),
         feature_flag="use_fred_vintage_pit",
         decision_weight=4.0,
         pit_rule="exact_realtime_start_vintage",
@@ -106,6 +112,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="FRED/ALFRED exact vintage event store",
         fallback="freeze last certified exact-vintage Real Rate canonical",
         decision_role="strategy",
+        soft_record_names=("real_rate",),
         feature_flag="use_fred_vintage_pit",
         decision_weight=4.0,
         pit_rule="exact_realtime_start_vintage",
@@ -124,6 +131,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="FRED/ALFRED exact vintage event store",
         fallback="freeze last certified exact-vintage Net Liquidity canonical",
         decision_role="strategy",
+        soft_record_names=("net_liquidity",),
         feature_flag="use_fred_vintage_pit",
         decision_weight=4.0,
         pit_rule="exact_realtime_start_vintage",
@@ -142,10 +150,14 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="FRED DTWEXBGS API cross-checked against Federal Reserve Board H.10",
         fallback="freeze last certified Dollar canonical when either official path disagrees or is unavailable",
         decision_role="strategy",
+        soft_record_names=("dollar",),
         feature_flag="data_dollar",
         decision_weight=4.0,
         pit_rule="observation_date_plus_one_day",
         publication_schedule="FRED DTWEXBGS weekly publisher calendar",
+        expected_release_policy="fred_release_calendar",
+        publisher_release_ids=("17",),
+        publisher_availability_lag_days=1,
         refresh_group="legacy_fred",
         refresh_order=20,
         warn_only_stale_after_refresh=True,
@@ -159,10 +171,14 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="FRED DFII10 API",
         fallback="rerun FRED external source",
         decision_role="strategy",
+        soft_record_names=("real_rate",),
         feature_flag="data_real_rate",
         decision_weight=4.0,
         pit_rule="observation_date_plus_one_day",
         publication_schedule="FRED DFII10 on US business days",
+        expected_release_policy="fred_release_calendar",
+        publisher_release_ids=("18",),
+        publisher_availability_lag_days=1,
         refresh_group="legacy_fred",
         refresh_order=21,
     ),
@@ -175,11 +191,15 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="FRED WALCL/WTREGEN/RRP APIs",
         fallback="rerun FRED external source",
         decision_role="strategy",
+        soft_record_names=("net_liquidity",),
         feature_flag="data_net_liquidity",
         decision_weight=4.0,
         pit_rule="observation_date_plus_one_day",
         slo_key="net_liquidity",
         publication_schedule="daily RRP plus weekly WALCL and WTREGEN releases",
+        expected_release_policy="fred_release_calendar",
+        publisher_release_ids=("20", "379"),
+        publisher_availability_lag_days=1,
         refresh_group="legacy_fred",
         refresh_order=22,
     ),
@@ -192,6 +212,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="NAAIM authorized subscriber XLSX, then public official XLSX",
         fallback="official workbook import",
         decision_role="strategy",
+        soft_record_names=("naaim",),
         feature_flag="data_naaim",
         decision_weight=2.0,
         automation_mode="subscriber_or_official_file",
@@ -225,12 +246,14 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="AAII results page, then official Insights RSS",
         fallback="browser download + official file import",
         decision_role="strategy",
+        soft_record_names=("aaii",),
         feature_flag="data_aaii",
         decision_weight=2.0,
         automation_mode="official_rss_with_file_fallback",
         pit_rule="official_publish_date_or_reported_plus_one_day",
         publication_schedule="weekly AAII issue, normally Thursday US time",
-        expected_release_weekdays=(4,),
+        expected_release_policy="publisher_issue_sequence",
+        publisher_availability_lag_days=1,
         refresh_order=46,
         import_globs=(
             "~/.hermes/external_imports/sentiment*.xls",
@@ -250,6 +273,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="CBOE official VIX history CSV",
         fallback="freeze last certified CBOE history; Yahoo is witness only",
         decision_role="strategy",
+        soft_record_names=("cboe_indices",),
         feature_flag="use_cboe_official_indices",
         decision_weight=4.0,
         pit_rule="completed_us_session_plus_yahoo_witness",
@@ -268,6 +292,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="CBOE official VIX3M history CSV",
         fallback="freeze last certified CBOE history; Yahoo is witness only",
         decision_role="strategy",
+        soft_record_names=("cboe_indices",),
         feature_flag="use_cboe_official_indices",
         decision_weight=4.0,
         pit_rule="completed_us_session_plus_yahoo_witness",
@@ -286,6 +311,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="CBOE official VIX9D history CSV",
         fallback="freeze last certified CBOE history; Yahoo is witness only",
         decision_role="auxiliary",
+        soft_record_names=("cboe_indices",),
         feature_flag="use_cboe_official_indices",
         decision_weight=0.0,
         pit_rule="completed_us_session_plus_yahoo_witness",
@@ -304,6 +330,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="CBOE official SKEW history CSV",
         fallback="freeze last certified CBOE history; Yahoo is witness only",
         decision_role="strategy",
+        soft_record_names=("cboe_indices",),
         feature_flag="use_cboe_official_indices",
         decision_weight=6.0,
         pit_rule="completed_us_session_plus_yahoo_witness",
@@ -322,6 +349,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="CBOE official VVIX history CSV",
         fallback="freeze last certified CBOE history; Yahoo is witness only",
         decision_role="strategy",
+        soft_record_names=("cboe_indices",),
         feature_flag="use_cboe_official_indices",
         decision_weight=6.0,
         pit_rule="completed_us_session_plus_yahoo_witness",
@@ -340,6 +368,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="CBOE daily market statistics",
         fallback="keep last validated CBOE observation",
         decision_role="strategy",
+        soft_record_names=("cboe_pcr",),
         feature_flag="data_cboe_pcr",
         decision_weight=2.0,
         pit_rule="observation_date_plus_one_day",
@@ -357,6 +386,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="CFTC public reporting API",
         fallback="keep last validated weekly report",
         decision_role="strategy",
+        soft_record_names=("cot_nq",),
         feature_flag="data_cot_nq",
         decision_weight=4.0,
         pit_rule="tuesday_observation_friday_publication",
@@ -389,6 +419,7 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         primary="Deribit public API",
         fallback="OKX funding API",
         decision_role="research",
+        soft_record_names=("btc_funding_basis",),
         feature_flag="data_btc_funding",
         decision_weight=0.0,
         pit_rule="exchange_timestamp_utc_day",

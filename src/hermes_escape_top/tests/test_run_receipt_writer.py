@@ -5,6 +5,7 @@ commit_state, so a failed state commit could still show '自检全绿')."""
 from __future__ import annotations
 
 import json
+import hashlib
 from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
@@ -12,6 +13,13 @@ import pytest
 
 from hermes_escape_top.scripts import run_daily_package as rdp
 from hermes_escape_top.web import health as health_mod
+
+
+def test_daily_parser_rejects_abbreviated_run_type() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        rdp._build_daily_parser().parse_args(["--run-ty", "scheduled"])
+
+    assert exc_info.value.code == 2
 
 
 def _patch(monkeypatch, tmp_path):
@@ -46,6 +54,21 @@ def test_state_load_falls_back_to_legacy_release_local_state(monkeypatch, tmp_pa
     assert state["schema_version"] == "escape-top-state-v1"
     assert state["symbols"]["MSTR"]["state"] == "COOLDOWN"
     assert state["symbols"]["MSTR"]["last_exit_date"] == "2026-06-30"
+
+
+def test_state_load_fails_closed_when_shared_state_is_corrupt(monkeypatch, tmp_path):
+    release = tmp_path / "escape-top" / "releases" / "abc_20260703"
+    release.mkdir(parents=True)
+    monkeypatch.setattr(rdp, "BASE_DIR", release)
+    shared = tmp_path / "escape-top" / "state.json"
+    shared.write_text("{not-json\n", encoding="utf-8")
+    (release / "state.json").write_text(
+        json.dumps({"symbols": {"MSTR": {"state": "COOLDOWN"}}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="state evidence unreadable"):
+        rdp._load_state()
 
 
 def test_commit_state_migrates_legacy_release_state_to_shared_root(monkeypatch, tmp_path):
@@ -205,9 +228,61 @@ def test_alpaca_flow_attach_is_non_fatal_when_auxiliary_config_fails(monkeypatch
     assert "archive_dir" in result["alpaca_daily_flow_status"]["error"]
 
 
+def test_alpaca_flow_attach_records_cached_fallback_failure(monkeypatch, tmp_path):
+    monkeypatch.setattr(rdp, "load_config", lambda: {"paths": {}})
+    monkeypatch.setattr(rdp, "resolve_path", lambda _config, _key: tmp_path)
+    monkeypatch.setattr(
+        "hermes_escape_top.core.data.alpaca_flow.refresh_daily_flow",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("refresh down")),
+    )
+    monkeypatch.setattr(
+        "hermes_escape_top.core.data.alpaca_flow.load_daily_flow_snapshot",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("cache corrupt")),
+    )
+
+    result = rdp._attach_alpaca_flow_for_health(
+        {"as_of": "2026-06-17"},
+        "2026-06-17",
+    )
+
+    status = result["alpaca_daily_flow_status"]
+    assert status["status"] == "ERROR"
+    assert status["error"] == "refresh down"
+    assert status["fallback_error"] == "ValueError: cache corrupt"
+    persisted = json.loads(
+        (tmp_path / "alpaca_daily_flow_status.json").read_text(encoding="utf-8")
+    )
+    assert persisted["fallback_error"] == "ValueError: cache corrupt"
+
+
+def test_preflight_reports_unavailable_market_lag(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(rdp, "load_config", lambda: {"ibkr": {"readonly": True}})
+    monkeypatch.setattr(
+        "hermes_escape_top.config.resolve_path",
+        lambda _config, _key: tmp_path,
+    )
+    monkeypatch.setattr(rdp, "_csv_last_date", lambda _path: "2026-08-11")
+    monkeypatch.setattr(
+        "hermes_escape_top.web.refresh._completed_trading_days_after",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("bad calendar")),
+    )
+
+    rdp._preflight_report(True, "2026-08-12")
+
+    assert "lag unavailable: ValueError" in capsys.readouterr().out
+
+
 def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     monkeypatch.setenv("HERMES_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(rdp, "load_config", lambda: {"paths": {"archive_dir": "data/archive"}})
+    monkeypatch.setattr(
+        rdp,
+        "_system_health_generator_identity",
+        lambda: {
+            "generator_release_hash": "new-release-hash",
+            "generator_policy_sha256": "policy-sha256",
+        },
+    )
     monkeypatch.setattr(
         "hermes_escape_top.web.refresh.manifest_status",
         lambda _config=None: {"status": "OK"},
@@ -222,6 +297,10 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
             "completeness_score": 100.0,
             "quality_score": 100.0,
             "latency_score": 100.0,
+        },
+        "all_source_data_quality": {
+            "level": "LOW",
+            "overall_score": 61.0,
         },
         "data_quality_breakdown": {"sources": []},
         "external_source_status": {
@@ -273,6 +352,8 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     assert out["run_json"].exists()
     assert out["run_markdown"].exists()
     data = json.loads(out["json"].read_text(encoding="utf-8"))
+    assert data["generator_release_hash"] == "new-release-hash"
+    assert data["generator_policy_sha256"] == "policy-sha256"
     assert data["health"]["layers"]["position_reconciliation"]["level"] == "INFO"
     assert data["decision_input_coverage"]["coverage_score"] == 96.0
     assert data["market_witness_status"]["summary"]["MATCH"] == 3
@@ -294,8 +375,13 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     assert evidence["status"] == "PASS"
     assert "aaii_sentiment:2026-06-17:abcdefff" in evidence["detail"]
     quality = next(row for row in dimensions if row["id"] == "data_quality")
+    assert quality["label"] == "策略输入质量"
+    assert quality["status"] == "PASS"
+    assert "all_source=LOW" in quality["detail"]
     assert "decision_coverage=96.0" in quality["detail"]
     markdown = out["markdown"].read_text(encoding="utf-8")
+    assert "generator_release_hash: `new-release-hash`" in markdown
+    assert "generator_policy_sha256: `policy-sha256`" in markdown
     assert "策略数据" in markdown
     assert "## 20 维自检" in markdown
     assert "| external_file_evidence | PASS |" in markdown
@@ -312,6 +398,37 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     assert len(list((tmp_path / "reports" / "system_health_runs").glob("*.json"))) == 2
     current = json.loads(out["json"].read_text(encoding="utf-8"))
     assert current["input_hash"] == "second-input-hash"
+
+
+def test_system_health_generator_identity_requires_matching_live_attestation(
+    monkeypatch, tmp_path
+):
+    package = tmp_path / "hermes_escape_top"
+    policy = package / "governance/approved_live_config.json"
+    policy.parent.mkdir(parents=True)
+    policy.write_text('{"schema_version":"test-policy"}\n', encoding="utf-8")
+    policy_sha = hashlib.sha256(policy.read_bytes()).hexdigest()
+    (package / "VERSION").write_text("abc123 20260812_090000\n", encoding="utf-8")
+    (package / "LIVE_CONFIG_ATTESTATION.json").write_text(
+        json.dumps({"release_hash": "abc123", "policy_sha256": policy_sha}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(rdp, "PACKAGE_PARENT", tmp_path)
+
+    identity = rdp._system_health_generator_identity()
+
+    assert identity == {
+        "generator_release_hash": "abc123",
+        "generator_policy_sha256": policy_sha,
+    }
+
+    attestation = package / "LIVE_CONFIG_ATTESTATION.json"
+    attestation.write_text(
+        json.dumps({"release_hash": "wrong", "policy_sha256": policy_sha}) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="release hash"):
+        rdp._system_health_generator_identity()
 
 
 def test_system_health_audit_fails_external_runner_when_canonical_evidence_drifted():

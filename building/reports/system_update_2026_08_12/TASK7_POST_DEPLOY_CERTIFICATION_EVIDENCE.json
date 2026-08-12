@@ -1,0 +1,64 @@
+{
+  "schema_version": "hermes-task7-post-deploy-certification-evidence-v1",
+  "verified_at": "2026-08-13",
+  "status": "PASS",
+  "contract": {
+    "health_report_identity_fields": [
+      "generator_release_hash",
+      "generator_policy_sha256"
+    ],
+    "pending_status": "PENDING_POST_DEPLOY",
+    "pending_is_pass": false,
+    "pending_is_fail": false,
+    "pending_authorizes_trading": false,
+    "pending_authorizes_deployment": false,
+    "only_natural_scheduled_run_can_certify_current_release": true
+  },
+  "pending_gate": {
+    "runtime_integrity_must_pass": true,
+    "bound_report_must_predate_current_attestation": true,
+    "dashboard_strategy_layer_must_be_ok": true,
+    "same_hash_redeploy_requires_new_certification": true
+  },
+  "fail_closed_cases": [
+    "runtime identity or policy drift",
+    "health report generated after deployment by a different release or policy",
+    "stale market data",
+    "bad scheduled receipt",
+    "scheduled audit mismatch",
+    "score transaction failure"
+  ],
+  "immutability": {
+    "old_health_report_rewritten": false,
+    "official_receipt_rewritten": false,
+    "official_daily_run_executed": false,
+    "live_or_ibkr_write": false
+  },
+  "four_date_continuity": {
+    "artifact": "TASK7_FOUR_DATE_SELF_EQUIVALENCE.json",
+    "isolated_self_replay_all_equal": true,
+    "task6_task7_dates_identical": true,
+    "input_hashes": {
+      "2022-06-30": "cec545d25b63688c07d2536214c0be4daef1c8b5547766dd83b3c4e1c7e98428",
+      "2024-06-28": "68f631b24b6b9c3cd15196fed0b54c787ea0b061ebcceccb0749f3c52a5e620f",
+      "2026-05-29": "0f910bfaa76b27a558a1a23820578ba0b695c5f82f841900635aff790c94e9a3",
+      "2026-07-10": "18ffe225053fc71844fcdd06408478aabe25d9da279c19805b854aceb0c5ef9c"
+    }
+  },
+  "verification": {
+    "focused_tests": "179 passed",
+    "full_suite": "1330 passed",
+    "governance": "7/7 OK",
+    "compileall": "PASS",
+    "git_diff_check": "PASS",
+    "ruff": "NOT_RUN: ruff is not installed in the project runtime venv"
+  },
+  "prohibited_changes": {
+    "config_or_flag_change": false,
+    "score_threshold_or_cap_change": false,
+    "routing_or_sizing_change": false,
+    "official_daily_run": false,
+    "live_or_ibkr_write": false,
+    "commit_push_or_deploy": false
+  }
+}

@@ -1,0 +1,574 @@
+{
+  "all_artifacts_business_equal_after_reporting_normalization": true,
+  "all_equal_under_task3_contract": true,
+  "all_payload_differences_within_clarified_reporting_contract": true,
+  "baseline_source": "/private/tmp/hermes-task1-baseline.KDH7Er",
+  "candidate_source": "/Users/liweishi/Documents/github/hermes",
+  "contract_note": "audit_log.jsonl and hermes_state.sqlite embed the allowlisted reporting payload, so raw bytes change there. Protected decision paths and all persistence business content remain strict after removing only reporting fields.",
+  "dates": {
+    "2022-06-30": {
+      "all_payload_differences_within_clarified_reporting_contract": true,
+      "all_source_data_quality_after": {
+        "completeness_score": 100.0,
+        "latency_score": 100.0,
+        "level": "HIGH",
+        "overall_score": 96.55,
+        "penalties": [
+          {
+            "field": "SOFT.cboe_pcr,SOFT.equity_pcr,SOFT.equity_pcr_pctl",
+            "penalty": 1.5,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_funding_basis,SOFT.btc_funding_8h_avg,SOFT.btc_funding_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_basis_annual,SOFT.btc_basis_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.valuation",
+            "penalty": 2.0,
+            "reason": "proxy"
+          }
+        ],
+        "quality_score": 88.5
+      },
+      "artifacts": {
+        "audit_log.jsonl": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": false
+        },
+        "flow_reference.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "hermes_state.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": false
+        },
+        "mirror_reference.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "reentry_state.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "signal_journal.jsonl": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "soft_adapter_snapshot_2022-06-30.json": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        }
+      },
+      "data_quality_before": {
+        "completeness_score": 100.0,
+        "latency_score": 100.0,
+        "level": "HIGH",
+        "overall_score": 96.55,
+        "penalties": [
+          {
+            "field": "SOFT.cboe_pcr,SOFT.equity_pcr,SOFT.equity_pcr_pctl",
+            "penalty": 1.5,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_funding_basis,SOFT.btc_funding_8h_avg,SOFT.btc_funding_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_basis_annual,SOFT.btc_basis_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.valuation",
+            "penalty": 2.0,
+            "reason": "proxy"
+          }
+        ],
+        "quality_score": 88.5
+      },
+      "decision_data_quality_after": {
+        "completeness_score": 100.0,
+        "latency_score": 100.0,
+        "level": "HIGH",
+        "overall_score": 97.75,
+        "penalties": [
+          {
+            "field": "SOFT.cboe_pcr,SOFT.equity_pcr,SOFT.equity_pcr_pctl",
+            "penalty": 1.5,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.valuation",
+            "penalty": 2.0,
+            "reason": "proxy"
+          }
+        ],
+        "quality_score": 92.5
+      },
+      "disallowed_payload_differences": [],
+      "input_hash": "cec545d25b63688c07d2536214c0be4daef1c8b5547766dd83b3c4e1c7e98428",
+      "payload_difference_count": 51,
+      "protected_differences": [],
+      "protected_equal": true
+    },
+    "2024-06-28": {
+      "all_payload_differences_within_clarified_reporting_contract": true,
+      "all_source_data_quality_after": {
+        "completeness_score": 100.0,
+        "latency_score": 100.0,
+        "level": "HIGH",
+        "overall_score": 97.0,
+        "penalties": [
+          {
+            "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_funding_basis,SOFT.btc_funding_8h_avg,SOFT.btc_funding_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_basis_annual,SOFT.btc_basis_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.valuation",
+            "penalty": 2.0,
+            "reason": "proxy"
+          }
+        ],
+        "quality_score": 90.0
+      },
+      "artifacts": {
+        "audit_log.jsonl": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": false
+        },
+        "flow_reference.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "hermes_state.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": false
+        },
+        "mirror_reference.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "reentry_state.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "signal_journal.jsonl": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "soft_adapter_snapshot_2024-06-28.json": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        }
+      },
+      "data_quality_before": {
+        "completeness_score": 100.0,
+        "latency_score": 100.0,
+        "level": "HIGH",
+        "overall_score": 97.0,
+        "penalties": [
+          {
+            "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_funding_basis,SOFT.btc_funding_8h_avg,SOFT.btc_funding_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_basis_annual,SOFT.btc_basis_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.valuation",
+            "penalty": 2.0,
+            "reason": "proxy"
+          }
+        ],
+        "quality_score": 90.0
+      },
+      "decision_data_quality_after": {
+        "completeness_score": 100.0,
+        "latency_score": 100.0,
+        "level": "HIGH",
+        "overall_score": 98.2,
+        "penalties": [
+          {
+            "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.valuation",
+            "penalty": 2.0,
+            "reason": "proxy"
+          }
+        ],
+        "quality_score": 94.0
+      },
+      "disallowed_payload_differences": [],
+      "input_hash": "68f631b24b6b9c3cd15196fed0b54c787ea0b061ebcceccb0749f3c52a5e620f",
+      "payload_difference_count": 51,
+      "protected_differences": [],
+      "protected_equal": true
+    },
+    "2026-05-29": {
+      "all_payload_differences_within_clarified_reporting_contract": true,
+      "all_source_data_quality_after": {
+        "completeness_score": 100.0,
+        "latency_score": 100.0,
+        "level": "HIGH",
+        "overall_score": 97.0,
+        "penalties": [
+          {
+            "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_funding_basis,SOFT.btc_funding_8h_avg,SOFT.btc_funding_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_basis_annual,SOFT.btc_basis_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.valuation",
+            "penalty": 2.0,
+            "reason": "proxy"
+          }
+        ],
+        "quality_score": 90.0
+      },
+      "artifacts": {
+        "audit_log.jsonl": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": false
+        },
+        "flow_reference.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "hermes_state.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": false
+        },
+        "mirror_reference.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "reentry_state.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "signal_journal.jsonl": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "soft_adapter_snapshot_2026-05-29.json": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        }
+      },
+      "data_quality_before": {
+        "completeness_score": 100.0,
+        "latency_score": 100.0,
+        "level": "HIGH",
+        "overall_score": 97.0,
+        "penalties": [
+          {
+            "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_funding_basis,SOFT.btc_funding_8h_avg,SOFT.btc_funding_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_basis_annual,SOFT.btc_basis_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.valuation",
+            "penalty": 2.0,
+            "reason": "proxy"
+          }
+        ],
+        "quality_score": 90.0
+      },
+      "decision_data_quality_after": {
+        "completeness_score": 100.0,
+        "latency_score": 100.0,
+        "level": "HIGH",
+        "overall_score": 98.2,
+        "penalties": [
+          {
+            "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.valuation",
+            "penalty": 2.0,
+            "reason": "proxy"
+          }
+        ],
+        "quality_score": 94.0
+      },
+      "disallowed_payload_differences": [],
+      "input_hash": "0f910bfaa76b27a558a1a23820578ba0b695c5f82f841900635aff790c94e9a3",
+      "payload_difference_count": 51,
+      "protected_differences": [],
+      "protected_equal": true
+    },
+    "2026-07-10": {
+      "all_payload_differences_within_clarified_reporting_contract": true,
+      "all_source_data_quality_after": {
+        "completeness_score": 100.0,
+        "latency_score": 100.0,
+        "level": "HIGH",
+        "overall_score": 97.0,
+        "penalties": [
+          {
+            "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_funding_basis",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_basis_annual,SOFT.btc_basis_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.valuation",
+            "penalty": 2.0,
+            "reason": "proxy"
+          }
+        ],
+        "quality_score": 90.0
+      },
+      "artifacts": {
+        "audit_log.jsonl": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": false
+        },
+        "flow_reference.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "hermes_state.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": false
+        },
+        "mirror_reference.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "reentry_state.sqlite": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "signal_journal.jsonl": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        },
+        "soft_adapter_snapshot_2026-07-10.json": {
+          "business_equal_after_reporting_normalization": true,
+          "raw_equal": true
+        }
+      },
+      "data_quality_before": {
+        "completeness_score": 100.0,
+        "latency_score": 100.0,
+        "level": "HIGH",
+        "overall_score": 97.0,
+        "penalties": [
+          {
+            "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_funding_basis",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.btc_basis_annual,SOFT.btc_basis_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.valuation",
+            "penalty": 2.0,
+            "reason": "proxy"
+          }
+        ],
+        "quality_score": 90.0
+      },
+      "decision_data_quality_after": {
+        "completeness_score": 100.0,
+        "latency_score": 100.0,
+        "level": "HIGH",
+        "overall_score": 98.2,
+        "penalties": [
+          {
+            "field": "SOFT.component_breadth,SOFT.fngu_pct_above_50dma,SOFT.fngu_pct_above_200dma,SOFT.fngu_breadth_chg_5d,SOFT.soxl_pct_above_50dma,SOFT.soxl_pct_above_200dma,SOFT.soxl_breadth_chg_5d,SOFT.aggregate_pct_above_50dma,SOFT.aggregate_pct_above_200dma,SOFT.aggregate_breadth_chg_5d",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.defensive_rotation,SOFT.defensive_cyclical,SOFT.defensive_cyclical_pctl",
+            "penalty": 2.0,
+            "reason": "proxy"
+          },
+          {
+            "field": "SOFT.valuation",
+            "penalty": 2.0,
+            "reason": "proxy"
+          }
+        ],
+        "quality_score": 94.0
+      },
+      "disallowed_payload_differences": [],
+      "input_hash": "18ffe225053fc71844fcdd06408478aabe25d9da279c19805b854aceb0c5ef9c",
+      "payload_difference_count": 51,
+      "protected_differences": [],
+      "protected_equal": true
+    }
+  },
+  "protected_outputs_all_equal": true,
+  "schema_version": "hermes-task3-decision-quality-equivalence-v1",
+  "seed_data": "/Users/liweishi/.hermes/skills/investment/escape-top/shared/hermes_escape_top/data",
+  "seed_policy": "read-only clone of live shared history and soft_history; no live writes",
+  "task0_contract_clarification": {
+    "derived_reporting_paths_added": [
+      "decision_layers.*.action_confidence",
+      "action_intents.*.confidence_score",
+      "action_intents.*.strategy_confidence_score",
+      "today_ops.data_quality",
+      "today_ops.data_quality_score",
+      "hermes_state.score_runs.data_quality_score",
+      "hermes_state.data_sources.*.decision_role",
+      "hermes_state.data_sources.*.decision_bearing"
+    ],
+    "original_allowlist_was_sufficient": false,
+    "payload_embedding_artifacts_compared_after_reporting_normalization": [
+      "audit_log.jsonl",
+      "hermes_state.sqlite"
+    ],
+    "raw_equal_artifacts_required": [
+      "flow_reference.sqlite",
+      "mirror_reference.sqlite",
+      "reentry_state.sqlite",
+      "signal_journal.jsonl",
+      "soft_adapter_snapshot_<as_of>.json"
+    ],
+    "reason": "Task 0 omitted deterministic compatibility mirrors of decision_layers.*.strategy_confidence and treated two payload-embedding artifacts as if their raw hashes could remain unchanged."
+  }
+}

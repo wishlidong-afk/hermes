@@ -160,7 +160,12 @@ def _coverage_level(score: float) -> str:
     return "BLOCKED"
 
 
-def quality_from_snapshots(snapshots: Iterable[SymbolSnapshot]) -> DataQuality:
+def quality_from_snapshots(
+    snapshots: Iterable[SymbolSnapshot],
+    *,
+    excluded_fields: set[str] | None = None,
+) -> DataQuality:
+    excluded = excluded_fields or set()
     penalties: List[Dict[str, Any]] = []
     critical_missing = []
     completeness = 100.0
@@ -170,18 +175,21 @@ def quality_from_snapshots(snapshots: Iterable[SymbolSnapshot]) -> DataQuality:
     latency_groups: Dict[tuple, Dict[str, Any]] = {}
     for snap in snapshots:
         for name, item in snap.fields.items():
+            qualified_name = f"{snap.symbol}.{name}"
+            if qualified_name in excluded:
+                continue
             if item.missing and name in {"close", "ma200"}:
-                critical_missing.append(f"{snap.symbol}.{name}")
+                critical_missing.append(qualified_name)
             if item.is_proxy:
                 penalty = item.quality_penalty or 2.0
                 key = (snap.symbol, item.source, "proxy")
-                _merge_penalty_group(proxy_groups, key, f"{snap.symbol}.{name}", penalty)
+                _merge_penalty_group(proxy_groups, key, qualified_name, penalty)
             if item.latency_days > 0:
                 penalty = _latency_penalty(name, item)
                 if penalty <= 0:
                     continue
                 key = (snap.symbol, item.source, "latency", item.latency_days)
-                _merge_penalty_group(latency_groups, key, f"{snap.symbol}.{name}", penalty)
+                _merge_penalty_group(latency_groups, key, qualified_name, penalty)
     for group in proxy_groups.values():
         quality -= float(group["penalty"])
         penalties.append({"field": ",".join(group["fields"]), "reason": "proxy", "penalty": group["penalty"]})

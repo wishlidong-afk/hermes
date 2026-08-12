@@ -7,6 +7,8 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 EXPECTED_ARTIFACTS = (
@@ -194,6 +196,8 @@ def _acceptance_fixture(tmp_path: Path) -> tuple[Path, datetime, dict]:
         {
             "schema_version": "hermes-system-health-v1",
             "generated_at": "2026-07-13T07:11:05+08:00",
+            "generator_release_hash": "d9ec486",
+            "generator_policy_sha256": hashlib.sha256(policy_path.read_bytes()).hexdigest(),
             "as_of": "2026-07-10",
             "input_hash": "input-hash-1",
             "run_type": "scheduled",
@@ -257,6 +261,49 @@ def _acceptance_fixture(tmp_path: Path) -> tuple[Path, datetime, dict]:
     return home, now, health
 
 
+def _switch_to_new_release(home: Path) -> tuple[Path, str]:
+    base = home / ".hermes/skills/investment/escape-top"
+    current = base / "current"
+    old_release = current.resolve()
+    old_package = old_release / "hermes_escape_top"
+    release_name = "feed123_20260713_083000"
+    release = base / "releases" / release_name
+    package = release / "hermes_escape_top"
+    package.mkdir(parents=True)
+    (package / "VERSION").write_text("feed123 20260713_083000\n", encoding="utf-8")
+    validator = package / "governance/live_config_policy.py"
+    validator.parent.mkdir(parents=True, exist_ok=True)
+    validator.write_bytes(
+        (old_package / "governance/live_config_policy.py").read_bytes()
+    )
+    policy = package / "governance/approved_live_config.json"
+    policy.write_bytes(
+        (old_package / "governance/approved_live_config.json").read_bytes()
+    )
+    (package / "data").symlink_to(
+        base / "shared/hermes_escape_top/data", target_is_directory=True
+    )
+    (package / "config").symlink_to(
+        base / "shared/hermes_escape_top/config", target_is_directory=True
+    )
+    old_attestation = json.loads(
+        (old_package / "LIVE_CONFIG_ATTESTATION.json").read_text(encoding="utf-8")
+    )
+    old_attestation.update(
+        {
+            "generated_at": "2026-07-13T08:30:00+08:00",
+            "release_id": release_name,
+            "release_hash": "feed123",
+            "policy_sha256": hashlib.sha256(policy.read_bytes()).hexdigest(),
+        }
+    )
+    _write_json(package / "LIVE_CONFIG_ATTESTATION.json", old_attestation)
+    (release / "reports").symlink_to(base / "reports", target_is_directory=True)
+    current.unlink()
+    current.symlink_to(Path("releases") / release_name, target_is_directory=True)
+    return release, old_attestation["policy_sha256"]
+
+
 def test_clean_morning_acceptance_passes_with_visible_expected_warnings(tmp_path):
     module = _load_module()
     home, now, dashboard_health = _acceptance_fixture(tmp_path)
@@ -293,6 +340,181 @@ def test_clean_morning_acceptance_passes_with_visible_expected_warnings(tmp_path
     assert report["operational_observations"]["market_admission"]["status"] == "PASS"
     assert report["operational_observations"]["market_admission"]["consecutive_ok"] == 3
     assert report["operational_observations"]["external_source_migrations"]["status"] == "OBSERVING"
+
+
+def test_new_release_with_old_hash_bound_report_is_pending_without_rewriting_evidence(tmp_path):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    base = home / ".hermes/skills/investment/escape-top"
+    report_path = base / "reports/system_health_2026-07-10.json"
+    receipt_path = base / "shared/hermes_escape_top/data/archive/run_receipt.json"
+    report_before = report_path.read_bytes()
+    receipt_before = receipt_path.read_bytes()
+    _switch_to_new_release(home)
+    dashboard_health["level"] = "OK"
+    dashboard_health["layers"]["strategy_data"] = {"level": "OK", "checks": []}
+
+    report = module.collect_acceptance(
+        home=home,
+        now=now,
+        dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    assert report["status"] == "PENDING_POST_DEPLOY"
+    assert report["readiness"]["runtime_integrity"] == {
+        "status": "PASS",
+        "failed_checks": [],
+    }
+    assert report["readiness"]["strategy_decision"]["status"] == "PENDING_POST_DEPLOY"
+    assert report["post_deploy_certification"]["status"] == "PENDING_POST_DEPLOY"
+    assert report["post_deploy_certification"]["report_generator_release_hash"] == "d9ec486"
+    assert report["post_deploy_certification"]["current_release_hash"] == "feed123"
+    assert report_path.read_bytes() == report_before
+    assert receipt_path.read_bytes() == receipt_before
+
+
+def test_matching_report_before_next_natural_schedule_remains_pending(tmp_path):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    _release, policy_sha = _switch_to_new_release(home)
+    report_path = (
+        home
+        / ".hermes/skills/investment/escape-top/reports/system_health_2026-07-10.json"
+    )
+    health_report = json.loads(report_path.read_text(encoding="utf-8"))
+    health_report["generated_at"] = "2026-07-13T08:45:00+08:00"
+    health_report["generator_release_hash"] = "feed123"
+    health_report["generator_policy_sha256"] = policy_sha
+    _write_json(report_path, health_report)
+    dashboard_health["level"] = "OK"
+    dashboard_health["layers"]["strategy_data"] = {"level": "OK", "checks": []}
+
+    report = module.collect_acceptance(
+        home=home,
+        now=now,
+        dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    assert report["status"] == "PENDING_POST_DEPLOY"
+    assert report["post_deploy_certification"]["status"] == "PENDING_POST_DEPLOY"
+    assert report["post_deploy_certification"]["next_scheduled_at"] == (
+        "2026-07-14T07:10:00+08:00"
+    )
+
+
+def test_next_natural_scheduled_report_certifies_new_release(tmp_path):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    release, policy_sha = _switch_to_new_release(home)
+    attestation_path = release / "hermes_escape_top/LIVE_CONFIG_ATTESTATION.json"
+    attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+    attestation["generated_at"] = "2026-07-12T18:30:00+08:00"
+    _write_json(attestation_path, attestation)
+    report_path = (
+        home
+        / ".hermes/skills/investment/escape-top/reports/system_health_2026-07-10.json"
+    )
+    health_report = json.loads(report_path.read_text(encoding="utf-8"))
+    health_report["generated_at"] = "2026-07-13T07:11:05+08:00"
+    health_report["generator_release_hash"] = "feed123"
+    health_report["generator_policy_sha256"] = policy_sha
+    _write_json(report_path, health_report)
+
+    report = module.collect_acceptance(
+        home=home,
+        now=now,
+        dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    assert report["status"] == "PASS"
+    assert report["post_deploy_certification"]["status"] == "CERTIFIED"
+
+
+def test_post_deploy_pending_never_masks_strategy_or_runtime_failures(tmp_path):
+    module = _load_module()
+
+    def collect_with_failure(kind: str) -> dict:
+        case_home = tmp_path / kind
+        home, now, dashboard_health = _acceptance_fixture(case_home)
+        base = home / ".hermes/skills/investment/escape-top"
+        archive = base / "shared/hermes_escape_top/data/archive"
+        report_path = base / "reports/system_health_2026-07-10.json"
+        _switch_to_new_release(home)
+        if kind == "stale_market":
+            health_report = json.loads(report_path.read_text(encoding="utf-8"))
+            blocking = {
+                "level": "DEGRADED",
+                "label": "行情落后 1 个交易日",
+                "detail": "as_of=2026-07-09",
+                "layer": "strategy_data",
+            }
+            health_report["health"]["level"] = "DEGRADED"
+            health_report["health"]["layers"]["strategy_data"] = {
+                "level": "DEGRADED",
+                "checks": [blocking],
+            }
+            _write_json(report_path, health_report)
+            dashboard_health["level"] = "DEGRADED"
+            dashboard_health["layers"]["strategy_data"] = {
+                "level": "DEGRADED",
+                "checks": [blocking],
+            }
+        elif kind == "bad_receipt":
+            receipt_path = archive / "run_receipt.json"
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            receipt.update({"status": "FAILED", "ok": False})
+            _write_json(receipt_path, receipt)
+        elif kind == "audit_mismatch":
+            audit_path = archive / "audit_log.jsonl"
+            audit_row = json.loads(audit_path.read_text(encoding="utf-8"))
+            audit_row["payload"]["as_of"] = "2026-07-09"
+            audit_path.write_text(json.dumps(audit_row) + "\n", encoding="utf-8")
+        elif kind == "transaction_failure":
+            manifest_path = archive / ".score_run_transactions/runs/run-1/manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["status"] = "PENDING"
+            _write_json(manifest_path, manifest)
+        return module.collect_acceptance(
+            home=home,
+            now=now,
+            dashboard_reader=lambda _url: (200, dashboard_health),
+        )
+
+    for kind in ("stale_market", "bad_receipt", "audit_mismatch", "transaction_failure"):
+        report = collect_with_failure(kind)
+        assert report["status"] == "FAIL", kind
+        assert report["post_deploy_certification"]["status"] != "PENDING_POST_DEPLOY", kind
+
+
+def test_same_hash_redeploy_requires_a_report_after_the_new_attestation():
+    module = _load_module()
+    checks = [
+        {"id": check_id, "status": "PASS"}
+        for check_id in module.RUNTIME_INTEGRITY_CHECKS
+    ]
+    checks.extend(
+        [
+            {"id": "bound_health_report", "status": "PASS"},
+            {"id": "dashboard_health", "status": "PASS"},
+        ]
+    )
+
+    certification = module._post_deploy_certification(
+        {
+            "hash": "same123",
+            "policy_sha256": "same-policy",
+            "attested_at": "2026-07-13T08:30:00+08:00",
+        },
+        {
+            "generated_at": "2026-07-13T07:11:00+08:00",
+            "generator_release_hash": "same123",
+            "generator_policy_sha256": "same-policy",
+        },
+        {"level": "OK", "layers": {"strategy_data": {"level": "OK"}}},
+        checks,
+    )
+
+    assert certification["status"] == "PENDING_POST_DEPLOY"
 
 
 def test_strategy_failure_does_not_misreport_runtime_integrity(tmp_path):
@@ -679,6 +901,26 @@ def test_immutable_health_report_wins_when_compatibility_file_was_overwritten(tm
     assert "system_health_runs" in row["evidence"]
 
 
+def test_unreadable_immutable_health_report_is_visible_warning(tmp_path):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    reports = home / ".hermes/skills/investment/escape-top/current/reports"
+    corrupt = reports / "system_health_runs/system_health_2026-07-10_corrupt.json"
+    corrupt.parent.mkdir(parents=True)
+    corrupt.write_text("{not-json\n", encoding="utf-8")
+
+    report = module.collect_acceptance(
+        home=home,
+        now=now,
+        dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    row = next(item for item in report["checks"] if item["id"] == "bound_health_report")
+    assert row["status"] == "WARN"
+    assert "unreadable health evidence" in row["detail"]
+    assert corrupt.name in row["detail"]
+
+
 def test_residual_active_transaction_fails_acceptance(tmp_path):
     module = _load_module()
     home, now, dashboard_health = _acceptance_fixture(tmp_path)
@@ -753,14 +995,23 @@ def test_transaction_artifacts_require_exact_archive_paths(tmp_path):
     assert "business artifacts mismatch" in row["detail"]
 
 
-def test_unexpected_auxiliary_degradation_fails_acceptance(tmp_path):
+@pytest.mark.parametrize(
+    ("level", "label"),
+    [
+        ("INFO", "BTC funding research unavailable"),
+        ("DEGRADED", "VIX9D auxiliary stale"),
+    ],
+)
+def test_auxiliary_source_health_warns_without_blocking_acceptance(
+    tmp_path, level, label
+):
     module = _load_module()
     home, now, dashboard_health = _acceptance_fixture(tmp_path)
     path = home / ".hermes/skills/investment/escape-top/current/reports/system_health_2026-07-10.json"
     health_report = json.loads(path.read_text(encoding="utf-8"))
     bad_aux = {
-        "level": "DEGRADED",
-        "checks": [{"level": "DEGRADED", "label": "SIP stale", "detail": "1d"}],
+        "level": level,
+        "checks": [{"level": level, "label": label, "detail": "1d"}],
     }
     health_report["health"]["layers"]["auxiliary_flows"] = bad_aux
     dashboard_health["layers"]["auxiliary_flows"] = bad_aux
@@ -772,13 +1023,14 @@ def test_unexpected_auxiliary_degradation_fails_acceptance(tmp_path):
         dashboard_reader=lambda _url: (200, dashboard_health),
     )
 
-    assert report["status"] == "FAIL"
+    assert report["status"] == "PASS"
     assert next(
         item for item in report["checks"] if item["id"] == "bound_health_report"
-    )["status"] == "FAIL"
+    )["status"] == "WARN"
     assert next(
         item for item in report["checks"] if item["id"] == "dashboard_health"
-    )["status"] == "FAIL"
+    )["status"] == "WARN"
+    assert "auxiliary" in report["summary"]
 
 
 def test_operational_refresh_failure_is_visible_without_blocking_acceptance():
@@ -971,3 +1223,29 @@ def test_report_writer_atomically_publishes_dated_and_latest_files(tmp_path):
         "dated_markdown"
     ].read_text(encoding="utf-8")
     assert list((tmp_path / "acceptance").glob("*.tmp")) == []
+
+
+def test_pending_post_deploy_uses_distinct_nonzero_exit_code(monkeypatch, tmp_path):
+    module = _load_module()
+    pending = {
+        "schema_version": "hermes-morning-acceptance-v1",
+        "generated_at": "2026-07-13T09:05:00+08:00",
+        "acceptance_date": "2026-07-13",
+        "status": "PENDING_POST_DEPLOY",
+        "summary": "awaiting natural scheduled run",
+        "checks": [],
+    }
+    monkeypatch.setattr(module, "collect_acceptance", lambda **_kwargs: pending)
+
+    exit_code = module.main(
+        [
+            "--home",
+            str(tmp_path / "home"),
+            "--output-dir",
+            str(tmp_path / "acceptance"),
+            "--now",
+            "2026-07-13T09:05:00+08:00",
+        ]
+    )
+
+    assert exit_code == 3

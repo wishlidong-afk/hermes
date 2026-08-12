@@ -37,25 +37,25 @@ from .store import LocalStore, safe_symbol
 
 
 def fred_api_key(config: Optional[Dict[str, Any]] = None) -> Optional[str]:
-    """Read the FRED API key from env → gitignored data/fred_api_key.txt → config.
+    """Read the FRED API key from env -> explicit config -> legacy file.
 
-    Never stored in the (public) repo config; the file is gitignored.
+    Runtime callers inject the approved ``~/.hermes/.env`` value into the
+    in-memory config. The gitignored file remains a last-resort compatibility
+    fallback and must never override that explicit credential.
     """
     env = os.environ.get("FRED_API_KEY")
     if env and env.strip():
         return env.strip()
+    cfg = config or load_config()
+    explicit = str(cfg.get("fred_api_key") or "").strip()
+    if explicit:
+        return explicit
+    path = resolve_path(cfg, "soft_history_dir").parent / "fred_api_key.txt"
     try:
-        cfg = config or load_config()
-        path = resolve_path(cfg, "soft_history_dir").parent / "fred_api_key.txt"
-        if path.exists():
-            txt = path.read_text(encoding="utf-8").strip()
-            if txt:
-                return txt
-    except Exception:
-        pass
-    if config and config.get("fred_api_key"):
-        return str(config["fred_api_key"]).strip()
-    return None
+        legacy = path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return legacy or None
 
 
 def fetch_fred_series(series_id: str, start: str = "1990-01-01", end: Optional[str] = None,

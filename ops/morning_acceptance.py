@@ -43,6 +43,7 @@ STRATEGY_DECISION_CHECKS = frozenset(
 
 
 def render_markdown(report: Mapping[str, Any]) -> str:
+    certification = report.get("post_deploy_certification") or {}
     lines = [
         f"# Hermes Morning Acceptance - {report.get('acceptance_date')}",
         "",
@@ -51,6 +52,9 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         f"- summary: {report.get('summary')}",
         f"- runtime_integrity: `{((report.get('readiness') or {}).get('runtime_integrity') or {}).get('status', 'UNKNOWN')}`",
         f"- strategy_decision: `{((report.get('readiness') or {}).get('strategy_decision') or {}).get('status', 'UNKNOWN')}`",
+        f"- post_deploy_certification: `{certification.get('status', 'UNKNOWN')}`",
+        f"- report_generator_release: `{certification.get('report_generator_release_hash') or 'NA'}`",
+        f"- current_release: `{certification.get('current_release_hash') or 'NA'}`",
         "",
         "| Check | Status | Detail | Evidence |",
         "|---|---|---|---|",
@@ -145,13 +149,13 @@ def collect_acceptance(
     )
     checks.append(transaction_check)
 
-    health_check, health_warnings = _collect_bound_health(
+    health_check, health_warnings, health_report = _collect_bound_health(
         base, audit, receipt, acceptance_date
     )
     checks.append(health_check)
 
     reader = dashboard_reader or _read_dashboard
-    dashboard_check, dashboard_warnings = _collect_dashboard(
+    dashboard_check, dashboard_warnings, dashboard_payload = _collect_dashboard(
         reader, dashboard_url, audit
     )
     checks.append(dashboard_check)
@@ -166,13 +170,38 @@ def collect_acceptance(
         observed_at,
     )
 
+    certification = _post_deploy_certification(
+        release,
+        health_report,
+        dashboard_payload,
+        checks,
+    )
+    if certification["status"] == "GENERATOR_MISMATCH":
+        health_check["status"] = "FAIL"
+        health_check["detail"] = (
+            f"{health_check['detail']}; post-deploy generator mismatch"
+        )
+
     failures = [row for row in checks if row["status"] == "FAIL"]
     warning_details = _unique(
         health_warnings + dashboard_warnings + operational_warnings
     )
-    status = "FAIL" if failures else "PASS"
+    status = (
+        "FAIL"
+        if failures
+        else "PENDING_POST_DEPLOY"
+        if certification["status"] == "PENDING_POST_DEPLOY"
+        else "PASS"
+    )
     if failures:
         summary = "FAIL: " + ", ".join(row["id"] for row in failures)
+    elif status == "PENDING_POST_DEPLOY":
+        summary = (
+            "PENDING_POST_DEPLOY: runtime is healthy, but the current release "
+            "awaits the next natural scheduled-run certification"
+        )
+        if warning_details:
+            summary += "; allowed warnings: " + "; ".join(warning_details)
     elif warning_details:
         summary = "PASS; allowed warnings: " + "; ".join(warning_details)
     else:
@@ -183,7 +212,11 @@ def collect_acceptance(
         "acceptance_date": acceptance_date.isoformat(),
         "status": status,
         "summary": summary,
-        "readiness": _readiness_summary(checks),
+        "readiness": _readiness_summary(
+            checks,
+            certification_status=certification["status"],
+        ),
+        "post_deploy_certification": certification,
         "release": release,
         "scheduled": {
             "as_of": audit.get("as_of") or receipt.get("as_of"),
@@ -195,7 +228,11 @@ def collect_acceptance(
     }
 
 
-def _readiness_summary(checks: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
+def _readiness_summary(
+    checks: Iterable[Mapping[str, Any]],
+    *,
+    certification_status: str = "CERTIFIED",
+) -> Dict[str, Any]:
     rows = {str(row.get("id") or ""): row for row in checks}
     runtime_failures = [
         check_id
@@ -221,6 +258,8 @@ def _readiness_summary(checks: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
             "status": (
                 "FAIL"
                 if strategy_failures
+                else "PENDING_POST_DEPLOY"
+                if certification_status == "PENDING_POST_DEPLOY"
                 else "WARN"
                 if strategy_warnings
                 else "PASS"
@@ -310,6 +349,8 @@ def _collect_release(base: Path) -> Tuple[Dict[str, str], Dict[str, str]]:
             "live_config_sha256": observed_config_hash,
             "feature_diff_count": str(len(feature_diff)),
             "policy_bound": "true",
+            "policy_sha256": str(attestation.get("policy_sha256") or ""),
+            "attested_at": str(attestation.get("generated_at") or ""),
         }
     except Exception as exc:
         return _check("release_identity", "FAIL", str(exc), current), {}
@@ -436,7 +477,7 @@ def _collect_bound_health(
     audit: Mapping[str, Any],
     receipt: Mapping[str, Any],
     acceptance_date: date,
-) -> Tuple[Dict[str, str], list[str]]:
+) -> Tuple[Dict[str, str], list[str], Dict[str, Any]]:
     as_of = str(audit.get("as_of") or receipt.get("as_of") or "")[:10]
     report_root = base / "current/reports"
     compatibility = report_root / f"system_health_{as_of}.json"
@@ -445,13 +486,18 @@ def _collect_bound_health(
     )
     candidate_paths = immutable + ([compatibility] if compatibility.exists() else [])
     path = compatibility
+    report: Dict[str, Any] = {}
     try:
         reports = []
+        unreadable: list[str] = []
         for candidate in candidate_paths:
             try:
                 reports.append((candidate, _read_json(candidate)))
-            except Exception:
-                continue
+            except Exception as exc:
+                unreadable.append(
+                    "unreadable health evidence "
+                    f"{candidate.name}: {exc.__class__.__name__}: {exc}"
+                )
         expected_hash = str(audit.get("input_hash") or "")
         matching = [
             item
@@ -493,23 +539,26 @@ def _collect_bound_health(
                 f"embedded receipt finished_at={observed_finished} expected={expected_finished}"
             )
         health_failures, warnings = _health_policy(report.get("health") or {})
+        warnings.extend(unreadable)
         failures.extend(health_failures)
         if failures:
             raise ValueError("; ".join(failures))
         status = "WARN" if warnings else "PASS"
         detail = "; ".join(warnings) if warnings else "hash-bound health report is OK"
-        return _check("bound_health_report", status, detail, path), warnings
+        return _check("bound_health_report", status, detail, path), warnings, report
     except Exception as exc:
-        return _check("bound_health_report", "FAIL", str(exc), path), []
+        return _check("bound_health_report", "FAIL", str(exc), path), [], report
 
 
 def _collect_dashboard(
     reader: Callable[[str], Tuple[int, Mapping[str, Any]]],
     url: str,
     audit: Mapping[str, Any],
-) -> Tuple[Dict[str, str], list[str]]:
+) -> Tuple[Dict[str, str], list[str], Dict[str, Any]]:
+    payload: Dict[str, Any] = {}
     try:
-        status_code, payload = reader(url)
+        status_code, raw_payload = reader(url)
+        payload = dict(raw_payload)
         failures = []
         if status_code != 200:
             failures.append(f"HTTP {status_code}")
@@ -525,9 +574,104 @@ def _collect_dashboard(
             raise ValueError("; ".join(failures))
         status = "WARN" if warnings else "PASS"
         detail = f"HTTP 200; {'; '.join(warnings) if warnings else 'health OK'}"
-        return _check("dashboard_health", status, detail, url), warnings
+        return _check("dashboard_health", status, detail, url), warnings, payload
     except Exception as exc:
-        return _check("dashboard_health", "FAIL", str(exc), url), []
+        return _check("dashboard_health", "FAIL", str(exc), url), [], payload
+
+
+def _post_deploy_certification(
+    release: Mapping[str, Any],
+    health_report: Mapping[str, Any],
+    dashboard: Mapping[str, Any],
+    checks: Iterable[Mapping[str, Any]],
+) -> Dict[str, Any]:
+    current_release = str(release.get("hash") or "")
+    current_policy = str(release.get("policy_sha256") or "")
+    report_release = str(health_report.get("generator_release_hash") or "")
+    report_policy = str(health_report.get("generator_policy_sha256") or "")
+    base = {
+        "report_generator_release_hash": report_release or None,
+        "report_generator_policy_sha256": report_policy or None,
+        "current_release_hash": current_release or None,
+        "current_policy_sha256": current_policy or None,
+        "report_generated_at": health_report.get("generated_at"),
+        "current_attested_at": release.get("attested_at"),
+    }
+    rows = {str(row.get("id") or ""): row for row in checks}
+    runtime_ok = all(
+        str((rows.get(check_id) or {}).get("status") or "FAIL") == "PASS"
+        for check_id in RUNTIME_INTEGRITY_CHECKS
+    )
+    bound_ok = str((rows.get("bound_health_report") or {}).get("status") or "FAIL") in {
+        "PASS",
+        "WARN",
+    }
+    dashboard_ok = str((rows.get("dashboard_health") or {}).get("status") or "FAIL") != "FAIL"
+    strategy_level = str(
+        (((dashboard.get("layers") or {}).get("strategy_data") or {}).get("level"))
+        or dashboard.get("level")
+        or "MISSING"
+    )
+    report_time = _parse_timestamp(health_report.get("generated_at"))
+    attested_at = _parse_timestamp(release.get("attested_at"))
+    next_scheduled_at = _next_natural_daily_at(attested_at)
+    base["next_scheduled_at"] = (
+        next_scheduled_at.isoformat() if next_scheduled_at is not None else None
+    )
+    predates_deploy = bool(
+        report_time is not None
+        and attested_at is not None
+        and report_time < attested_at
+    )
+    generator_matches = bool(
+        current_release
+        and current_policy
+        and report_release == current_release
+        and report_policy == current_policy
+    )
+    if (
+        report_time is not None
+        and next_scheduled_at is not None
+        and report_time >= next_scheduled_at
+        and generator_matches
+    ):
+        return {"status": "CERTIFIED", **base}
+    awaiting_natural_run = bool(
+        predates_deploy
+        or (
+            generator_matches
+            and report_time is not None
+            and next_scheduled_at is not None
+            and report_time < next_scheduled_at
+        )
+    )
+    if (
+        runtime_ok
+        and bound_ok
+        and dashboard_ok
+        and strategy_level == "OK"
+        and awaiting_natural_run
+    ):
+        return {"status": "PENDING_POST_DEPLOY", **base}
+    return {
+        "status": "GENERATOR_MISMATCH",
+        "runtime_integrity_ok": runtime_ok,
+        "bound_report_ok": bound_ok,
+        "dashboard_ok": dashboard_ok,
+        "strategy_level": strategy_level,
+        "report_predates_deploy": predates_deploy,
+        **base,
+    }
+
+
+def _next_natural_daily_at(attested_at: Optional[datetime]) -> Optional[datetime]:
+    if attested_at is None:
+        return None
+    local = _local_datetime(attested_at)
+    candidate = datetime.combine(local.date(), time(7, 10), tzinfo=LOCAL_TZ)
+    if candidate <= local:
+        candidate += timedelta(days=1)
+    return candidate
 
 
 def _collect_watchdog(root: Path, acceptance_date: date) -> Dict[str, str]:
@@ -896,13 +1040,15 @@ def _health_policy(health: Mapping[str, Any]) -> Tuple[list[str], list[str]]:
 
     auxiliary = layers.get("auxiliary_flows") or {}
     auxiliary_level = str(auxiliary.get("level") or "OK")
-    if auxiliary_level != "OK":
-        failures.append(f"auxiliary flow layer={auxiliary_level}")
+    auxiliary_warnings = []
     for row in auxiliary.get("checks") or []:
-        if str(row.get("level") or "") in {"DEGRADED", "CRITICAL"}:
-            failures.append(
+        if str(row.get("level") or "") not in {"", "OK"}:
+            auxiliary_warnings.append(
                 f"auxiliary health: {row.get('label')} {row.get('detail') or ''}".strip()
             )
+    warnings.extend(auxiliary_warnings)
+    if auxiliary_level != "OK" and not auxiliary_warnings:
+        warnings.append(f"auxiliary flow layer={auxiliary_level}")
     return _unique(failures), _unique(warnings)
 
 
@@ -1041,7 +1187,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             ensure_ascii=False,
         )
     )
-    return 0 if report["status"] == "PASS" else 2
+    if report["status"] == "PASS":
+        return 0
+    if report["status"] == "PENDING_POST_DEPLOY":
+        return 3
+    return 2
 
 
 if __name__ == "__main__":

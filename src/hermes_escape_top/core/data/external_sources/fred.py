@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
+import hashlib
+import json
 from pathlib import Path
 import re
 from typing import Any, Callable
+from urllib.parse import urlencode
 import urllib.request
 
 import pandas as pd
 
 from ..macro import FredNetLiquiditySource, fetch_fred_graph_csv, fred_net_liquidity_frame
-from ..risk_signals import _last_percentile, fetch_fred_series_frame
+from ..risk_signals import _last_percentile, fetch_fred_series_frame, fred_api_key
 from .provenance import source_provenance
 from .registry import ExternalSourceSpec
 
@@ -19,6 +22,67 @@ from .registry import ExternalSourceSpec
 FetchFredFrame = Callable[..., pd.DataFrame]
 FetchFredSeries = Callable[..., pd.Series]
 FetchText = Callable[[str], str]
+FetchReleaseCalendar = Callable[[tuple[str, ...], dict[str, Any] | None], dict[str, Any]]
+
+
+def fetch_fred_release_calendar(
+    release_ids: tuple[str, ...],
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Fetch exact publisher dates without making canonical refresh depend on them."""
+    ids = tuple(str(value) for value in release_ids if str(value).strip())
+    if not ids:
+        return {
+            "status": "UNAVAILABLE",
+            "release_dates_by_id": {},
+            "error": "FRED release calendar requires release IDs",
+        }
+    key = fred_api_key(config)
+    if not key:
+        return {
+            "status": "UNAVAILABLE",
+            "release_dates_by_id": {},
+            "error": "FRED release calendar requires an API key",
+        }
+    today = datetime.now(timezone.utc).date()
+    start = today - timedelta(days=120)
+    end = today + timedelta(days=60)
+    dates_by_id: dict[str, list[str]] = {}
+    try:
+        for release_id in ids:
+            params = {
+                "release_id": release_id,
+                "api_key": key,
+                "file_type": "json",
+                "realtime_start": start.isoformat(),
+                "realtime_end": end.isoformat(),
+                "include_release_dates_with_no_data": "true",
+                "sort_order": "asc",
+            }
+            request = urllib.request.Request(
+                f"{_FRED_RELEASE_DATES_URL}?{urlencode(params)}",
+                headers={"User-Agent": "hermes-escape-top/1.0 (research; read-only)"},
+            )
+            with urllib.request.urlopen(request, timeout=30) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            values = sorted(
+                {
+                    str(row.get("date") or "")[:10]
+                    for row in payload.get("release_dates") or []
+                    if str(row.get("release_id") or release_id) == release_id
+                    and _iso_date(str(row.get("date") or "")) is not None
+                }
+            )
+            if not values:
+                raise ValueError(f"FRED release {release_id} returned no dated calendar rows")
+            dates_by_id[release_id] = values
+    except Exception as exc:
+        return {
+            "status": "UNAVAILABLE",
+            "release_dates_by_id": {},
+            "error": f"{exc.__class__.__name__}: {exc}",
+        }
+    return {"status": "VERIFIED", "release_dates_by_id": dates_by_id}
 
 
 @dataclass(frozen=True)
@@ -31,6 +95,8 @@ class FredPercentileAdapter:
     end: str | None = None
     config: dict[str, Any] | None = None
     fetch_frame: FetchFredFrame = fetch_fred_series_frame
+    publisher_release_ids: tuple[str, ...] = ()
+    fetch_release_calendar: FetchReleaseCalendar = fetch_fred_release_calendar
 
     def fetch_raw(self) -> dict[str, Any]:
         frame = self.fetch_frame(
@@ -40,24 +106,36 @@ class FredPercentileAdapter:
             config=self.config,
         )
         if frame is None or frame.empty:
-            return {
+            raw = {
                 "metadata": _fred_metadata(self.series_id),
                 "rows": [],
                 "source_url": _FRED_API_URL,
                 "provenance": source_provenance("fred_api"),
             }
+            raw["publisher_evidence"] = _fred_publisher_evidence(
+                self.publisher_release_ids,
+                self.fetch_release_calendar(self.publisher_release_ids, self.config),
+                raw["rows"],
+            )
+            return raw
         out = frame.copy()
         for column in ("date", "publish_date"):
             if column in out.columns:
                 out[column] = pd.to_datetime(out[column], errors="coerce").dt.date.astype(str)
         metadata = _fred_metadata(self.series_id)
         metadata.update(dict(frame.attrs.get("fred_metadata") or {}))
-        return {
+        raw = {
             "metadata": metadata,
             "rows": out.to_dict("records"),
             "source_url": metadata.get("source_url") or _FRED_API_URL,
             "provenance": source_provenance("fred_api"),
         }
+        raw["publisher_evidence"] = _fred_publisher_evidence(
+            self.publisher_release_ids,
+            self.fetch_release_calendar(self.publisher_release_ids, self.config),
+            raw["rows"],
+        )
+        return raw
 
     def parse(self, raw: dict[str, Any] | list[dict[str, Any]]) -> pd.DataFrame:
         rows = raw.get("rows") if isinstance(raw, dict) else raw
@@ -237,6 +315,9 @@ class FredNetLiquidityAdapter:
     percentile_window: int = 252
     fetch_series: FetchFredSeries = fetch_fred_graph_csv
     fred_ids: dict[str, str] | None = None
+    config: dict[str, Any] | None = None
+    publisher_release_ids: tuple[str, ...] = ()
+    fetch_release_calendar: FetchReleaseCalendar = fetch_fred_release_calendar
 
     def _ids(self) -> dict[str, str]:
         return dict(self.fred_ids or FredNetLiquiditySource.fred_ids)
@@ -253,7 +334,7 @@ class FredNetLiquidityAdapter:
             for idx, value in local.items():
                 rows.append({"date": pd.Timestamp(idx).date().isoformat(), "value": float(value)})
             raw[name] = rows
-        return {
+        payload = {
             "metadata": {
                 "series_ids": self._ids(),
                 "transport": "fredgraph_csv",
@@ -266,6 +347,12 @@ class FredNetLiquidityAdapter:
             "source_url": _FRED_GRAPH_URL,
             "provenance": source_provenance("fred_graph_csv"),
         }
+        payload["publisher_evidence"] = _fred_publisher_evidence(
+            self.publisher_release_ids,
+            self.fetch_release_calendar(self.publisher_release_ids, self.config),
+            raw,
+        )
+        return payload
 
     def parse(self, raw: dict[str, Any]) -> pd.DataFrame:
         series_rows = raw.get("series") if isinstance(raw.get("series"), dict) else raw
@@ -309,6 +396,61 @@ def fred_net_liquidity_spec(*, target_path: Path) -> ExternalSourceSpec:
 
 _FRED_API_URL = "https://api.stlouisfed.org/fred/series/observations"
 _FRED_GRAPH_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+_FRED_RELEASE_DATES_URL = "https://api.stlouisfed.org/fred/release/dates"
+
+
+def _fred_publisher_evidence(
+    release_ids: tuple[str, ...],
+    calendar: dict[str, Any],
+    content: Any,
+) -> dict[str, Any]:
+    ids = tuple(str(value) for value in release_ids if str(value).strip())
+    dates_by_id = calendar.get("release_dates_by_id")
+    if not isinstance(dates_by_id, dict):
+        dates_by_id = {}
+    normalized: dict[str, list[str]] = {}
+    for release_id in ids:
+        values = dates_by_id.get(release_id)
+        if not isinstance(values, list):
+            continue
+        parsed = sorted(
+            {
+                day.isoformat()
+                for value in values
+                if (day := _iso_date(str(value))) is not None
+            }
+        )
+        if parsed:
+            normalized[release_id] = parsed
+    verified = bool(ids) and set(normalized) == set(ids) and str(calendar.get("status")) == "VERIFIED"
+    release_dates = sorted({day for values in normalized.values() for day in values})
+    fingerprint_payload = {
+        "release_dates_by_id": normalized,
+        "content": content,
+    }
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            fingerprint_payload,
+            ensure_ascii=True,
+            sort_keys=True,
+            default=str,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return {
+        "calendar_status": "VERIFIED" if verified else "UNAVAILABLE",
+        "release_id": f"FRED:{','.join(ids)}" if ids else None,
+        "release_dates": release_dates if verified else [],
+        "expected_release_dates": release_dates if verified else [],
+        "content_fingerprint": fingerprint,
+    }
+
+
+def _iso_date(value: str):
+    try:
+        return datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return None
 
 
 def _fred_metadata(series_id: str) -> dict[str, Any]:

@@ -19,6 +19,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -698,8 +699,9 @@ def _load_state() -> Dict[str, Any]:
             data = json.loads(path.read_text(encoding="utf-8"))
             if isinstance(data, dict):
                 return _normalize_state(data)
-        except Exception:
-            pass
+            raise ValueError("state root must be a JSON object")
+        except Exception as exc:
+            raise RuntimeError(f"state evidence unreadable: {path}: {exc}") from exc
     return {"schema_version": "escape-top-state-v1", "updated_at": None, "symbols": {}}
 
 
@@ -1065,8 +1067,8 @@ def _preflight_report(shadow: bool, as_of: str) -> None:
         try:
             from hermes_escape_top.web.refresh import _completed_trading_days_after
             lag_note = f" ({_completed_trading_days_after(last_bar)} trading days behind)"
-        except Exception:
-            pass
+        except Exception as exc:
+            lag_note = f" (lag unavailable: {exc.__class__.__name__})"
     print(f"[preflight] OHLCV QQQ last bar: {last_bar or 'MISSING'}{lag_note}")
 
     soft_dir = resolve_path(config, "soft_history_dir")
@@ -1266,6 +1268,7 @@ def _write_alpaca_flow_status(payload: Dict[str, Any], *, path: Path) -> Dict[st
         "cache_path": payload.get("cache_path"),
         "symbols": payload.get("symbols"),
         "error": payload.get("error"),
+        "fallback_error": payload.get("fallback_error"),
     }
     _atomic_write_json(path, record)
     return record
@@ -1328,8 +1331,10 @@ def _attach_alpaca_flow_for_health(payload: Dict[str, Any], as_of: str) -> Dict[
                         "cache_path": cached.get("cache_path"),
                         "symbols": len(cached.get("symbols") or {}),
                     })
-            except Exception:
-                pass
+            except Exception as fallback_exc:
+                status_payload["fallback_error"] = (
+                    f"{fallback_exc.__class__.__name__}: {fallback_exc}"
+                )[-500:]
             try:
                 payload["alpaca_daily_flow_status"] = _write_alpaca_flow_status(status_payload, path=status_path)
             except Exception as status_exc:
@@ -1443,6 +1448,52 @@ def _atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
     atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
 
 
+def _system_health_generator_identity() -> Dict[str, str]:
+    """Bind a health report to the code and live-config policy that made it."""
+    package_root = PACKAGE_PARENT / "hermes_escape_top"
+    version_path = package_root / "VERSION"
+    policy_path = package_root / "governance" / "approved_live_config.json"
+    attestation_path = package_root / "LIVE_CONFIG_ATTESTATION.json"
+
+    if not policy_path.is_file():
+        raise RuntimeError(f"health generator policy missing: {policy_path}")
+    policy_sha256 = hashlib.sha256(policy_path.read_bytes()).hexdigest()
+
+    if version_path.is_file():
+        fields = version_path.read_text(encoding="utf-8").splitlines()[0].split()
+        if not fields or not fields[0]:
+            raise RuntimeError(f"health generator VERSION invalid: {version_path}")
+        release_hash = fields[0]
+        if not attestation_path.is_file():
+            raise RuntimeError(
+                f"health generator live attestation missing: {attestation_path}"
+            )
+        attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+        if str(attestation.get("release_hash") or "") != release_hash:
+            raise RuntimeError("health generator release hash does not match attestation")
+        if str(attestation.get("policy_sha256") or "") != policy_sha256:
+            raise RuntimeError("health generator policy hash does not match attestation")
+    else:
+        release_hash = ""
+        for git_root in (BASE_DIR, SCRIPT_PATH.parents[3]):
+            result = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=git_root,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                release_hash = result.stdout.strip()
+                break
+        if not release_hash:
+            raise RuntimeError("health generator release hash unavailable")
+
+    return {
+        "generator_release_hash": release_hash,
+        "generator_policy_sha256": policy_sha256,
+    }
+
+
 def _write_system_health_report(
     payload: Dict[str, Any],
     as_of: str,
@@ -1465,9 +1516,11 @@ def _write_system_health_report(
     coverage = decision_input_coverage(payload.get("scores"))
     quality = payload.get("data_quality") if isinstance(payload.get("data_quality"), dict) else {}
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
+    generator_identity = _system_health_generator_identity()
     report = {
         "schema_version": "hermes-system-health-v1",
         "generated_at": generated_at,
+        **generator_identity,
         "as_of": as_of,
         "input_hash": payload.get("input_hash"),
         "run_type": payload.get("run_type"),
@@ -1511,7 +1564,10 @@ def _write_system_health_report(
 
 
 def _build_daily_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="M4-1 package run-daily wrapper")
+    parser = argparse.ArgumentParser(
+        description="M4-1 package run-daily wrapper",
+        allow_abbrev=False,
+    )
     parser.add_argument("--as-of", default=None, help="YYYY-MM-DD (default: today)")
     parser.add_argument("--skip-refresh", action="store_true", help="Skip OHLCV history refresh")
     parser.add_argument("--live", action="store_true",
@@ -1743,8 +1799,10 @@ def main() -> None:
     # cron MUST run, so it waits its turn (blocking) rather than bailing — but
     # never hangs past the timeout if a holder is stuck.
     from hermes_escape_top.core.safe_io import PipelineBusy, pipeline_lock
+    from hermes_escape_top.core.data.runtime_root import require_explicit_runtime_data_root
 
     args = _build_daily_parser().parse_args()
+    require_explicit_runtime_data_root("daily")
     try:
         with pipeline_lock(blocking=True, timeout=max(float(args.lock_timeout), 0.0)) as lease:
             config = load_config()

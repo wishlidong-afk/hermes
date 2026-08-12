@@ -282,7 +282,17 @@ class Phase15IntegrationTest(unittest.TestCase):
         def compute_health_probe(payload, manifest):
             self.assertTrue(payload["external_precheck_status"]["ready"])
             self.assertEqual(payload["external_precheck_status"]["warning_sources"], ["real_rate"])
+            self.assertEqual(
+                payload["system_health_report"]["generator_release_hash"],
+                "old-release",
+            )
             return {"level": "OK", "checks": []}
+
+        def attach_health_report(payload):
+            payload["system_health_report"] = {
+                "generator_release_hash": "old-release"
+            }
+            return payload
 
         server = create_server("127.0.0.1", 0, "2026-05-29")
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -304,12 +314,14 @@ class Phase15IntegrationTest(unittest.TestCase):
                  mock.patch("hermes_escape_top.web.server._attach_alpaca_daily_flow", side_effect=lambda payload: payload), \
                  mock.patch("hermes_escape_top.web.server._attach_external_source_status", side_effect=lambda payload: payload), \
                  mock.patch("hermes_escape_top.web.server._attach_external_precheck_status", side_effect=attach_precheck), \
+                 mock.patch("hermes_escape_top.web.server._attach_system_health_report", side_effect=attach_health_report) as attach_health, \
                  mock.patch("hermes_escape_top.web.server._read_run_receipt", return_value={}), \
                  mock.patch("hermes_escape_top.web.server.manifest_status", return_value={"status": "OK"}), \
                  mock.patch("hermes_escape_top.web.server.compute_health", side_effect=compute_health_probe):
                 with urllib.request.urlopen(f"{base}/api/health_status", timeout=10) as response:
                     health = json.loads(response.read().decode("utf-8"))
             self.assertEqual(health["level"], "OK")
+            attach_health.assert_called_once()
         finally:
             server.shutdown()
             server.server_close()

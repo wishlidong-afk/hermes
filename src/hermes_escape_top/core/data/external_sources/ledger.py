@@ -23,7 +23,7 @@ STAGE_FIELDS = {
     "promotion": "promotion_status",
 }
 MIN_RELIABILITY_SAMPLES = 5
-MIN_EXPECTED_RELEASE_SAMPLES = 4
+MIN_EXPECTED_RELEASE_SAMPLES = 5
 
 
 def canonical_evidence_issue(row: dict[str, Any]) -> str:
@@ -329,6 +329,7 @@ def _expected_release_metrics(
 
     profile = profile_for(source_id)
     weekdays = tuple(getattr(profile, "expected_release_weekdays", ()) or ())
+    policy = str(getattr(profile, "expected_release_policy", "weekday") or "weekday")
     instrumented_days = sorted(
         operating_day
         for operating_day, rows in daily_rows.items()
@@ -345,21 +346,70 @@ def _expected_release_metrics(
         "expected_release_evidence_status_90d": "INSUFFICIENT_EVIDENCE",
         "latest_expected_release_date": None,
         "latest_expected_release_status": "UNINSTRUMENTED",
+        "latest_expected_release_grace_status": "UNINSTRUMENTED",
+        "latest_publisher_release_id": None,
+        "latest_publisher_content_fingerprint": None,
+        "latest_publisher_calendar_status": "UNINSTRUMENTED",
+        "latest_publisher_recovery_evidence": None,
+        "expected_release_enforcement": "WARNING_ONLY",
     }
-    if profile is None or not weekdays or not instrumented_days:
+    if profile is None:
         return empty
-
-    start = instrumented_days[0]
-    expected_days: list[date] = []
-    cursor = start
-    while cursor <= day:
-        if cursor.weekday() in weekdays:
-            expected_days.append(cursor)
-        cursor += timedelta(days=1)
+    evidence_rows = [
+        (operating_day, row)
+        for operating_day, rows in sorted(daily_rows.items())
+        for row in rows
+        if str(row.get("publisher_calendar_status") or "") == "VERIFIED"
+        and isinstance(
+            row.get("publisher_expected_release_dates"),
+            (list, tuple),
+        )
+    ]
+    latest_evidence = evidence_rows[-1][1] if evidence_rows else None
+    availability_lag = max(
+        0,
+        int(getattr(profile, "publisher_availability_lag_days", 0) or 0),
+    )
+    tolerance_days = max(
+        availability_lag,
+        max(0, int(getattr(profile, "expected_advance_grace_days", 0))),
+    )
+    if policy in {"fred_release_calendar", "publisher_issue_sequence"}:
+        if not evidence_rows:
+            return empty
+        all_publisher_days = sorted(
+            {
+                parsed
+                for _operating_day, row in evidence_rows
+                for value in row.get("publisher_expected_release_dates") or []
+                if (parsed := _parse_date(value)) is not None and parsed <= day
+            }
+        )
+        if not all_publisher_days:
+            return empty
+        first_instrumented = evidence_rows[0][0]
+        latest_due = all_publisher_days[-1]
+        expected_days = [
+            expected_day
+            for expected_day in all_publisher_days
+            if expected_day + timedelta(days=tolerance_days) >= first_instrumented
+            or expected_day == latest_due
+        ]
+    else:
+        if not weekdays or not instrumented_days:
+            return empty
+        start = instrumented_days[0]
+        expected_days = []
+        cursor = start
+        while cursor <= day:
+            if cursor.weekday() in weekdays:
+                expected_days.append(cursor)
+            cursor += timedelta(days=1)
     if not expected_days:
         return empty
 
     grace_days = max(0, int(getattr(profile, "expected_advance_grace_days", 0)))
+    tolerance_days = max(availability_lag, grace_days)
     advanced_days = {
         operating_day
         for operating_day, row in daily_successes
@@ -371,7 +421,9 @@ def _expected_release_metrics(
         candidates = sorted(
             advanced_day
             for advanced_day in unused_advanced
-            if expected_day <= advanced_day <= expected_day + timedelta(days=grace_days)
+            if expected_day
+            <= advanced_day
+            <= expected_day + timedelta(days=tolerance_days)
         )
         if candidates:
             matches[expected_day] = candidates[0]
@@ -380,7 +432,9 @@ def _expected_release_metrics(
     matured = [
         expected_day
         for expected_day in expected_days
-        if expected_day + timedelta(days=grace_days) < day
+        if expected_day
+        + timedelta(days=tolerance_days)
+        < day
     ]
 
     def window(days: int) -> tuple[int, int, float | None]:
@@ -395,10 +449,16 @@ def _expected_release_metrics(
     latest_expected = expected_days[-1]
     if latest_expected in matches:
         latest_status = "ADVANCED"
-    elif latest_expected + timedelta(days=grace_days) >= day:
+    elif latest_expected + timedelta(days=tolerance_days) >= day:
         latest_status = "PENDING"
     else:
         latest_status = "MISSED"
+    if latest_status == "ADVANCED":
+        grace_status = "MATCHED"
+    elif latest_status == "PENDING":
+        grace_status = "IN_GRACE"
+    else:
+        grace_status = "EXPIRED"
     return {
         "expected_release_samples_30d": samples_30,
         "expected_release_samples_90d": samples_90,
@@ -416,7 +476,36 @@ def _expected_release_metrics(
         ),
         "latest_expected_release_date": latest_expected.isoformat(),
         "latest_expected_release_status": latest_status,
+        "latest_expected_release_grace_status": grace_status,
+        "latest_publisher_release_id": (
+            str(latest_evidence.get("publisher_release_id") or "") or None
+            if latest_evidence is not None
+            else None
+        ),
+        "latest_publisher_content_fingerprint": (
+            str(latest_evidence.get("publisher_content_fingerprint") or "") or None
+            if latest_evidence is not None
+            else None
+        ),
+        "latest_publisher_calendar_status": (
+            str(latest_evidence.get("publisher_calendar_status") or "")
+            if latest_evidence is not None
+            else "UNINSTRUMENTED"
+        ),
+        "latest_publisher_recovery_evidence": (
+            latest_evidence.get("publisher_recovery_evidence")
+            if latest_evidence is not None
+            else None
+        ),
+        "expected_release_enforcement": "WARNING_ONLY",
     }
+
+
+def _parse_date(value: Any) -> date | None:
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
 
 
 def source_status(

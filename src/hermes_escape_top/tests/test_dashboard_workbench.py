@@ -13,6 +13,78 @@ def _field(value):
     return {"value": value}
 
 
+def test_health_report_copy_marks_post_deploy_pending_without_claiming_failure():
+    text = render_mod._health_report_evidence_text(
+        {"system_health_report": {"input_hash": "same"}, "input_hash": "same"},
+        {"post_deploy_certification": {"status": "PENDING_POST_DEPLOY"}},
+    )
+
+    assert "待当前版本自然日跑再认证" in text
+
+
+def test_trust_header_does_not_authorize_actions_while_post_deploy_is_pending():
+    payload = _payload()
+    payload.update(
+        {
+            "data_quality": {"level": "HIGH", "overall_score": 100},
+            "run_receipt": {"status": "OK", "ok": True},
+            "system_health_report": {"input_hash": "same"},
+            "input_hash": "same",
+        }
+    )
+    health = {
+        "level": "OK",
+        "layers": {
+            "strategy_data": {"level": "OK", "checks": []},
+            "position_reconciliation": {"level": "OK", "checks": []},
+            "auxiliary_flows": {"level": "OK", "checks": []},
+        },
+        "post_deploy_certification": {"status": "PENDING_POST_DEPLOY"},
+        "checks": [],
+    }
+
+    html = render_mod._render_trust_section(
+        payload,
+        {"status": "OK"},
+        health,
+    )
+
+    assert "策略待认证" in html
+    assert "今日操作：WAIT" in html
+    assert "策略可用" not in html
+
+
+def test_strategy_failure_takes_precedence_over_post_deploy_pending_copy():
+    payload = _payload()
+    payload["data_quality"] = {"level": "HIGH", "overall_score": 100}
+    health = {
+        "level": "CRITICAL",
+        "layers": {
+            "strategy_data": {
+                "level": "CRITICAL",
+                "checks": [
+                    {
+                        "level": "CRITICAL",
+                        "label": "行情陈旧",
+                        "detail": "stale=3",
+                        "layer": "strategy_data",
+                    }
+                ],
+            },
+            "position_reconciliation": {"level": "OK", "checks": []},
+            "auxiliary_flows": {"level": "OK", "checks": []},
+        },
+        "post_deploy_certification": {"status": "PENDING_POST_DEPLOY"},
+        "checks": [],
+    }
+
+    html = render_mod._render_trust_section(payload, {"status": "OK"}, health)
+
+    assert "策略不可用" in html
+    assert "今日操作：STOP" in html
+    assert "新版本运行正常" not in html
+
+
 def _payload():
     return {
         "as_of": "2026-06-04",
@@ -135,6 +207,14 @@ def _payload():
             "overall_score": 93.5,
             "completeness_score": 96,
             "quality_score": 94,
+            "latency_score": 91,
+            "penalties": [],
+        },
+        "all_source_data_quality": {
+            "level": "HIGH",
+            "overall_score": 92.0,
+            "completeness_score": 96,
+            "quality_score": 89,
             "latency_score": 91,
             "penalties": [],
         },
@@ -462,8 +542,8 @@ def test_trust_health_defaults_to_compact_summary_with_diagnostics_folded():
     assert "<details class=\"trust-diagnostics\" open" not in trust_section
     assert "展开诊断、质量与运行证据" in trust_section
     assert trust_section.index("展开诊断、质量与运行证据") < trust_section.index("行情完整度")
-    assert trust_section.index("行情完整度") < trust_section.index("数据质量扣分账本")
-    assert trust_section.index("数据质量扣分账本") < trust_section.index("区域 5 · 数据信任区")
+    assert trust_section.index("行情完整度") < trust_section.index("策略输入质量扣分账本")
+    assert trust_section.index("策略输入质量扣分账本") < trust_section.index("区域 5 · 数据信任区")
 
 
 def test_trust_health_strategy_usability_comes_from_strategy_layer():
@@ -558,13 +638,54 @@ def test_trust_health_section_summarizes_data_quality_penalties():
     html = render_mod.render_dashboard(payload, health={"level": "OK"}, manifest_status={"status": "OK"})
 
     trust_section = html[html.index("今日可信度与系统状态"):html.index("区域 5 · 数据信任区")]
-    assert "数据质量扣分账本" in trust_section
+    assert "策略输入质量扣分账本" in trust_section
     assert "proxy × 2" in trust_section
     assert "latency × 1" in trust_section
     assert "component_breadth" in trust_section
     assert "btc_funding_basis" in trust_section
     assert "cboe_pcr" in trust_section
-    assert "影响：不阻断策略；降低置信度" in trust_section
+    assert "影响策略置信度；是否阻断由策略数据链综合判定" in trust_section
+
+
+def test_dashboard_separates_strategy_input_quality_from_all_source_quality():
+    payload = _payload()
+    payload["data_quality"] = {
+        "level": "HIGH",
+        "overall_score": 97.0,
+        "completeness_score": 100.0,
+        "quality_score": 96.0,
+        "latency_score": 97.0,
+        "penalties": [],
+    }
+    payload["all_source_data_quality"] = {
+        "level": "LOW",
+        "overall_score": 61.0,
+        "completeness_score": 100.0,
+        "quality_score": 40.0,
+        "latency_score": 45.0,
+        "penalties": [
+            {
+                "field": "SOFT.btc_funding_basis,SOFT.btc_basis_pctl",
+                "penalty": 20.0,
+                "reason": "proxy",
+            }
+        ],
+    }
+
+    html = render_mod.render_dashboard(
+        payload,
+        health={"level": "OK", "layers": {"strategy_data": {"level": "OK"}}},
+        manifest_status={"status": "OK"},
+    )
+
+    trust_section = html[html.index("今日可信度与系统状态"):html.index("今日操作台")]
+    system_ops = html[html.index("页面底部系统运维详情"):]
+    assert "策略输入质量" in trust_section
+    assert "HIGH 97.00" in trust_section
+    assert "策略不可用" not in trust_section
+    assert "全源观测质量" in system_ops
+    assert "LOW 61.00" in system_ops
+    assert "btc_funding_basis" in system_ops
 
 
 def test_trust_health_external_chain_prefers_current_daily_ledger_over_stale_precheck():
@@ -787,6 +908,88 @@ def test_factor_map_lists_all_scoring_inputs_grouped_by_module():
     assert "C9_CHANDELIER_BREAK" in html
     assert "D1_ASSET_MA200_BREAK" in html
     assert "看什么" in html and "何时加分" in html
+
+
+def test_factor_map_separates_placeholders_from_retired_and_scored_missing_inputs():
+    payload = _payload()
+    payload["scores"]["MSTR"]["factor_scores"].update(
+        {
+            "A": [
+                {
+                    "factor_id": "A2_CNN_FEAR_GREED",
+                    "module": "A",
+                    "score": 0,
+                    "max_score": 0,
+                    "missing_fields": ["A2 cnn_fear_greed"],
+                },
+                {
+                    "factor_id": "A2_NAAIM",
+                    "module": "A",
+                    "score": 0,
+                    "max_score": 2,
+                    "missing_fields": [],
+                },
+            ],
+            "B": [
+                {
+                    "factor_id": "B5_SOCIAL_EUPHORIA",
+                    "module": "B",
+                    "score": 0,
+                    "max_score": 0,
+                    "missing_fields": ["B5 social"],
+                },
+                {
+                    "factor_id": "B6_VALUATION_HEAT",
+                    "module": "B",
+                    "score": 0,
+                    "max_score": 5,
+                    "missing_fields": ["B6 valuation"],
+                },
+            ],
+            "D": [
+                {
+                    "factor_id": "D_M4_BALANCE_SHEET_PROXY",
+                    "module": "D",
+                    "score": 0,
+                    "max_score": 0,
+                    "missing_fields": ["D-M4"],
+                },
+                {
+                    "factor_id": "D_M5_CRYPTO_SENTIMENT",
+                    "module": "D",
+                    "score": 0,
+                    "max_score": 0,
+                    "missing_fields": ["D-M5"],
+                },
+            ],
+        }
+    )
+    payload["external_source_status"] = {
+        "naaim_exposure": {
+            "source_id": "naaim_exposure",
+            "lifecycle_status": "RETIRED_PAYWALL",
+            "freshness_status": "OK",
+            "evidence_status": "MATCH",
+        }
+    }
+
+    html = render_mod._render_factor_map_panel(payload)
+    placeholder_start = html.index("<summary>非计分占位")
+    scoring_section = html[:placeholder_start]
+    placeholder_section = html[placeholder_start:]
+
+    for factor_id in (
+        "A2_CNN_FEAR_GREED",
+        "B5_SOCIAL_EUPHORIA",
+        "D_M4_BALANCE_SHEET_PROXY",
+        "D_M5_CRYPTO_SENTIMENT",
+    ):
+        assert factor_id not in scoring_section
+        assert factor_id in placeholder_section
+    assert "不进入策略 missing_weight" in placeholder_section
+    assert "已退役来源，等待 SLO 缺失路径" in scoring_section
+    assert "MSTR：计分输入缺失 5 分" in scoring_section
+    assert "B6_VALUATION_HEAT" in scoring_section
 
 
 def test_trust_zone_uses_external_source_ledger_status():

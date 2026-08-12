@@ -17,7 +17,9 @@ from hermes_escape_top.core.safe_io import (
     PipelineBusy,
     pipeline_lock,
 )
+from hermes_escape_top.core.data.runtime_root import require_explicit_runtime_data_root
 from hermes_escape_top.core.data.store import safe_symbol
+from hermes_escape_top.core.data.source_relevance import source_refresh_lane
 from hermes_escape_top.core.data.external_sources import (
     AaiiSentimentAdapter,
     AaiiSentimentImportAdapter,
@@ -101,6 +103,48 @@ OFFICIAL_BROWSER_URLS = {
 }
 
 
+def _runtime_fred_api_key() -> str | None:
+    """Read only FRED_API_KEY from the process or the existing Hermes env file."""
+    process_key = str(os.environ.get("FRED_API_KEY") or "").strip()
+    if process_key:
+        return process_key
+    home = Path(os.environ.get("HOME") or str(Path.home())).expanduser()
+    env_path = Path(
+        os.environ.get("HERMES_ENV_FILE") or home / ".hermes" / ".env"
+    ).expanduser()
+    try:
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for raw in lines:
+        line = raw.strip()
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        name, separator, value = line.partition("=")
+        if separator and name.strip() == "FRED_API_KEY":
+            key = value.strip()
+            if len(key) >= 2 and key[0] == key[-1] and key[0] in {"'", '"'}:
+                key = key[1:-1]
+            return key.strip() or None
+    return None
+
+
+def _with_fred_runtime_credential(config: dict[str, Any]) -> dict[str, Any]:
+    process_key = str(os.environ.get("FRED_API_KEY") or "").strip()
+    if process_key:
+        runtime_config = dict(config)
+        runtime_config["fred_api_key"] = process_key
+        return runtime_config
+    if str(config.get("fred_api_key") or "").strip():
+        return config
+    key = _runtime_fred_api_key()
+    if not key:
+        return config
+    runtime_config = dict(config)
+    runtime_config["fred_api_key"] = key
+    return runtime_config
+
+
 def _fred_vintage_enabled(config: dict[str, Any]) -> bool:
     return bool((config.get("features") or {}).get("use_fred_vintage_pit", False))
 
@@ -110,6 +154,7 @@ def _fred_vintage_path(config: dict[str, Any]) -> Path:
 
 
 def fred_vintages_source(config: dict[str, Any]):
+    config = _with_fred_runtime_credential(config)
     target = _fred_vintage_path(config)
     return (
         fred_vintage_spec(target_path=target),
@@ -121,6 +166,7 @@ def fred_vintages_source(config: dict[str, Any]):
 
 
 def dollar_source(config: dict[str, Any]):
+    config = _with_fred_runtime_credential(config)
     target = resolve_path(config, "soft_history_dir") / "dollar.csv"
     spec = fred_percentile_spec(
         source_id="dollar",
@@ -131,6 +177,8 @@ def dollar_source(config: dict[str, Any]):
     adapter = FredBoardH10PercentileAdapter(
         series_id="DTWEXBGS",
         field="dollar_broad",
+        config=config,
+        publisher_release_ids=profile_for("dollar").publisher_release_ids,
     )
     return spec, adapter
 
@@ -152,6 +200,7 @@ def dollar_vintage_source(config: dict[str, Any]):
 
 
 def real_rate_source(config: dict[str, Any]):
+    config = _with_fred_runtime_credential(config)
     target = resolve_path(config, "soft_history_dir") / "real_rate.csv"
     spec = fred_percentile_spec(
         source_id="real_rate",
@@ -161,6 +210,8 @@ def real_rate_source(config: dict[str, Any]):
     adapter = FredPercentileAdapter(
         series_id="DFII10",
         field="real_rate_10y",
+        config=config,
+        publisher_release_ids=profile_for("real_rate").publisher_release_ids,
     )
     return spec, adapter
 
@@ -182,8 +233,12 @@ def real_rate_vintage_source(config: dict[str, Any]):
 
 
 def fred_net_liquidity_source(config: dict[str, Any]):
+    config = _with_fred_runtime_credential(config)
     target = resolve_path(config, "soft_history_dir") / "fred_net_liquidity.csv"
-    return fred_net_liquidity_spec(target_path=target), FredNetLiquidityAdapter()
+    return fred_net_liquidity_spec(target_path=target), FredNetLiquidityAdapter(
+        config=config,
+        publisher_release_ids=profile_for("fred_net_liquidity").publisher_release_ids,
+    )
 
 
 def fred_net_liquidity_vintage_source(config: dict[str, Any]):
@@ -434,12 +489,17 @@ def refresh_all_sources(
     *,
     auto_import: bool = True,
     today: date | None = None,
+    lane: str = "decision",
     _lease: Any = None,
 ) -> dict[str, Any]:
     cfg = config or load_config()
     day = today or shanghai_today()
-    configured = configured_source_ids(cfg)
-    selected = _scheduled_refresh_source_ids(cfg, day)
+    configured = tuple(
+        source_id
+        for source_id in configured_source_ids(cfg)
+        if source_refresh_lane(cfg, source_id) == lane
+    )
+    selected = scheduled_source_ids(cfg, day, lane=lane)
     runs = _refresh_sources_with_dependencies(
         selected,
         cfg,
@@ -454,6 +514,7 @@ def refresh_all_sources(
         "error_count": error_count,
         "runs": runs,
         "mode": "all",
+        "lane": lane,
         "selected_sources": list(selected),
         "skipped_lifecycle_sources": [
             source_id for source_id in configured if source_id not in selected
@@ -465,14 +526,21 @@ def refresh_retry_sources(
     config: dict[str, Any] | None = None,
     *,
     today: date | None = None,
+    lane: str = "decision",
     _lease: Any = None,
 ) -> dict[str, Any]:
     cfg = config or load_config()
     day = today or shanghai_today()
     current = status(cfg, today=day)
+    eligible = set(scheduled_source_ids(cfg, day, lane=lane))
     selected = [
         source_id
         for source_id in configured_source_ids(cfg)
+        if source_refresh_lane(cfg, source_id) == lane
+        if (
+            source_id in eligible
+            or canonical_evidence_issue(current.get(source_id) or {}) is not None
+        )
         if _source_needs_retry(current.get(source_id) or {}, day)
     ]
     runs = _refresh_sources_with_dependencies(
@@ -488,6 +556,7 @@ def refresh_retry_sources(
         "error_count": len(runs) - ok_count,
         "runs": runs,
         "mode": "retry_needed",
+        "lane": lane,
         "selected_sources": selected,
     }
 
@@ -526,6 +595,7 @@ def daily_source_check(
         source_id: row
         for source_id, row in sources.items()
         if row.get("active") is not False
+        and source_refresh_lane(cfg, source_id) == "decision"
         and _row_requires_daily_check(row, day)
     }
     active_rows = list(active_source_rows.values())
@@ -553,6 +623,7 @@ def daily_source_check(
                 for source_id, row in active_source_rows.items()
             ],
             "mode": "reuse_same_day",
+            "lane": "decision",
             "selected_sources": [],
         }
         refresh_result["ok"] = refresh_result["error_count"] == 0
@@ -598,6 +669,8 @@ def _evaluate_readiness(
     for source_id, row in sources.items():
         if row.get("active") is False:
             continue
+        if source_refresh_lane(cfg, source_id) != "decision":
+            continue
         run_status = str(row.get("status") or "")
         freshness = str(row.get("freshness_status") or "")
         evidence = canonical_evidence_issue(row)
@@ -631,6 +704,8 @@ def _evaluate_readiness(
             continue
         source_id = str(run.get("source_id") or "")
         if not source_id or str(run.get("status") or "") == "OK":
+            continue
+        if source_refresh_lane(cfg, source_id) != "decision":
             continue
         row = sources.get(source_id) or {}
         if row.get("active") is False:
@@ -673,12 +748,18 @@ def _source_needs_retry(row: dict[str, Any], today: date) -> bool:
     return _attempt_status(row) != "OK"
 
 
-def _scheduled_refresh_source_ids(
+def scheduled_source_ids(
     config: dict[str, Any],
     today: date,
+    *,
+    lane: str = "decision",
 ) -> tuple[str, ...]:
+    if lane not in {"decision", "shadow"}:
+        raise ValueError(f"unsupported refresh lane: {lane}")
     selected = []
     for source_id in configured_source_ids(config):
+        if source_refresh_lane(config, source_id) != lane:
+            continue
         profile = effective_source_profile(config, source_id)
         if profile is None or _profile_requires_scheduled_probe(profile, today):
             selected.append(source_id)
@@ -972,16 +1053,25 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--open-official-download", action="store_true", help="Open the official browser download/page for a supported source, wait for a new file, then import it.")
     parser.add_argument("--downloads-dir", default="~/Downloads", help="Directory to watch with --open-official-download.")
     parser.add_argument("--all", action="store_true", help="Refresh all registered sources.")
+    parser.add_argument(
+        "--lane",
+        choices=("decision", "shadow"),
+        default="decision",
+        help="Scheduled refresh lane used with --all (default: decision).",
+    )
     parser.add_argument("--pre-daily-check", action="store_true", help="Refresh all sources, auto-import official files when available, and print readiness.")
     parser.add_argument("--retry-needed", action="store_true", help="Retry only sources whose same-day check failed or whose canonical evidence is not ready.")
     parser.add_argument("--status", action="store_true", help="Print latest source-run status.")
     parser.add_argument("--lock-timeout", type=float, default=600.0, help="Seconds to wait for the shared pipeline write lock.")
     args = parser.parse_args(argv)
+    require_explicit_runtime_data_root("refresh")
 
     if args.import_file and not args.source:
         parser.error("--import-file requires --source")
     if args.import_file and args.source not in IMPORT_FILE_SOURCE_IDS:
         parser.error("--import-file is supported only for: " + ", ".join(IMPORT_FILE_SOURCE_IDS))
+    if args.lane == "shadow" and (args.pre_daily_check or args.retry_needed):
+        parser.error("--lane shadow is supported only with --all")
     if args.status:
         print(json.dumps(status(), ensure_ascii=False, indent=2, sort_keys=True, default=str))
         return 0
@@ -1017,7 +1107,12 @@ def main(argv: list[str] | None = None) -> int:
                         _lease=lease,
                     )
                 else:
-                    result = refresh_all_sources(cfg, auto_import=True, _lease=lease)
+                    result = refresh_all_sources(
+                        cfg,
+                        auto_import=True,
+                        lane=args.lane,
+                        _lease=lease,
+                    )
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True, default=str))
         return 0
     except PipelineBusy as exc:

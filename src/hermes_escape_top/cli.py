@@ -11,6 +11,7 @@ from .core.backtest.param_sweep import run_param_sweep
 from .core.backtest.reports import write_full_backtest_markdown, write_json_report
 from .core.backtest.run_full import run_full_backtest
 from .core.data.manifest import freeze_manifest, verify_manifest, write_manifest
+from .core.data.runtime_root import require_explicit_runtime_data_root
 from .core.safe_io import pipeline_lock
 from .scripts.backfill_history import all_backfill_symbols, backfill, default_store_dir, write_coverage_report
 from .web.mirror_render import write_mirror_dashboard
@@ -87,6 +88,15 @@ def main() -> None:
     p_serve_mirror.add_argument("--host", default="127.0.0.1")
     p_serve_mirror.add_argument("--port", type=int, default=8768)
     args = parser.parse_args()
+
+    if args.command in {
+        "score",
+        "dashboard",
+        "mirror-dashboard",
+        "serve",
+        "serve-mirror",
+    }:
+        require_explicit_runtime_data_root(args.command)
 
     if args.command == "bootstrap":
         with pipeline_lock(blocking=True, timeout=600):

@@ -5,6 +5,8 @@ import hashlib
 import io
 import os
 import re
+import json
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -97,6 +99,17 @@ def parse_aaii_public_rows(html: str, *, today: date | None = None) -> list[dict
 
 def parse_aaii_insights_feed(xml: str) -> list[dict[str, Any]]:
     """Parse AAII's own Insights RSS as an official automation fallback."""
+    return [
+        {
+            key: value
+            for key, value in issue.items()
+            if key in {"reported", "publish_date", "bull", "neutral", "bear"}
+        }
+        for issue in _parse_aaii_insights_issues(xml)
+    ]
+
+
+def _parse_aaii_insights_issues(xml: str) -> list[dict[str, Any]]:
     try:
         root = ET.fromstring(xml or "")
     except ET.ParseError:
@@ -132,6 +145,8 @@ def parse_aaii_insights_feed(xml: str) -> list[dict[str, Any]]:
             continue
         reported = _previous_weekday(published, weekday=2)
         row = {
+            "issue_id": str(item.findtext("guid") or item.findtext("link") or "").strip(),
+            "title": title.strip(),
             "reported": reported,
             "publish_date": published,
             "bull": bull,
@@ -165,7 +180,7 @@ class AaiiSentimentAdapter:
         if html and not _looks_blocked(html):
             public_rows = parse_aaii_public_rows(html, today=self.today)
         if any(_valid_share_row(row) for row in public_rows):
-            return {
+            raw = {
                 "url": self.url,
                 "source": "public_html",
                 "provenance": source_provenance("public_html"),
@@ -173,6 +188,22 @@ class AaiiSentimentAdapter:
                 "content_sha256": hashlib.sha256(html.encode("utf-8")).hexdigest(),
                 "html": html,
             }
+            raw["publisher_evidence"] = _aaii_publisher_evidence(
+                [
+                    {
+                        **row,
+                        "publish_date": row.get("publish_date")
+                        or (row["reported"] + timedelta(days=1)),
+                        "issue_id": (
+                            "AAII:sent_results:"
+                            f"{(row.get('publish_date') or (row['reported'] + timedelta(days=1))).isoformat()}"
+                        ),
+                    }
+                    for row in public_rows
+                    if _valid_share_row(row)
+                ]
+            )
+            return raw
         if not primary_failure:
             if _looks_blocked(html):
                 primary_failure = "blocked"
@@ -188,10 +219,11 @@ class AaiiSentimentAdapter:
             feed_failure = f"fetch_error:{exc.__class__.__name__}"
             feed_rows: list[dict[str, Any]] = []
         else:
+            feed_issues = _parse_aaii_insights_issues(feed)
             feed_rows = parse_aaii_insights_feed(feed)
-            feed_failure = "empty_or_unparseable" if not feed_rows else ""
+            feed_failure = "empty_or_unparseable" if not feed_issues else ""
         if not feed_failure:
-            return {
+            raw = {
                 "url": self.feed_url,
                 "source": "official_insights_rss",
                 "provenance": source_provenance(
@@ -206,6 +238,8 @@ class AaiiSentimentAdapter:
                 "artifact_published_as_of": max(row["publish_date"] for row in feed_rows).isoformat(),
                 "rss": feed,
             }
+            raw["publisher_evidence"] = _aaii_publisher_evidence(feed_issues)
+            return raw
         raise ValueError(
             f"AAII public endpoint {primary_failure}; official Insights RSS {feed_failure}; "
             "download the official sentiment.xls in a browser and run "
@@ -403,6 +437,68 @@ def _normalized_record(row: dict[str, Any]) -> dict[str, Any]:
         "aaii_bull": bull,
         "aaii_bear": bear,
         "aaii_bull_bear_spread": round(bull - bear, 3),
+    }
+
+
+def _aaii_publisher_evidence(issues: list[dict[str, Any]]) -> dict[str, Any]:
+    usable: list[dict[str, Any]] = []
+    for issue in issues:
+        published = issue.get("publish_date")
+        if isinstance(published, pd.Timestamp):
+            published = published.date()
+        if not isinstance(published, date):
+            try:
+                published = date.fromisoformat(str(published)[:10])
+            except ValueError:
+                continue
+        issue_id = str(issue.get("issue_id") or "").strip()
+        if not issue_id:
+            continue
+        usable.append({**issue, "publish_date": published, "issue_id": issue_id})
+    usable.sort(key=lambda row: row["publish_date"])
+    observed_dates = sorted({row["publish_date"] for row in usable})
+    intervals = [
+        (current - previous).days
+        for previous, current in zip(observed_dates, observed_dates[1:])
+        if current > previous
+    ]
+    cadence = int(statistics.median(intervals)) if len(intervals) >= 2 else 0
+    verified = 5 <= cadence <= 9
+    expected_dates = list(observed_dates)
+    if verified:
+        expected_dates.append(observed_dates[-1] + timedelta(days=cadence))
+    latest = usable[-1] if usable else {}
+    fingerprint_payload = {
+        "issue_id": latest.get("issue_id"),
+        "publish_date": (
+            latest["publish_date"].isoformat()
+            if isinstance(latest.get("publish_date"), date)
+            else None
+        ),
+        "reported": str(latest.get("reported") or ""),
+        "bull": latest.get("bull"),
+        "neutral": latest.get("neutral"),
+        "bear": latest.get("bear"),
+    }
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            fingerprint_payload,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return {
+        "calendar_status": "VERIFIED" if verified else "UNAVAILABLE",
+        "release_id": str(latest.get("issue_id") or "") or None,
+        "observed_release_dates": [value.isoformat() for value in observed_dates],
+        "release_dates": [value.isoformat() for value in observed_dates],
+        "expected_release_dates": (
+            [value.isoformat() for value in expected_dates]
+            if verified
+            else []
+        ),
+        "content_fingerprint": fingerprint,
     }
 
 

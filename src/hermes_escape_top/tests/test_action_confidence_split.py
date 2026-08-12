@@ -54,6 +54,7 @@ def test_fresh_ibkr_makes_amounts_executable_without_changing_strategy_confidenc
         "sync_time": "2026-07-10T12:00:00+00:00",
         "snapshot_stale": False,
     })
+    payload["all_source_data_quality"] = {"level": "BLOCKED", "overall_score": 42.0}
 
     result = build_action_context(payload, _snapshots())
 

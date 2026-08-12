@@ -1,0 +1,71 @@
+{
+  "schema_version": "hermes-task8-maintenance-evidence-v1",
+  "verified_at": "2026-08-13",
+  "status": "PASS",
+  "exception_audit": {
+    "broad_catches_before": 247,
+    "broad_catches_after": 246,
+    "production_files_with_broad_catches": 69,
+    "direct_silent_handlers_before": 22,
+    "direct_silent_handlers_after": 20,
+    "remediated_boundaries": [
+      "unreadable external-source canonical",
+      "corrupt shared daily state",
+      "unreadable immutable health evidence",
+      "failed auxiliary SIP cache fallback",
+      "malformed predeploy audit JSONL",
+      "unavailable preflight market-lag calculation"
+    ],
+    "scoring_sensitive_deferred": "pipeline.py malformed trade-history timestamp"
+  },
+  "storage_inventory": {
+    "artifact": "../maintenance/REPO_RUNTIME_STORAGE_2026_08_12.json",
+    "worktrees_listed": 15,
+    "missing_prunable_metadata_entries": 2,
+    "real_worktrees_deleted": 0,
+    "runtime_files_deleted": 0,
+    "gitignore_change_required": false
+  },
+  "fred_credential": {
+    "runtime_mechanism": "process FRED_API_KEY, then explicit config, then ~/.hermes/.env fallback",
+    "repo_legacy_copy_was_tracked": false,
+    "repo_legacy_copy_was_ignored": true,
+    "predelete_hash_match_smoke": "PASS",
+    "postdelete_production_resolver_smoke": "PASS",
+    "repo_legacy_copy_removed": true,
+    "live_legacy_copies_touched": false,
+    "secret_value_recorded": false
+  },
+  "deployment_ledger": {
+    "artifact": "../maintenance/EXCEPTION_AUDIT_2026_08_12.md",
+    "migration_executed": false,
+    "whole_hermes_git_mutated": false
+  },
+  "four_date_continuity": {
+    "artifact": "TASK8_FOUR_DATE_SELF_EQUIVALENCE.json",
+    "isolated_self_replay_all_equal": true,
+    "task7_task8_dates_identical": true,
+    "input_hashes": {
+      "2022-06-30": "cec545d25b63688c07d2536214c0be4daef1c8b5547766dd83b3c4e1c7e98428",
+      "2024-06-28": "68f631b24b6b9c3cd15196fed0b54c787ea0b061ebcceccb0749f3c52a5e620f",
+      "2026-05-29": "0f910bfaa76b27a558a1a23820578ba0b695c5f82f841900635aff790c94e9a3",
+      "2026-07-10": "18ffe225053fc71844fcdd06408478aabe25d9da279c19805b854aceb0c5ef9c"
+    }
+  },
+  "verification": {
+    "focused_tests": "200 passed",
+    "full_suite": "1338 passed",
+    "governance": "7/7 OK",
+    "compileall": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "prohibited_changes": {
+    "config_or_flag_change": false,
+    "score_threshold_or_cap_change": false,
+    "routing_or_sizing_change": false,
+    "official_daily_run": false,
+    "external_source_refresh": false,
+    "live_or_ibkr_write": false,
+    "commit_push_or_deploy": false
+  }
+}

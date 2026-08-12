@@ -24,8 +24,8 @@ def build_action_context(
     decision_layers: Dict[str, Dict[str, Any]] = {}
     action_intents: Dict[str, Dict[str, Any]] = {}
     portfolio_value = _float((payload.get("posterior_pnl") or {}).get("portfolio_value"), 100000.0)
-    quality = payload.get("data_quality") or {}
-    quality_score = _float(quality.get("overall_score"), 0.0)
+    decision_quality = payload.get("data_quality") or {}
+    decision_quality_score = _float(decision_quality.get("overall_score"), 0.0)
     ibkr = payload.get("ibkr") or {}
     amount_confidence = _execution_amount_confidence(
         ibkr,
@@ -38,7 +38,7 @@ def build_action_context(
         sizing = (payload.get("sizing") or {}).get(symbol, {})
         routing = (payload.get("routing") or {}).get(symbol, {})
         reentry = (payload.get("reentry") or {}).get(symbol, {})
-        layer = _decision_layer(symbol, score, quality_score, amount_confidence)
+        layer = _decision_layer(symbol, score, decision_quality_score, amount_confidence)
         intent = _action_intent(symbol, score, sizing, routing, reentry, snapshots, portfolio_value, layer)
         decision_layers[symbol] = layer
         action_intents[symbol] = intent

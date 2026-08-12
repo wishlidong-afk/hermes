@@ -1,0 +1,483 @@
+{
+  "schema_version": "hermes-system-update-before-evidence-v1",
+  "captured_at": "2026-08-12T17:49:30+08:00",
+  "purpose": "Freeze the pre-change decision, runtime, source-relevance, and persistence evidence for Tasks 1-9 of the 2026-08-12 system update.",
+  "safety_scope": {
+    "read_only": true,
+    "live_data_modified": false,
+    "official_daily_run_started": false,
+    "external_source_refresh_started": false,
+    "ibkr_connected_or_refreshed": false
+  },
+  "repo": {
+    "path": "/Users/liweishi/Documents/github/hermes",
+    "branch": "hermes-docs",
+    "head": "c6aaa144902ea885f61fac98dac0e800c8de0ac7",
+    "origin_synced_before_task": true,
+    "code_changes_before_task": [],
+    "task_evidence_paths": [
+      "building/reports/system_update_2026_08_12/",
+      "docs/superpowers/plans/2026-08-12-system-relevance-and-data-trust-update.md"
+    ],
+    "repo_config_sha256": "1a08fbbd2c72ce2cee9e1b13253a884be145503dc3c14a611d14b151d423c253"
+  },
+  "live": {
+    "version": "c6aaa14 20260812_161823",
+    "live_config_sha256": "5cff823ecaec5a5e9b8595f102e7f25d888ab9d1b2f7efb5dc856ec832d67d09",
+    "config_policy": "Preserve live config. Missing live feature keys use their false defaults.",
+    "approved_live_only_true_flags": [
+      "use_btc_spot_witness",
+      "use_cboe_official_indices",
+      "use_market_admission_gate"
+    ],
+    "ibkr_readonly": true,
+    "readyz": {
+      "http_status": 200,
+      "ok": true,
+      "mode": "strategy_readiness",
+      "strategy_level": "OK",
+      "health_level": "OK",
+      "as_of": "2026-08-11",
+      "stale_trading_days": 0,
+      "receipt_status": "OK",
+      "strategy_data": "OK",
+      "position_reconciliation": "INFO",
+      "position_reconciliation_reason": "IBKR snapshot stale; advisory only",
+      "auxiliary_flows": "OK",
+      "operations": "INFO",
+      "operations_reason": "NAAIM retired behind paywall"
+    },
+    "official_receipt": {
+      "status": "OK",
+      "ok": true,
+      "run_type": "scheduled",
+      "as_of": "2026-08-11",
+      "started_at": "2026-08-12T07:10:05+08:00",
+      "finished_at": "2026-08-12T07:10:36+08:00",
+      "checks": {
+        "as_of_latest": true,
+        "manifest": "OK"
+      }
+    },
+    "scheduled_audit": {
+      "run_type": "scheduled",
+      "as_of": "2026-08-11",
+      "run_ts": "2026-08-11T23:10:34.579226+00:00",
+      "input_hash": "ca06101ead2616d8069970342d4cdbe9c59cfa4cebb9ba8507c88b2327666e27",
+      "payload_hash": "3a248be18c5d75d56d267e19225ea7e2f6cb11852feb8b614d2986248cf6a2b8"
+    },
+    "score_transaction": {
+      "run_id": "9b0d24fce5f84c169fd1c6cb83bb1e2b",
+      "status": "COMMITTED",
+      "started_at": "2026-08-11T23:10:33.972885+00:00",
+      "committed_at": "2026-08-11T23:10:34.836819+00:00",
+      "artifact_count": 7,
+      "artifacts": [
+        "soft_adapter_snapshot_2026-08-11.json",
+        "reentry_state.sqlite",
+        "mirror_reference.sqlite",
+        "flow_reference.sqlite",
+        "hermes_state.sqlite",
+        "audit_log.jsonl",
+        "signal_journal.jsonl"
+      ]
+    }
+  },
+  "current_official_decision": {
+    "as_of": "2026-08-11",
+    "run_type": "scheduled",
+    "input_hash": "ca06101ead2616d8069970342d4cdbe9c59cfa4cebb9ba8507c88b2327666e27",
+    "data_quality": {
+      "completeness_score": 100.0,
+      "quality_score": 90.0,
+      "latency_score": 76.0,
+      "overall_score": 92.2,
+      "level": "HIGH",
+      "quality_penalty_points": {
+        "component_breadth_proxy": 2.0,
+        "btc_funding_proxy": 2.0,
+        "btc_basis_proxy": 2.0,
+        "defensive_rotation_proxy": 2.0,
+        "valuation_proxy": 2.0
+      },
+      "latency_penalty_points": {
+        "aaii_sentiment": 9.0,
+        "naaim_exposure": 15.0
+      }
+    },
+    "scores": {
+      "FNGU": {
+        "final_score": 27.3574,
+        "status": "WATCH",
+        "missing_weight": 0.0,
+        "confidence_missing_weight": 0.0,
+        "non_scoring_missing_weight": 6.0,
+        "hard_valve_hits": []
+      },
+      "MSTR": {
+        "final_score": 53.13757894736842,
+        "status": "EXIT",
+        "missing_weight": 5.0,
+        "confidence_missing_weight": 5.0,
+        "non_scoring_missing_weight": 13.0,
+        "hard_valve_hits": [
+          "H-M1"
+        ]
+      },
+      "SOXL": {
+        "final_score": 48.3595,
+        "status": "EXIT",
+        "missing_weight": 0.0,
+        "confidence_missing_weight": 0.0,
+        "non_scoring_missing_weight": 6.0,
+        "hard_valve_hits": [
+          "H-S6"
+        ]
+      }
+    },
+    "sizing": {
+      "FNGU": {
+        "target_weight": 0.002506,
+        "binding_constraint": "CONFIDENCE"
+      },
+      "MSTR": {
+        "target_weight": 0.0,
+        "binding_constraint": "ZERO"
+      },
+      "SOXL": {
+        "target_weight": 0.0,
+        "binding_constraint": "ZERO"
+      }
+    },
+    "routing": {
+      "FNGU": {
+        "applies": false
+      },
+      "MSTR": {
+        "applies": true,
+        "defcon": "DEFCON1",
+        "weights": {
+          "BOXX": 0.5,
+          "DBMF": 0.3,
+          "IAU": 0.2
+        }
+      },
+      "SOXL": {
+        "applies": true,
+        "defcon": "DEFCON1",
+        "weights": {
+          "BOXX": 0.5,
+          "DBMF": 0.3,
+          "IAU": 0.2
+        }
+      }
+    },
+    "reentry": {
+      "FNGU": {
+        "eligible": false,
+        "tranche": "LOCKED"
+      },
+      "MSTR": {
+        "eligible": false,
+        "tranche": "LOCKED"
+      },
+      "SOXL": {
+        "eligible": false,
+        "tranche": "LOCKED"
+      }
+    },
+    "portfolio_target_weights": null
+  },
+  "external_sources": {
+    "configured_refresh_source_ids": [
+      "dollar",
+      "real_rate",
+      "fred_net_liquidity",
+      "cboe_equity_pcr",
+      "cot_nq",
+      "occ_equity_pcr",
+      "btc_funding_basis",
+      "naaim_exposure",
+      "aaii_sentiment",
+      "cboe_vix",
+      "cboe_vix3m",
+      "cboe_vix9d",
+      "cboe_skew",
+      "cboe_vvix"
+    ],
+    "ordinary_wednesday_scheduled_source_ids": [
+      "dollar",
+      "real_rate",
+      "fred_net_liquidity",
+      "cboe_equity_pcr",
+      "cot_nq",
+      "occ_equity_pcr",
+      "btc_funding_basis",
+      "aaii_sentiment",
+      "cboe_vix",
+      "cboe_vix3m",
+      "cboe_vix9d",
+      "cboe_skew",
+      "cboe_vvix"
+    ],
+    "ordinary_schedule_non_decision_count": 4,
+    "ordinary_schedule_non_decision_sources": [
+      "cot_nq",
+      "occ_equity_pcr",
+      "btc_funding_basis",
+      "cboe_vix9d"
+    ],
+    "classification": {
+      "dollar": "active_strategy",
+      "real_rate": "active_strategy",
+      "fred_net_liquidity": "active_strategy",
+      "cboe_equity_pcr": "active_strategy",
+      "cot_nq": "inactive_strategy_feature_off",
+      "occ_equity_pcr": "inactive_research",
+      "btc_funding_basis": "active_research",
+      "naaim_exposure": "retired_strategy_frozen_history_friday_probe",
+      "aaii_sentiment": "active_strategy",
+      "cboe_vix": "active_strategy",
+      "cboe_vix3m": "active_strategy",
+      "cboe_vix9d": "active_auxiliary",
+      "cboe_skew": "active_strategy",
+      "cboe_vvix": "active_strategy"
+    },
+    "non_external_hard_gates": [
+      "market_admission_gate"
+    ],
+    "configured_out_hard_gate_dependencies": [
+      {
+        "source_id": "fred_vintages",
+        "reason": "use_fred_vintage_pit=false"
+      }
+    ],
+    "freshness_snapshot": {
+      "aaii_sentiment": {
+        "latest_observation": "2026-08-01",
+        "age_days": 11,
+        "freshness": "DUE_SOON",
+        "evidence": "MATCH",
+        "channel": "official_insights_rss",
+        "success_rate_30d_pct": 100.0,
+        "advancement_rate_30d_pct": 12.0,
+        "expected_release": "MISSED"
+      },
+      "btc_funding_basis": {
+        "latest_observation": "2026-08-11",
+        "age_days": 1,
+        "freshness": "OK",
+        "evidence": "MATCH"
+      },
+      "cboe_equity_pcr": {
+        "latest_observation": "2026-08-10",
+        "age_days": 2,
+        "freshness": "OK",
+        "evidence": "MATCH"
+      },
+      "cboe_skew": {
+        "latest_observation": "2026-08-10",
+        "age_days": 2,
+        "freshness": "OK"
+      },
+      "cboe_vix": {
+        "latest_observation": "2026-08-10",
+        "age_days": 2,
+        "freshness": "OK"
+      },
+      "cboe_vix3m": {
+        "latest_observation": "2026-08-11",
+        "age_days": 1,
+        "freshness": "OK",
+        "success_rate_30d_pct": 83.33,
+        "advancement_rate_30d_pct": 70.0
+      },
+      "cboe_vix9d": {
+        "latest_observation": "2026-08-11",
+        "age_days": 1,
+        "freshness": "OK"
+      },
+      "cboe_vvix": {
+        "latest_observation": "2026-08-11",
+        "age_days": 1,
+        "freshness": "OK"
+      },
+      "cot_nq": {
+        "latest_observation": "2026-08-07",
+        "age_days": 5,
+        "freshness": "OK",
+        "active_for_decision": false
+      },
+      "dollar": {
+        "latest_observation": "2026-08-07",
+        "age_days": 5,
+        "freshness": "DUE_SOON",
+        "expected_release": "UNINSTRUMENTED"
+      },
+      "fred_net_liquidity": {
+        "latest_observation": "2026-08-11",
+        "age_days": 1,
+        "freshness": "OK",
+        "expected_release": "UNINSTRUMENTED"
+      },
+      "naaim_exposure": {
+        "latest_observation": "2026-07-29",
+        "age_days": 14,
+        "freshness": "STALE",
+        "evidence": "MATCH",
+        "lifecycle": "RETIRED_PAYWALL",
+        "expected_release": "MISSED"
+      },
+      "occ_equity_pcr": {
+        "latest_observation": "2026-07-11",
+        "age_days": 32,
+        "freshness": "STALE",
+        "active_for_decision": false
+      },
+      "real_rate": {
+        "latest_observation": "2026-08-10",
+        "age_days": 2,
+        "freshness": "OK",
+        "expected_release": "UNINSTRUMENTED"
+      }
+    }
+  },
+  "four_date_decision_snapshots": {
+    "2022-06-30": {
+      "input_hash": "cec545d25b63688c07d2536214c0be4daef1c8b5547766dd83b3c4e1c7e98428",
+      "data_quality": {
+        "completeness_score": 100.0,
+        "quality_score": 88.5,
+        "latency_score": 100.0,
+        "overall_score": 96.55,
+        "level": "HIGH"
+      },
+      "scores": {
+        "FNGU": {"final_score": 79.25989010989011, "status": "EXIT", "missing_weight": 9.0, "confidence_missing_weight": 9.0, "non_scoring_missing_weight": 6.0, "module_scores": {"A": 20.0, "B": 5.0, "C": 23.0, "D": 19.0}, "hard_valve_hits": ["H-F1", "H-F2", "H-F5", "H-F6", "H-F7"]},
+        "MSTR": {"final_score": 85.97684210526315, "status": "EXIT", "missing_weight": 5.0, "confidence_missing_weight": 5.0, "non_scoring_missing_weight": 13.0, "module_scores": {"A": 20.0, "B": 5.0, "C": 31.0, "D": 20.0}, "hard_valve_hits": ["H-M1", "H-M4", "H-M5", "H-M6"]},
+        "SOXL": {"final_score": 85.08915789473684, "status": "EXIT", "missing_weight": 5.0, "confidence_missing_weight": 5.0, "non_scoring_missing_weight": 6.0, "module_scores": {"A": 20.0, "B": 5.0, "C": 30.0, "D": 20.0}, "hard_valve_hits": ["H-S1", "H-S2", "H-S5", "H-S6", "H-S7", "H-S8"]}
+      },
+      "target_weights": {"FNGU": 0.0, "MSTR": 0.0, "SOXL": 0.0},
+      "routing": {"FNGU": "DEFCON1", "MSTR": "DEFCON1", "SOXL": "DEFCON1"},
+      "reentry": {"FNGU": "LOCKED", "MSTR": "LOCKED", "SOXL": "LOCKED"},
+      "portfolio_target_weights": null
+    },
+    "2024-06-28": {
+      "input_hash": "68f631b24b6b9c3cd15196fed0b54c787ea0b061ebcceccb0749f3c52a5e620f",
+      "data_quality": {"completeness_score": 100.0, "quality_score": 90.0, "latency_score": 100.0, "overall_score": 97.0, "level": "HIGH"},
+      "scores": {
+        "FNGU": {"final_score": 25.693076923076923, "status": "REDUCE", "missing_weight": 9.0, "confidence_missing_weight": 9.0, "non_scoring_missing_weight": 6.0, "module_scores": {"A": 20.0, "B": 3.0, "C": 0.0, "D": 0.0}, "hard_valve_hits": []},
+        "MSTR": {"final_score": 39.78631578947368, "status": "REDUCE", "missing_weight": 5.0, "confidence_missing_weight": 5.0, "non_scoring_missing_weight": 13.0, "module_scores": {"A": 20.0, "B": 6.0, "C": 14.0, "D": 1.0}, "hard_valve_hits": []},
+        "SOXL": {"final_score": 27.867052631578947, "status": "REDUCE", "missing_weight": 5.0, "confidence_missing_weight": 5.0, "non_scoring_missing_weight": 6.0, "module_scores": {"A": 20.0, "B": 4.0, "C": 6.0, "D": 0.0}, "hard_valve_hits": []}
+      },
+      "target_weights": {"FNGU": 0.068627, "MSTR": 0.064337, "SOXL": 0.10294},
+      "routing": {"FNGU": "DEFCON1", "MSTR": "DEFCON1", "SOXL": "DEFCON1"},
+      "reentry": {"FNGU": "LOCKED", "MSTR": "LOCKED", "SOXL": "LOCKED"},
+      "portfolio_target_weights": null
+    },
+    "2026-05-29": {
+      "input_hash": "0f910bfaa76b27a558a1a23820578ba0b695c5f82f841900635aff790c94e9a3",
+      "data_quality": {"completeness_score": 100.0, "quality_score": 90.0, "latency_score": 100.0, "overall_score": 97.0, "level": "HIGH"},
+      "scores": {
+        "FNGU": {"final_score": 26.78263157894737, "status": "REDUCE", "missing_weight": 5.0, "confidence_missing_weight": 5.0, "non_scoring_missing_weight": 6.0, "module_scores": {"A": 15.0, "B": 2.0, "C": 7.0, "D": 1.0}, "hard_valve_hits": []},
+        "MSTR": {"final_score": 50.56884210526316, "status": "EXIT", "missing_weight": 5.0, "confidence_missing_weight": 5.0, "non_scoring_missing_weight": 13.0, "module_scores": {"A": 15.0, "B": 1.0, "C": 21.0, "D": 12.0}, "hard_valve_hits": ["H-M1", "H-M4"]},
+        "SOXL": {"final_score": 26.81263157894737, "status": "REDUCE", "missing_weight": 5.0, "confidence_missing_weight": 5.0, "non_scoring_missing_weight": 6.0, "module_scores": {"A": 15.0, "B": 5.0, "C": 8.0, "D": 0.0}, "hard_valve_hits": []}
+      },
+      "target_weights": {"FNGU": 0.060092, "MSTR": 0.0, "SOXL": 0.090137},
+      "routing": {"FNGU": "DEFCON1", "MSTR": "DEFCON1", "SOXL": "DEFCON1"},
+      "reentry": {"FNGU": "LOCKED", "MSTR": "LOCKED", "SOXL": "LOCKED"},
+      "portfolio_target_weights": null
+    },
+    "2026-07-10": {
+      "input_hash": "18ffe225053fc71844fcdd06408478aabe25d9da279c19805b854aceb0c5ef9c",
+      "data_quality": {"completeness_score": 100.0, "quality_score": 90.0, "latency_score": 100.0, "overall_score": 97.0, "level": "HIGH"},
+      "scores": {
+        "FNGU": {"final_score": 34.26747368421053, "status": "REDUCE", "missing_weight": 5.0, "confidence_missing_weight": 5.0, "non_scoring_missing_weight": 6.0, "module_scores": {"A": 17.0, "B": 3.0, "C": 11.0, "D": 1.0}, "hard_valve_hits": []},
+        "MSTR": {"final_score": 69.97968421052632, "status": "EXIT", "missing_weight": 5.0, "confidence_missing_weight": 5.0, "non_scoring_missing_weight": 13.0, "module_scores": {"A": 17.0, "B": 5.0, "C": 28.0, "D": 17.0}, "hard_valve_hits": ["H-M1", "H-M4", "H-M6"]},
+        "SOXL": {"final_score": 49.531368421052626, "status": "EXIT", "missing_weight": 5.0, "confidence_missing_weight": 5.0, "non_scoring_missing_weight": 6.0, "module_scores": {"A": 17.0, "B": 10.0, "C": 17.0, "D": 5.0}, "hard_valve_hits": ["H-S6"]}
+      },
+      "target_weights": {"FNGU": 0.054498, "MSTR": 0.0, "SOXL": 0.0},
+      "routing": {"FNGU": "DEFCON1", "MSTR": "DEFCON1", "SOXL": "DEFCON1"},
+      "reentry": {"FNGU": "LOCKED", "MSTR": "LOCKED", "SOXL": "LOCKED"},
+      "portfolio_target_weights": null
+    }
+  },
+  "verification": {
+    "full_test_suite": {
+      "command_runtime": "/Users/liweishi/.hermes-v3/.venv/bin/python",
+      "result": "1264 passed",
+      "duration_seconds": 127.28
+    },
+    "governance": {
+      "ok": true,
+      "passed": 7,
+      "total": 7,
+      "checks": [
+        "baseline_metadata",
+        "config_invariants",
+        "context_snapshot",
+        "execution_open_quality",
+        "factor_capacity",
+        "flag_registry",
+        "live_config_policy"
+      ]
+    },
+    "four_date_equivalence": {
+      "path": "building/reports/system_update_2026_08_12/FOUR_DATE_BEFORE_EQUIVALENCE.json",
+      "sha256": "c9f40f54be236fef5db6c61b0d24ec3edcbf21d3de5ba751cc41b593039aaa5e",
+      "all_equal": true,
+      "valid_input_hashes": 4,
+      "artifact_count_per_date": 7,
+      "dates": [
+        "2022-06-30",
+        "2024-06-28",
+        "2026-05-29",
+        "2026-07-10"
+      ]
+    },
+    "implementation_plan": {
+      "path": "docs/superpowers/plans/2026-08-12-system-relevance-and-data-trust-update.md",
+      "sha256": "724c6076a4420e23c1053ab2fa2aad05b2bbd12d60e3289b1bb77615556e3c79"
+    }
+  },
+  "comparison_policy": {
+    "allowed_reporting_only_json_paths": [
+      "data_quality",
+      "all_source_data_quality",
+      "data_quality_breakdown",
+      "decision_layers.*.strategy_confidence",
+      "health",
+      "system_health_report",
+      "acceptance"
+    ],
+    "protected_byte_identical_json_paths": [
+      "input_hash",
+      "scores.*.final_score",
+      "scores.*.raw_status",
+      "scores.*.status",
+      "scores.*.sell_fraction",
+      "scores.*.module_scores",
+      "scores.*.factor_scores",
+      "scores.*.hard_valve_hits",
+      "scores.*.missing_weight",
+      "scores.*.confidence_missing_weight",
+      "scores.*.non_scoring_missing_weight",
+      "sizing",
+      "routing",
+      "reentry",
+      "portfolio_target_weights",
+      "today_ops.destinations",
+      "today_ops.requires_action"
+    ],
+    "protected_persistence_artifacts": [
+      "audit_log.jsonl",
+      "flow_reference.sqlite",
+      "hermes_state.sqlite",
+      "mirror_reference.sqlite",
+      "reentry_state.sqlite",
+      "signal_journal.jsonl",
+      "soft_adapter_snapshot_<as_of>.json"
+    ],
+    "failure_rule": "Any difference outside the allowed reporting-only paths blocks the next task and deployment."
+  }
+}

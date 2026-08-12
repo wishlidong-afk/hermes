@@ -39,6 +39,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from ..config import DATA_DIR_ENV, PACKAGE_DIR, load_config, resolve_path
+from ..core.data.runtime_root import require_explicit_runtime_data_root
 
 
 # FRED-sourced soft series -> their feature flag. Only flag-ON series are checked.
@@ -57,7 +58,7 @@ _SLO_STALE_REASON = re.compile(r"^stale: latency (?P<latency>\d+)d > max_age (?P
 
 
 @contextlib.contextmanager
-def repo_live_data_root() -> Iterator[Optional[Path]]:
+def repo_live_data_root() -> Iterator[Path]:
     """Use live current data when the smoke is run from the repo checkout.
 
     The repo package still contains development fixture data; running the smoke
@@ -65,18 +66,22 @@ def repo_live_data_root() -> Iterator[Optional[Path]]:
     state, not fail on stale package fixtures. Explicit HERMES_DATA_DIR always
     wins, and packaged/staged releases keep their own data symlink.
     """
-    if os.environ.get(DATA_DIR_ENV):
-        yield None
+    configured = str(os.environ.get(DATA_DIR_ENV) or "").strip()
+    if configured:
+        yield Path(configured).expanduser().resolve()
         return
     repo_root = _repo_root_for_package(PACKAGE_DIR)
     live_pkg = _live_current_package_dir()
-    if repo_root is None or live_pkg is None:
-        yield None
+    if repo_root is None:
+        yield PACKAGE_DIR.resolve()
+        return
+    if live_pkg is None:
+        yield require_explicit_runtime_data_root("predeploy_smoke")
         return
     previous = os.environ.get(DATA_DIR_ENV)
     os.environ[DATA_DIR_ENV] = str(live_pkg)
     try:
-        yield live_pkg
+        yield live_pkg.resolve()
     finally:
         if previous is None:
             os.environ.pop(DATA_DIR_ENV, None)
@@ -117,14 +122,16 @@ def _read_recent_official_payloads(config: Dict[str, Any], n: int = 2) -> List[D
     if size > chunk:
         lines = lines[1:]
     by_day: Dict[str, Dict[str, Any]] = {}
-    for raw in lines:
+    for tail_line, raw in enumerate(lines, start=1):
         raw = raw.strip()
         if not raw:
             continue
         try:
             rec = json.loads(raw)
-        except Exception:
-            continue
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ValueError(
+                f"malformed audit evidence at tail line {tail_line}: {exc}"
+            ) from exc
         pl = rec.get("payload") if isinstance(rec, dict) else None
         pl = pl if isinstance(pl, dict) else rec
         if not isinstance(pl, dict) or "scores" not in pl:
