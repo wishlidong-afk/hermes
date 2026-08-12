@@ -433,11 +433,15 @@ def refresh_all_sources(
     config: dict[str, Any] | None = None,
     *,
     auto_import: bool = True,
+    today: date | None = None,
     _lease: Any = None,
 ) -> dict[str, Any]:
     cfg = config or load_config()
+    day = today or shanghai_today()
+    configured = configured_source_ids(cfg)
+    selected = _scheduled_refresh_source_ids(cfg, day)
     runs = _refresh_sources_with_dependencies(
-        configured_source_ids(cfg),
+        selected,
         cfg,
         auto_import=auto_import,
         _lease=_lease,
@@ -450,6 +454,10 @@ def refresh_all_sources(
         "error_count": error_count,
         "runs": runs,
         "mode": "all",
+        "selected_sources": list(selected),
+        "skipped_lifecycle_sources": [
+            source_id for source_id in configured if source_id not in selected
+        ],
     }
 
 
@@ -497,7 +505,7 @@ def pre_daily_check(
     refresh_result = (
         refresh_retry_sources(cfg, today=day, **refresh_kwargs)
         if retry_only
-        else refresh_all_sources(cfg, auto_import=True, **refresh_kwargs)
+        else refresh_all_sources(cfg, auto_import=True, today=day, **refresh_kwargs)
     )
     sources = status(cfg, today=day)
     return _evaluate_readiness(cfg, refresh_result, sources)
@@ -514,10 +522,13 @@ def daily_source_check(
     cfg = config or load_config()
     day = today or shanghai_today()
     sources = status(cfg, today=day)
-    active_rows = [
-        row for row in sources.values()
+    active_source_rows = {
+        source_id: row
+        for source_id, row in sources.items()
         if row.get("active") is not False
-    ]
+        and _row_requires_daily_check(row, day)
+    }
+    active_rows = list(active_source_rows.values())
     if sources and all(_source_checked_on(row) == day for row in active_rows):
         checked_at = now or datetime.now(timezone.utc)
         retry_rows = [
@@ -537,7 +548,10 @@ def daily_source_check(
             "ok": True,
             "ok_count": sum(1 for row in active_rows if _attempt_status(row) == "OK"),
             "error_count": sum(1 for row in active_rows if _attempt_status(row) != "OK"),
-            "runs": [_status_as_refresh_run(source_id, row) for source_id, row in sources.items()],
+            "runs": [
+                _status_as_refresh_run(source_id, row)
+                for source_id, row in active_source_rows.items()
+            ],
             "mode": "reuse_same_day",
             "selected_sources": [],
         }
@@ -580,6 +594,7 @@ def _evaluate_readiness(
     policy_warnings = []
     nonblocking_refresh_errors = []
     blocking_refresh_errors = []
+    lifecycle_warnings = []
     for source_id, row in sources.items():
         if row.get("active") is False:
             continue
@@ -591,7 +606,10 @@ def _evaluate_readiness(
         elif run_status != "OK" or freshness == "UNKNOWN":
             blocking.append(source_id)
         elif freshness == "STALE":
-            if _is_policy_warn_only_stale(
+            if _is_retired_paywall(row):
+                row["readiness_severity"] = "INFO"
+                lifecycle_warnings.append(source_id)
+            elif _is_policy_warn_only_stale(
                 cfg, source_id, row, refresh_runs.get(source_id) or {}
             ):
                 row["publisher_status"] = "UNCHANGED_AFTER_REFRESH"
@@ -617,6 +635,9 @@ def _evaluate_readiness(
         row = sources.get(source_id) or {}
         if row.get("active") is False:
             continue
+        if _is_retired_paywall(row) and not canonical_evidence_issue(row):
+            nonblocking_refresh_errors.append(source_id)
+            continue
         source_ok = str(row.get("status") or "") == "OK"
         freshness = str(row.get("freshness_status") or "")
         if source_ok and freshness not in {"STALE", "UNKNOWN"}:
@@ -632,6 +653,7 @@ def _evaluate_readiness(
         "policy_warning_sources": policy_warnings,
         "nonblocking_refresh_error_sources": nonblocking_refresh_errors,
         "blocking_refresh_error_sources": blocking_refresh_errors,
+        "lifecycle_warning_sources": lifecycle_warnings,
         "refresh": refresh_result,
         "sources": sources,
     }
@@ -644,9 +666,58 @@ def _source_needs_retry(row: dict[str, Any], today: date) -> bool:
         return False
     if str(row.get("evidence_status") or "") not in {"", "MATCH"}:
         return True
+    if _is_retired_paywall(row) and not _row_requires_daily_check(row, today):
+        return False
     if _source_checked_on(row) != today:
         return True
     return _attempt_status(row) != "OK"
+
+
+def _scheduled_refresh_source_ids(
+    config: dict[str, Any],
+    today: date,
+) -> tuple[str, ...]:
+    selected = []
+    for source_id in configured_source_ids(config):
+        profile = effective_source_profile(config, source_id)
+        if profile is None or _profile_requires_scheduled_probe(profile, today):
+            selected.append(source_id)
+    return tuple(selected)
+
+
+def _profile_requires_scheduled_probe(profile: Any, today: date) -> bool:
+    if str(getattr(profile, "lifecycle_policy", "ACTIVE")) != "RETIRED_PAYWALL":
+        return True
+    try:
+        effective = date.fromisoformat(str(profile.lifecycle_effective_date or ""))
+    except ValueError:
+        return True
+    if today < effective:
+        return True
+    if _naaim_subscriber_configured():
+        return True
+    probe_weekdays = tuple(getattr(profile, "probe_weekdays", ()) or ())
+    return today.weekday() in probe_weekdays
+
+
+def _row_requires_daily_check(row: dict[str, Any], today: date) -> bool:
+    if not _is_retired_paywall(row):
+        return True
+    if (
+        str(row.get("source_id") or "") == "naaim_exposure"
+        and _naaim_subscriber_configured()
+    ):
+        return True
+    probe_weekdays = tuple(int(value) for value in (row.get("probe_weekdays") or ()))
+    return today.weekday() in probe_weekdays
+
+
+def _naaim_subscriber_configured() -> bool:
+    return bool(str(os.environ.get("NAAIM_SUBSCRIBER_URL") or "").strip())
+
+
+def _is_retired_paywall(row: dict[str, Any]) -> bool:
+    return str(row.get("lifecycle_status") or "") == "RETIRED_PAYWALL"
 
 
 def _source_checked_on(row: dict[str, Any]) -> date | None:

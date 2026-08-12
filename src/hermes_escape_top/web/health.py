@@ -18,6 +18,7 @@ from ..core.data.external_sources.ledger import (
     certified_canonical_is_current,
 )
 from ..core.data.external_sources.profiles import profile_for
+from ..core.data.external_sources.clock import timestamp_to_shanghai_date
 from .refresh import _completed_trading_days_after
 
 # Sources that are off/unwired BY DESIGN — their absence is the steady-state
@@ -68,6 +69,13 @@ def compute_health(
     sip_status = payload.get("alpaca_daily_flow_status") or {}
     external_sources = payload.get("external_source_status") or {}
     market_admission = payload.get("market_admission_status") or {}
+    retired_soft_names = {
+        "naaim"
+        for source_id, row in external_sources.items()
+        if source_id == "naaim_exposure"
+        and isinstance(row, dict)
+        and str(row.get("lifecycle_status") or "") == "RETIRED_PAYWALL"
+    } if isinstance(external_sources, dict) else set()
 
     # 1. Is there a scored payload at all?
     if not cache.get("hit"):
@@ -183,6 +191,8 @@ def compute_health(
         if status != "MISSING":
             continue
         if name in _EXPECTED_OFF_SOURCES:
+            continue
+        if name in retired_soft_names:
             continue
         if "feature disabled" in reason:
             continue
@@ -300,6 +310,34 @@ def compute_health(
                     add_source(evidence_critical_level, "外部数据证据失配", detail[:160])
                 else:
                     add_source(failure_level, "外部数据证据未绑定", detail[:160])
+                continue
+            if str(row.get("lifecycle_status") or "") == "RETIRED_PAYWALL":
+                reason = str(row.get("lifecycle_reason") or "certified history frozen")
+                if attempt_status not in {"", "OK"}:
+                    detail = f"{source_id}: {attempt_status} {reason}".strip()
+                    if timestamp_to_shanghai_date(
+                        row.get("latest_attempt_finished_at") or row.get("finished_at")
+                    ) == today:
+                        add(
+                            "DEGRADED",
+                            "退役外部源每周探测失败（认证历史冻结）",
+                            detail[:160],
+                            "operations",
+                        )
+                    else:
+                        add(
+                            "INFO",
+                            "外部数据源已付费退役（上次探测失败）",
+                            detail[:160],
+                            "operations",
+                        )
+                else:
+                    add(
+                        "INFO",
+                        "外部数据源已付费退役",
+                        f"{source_id}: {reason}"[:160],
+                        "operations",
+                    )
                 continue
             if attempt_status == "MISSING":
                 add_source(failure_level, "外部数据源未自动刷新", str(source_id))

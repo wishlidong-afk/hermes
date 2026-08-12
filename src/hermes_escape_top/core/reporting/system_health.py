@@ -76,6 +76,10 @@ def build_system_health_audit_dimensions(
         )
         for row in external_rows
         if str(row.get("latest_attempt_status") or row.get("status") or "") != "OK"
+        and not (
+            str(row.get("lifecycle_status") or "") == "RETIRED_PAYWALL"
+            and not canonical_evidence_issue(row)
+        )
     ]
     external_evidence_bad = [
         f"{row.get('source_id') or '?'}:{canonical_evidence_issue(row)}"

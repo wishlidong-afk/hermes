@@ -307,7 +307,7 @@ def test_refresh_external_status_explains_due_soon_after_same_day_success(tmp_pa
             date(2026, 8, 3),
             "manual_official_file",
             "2026-08-02T13:00:00+00:00",
-            "ACTION_REQUIRED",
+            "RETIRED_PAYWALL",
             "MANUAL_FALLBACK",
         ),
     ],
@@ -350,7 +350,8 @@ def test_naaim_post_deadline_public_channel_needs_post_deadline_success():
         profile=profile_for("naaim_exposure"),
     )
 
-    assert out["migration_status"] == "ACTION_REQUIRED"
+    assert out["migration_status"] == "RETIRED_PAYWALL"
+    assert out["lifecycle_status"] == "RETIRED_PAYWALL"
 
 
 def test_naaim_stale_subscriber_success_is_not_migration_ready():
@@ -368,7 +369,8 @@ def test_naaim_stale_subscriber_success_is_not_migration_ready():
 
     assert out["freshness_status"] == "STALE"
     assert out["migration_readiness"] == "NOT_EVIDENCED"
-    assert out["migration_status"] == "ACTION_REQUIRED"
+    assert out["migration_status"] == "RETIRED_PAYWALL"
+    assert out["lifecycle_status"] == "RETIRED_PAYWALL"
 
 
 def test_refresh_external_all_sources_keeps_going_on_single_failure(monkeypatch, tmp_path):
@@ -385,7 +387,10 @@ def test_refresh_external_all_sources_keeps_going_on_single_failure(monkeypatch,
     monkeypatch.setattr(refresh_external, "load_config", lambda: cfg)
     monkeypatch.setattr(refresh_external, "refresh_source", fake_refresh)
 
-    result = refresh_external.refresh_all_sources()
+    result = refresh_external.refresh_all_sources(
+        cfg,
+        today=date(2026, 7, 31),
+    )
 
     assert calls == list(refresh_external.SOURCE_IDS)
     assert result["ok"] is False
@@ -394,6 +399,56 @@ def test_refresh_external_all_sources_keeps_going_on_single_failure(monkeypatch,
     assert [row["source_id"] for row in result["runs"]] == list(refresh_external.SOURCE_IDS)
     assert result["runs"][-1]["status"] == "ERROR"
     assert "blocked" in result["runs"][-1]["error"]
+
+
+def test_refresh_all_skips_retired_naaim_outside_weekly_probe(monkeypatch, tmp_path):
+    calls = []
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(
+        refresh_external,
+        "configured_source_ids",
+        lambda _config: ("dollar", "naaim_exposure"),
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_source",
+        lambda source_id, *_args, **_kwargs: calls.append(source_id)
+        or {"source_id": source_id, "status": "OK"},
+    )
+
+    result = refresh_external.refresh_all_sources(
+        cfg,
+        today=date(2026, 8, 12),
+    )
+
+    assert calls == ["dollar"]
+    assert result["selected_sources"] == ["dollar"]
+    assert result["skipped_lifecycle_sources"] == ["naaim_exposure"]
+
+
+def test_refresh_all_includes_retired_naaim_on_friday_probe(monkeypatch, tmp_path):
+    calls = []
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(
+        refresh_external,
+        "configured_source_ids",
+        lambda _config: ("dollar", "naaim_exposure"),
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_source",
+        lambda source_id, *_args, **_kwargs: calls.append(source_id)
+        or {"source_id": source_id, "status": "OK"},
+    )
+
+    result = refresh_external.refresh_all_sources(
+        cfg,
+        today=date(2026, 8, 14),
+    )
+
+    assert calls == ["dollar", "naaim_exposure"]
+    assert result["skipped_lifecycle_sources"] == []
+    assert result["ok"] is True
 
 
 def test_retry_needed_only_runs_failed_same_day_sources(monkeypatch, tmp_path):
@@ -612,6 +667,51 @@ def test_daily_source_check_ignores_inactive_sources_for_same_day_reuse(monkeypa
     assert result["refresh"]["error_count"] == 0
 
 
+def test_daily_source_check_does_not_refetch_retired_naaim_on_non_probe_day(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "active": True,
+                "freshness_status": "OK",
+                "evidence_status": "MATCH",
+                "finished_at": "2026-08-11T23:05:00+00:00",
+            },
+            "naaim_exposure": {
+                "source_id": "naaim_exposure",
+                "status": "OK",
+                "active": True,
+                "freshness_status": "STALE",
+                "evidence_status": "MATCH",
+                "lifecycle_status": "RETIRED_PAYWALL",
+                "probe_weekdays": [4],
+                "finished_at": "2026-08-07T22:45:00+00:00",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "pre_daily_check",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("retired non-probe source must not force a third refresh")
+        ),
+    )
+
+    result = refresh_external.daily_source_check(
+        cfg,
+        today=date(2026, 8, 12),
+        now=datetime(2026, 8, 11, 23, 10, tzinfo=timezone.utc),
+    )
+
+    assert result["ready"] is True
+    assert result["refresh"]["mode"] == "reuse_same_day"
+    assert result["lifecycle_warning_sources"] == ["naaim_exposure"]
+
+
 def test_retry_needed_cli_runs_selective_precheck(monkeypatch, capsys):
     calls = []
     monkeypatch.setattr(
@@ -691,7 +791,7 @@ def test_refresh_external_pre_daily_check_marks_stale_sources_not_ready(monkeypa
     monkeypatch.setattr(
         refresh_external,
         "refresh_all_sources",
-        lambda config=None, auto_import=True: {"ok": True, "ok_count": 5, "error_count": 0, "runs": []},
+        lambda config=None, auto_import=True, **_kwargs: {"ok": True, "ok_count": 5, "error_count": 0, "runs": []},
     )
     monkeypatch.setattr(
         refresh_external,
@@ -709,12 +809,178 @@ def test_refresh_external_pre_daily_check_marks_stale_sources_not_ready(monkeypa
     assert result["sources"]["dollar"]["next_action"] == "refresh dollar"
 
 
+def test_retired_naaim_staleness_is_visible_but_nonblocking(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda config=None, auto_import=True, today=None: {
+            "ok": True,
+            "ok_count": 0,
+            "error_count": 0,
+            "runs": [],
+            "skipped_lifecycle_sources": ["naaim_exposure"],
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "naaim_exposure": {
+                "source_id": "naaim_exposure",
+                "status": "OK",
+                "active": True,
+                "freshness_status": "STALE",
+                "evidence_status": "MATCH",
+                "lifecycle_status": "RETIRED_PAYWALL",
+                "probe_weekdays": [4],
+                "age_days": 14,
+            },
+        },
+    )
+
+    result = refresh_external.pre_daily_check(cfg, today=date(2026, 8, 12))
+
+    assert result["ready"] is True
+    assert result["blocking_sources"] == []
+    assert result["lifecycle_warning_sources"] == ["naaim_exposure"]
+    assert result["sources"]["naaim_exposure"]["readiness_severity"] == "INFO"
+
+
+def test_retired_naaim_does_not_mask_canonical_evidence_drift(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda config=None, auto_import=True, today=None: {
+            "ok": True,
+            "ok_count": 0,
+            "error_count": 0,
+            "runs": [],
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "naaim_exposure": {
+                "source_id": "naaim_exposure",
+                "status": "OK",
+                "active": True,
+                "freshness_status": "STALE",
+                "evidence_status": "EVIDENCE_DRIFT",
+                "lifecycle_status": "RETIRED_PAYWALL",
+                "age_days": 14,
+            },
+        },
+    )
+
+    result = refresh_external.pre_daily_check(cfg, today=date(2026, 8, 12))
+
+    assert result["ready"] is False
+    assert result["blocking_sources"] == ["naaim_exposure"]
+    assert result["lifecycle_warning_sources"] == []
+
+
+def test_retired_naaim_retry_only_runs_on_probe_day_or_evidence_drift(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    calls = []
+    row = {
+        "source_id": "naaim_exposure",
+        "status": "OK",
+        "latest_attempt_status": "FETCH_ERROR",
+        "active": True,
+        "freshness_status": "STALE",
+        "evidence_status": "MATCH",
+        "lifecycle_status": "RETIRED_PAYWALL",
+        "probe_weekdays": [4],
+        "latest_attempt_finished_at": "2026-08-07T22:45:00+00:00",
+    }
+    monkeypatch.setattr(
+        refresh_external,
+        "configured_source_ids",
+        lambda _config: ("naaim_exposure",),
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {"naaim_exposure": dict(row)},
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_source",
+        lambda source_id, *_args, **_kwargs: calls.append(source_id)
+        or {"source_id": source_id, "status": "OK"},
+    )
+
+    non_probe = refresh_external.refresh_retry_sources(
+        cfg,
+        today=date(2026, 8, 12),
+    )
+    probe = refresh_external.refresh_retry_sources(
+        cfg,
+        today=date(2026, 8, 14),
+    )
+    row["evidence_status"] = "EVIDENCE_DRIFT"
+    drift = refresh_external.refresh_retry_sources(
+        cfg,
+        today=date(2026, 8, 13),
+    )
+
+    assert non_probe["selected_sources"] == []
+    assert probe["selected_sources"] == ["naaim_exposure"]
+    assert drift["selected_sources"] == ["naaim_exposure"]
+    assert calls == ["naaim_exposure", "naaim_exposure"]
+
+
+def test_configured_naaim_subscriber_retries_outside_public_probe_day(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    calls = []
+    monkeypatch.setenv("NAAIM_SUBSCRIBER_URL", "https://subscriber.example/naaim.xlsx")
+    monkeypatch.setattr(
+        refresh_external,
+        "configured_source_ids",
+        lambda _config: ("naaim_exposure",),
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "naaim_exposure": {
+                "source_id": "naaim_exposure",
+                "status": "OK",
+                "latest_attempt_status": "FETCH_ERROR",
+                "active": True,
+                "freshness_status": "STALE",
+                "evidence_status": "MATCH",
+                "lifecycle_status": "RETIRED_PAYWALL",
+                "probe_weekdays": [4],
+                "latest_attempt_finished_at": "2026-08-11T22:45:00+00:00",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_source",
+        lambda source_id, *_args, **_kwargs: calls.append(source_id)
+        or {"source_id": source_id, "status": "OK"},
+    )
+
+    result = refresh_external.refresh_retry_sources(
+        cfg,
+        today=date(2026, 8, 12),
+    )
+
+    assert result["selected_sources"] == ["naaim_exposure"]
+    assert calls == ["naaim_exposure"]
+
+
 def test_inactive_research_source_does_not_block_daily_readiness(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
     monkeypatch.setattr(
         refresh_external,
         "refresh_all_sources",
-        lambda config=None, auto_import=True: {
+        lambda config=None, auto_import=True, **_kwargs: {
             "ok": False,
             "ok_count": 0,
             "error_count": 1,
@@ -748,7 +1014,7 @@ def test_refresh_external_pre_daily_check_warns_for_policy_stale_dollar(monkeypa
     monkeypatch.setattr(
         refresh_external,
         "refresh_all_sources",
-        lambda config=None, auto_import=True: {
+        lambda config=None, auto_import=True, **_kwargs: {
             "ok": True,
             "ok_count": 1,
             "error_count": 0,
@@ -788,7 +1054,7 @@ def test_policy_stale_dollar_does_not_hide_second_stale_source(monkeypatch, tmp_
     monkeypatch.setattr(
         refresh_external,
         "refresh_all_sources",
-        lambda config=None, auto_import=True: {
+        lambda config=None, auto_import=True, **_kwargs: {
             "ok": True,
             "ok_count": 2,
             "error_count": 0,
@@ -832,7 +1098,7 @@ def test_policy_stale_dollar_refresh_error_remains_blocking(monkeypatch, tmp_pat
     monkeypatch.setattr(
         refresh_external,
         "refresh_all_sources",
-        lambda config=None, auto_import=True: {
+        lambda config=None, auto_import=True, **_kwargs: {
             "ok": False,
             "ok_count": 0,
             "error_count": 1,
@@ -872,7 +1138,7 @@ def test_refresh_external_pre_daily_check_separates_nonblocking_refresh_errors(m
     monkeypatch.setattr(
         refresh_external,
         "refresh_all_sources",
-        lambda config=None, auto_import=True: {
+        lambda config=None, auto_import=True, **_kwargs: {
             "ok": False,
             "ok_count": 4,
             "error_count": 1,

@@ -40,12 +40,18 @@ nonblocking `.pipeline.lock` as scoring and deployment; a busy lock records
 ## External precheck severity
 
 `com.hermes.external-precheck` runs at 06:45 and 07:05. A stale source normally
-keeps the precheck non-ready. Dollar is the sole narrow exception: when the
+keeps the precheck non-ready. Dollar remains a narrow publication-lag exception: when the
 current refresh attempt succeeded, `use_soft_data_max_age` and `data_dollar`
 are enabled, and its age exceeds the configured strategy SLO, it remains a
 visible policy WARN instead of generating a FAILED notification. The report
 says to wait for the publisher rather than retrying the already-successful
 refresh.
+
+NAAIM is a separate lifecycle exception. Its public workbook retired behind a
+paywall on 2026-08-01, so certified history is frozen and the source is probed
+only on Friday Shanghai time. Retirement staleness is an INFO and still follows
+the scoring missing-weight policy; canonical evidence drift or a missing
+certified file remains blocking.
 
 Any Dollar fetch/parse failure, missing policy evidence, or stale second source
 remains blocking. This exception does not change scoring or the configured
@@ -96,14 +102,15 @@ degradation fails acceptance.
 
 The seven primary checks remain stable for automation consumers. A separate
 `operational_observations` block tracks weekly retention APPLY evidence, dated
-market-admission evidence, and AAII/NAAIM automatic-channel migration evidence.
+market-admission evidence, and AAII automatic-channel plus NAAIM lifecycle evidence.
 Retention is PENDING before its first expected Sunday window, WARN when missing
 afterward or older than eight days, and PASS only for a recent successful APPLY
 report. Market admission is OBSERVING for one or two consecutive OK dates and
 mature after three (with five as the operational target). AAII/NAAIM evidence
 is read from the same-day external precheck artifact and includes channel,
 official issue date, artifact SHA-256, freshness, and migration deadline; the
-observer never fetches either source. Only WARN observations are added to the
+observer never fetches either source. `RETIRED_PAYWALL` is accepted only while
+the frozen NAAIM canonical remains ledger-bound. Only WARN observations are added to the
 summary; they do not change the seven-check schema.
 
 This command is an observer, not a repair command. It never runs daily, scores,

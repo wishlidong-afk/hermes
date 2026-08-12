@@ -29,7 +29,7 @@ of four states:
 | `data_skew_vvix` | **ON** ✅ | live | CBOE SKEW + VVIX term-structure inputs (A7) |
 | `data_net_liquidity` | **ON** ✅ | live | FRED net-liquidity (WALCL − WTREGEN − RRP) |
 | `data_aaii` | **ON** ✅ | best-effort | AAII bull/bear sentiment (A2) |
-| `data_naaim` | **ON** ✅ | live | NAAIM Exposure Index (A2) |
+| `data_naaim` | **ON** ✅ | live/history-retired | NAAIM Exposure Index (A2); public feed is `RETIRED_PAYWALL` from 2026-08-01, certified history stays immutable, and stale rows continue through missing_weight without a flag flip |
 | `data_cnn_fgi` | OFF | rejected-for-performance | CNN Fear & Greed — wired/full coverage, but system marginal effect is noise |
 | `data_component_breadth` | **ON** ✅ | live | NDX/SOX breadth from FNGU/SOXL component proxies (A3) |
 | `data_cboe_pcr` | **ON** ✅ | live | CBOE equity put/call ratio (A2) |
@@ -136,6 +136,7 @@ These flags had zero code references and were removed from config.json:
 | `use_indicator_cache` | Candidate | Reusing an indicator frame should reduce repeated score latency without changing payload semantics | OFF-path byte identity and a fresh performance measurement are required before any live flip |
 | `use_market_admission_gate` | Live | Dual-source consensus prevents a corrupt or cross-wired Yahoo row from entering canonical history | 914 tests; four-date/six-artifact OFF identity; isolated and live read-only certification; operation `c192975dd63c478a904b21c152108a1c`; 8766 strategy health OK |
 | `use_btc_spot_witness` | Live | Coinbase completed-day close should catch a corrupt Yahoo BTC row without rejecting normal cross-venue variation | `building/reports/data_quality/btc_spot_witness_off_equivalence_2026_07_14.json`; `btc_spot_witness_historical_overlap_2026_07_14.json`; 365/365 overlap, 0 days above 1%, max 0.5042%; 964 tests; live operation `b1ee0b6f3fb34f73a500661559c78356` |
+| `CFTC_TFF_ASSET_MANAGER_EQUITY_EXPOSURE` (no flag) | Offline research only | Official TFF Asset Manager/Institutional ES+NQ net/OI may preserve a manager-positioning concept without buying NAAIM; it is distinct from rejected Asset Manager+Leveraged Funds `data_cot_nq` | Exact CFTC market codes and exact release-date PIT evidence; offline event/correlation screen; if it survives, one preregistered formal gate that displaces A2 NAAIM's 2 points rather than adding A-module weight |
 
 ---
 

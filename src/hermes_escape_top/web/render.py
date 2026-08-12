@@ -745,6 +745,9 @@ def _render_due_external_source_actions(payload: Dict[str, Any]) -> str:
         freshness = str(row.get("freshness_status") or "")
         status = _external_attempt_status(row)
         evidence = canonical_evidence_issue(row)
+        retired = str(row.get("lifecycle_status") or "") == "RETIRED_PAYWALL"
+        if retired and not evidence:
+            continue
         needs_action = bool(evidence) or freshness in {"DUE_SOON", "STALE"} or status not in {"OK", "MISSING"}
         if not needs_action:
             continue
@@ -1127,6 +1130,7 @@ def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
         err = 0
         miss = 0
         retry = 0
+        retired = 0
         evidence_errors = 0
         for row in external.values():
             if not isinstance(row, dict):
@@ -1138,6 +1142,9 @@ def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
             if evidence:
                 evidence_errors += 1
                 err += 1
+            elif str(row.get("lifecycle_status") or "") == "RETIRED_PAYWALL":
+                ok += 1
+                retired += 1
             elif status == "OK":
                 ok += 1
             elif certified_canonical_is_current(row):
@@ -1150,7 +1157,8 @@ def _external_precheck_metric(payload: Dict[str, Any]) -> tuple[str, str]:
         kind = "danger" if err else ("warn" if miss or retry else "ok")
         evidence_text = f" · EVIDENCE {evidence_errors}" if evidence_errors else ""
         retry_text = f" · RETRY {retry}" if retry else ""
-        return f"OK {ok} / ERR {err} / MISS {miss}{evidence_text}{retry_text}", kind
+        retired_text = f" · RETIRED {retired}" if retired else ""
+        return f"OK {ok} / ERR {err} / MISS {miss}{evidence_text}{retry_text}{retired_text}", kind
     precheck = payload.get("external_precheck_status")
     if isinstance(precheck, dict):
         ready = bool(precheck.get("ready"))
@@ -1255,7 +1263,11 @@ def _external_daily_ledger_all_ok(payload: Dict[str, Any]) -> bool:
         if isinstance(row, dict) and row.get("active") is not False
     ]
     return bool(rows) and all(
-        _external_attempt_status(row) == "OK" and not canonical_evidence_issue(row)
+        (
+            _external_attempt_status(row) == "OK"
+            or str(row.get("lifecycle_status") or "") == "RETIRED_PAYWALL"
+        )
+        and not canonical_evidence_issue(row)
         for row in rows
     )
 
@@ -3575,6 +3587,11 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
     source_ids.extend(
         sorted(str(name) for name in external.keys() if str(name) not in EXTERNAL_SOURCE_ORDER)
     )
+    naaim_retired = str(
+        ((external.get("naaim_exposure") or {}).get("lifecycle_status"))
+        if isinstance(external.get("naaim_exposure"), dict)
+        else ""
+    ) == "RETIRED_PAYWALL"
     rows = []
     for source_id in source_ids:
         row = external.get(source_id) if isinstance(external.get(source_id), dict) else {}
@@ -3622,6 +3639,16 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
             evidence_note = f"{evidence}: {(row or {}).get('evidence_detail') or 'canonical evidence not verified'}"
         note_parts = [part for part in (freshness_note, official_note, evidence_note, publisher_note, str(note or ""), next_action) if part]
         safe_id = _external_source_dom_id(source_id)
+        retired = str((row or {}).get("lifecycle_status") or "") == "RETIRED_PAYWALL"
+        action_html = (
+            "<span class='subtle'>周五自动探测</span>"
+            if retired
+            else (
+                f"<button class='btn-muted' style='padding:3px 9px;font-size:12px;min-height:26px' "
+                f"onclick=\"refreshExternalSource('{safe_id}')\" id='external-source-{safe_id}-btn'>刷新</button>"
+                f" <span class='subtle' id='external-source-{safe_id}-status'></span>"
+            )
+        )
         rows.append(
             "<tr>"
             f"<td><b>{esc(source_id)}</b><div class='subtle'>{esc(EXTERNAL_SOURCE_LABELS.get(source_id, 'External source'))}</div>"
@@ -3630,13 +3657,18 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
             f"<td>{esc(str(latest)[:10])}</td>"
             f"<td><span class='subtle'>{esc(str(run_time))}</span></td>"
             f"<td>{esc(' · '.join(note_parts) if note_parts else '—')}</td>"
-            "<td>"
-            f"<button class='btn-muted' style='padding:3px 9px;font-size:12px;min-height:26px' "
-            f"onclick=\"refreshExternalSource('{safe_id}')\" id='external-source-{safe_id}-btn'>刷新</button>"
-            f" <span class='subtle' id='external-source-{safe_id}-status'></span>"
-            "</td>"
+            f"<td>{action_html}</td>"
             "</tr>"
         )
+    naaim_guidance = (
+        "NAAIM 公共源已付费退役：认证历史冻结，仅周五自动探测官方访问是否恢复。"
+        if naaim_retired
+        else (
+            "<code>PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external "
+            "--source naaim_exposure --import-file ~/.hermes/external_imports/naaim.xlsx</code>。"
+        )
+    )
+    import_guidance_label = "AAII" if naaim_retired else "AAII/NAAIM"
     return (
         "<div class='external-source-ops' style='margin-top:12px'>"
         "<div style='display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px'>"
@@ -3656,11 +3688,11 @@ def _render_external_source_controls(payload: Dict[str, Any]) -> str:
         f"{_render_external_import_candidates(payload)}"
         "<div class='subtle' style='margin-top:7px'>"
         "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis. "
-        "AAII/NAAIM 自动抓取失败时，只接受官方下载文件导入："
+        f"{import_guidance_label} 自动抓取失败时，只接受官方下载文件导入："
         "<code>PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source aaii_sentiment --import-file ~/.hermes/external_imports/sentiment.xls</code>"
         "；"
-        "<code>PYTHONPATH=. python3 -m hermes_escape_top.scripts.refresh_external --source naaim_exposure --import-file ~/.hermes/external_imports/naaim.xlsx</code>"
-        "。镜像源仅用于核对，不直接替代生产真值。"
+        f"{naaim_guidance}"
+        "镜像源仅用于核对，不直接替代生产真值。"
         "</div>"
         "</div>"
     )

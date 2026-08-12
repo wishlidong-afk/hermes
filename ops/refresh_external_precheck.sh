@@ -89,6 +89,7 @@ with open(path, "r", encoding="utf-8") as handle:
 ready = bool(payload.get("ready"))
 blocking = payload.get("blocking_sources") or []
 warnings = payload.get("warning_sources") or []
+lifecycle_warnings = payload.get("lifecycle_warning_sources") or []
 nonblocking_errors = payload.get("nonblocking_refresh_error_sources") or []
 blocking_errors = payload.get("blocking_refresh_error_sources") or []
 refresh = payload.get("refresh") or {}
@@ -121,6 +122,9 @@ for name in source_names:
     freshness = s.get("freshness_status")
     if freshness and freshness != status:
         status = f"{status}/{freshness}" if status else freshness
+    lifecycle = s.get("lifecycle_status")
+    if lifecycle and lifecycle != "ACTIVE":
+        status = f"{status}/{lifecycle}" if status else lifecycle
     latest = (
         s.get("latest_promoted_as_of")
         or s.get("official_issue_as_of")
@@ -148,6 +152,7 @@ lines = [
     f"- ready: `{ready}`",
     f"- blocking_sources: `{blocking}`",
     f"- warning_sources: `{warnings}`",
+    f"- lifecycle_warning_sources: `{lifecycle_warnings}`",
     f"- nonblocking_refresh_error_sources: `{nonblocking_errors}`",
     f"- blocking_refresh_error_sources: `{blocking_errors}`",
     f"- refresh_ok: `{refresh.get('ok')}`",
@@ -161,7 +166,10 @@ lines.extend(rows or ["| _none_ |  |  |  |  |"])
 lines.append("")
 md_path.write_text("\n".join(lines), encoding="utf-8")
 
-print(f"[external-precheck] ready={ready} blocking={blocking} warnings={warnings}")
+print(
+    f"[external-precheck] ready={ready} blocking={blocking} "
+    f"warnings={warnings} lifecycle={lifecycle_warnings}"
+)
 raise SystemExit(0 if ready else 3)
 PY
   rc=$?

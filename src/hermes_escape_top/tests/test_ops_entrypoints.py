@@ -399,6 +399,7 @@ def test_external_precheck_writes_latest_and_dated_reports():
     assert "publish_copy" in script
     assert "# External Precheck" in script
     assert "nonblocking_refresh_error_sources" in script
+    assert "lifecycle_warning_sources" in script
     assert "HERMES_EXTERNAL_PRECHECK_MODE" in script
     assert "--retry-needed" in script
 
@@ -423,6 +424,7 @@ def test_external_precheck_markdown_includes_top_level_source_status(tmp_path):
         "    'ready': True,\n"
         "    'blocking_sources': [],\n"
         "    'warning_sources': ['dollar'],\n"
+        "    'lifecycle_warning_sources': ['naaim_exposure'],\n"
         "    'nonblocking_refresh_error_sources': [],\n"
         "    'blocking_refresh_error_sources': [],\n"
         "    'refresh': {'ok': True, 'ok_count': 1, 'error_count': 0, 'runs': []},\n"
@@ -432,7 +434,14 @@ def test_external_precheck_markdown_includes_top_level_source_status(tmp_path):
         "            'freshness_status': 'WARN',\n"
         "            'latest_promoted_as_of': '2026-07-02',\n"
         "            'next_action': 'run refresh_external --source dollar',\n"
-        "        }\n"
+        "        },\n"
+        "        'naaim_exposure': {\n"
+        "            'status': 'OK',\n"
+        "            'freshness_status': 'STALE',\n"
+        "            'lifecycle_status': 'RETIRED_PAYWALL',\n"
+        "            'latest_promoted_as_of': '2026-07-29',\n"
+        "            'next_action': 'certified history frozen; weekly probe only',\n"
+        "        },\n"
         "    },\n"
         "}))\n",
         encoding="utf-8",
@@ -451,6 +460,8 @@ def test_external_precheck_markdown_includes_top_level_source_status(tmp_path):
     assert report.exists()
     text = report.read_text(encoding="utf-8")
     assert "| dollar | OK/WARN | 2026-07-02 | run refresh_external --source dollar |" in text
+    assert "lifecycle_warning_sources: `['naaim_exposure']`" in text
+    assert "| naaim_exposure | OK/STALE/RETIRED_PAYWALL | 2026-07-29 | certified history frozen; weekly probe only |" in text
 
 
 def test_external_precheck_keeps_two_same_day_runs_immutable(tmp_path):

@@ -621,6 +621,7 @@ def _external_source_migration_observation(
     }
     issues: list[str] = []
     observing = False
+    retired_sources: list[str] = []
     result_sources: Dict[str, Dict[str, Any]] = {}
     for source_id, automatic_channels in expected.items():
         raw = source_rows.get(source_id)
@@ -630,6 +631,8 @@ def _external_source_migration_observation(
         channel = str(raw.get("latest_source_channel") or raw.get("source_channel") or "")
         migration_status = str(raw.get("migration_status") or "MISSING")
         readiness = str(raw.get("migration_readiness") or "MISSING")
+        lifecycle_status = str(raw.get("lifecycle_status") or "ACTIVE")
+        retired = lifecycle_status == "RETIRED_PAYWALL"
         automated = channel in automatic_channels
         source_issues: list[str] = []
         if str(raw.get("status") or "") != "OK":
@@ -638,12 +641,14 @@ def _external_source_migration_observation(
             source_issues.append(
                 f"evidence={raw.get('evidence_status') or 'MISSING'}"
             )
-        if str(raw.get("freshness_status") or "") not in {"OK", "DUE_SOON"}:
+        if not retired and str(raw.get("freshness_status") or "") not in {"OK", "DUE_SOON"}:
             source_issues.append(
                 f"freshness={raw.get('freshness_status') or 'MISSING'}"
             )
         finished_at = _parse_timestamp(raw.get("finished_at") or raw.get("last_success_at"))
-        if finished_at is None or _local_datetime(finished_at).date() != observed_day:
+        if not retired and (
+            finished_at is None or _local_datetime(finished_at).date() != observed_day
+        ):
             source_issues.append(
                 f"precheck_date={_local_datetime(finished_at).date() if finished_at else 'MISSING'}"
             )
@@ -654,10 +659,15 @@ def _external_source_migration_observation(
         fingerprint = str(raw.get("official_file_sha256") or "")
         if len(fingerprint) != 64 or any(ch not in "0123456789abcdef" for ch in fingerprint.lower()):
             source_issues.append("official_file_sha256 invalid")
-        if not automated:
+        if not automated and not retired:
             source_issues.append(f"manual/non-automatic channel={channel or 'MISSING'}")
         if migration_status == "ACTION_REQUIRED":
             source_issues.append("migration=ACTION_REQUIRED")
+        if retired:
+            if migration_status != "RETIRED_PAYWALL":
+                source_issues.append(f"retired lifecycle has migration={migration_status}")
+            else:
+                retired_sources.append(source_id)
 
         deadline = str(raw.get("migration_deadline") or "")[:10]
         if source_id == "naaim_exposure" and migration_status == "MIGRATION_DUE":
@@ -680,6 +690,8 @@ def _external_source_migration_observation(
             "source_channel": channel,
             "migration_status": migration_status,
             "migration_readiness": readiness,
+            "lifecycle_status": lifecycle_status,
+            "retired": retired,
             "official_issue_as_of": str(raw.get("official_issue_as_of") or "")[:10],
             "official_file_sha256": fingerprint,
         }
@@ -692,6 +704,12 @@ def _external_source_migration_observation(
         detail = (
             "AAII automatic official channel certified; NAAIM automatic public workbook "
             "is under pre-deadline observation"
+        )
+    elif retired_sources:
+        status = "PASS"
+        detail = (
+            "AAII automatic official channel is certified; NAAIM public source is "
+            "retired behind paywall with frozen certified history and a weekly probe"
         )
     else:
         status = "PASS"

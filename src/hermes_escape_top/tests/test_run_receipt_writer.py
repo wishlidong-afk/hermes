@@ -370,6 +370,34 @@ def test_system_health_audit_warns_on_latest_external_attempt_failure():
     assert readiness["status"] == "WARN"
 
 
+def test_system_health_audit_accepts_retired_source_with_frozen_matching_history():
+    payload = {
+        "external_source_status": {
+            "naaim_exposure": {
+                "source_id": "naaim_exposure",
+                "status": "OK",
+                "freshness_status": "STALE",
+                "evidence_status": "MATCH",
+                "lifecycle_status": "RETIRED_PAYWALL",
+                "latest_attempt_status": "FETCH_ERROR",
+                "latest_attempt_error_message": "public workbook unavailable",
+            }
+        }
+    }
+    report = {
+        "health": {"layers": {}},
+        "manifest_status": {},
+        "run_receipt": {},
+    }
+
+    dimensions = rdp._build_system_health_audit_dimensions(payload, report)
+
+    runner = next(row for row in dimensions if row["id"] == "external_source_runs")
+    readiness = next(row for row in dimensions if row["id"] == "external_precheck_readiness")
+    assert runner["status"] == "PASS"
+    assert readiness["status"] == "PASS"
+
+
 def test_system_health_report_uses_shared_release_reports(monkeypatch, tmp_path):
     release = tmp_path / "releases" / "abc123_20260703"
     package_data = release / "hermes_escape_top"

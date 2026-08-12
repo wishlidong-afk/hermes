@@ -38,6 +38,10 @@ class ExternalSourceProfile:
     depends_on: str | None = None
     expected_release_weekdays: tuple[int, ...] = ()
     expected_advance_grace_days: int = 1
+    lifecycle_policy: str = "ACTIVE"
+    lifecycle_effective_date: str | None = None
+    lifecycle_reason: str = ""
+    probe_weekdays: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
         if self.decision_role not in DECISION_ROLES:
@@ -53,6 +57,7 @@ class ExternalSourceProfile:
         payload = asdict(self)
         payload["import_globs"] = list(self.import_globs)
         payload["expected_release_weekdays"] = list(self.expected_release_weekdays)
+        payload["probe_weekdays"] = list(self.probe_weekdays)
         payload["grace_days"] = self.grace_days
         return payload
 
@@ -194,6 +199,13 @@ PROFILES: dict[str, ExternalSourceProfile] = {
         migration_deadline="2026-08-01",
         publication_schedule="weekly NAAIM issue, normally Wednesday US time",
         expected_release_weekdays=(3,),
+        lifecycle_policy="RETIRED_PAYWALL",
+        lifecycle_effective_date="2026-08-01",
+        lifecycle_reason=(
+            "NAAIM retired current public workbook access behind a paid subscription; "
+            "certified history remains frozen"
+        ),
+        probe_weekdays=(4,),
         refresh_order=45,
         import_globs=(
             "~/.hermes/external_imports/*naaim*.xlsx",
@@ -493,6 +505,7 @@ def enrich_source_status(
     out["failure_kind"] = _failure_kind(row)
     out["official_artifact_ready"] = bool(official_artifact_ready)
     out["migration_readiness"] = _migration_readiness(out, profile)
+    out["lifecycle_status"] = _lifecycle_status(out, profile, day)
     out["migration_status"] = _migration_status(
         out,
         profile,
@@ -579,8 +592,10 @@ def _migration_status(
         readiness = str(row.get("migration_readiness") or "")
         if readiness == "AUTOMATIC_PRIMARY":
             return "SUBSCRIBER_READY"
-        if today <= deadline:
+        if today < deadline:
             return "MIGRATION_DUE"
+        if str(row.get("lifecycle_status") or "") == "RETIRED_PAYWALL":
+            return "RETIRED_PAYWALL"
         checked = _date_from_timestamp(row.get("finished_at") or row.get("latest_finished_at"))
         if readiness == "AUTOMATIC_PUBLIC" and checked is not None and checked > deadline:
             return "PUBLIC_OFFICIAL_STABLE"
@@ -592,6 +607,33 @@ def _migration_status(
             return "ACTION_REQUIRED"
         return "MONITORED"
     return "STABLE"
+
+
+def _lifecycle_status(
+    row: dict[str, Any],
+    profile: ExternalSourceProfile,
+    today: date,
+) -> str:
+    if profile.lifecycle_policy != "RETIRED_PAYWALL":
+        return "ACTIVE"
+    try:
+        effective = date.fromisoformat(str(profile.lifecycle_effective_date or ""))
+    except ValueError:
+        effective = today
+    if today < effective:
+        return "ACTIVE"
+    readiness = str(row.get("migration_readiness") or "")
+    if readiness == "AUTOMATIC_PRIMARY":
+        return "ACTIVE_SUBSCRIBER"
+    checked = _date_from_timestamp(row.get("finished_at") or row.get("latest_finished_at"))
+    if (
+        readiness == "AUTOMATIC_PUBLIC"
+        and checked is not None
+        and checked > effective
+        and str(row.get("freshness_status") or "") in {"OK", "DUE_SOON"}
+    ):
+        return "ACTIVE_PUBLIC"
+    return "RETIRED_PAYWALL"
 
 
 def _migration_readiness(
@@ -631,6 +673,8 @@ def _next_action(row: dict[str, Any], profile: ExternalSourceProfile) -> str:
         return "download the current official sentiment file and import it through ExternalSourceRunner"
     if migration == "ACTION_REQUIRED" and source_id == "naaim_exposure":
         return "NAAIM migration deadline passed; verify official workbook access and import the current issue"
+    if migration == "RETIRED_PAYWALL" and source_id == "naaim_exposure":
+        return "NAAIM public feed retired behind paywall; certified history frozen; weekly official-access probe only"
     if migration == "SUBSCRIBER_READY":
         return "NAAIM subscriber workbook is certified; monitor weekly automatic refresh"
     if migration == "PUBLIC_OFFICIAL_STABLE":

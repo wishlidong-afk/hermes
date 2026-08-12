@@ -246,6 +246,112 @@ def test_latest_external_attempt_failure_still_degrades_when_canonical_is_stale(
     )
 
 
+def test_retired_naaim_is_informational_and_does_not_degrade_strategy_health():
+    payload = _payload()
+    payload["data_quality_breakdown"] = {
+        "sources": [
+            {
+                "name": "naaim",
+                "status": "MISSING",
+                "reason": "stale 14d exceeds max_age_days=13",
+            }
+        ]
+    }
+    payload["external_source_status"] = {
+        "naaim_exposure": {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "freshness_status": "STALE",
+            "evidence_status": "MATCH",
+            "lifecycle_status": "RETIRED_PAYWALL",
+            "lifecycle_reason": "public workbook retired behind paid subscription",
+            "age_days": 14,
+        }
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "OK"
+    assert health["layers"]["strategy_data"]["level"] == "OK"
+    assert any(
+        check["level"] == "INFO"
+        and check["label"] == "外部数据源已付费退役"
+        and "naaim_exposure" in check["detail"]
+        for check in health["checks"]
+    )
+    assert not any(check["label"] == "软数据源过期 1" for check in health["checks"])
+
+
+def test_retired_naaim_evidence_drift_remains_strategy_critical():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "naaim_exposure": {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "freshness_status": "STALE",
+            "evidence_status": "EVIDENCE_DRIFT",
+            "evidence_detail": "canonical sha256 mismatch",
+            "lifecycle_status": "RETIRED_PAYWALL",
+        }
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "CRITICAL"
+    assert health["layers"]["strategy_data"]["level"] == "CRITICAL"
+    assert any(
+        check["label"] == "外部数据证据失配"
+        and "naaim_exposure" in check["detail"]
+        for check in health["checks"]
+    )
+
+
+def test_retired_naaim_old_probe_failure_is_info_not_permanent_degradation():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "naaim_exposure": {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "freshness_status": "STALE",
+            "evidence_status": "MATCH",
+            "lifecycle_status": "RETIRED_PAYWALL",
+            "lifecycle_reason": "public workbook retired behind paid subscription",
+            "latest_attempt_status": "FETCH_ERROR",
+            "latest_attempt_finished_at": "2026-06-12T06:45:00+08:00",
+        }
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "OK"
+    assert health["layers"]["operations"]["level"] == "INFO"
+    assert any(
+        check["label"] == "外部数据源已付费退役（上次探测失败）"
+        for check in health["checks"]
+    )
+
+
+def test_retired_naaim_same_day_probe_failure_degrades_operations_only():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "naaim_exposure": {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "freshness_status": "STALE",
+            "evidence_status": "MATCH",
+            "lifecycle_status": "RETIRED_PAYWALL",
+            "latest_attempt_status": "FETCH_ERROR",
+            "latest_attempt_finished_at": "2026-06-18T06:45:00+08:00",
+        }
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "OK"
+    assert health["layers"]["strategy_data"]["level"] == "OK"
+    assert health["layers"]["operations"]["level"] == "DEGRADED"
+
+
 def test_market_admission_blocked_degrades_with_quarantine_count():
     payload = _payload()
     payload["market_admission_status"] = {

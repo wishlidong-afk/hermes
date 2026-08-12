@@ -557,6 +557,51 @@ def test_external_source_migration_observation_warns_after_manual_or_expired_evi
     assert "ACTION_REQUIRED" in observation["detail"]
 
 
+def test_external_source_migration_observation_accepts_retired_naaim_history(tmp_path):
+    module = _load_module()
+    path = tmp_path / ".hermes/logs/external/external_precheck_latest.json"
+    _write_json(
+        path,
+        {
+            "sources": {
+                "aaii_sentiment": {
+                    "status": "OK",
+                    "freshness_status": "OK",
+                    "evidence_status": "MATCH",
+                    "latest_source_channel": "official_insights_rss",
+                    "migration_status": "MONITORED",
+                    "migration_readiness": "NOT_APPLICABLE",
+                    "official_issue_as_of": "2026-08-06",
+                    "official_file_sha256": "a" * 64,
+                    "finished_at": "2026-08-12T06:45:05+08:00",
+                },
+                "naaim_exposure": {
+                    "status": "OK",
+                    "freshness_status": "STALE",
+                    "evidence_status": "MATCH",
+                    "latest_source_channel": "naaim_public_workbook",
+                    "migration_status": "RETIRED_PAYWALL",
+                    "migration_readiness": "NOT_EVIDENCED",
+                    "lifecycle_status": "RETIRED_PAYWALL",
+                    "lifecycle_reason": "public workbook retired behind paid subscription",
+                    "official_issue_as_of": "2026-07-29",
+                    "official_file_sha256": "b" * 64,
+                    "finished_at": "2026-08-07T06:45:04+08:00",
+                },
+            }
+        },
+    )
+
+    observation = module._external_source_migration_observation(
+        tmp_path,
+        datetime(2026, 8, 12, 9, 5, tzinfo=ZoneInfo("Asia/Shanghai")),
+    )
+
+    assert observation["status"] == "PASS"
+    assert observation["sources"]["naaim_exposure"]["retired"] is True
+    assert "retired behind paywall" in observation["detail"]
+
+
 def test_duplicate_scheduled_run_fails_acceptance(tmp_path):
     module = _load_module()
     home, now, dashboard_health = _acceptance_fixture(tmp_path)

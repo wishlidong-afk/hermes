@@ -935,6 +935,47 @@ def test_external_source_controls_render_official_import_candidates():
     assert "/Users/liweishi/.hermes/external_imports/sentiment.xls" in html
 
 
+def test_retired_naaim_renders_frozen_history_and_weekly_probe_without_manual_prompt():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "naaim_exposure": {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "freshness_status": "STALE",
+            "evidence_status": "MATCH",
+            "migration_status": "RETIRED_PAYWALL",
+            "lifecycle_status": "RETIRED_PAYWALL",
+            "lifecycle_reason": "public workbook retired behind paid subscription",
+            "latest_promoted_as_of": "2026-07-29",
+            "latest_attempt_status": "FETCH_ERROR",
+            "latest_attempt_error_message": "public workbook unavailable",
+            "next_action": (
+                "NAAIM public feed retired behind paywall; certified history frozen; "
+                "weekly official-access probe only"
+            ),
+        }
+    }
+
+    html = render_mod.render_dashboard(
+        payload,
+        health={"level": "OK"},
+        manifest_status={"status": "OK"},
+    )
+
+    assert "RETIRED_PAYWALL" in html
+    assert "certified history frozen" in html
+    assert "周五自动探测" in html
+    assert "refreshExternalSource('naaim_exposure')" not in html
+    assert "--source naaim_exposure --import-file" not in html
+    assert "AAII 自动抓取失败时" in html
+    assert "AAII/NAAIM 自动抓取失败时" not in html
+    assert render_mod._external_precheck_metric(payload) == (
+        "OK 1 / ERR 0 / MISS 0 · RETIRED 1",
+        "ok",
+    )
+    assert render_mod._external_daily_ledger_all_ok(payload) is True
+
+
 def test_missing_external_source_ledger_does_not_mark_existing_data_missing():
     payload = _payload()
     payload["soft_data"]["records"]["dollar"] = {

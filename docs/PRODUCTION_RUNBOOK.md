@@ -4,7 +4,7 @@
 
 ## 1. 正常运行（全自动）
 
-- **06:45 CST** `com.hermes.external-precheck` 全量刷新并验收外部源；**07:05 CST** 同一任务只重试当天失败或 canonical 证据未就绪的源。两次都只写 source ledger 与已验证的 soft_history，不评分、不写官方 run。07:10 daily 若看到完整的当天预检证据会直接复用，避免对 FRED/NAAIM/AAII 连续重复请求。`ready=false` 时弹通知并返回非 0。`external_precheck_latest.{json,md}` 与 `external_precheck_<date>.{json,md}` 是原子更新的兼容视图；每次运行另保留不可变的 `external_precheck_<date>_<timestamp>_<mode>_<pid>.{json,md}`，06:45 与 07:05 不互相覆盖。
+- **06:45 CST** `com.hermes.external-precheck` 全量刷新并验收外部源；**07:05 CST** 同一任务只重试当天失败或 canonical 证据未就绪的源。两次都只写 source ledger 与已验证的 soft_history，不评分、不写官方 run。07:10 daily 若看到完整的当天预检证据会直接复用，避免对 FRED/AAII 连续重复请求。NAAIM 自 2026-08-01 标记为 `RETIRED_PAYWALL`，仅在周五上海时间做一次官方访问探测，非探测日不请求，也不迫使 07:10 补跑第三次。`ready=false` 时弹通知并返回非 0。`external_precheck_latest.{json,md}` 与 `external_precheck_<date>.{json,md}` 是原子更新的兼容视图；每次运行另保留不可变的 `external_precheck_<date>_<timestamp>_<mode>_<pid>.{json,md}`，06:45 与 07:05 不互相覆盖。
 - **每个自然日 07:10 CST** `com.hermes.daily`（launchd `StartCalendarInterval` 无 `Weekday` 过滤，包含周末/休市日）→ `~/.hermes/bin/run_daily.sh` → live `scripts/run_daily.py` → `python -m hermes_escape_top.scripts.run_daily_package --live --commit-state`。日志：`~/.hermes/logs/daily/daily_<date>.log`。Health 对 OK 回执的 26 小时阈值依赖这个日历日调度事实，与行情的交易日陈旧规则分开。
 - daily 的 M4-1a 优先复用当天 06:45/07:05 的完整 ledger 证据；只有当天证据不完整时才补跑全量 ExternalSourceRunner。runner 当前统一管理 FRED、CBOE PCR、CFTC COT、OCC PCR、BTC funding、NAAIM、AAII；AAII 结果页被 Imperva 阻断或结构变化时会转用 AAII 官方 Insights RSS，RSS 也失败后才尝试未被 ledger 消费过的官方下载文件。AAII/NAAIM 文件先按 SHA-256 进入 `external_import_queue/<source>/{inbox,processed,rejected}`，原始 Downloads 文件不移动，同内容不重复处理。每次 run 的 raw/normalized 路径与 `external_sources/blobs/sha256/` 认证 blob 是不同 inode 的只读副本；篡改单次副本不会污染 blob 或其它 run。失败不 abort official run，但会写 ledger 并在 8766 health 暴露；评分只使用已验证/已存在的 canonical 缓存。
 - scheduled run 结束并写入 OK receipt 后，会落盘 `reports/system_health_<as_of>.json` 与 `.md`：这是运行健康审计快照，区分策略数据、持仓对账、辅助资金流三层；它不是交易指令，交易仍以 official dashboard/daily_report 为准。
@@ -20,13 +20,13 @@
 - preflight 出现 `STALE` 或 watchdog 报警：先手动 `bash ~/.hermes/bin/run_daily.sh`，看 M4-1b 四个刷新步骤哪个 WARNING。
 - 外部源统一刷新+验收：`~/.hermes/bin/refresh_external.sh --pre-daily-check`。只看 ledger：`~/.hermes/bin/refresh_external.sh --status`。单源刷新：`~/.hermes/bin/refresh_external.sh --source {dollar|real_rate|fred_net_liquidity|cboe_equity_pcr|cot_nq|occ_equity_pcr|btc_funding_basis|naaim_exposure|aaii_sentiment}`。该稳定入口按 live `RUNTIME_LOCK_SHA256` 选择 managed Python，不使用 shell 的 ambient `python3`。`--all` 默认会在 AAII/NAAIM 自动抓取失败后尝试尚未被 ledger 消费过的官方下载文件；同一文件哈希不会反复导入。
 - AAII 403/Imperva：runner 会自动尝试 AAII 官方 `https://insights.aaii.com/feed`，从每周 Sentiment Survey 正文解析同一组 Bullish/Neutral/Bearish 数值，并在 raw/ledger 记录 RSS URL、XML SHA-256 和实际 artifact `pubDate`；RSS 路径以该 `pubDate` 作为 PIT 可用日，不回填到更早的周四。这是官方自动化 fallback，不是第三方镜像。只有结果页与 RSS 都失败时，才运行 `~/.hermes/bin/refresh_external.sh --source aaii_sentiment --open-official-download`。若浏览器无法自动下载，则用已登录浏览器下载官方 `sentiment.xls`，复制到 `~/.hermes/external_imports/`，再执行 `~/.hermes/bin/refresh_external.sh --source aaii_sentiment --import-file ~/.hermes/external_imports/sentiment.xls`。
-- NAAIM 官网 XLSX 发现失败或 2026-08-01 后订阅化：自动抓取仍首选官方 XLSX；失败时可打开官方页等待 workbook 落盘并导入：`~/.hermes/bin/refresh_external.sh --source naaim_exposure --open-official-download`。若需手工下载订阅 workbook，则放入 `~/.hermes/external_imports/` 并执行 `~/.hermes/bin/refresh_external.sh --source naaim_exposure --import-file ~/.hermes/external_imports/naaim.xlsx`。镜像源（如 YCharts/MacroMicro）只用于核对，不直接替代生产真值。
-- 可靠性字段：`--status` 与 8766 展示按 Asia/Shanghai 自然日去重的 `success_rate_30d/90d`、样本数、连续失败、最近成功/恢复，并分开统计 transport/parse/validation/promotion 四段；另显示 canonical 推进率与有确定发布日源的 expected-release 状态。同日 06:45 失败、07:05 成功只算一个成功日。`MIGRATION_DUE` 是治理提醒，不代表当前缓存不可用；`ACTION_REQUIRED` 才表示预期发布已超 SLO 且没有可导入的新官方文件。
+- NAAIM 公共 XLSX 自 2026-08-01 起付费退役：不购买时无需人工刷新。最后一份认证 canonical 与 ledger 保持冻结；超龄后评分按既有 `use_soft_data_max_age`/missing_weight 处理。周五探测失败只记运维告警，不把结构性不可用误报成 daily 故障；`EVIDENCE_DRIFT`、canonical 缺失或 ledger 绑定失效仍阻断。禁止用镜像、新闻、AAII/PCR 或推算值回填 NAAIM。未来只有实际配置且验证通过的官方订阅通道才能恢复 `ACTIVE_SUBSCRIBER`。
+- 可靠性字段：`--status` 与 8766 展示按 Asia/Shanghai 自然日去重的 `success_rate_30d/90d`、样本数、连续失败、最近成功/恢复，并分开统计 transport/parse/validation/promotion 四段；另显示 canonical 推进率与有确定发布日源的 expected-release 状态。同日 06:45 失败、07:05 成功只算一个成功日。`MIGRATION_DUE` 是治理提醒；`ACTION_REQUIRED` 是仍应可获取的官方源需要人工处置；`RETIRED_PAYWALL` 表示历史冻结、周频探测、无需购买或日常干预。
 - FRED PIT 取证：生产路径保留 observations API 查询的 `realtime_start/realtime_end`、`fetched_at`、source URL 和 `observation_date + 1 day` 规则；这些 legacy realtime 字段只是查询 vintage。ALFRED `output_type=3` 事件库与真实逐事件 `realtime_start` 回放已实现为独立的 `*_vintage.csv` canonical/ledger，但 `fred-vintage-pit-v1` 正式 gate 已拒绝，`use_fred_vintage_pit` 必须保持 OFF，不得把 exact 文件用于生产评分。父事件库失败时三个派生源保留上一份认证文件，OFF 直接读未改动 legacy 文件。This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.
 - 行情 shadow witness：Alpaca SIP 只与 Yahoo/local canonical 比较最近日线 OHLCV，产物在 `data/archive/market_witness_*.json`。`MATCH` 是辅助取证，`NO_WITNESS/FETCH_ERROR` 不自动替换 canonical，也不改评分或 `input_hash`。
-- 许可边界：AAII/NAAIM 不以未授权镜像、抓取绕过或推算值替代官方真值。AAII Insights RSS 属 AAII 官方公开发布面；浏览器会话、会员下载或 NAAIM 订阅续期仍需人工维护。自动化只负责读取获准的官方发布面、记录 SHA-256、校验期号/字段/PIT 日期并晋升 canonical。
+- 许可边界：AAII/NAAIM 不以未授权镜像、抓取绕过或推算值替代官方真值。AAII Insights RSS 属 AAII 官方公开发布面；NAAIM 未购买订阅时保持 `RETIRED_PAYWALL`，不维护会员会话。自动化只负责读取获准的官方发布面、记录 SHA-256、校验期号/字段/PIT 日期并晋升 canonical。
 - 旧 `backfill_soft_data --only {naaim|aaii}` 只作为兼容路由，生产刷新以 ExternalSourceRunner ledger 为准。CNN F&G 回填是 feature-OFF 的研究入口，也必须经 Runner 晋升，不能直接写 canonical。
-- 缺数据≠安全：`use_soft_data_max_age` 翻闸后超龄源自动走 missing_weight（当前 OFF，翻闸见 §6）。
+- 缺数据≠安全：`use_soft_data_max_age` 当前已 ON，超龄源自动走 missing_weight；回滚仪式见 §6。
 
 ## 3. Suspect valve PENDING
 
@@ -47,7 +47,7 @@
 ## 6. Flag 翻闸（人工门，固定仪式）
 
 1. byte-identical（OFF）证明 + gate/no-op 证据齐备；2. FLAG_REGISTRY 写卡（假设/证据/回滚）；3. 改 repo config → `scripts/deploy_to_live.sh` 走 config diff y/n；4. 次日对比 post-run diff 确认行为符合预期。
-- **回滚**：flag → false（config 同步 live），一律一步可逆。当前待翻闸：`use_soft_data_max_age`、`use_full_confidence_spine`（均需先跑一次全窗口 no-op 确认）。
+- **回滚**：flag → false（config 同步 live），一律一步可逆。`use_soft_data_max_age` 与 `use_full_confidence_spine` 当前均已 live；任何后续 flag 仍须先完成本节证据链。
 
 ## 7. 部署 repo → live
 

@@ -50,6 +50,9 @@ def test_naaim_profile_declares_subscription_migration_deadline():
     assert profile.automation_mode == "subscriber_or_official_file"
     assert profile.migration_deadline == "2026-08-01"
     assert profile.pit_rule == "issue_date_plus_one_day"
+    assert profile.lifecycle_policy == "RETIRED_PAYWALL"
+    assert profile.lifecycle_effective_date == "2026-08-01"
+    assert profile.probe_weekdays == (4,)
 
 
 def test_profile_default_slo_comes_from_config_default():
@@ -140,7 +143,70 @@ def test_naaim_status_marks_subscription_migration_due_before_deadline():
     )
 
     assert row["migration_status"] == "MIGRATION_DUE"
+    assert row["lifecycle_status"] == "ACTIVE"
     assert row["migration_deadline"] == "2026-08-01"
+
+
+def test_naaim_status_retires_stale_public_channel_after_paywall_deadline():
+    profile = _effective_source_profile({}, "naaim_exposure")
+
+    row = profiles.enrich_source_status(
+        {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-07-29",
+            "latest_source_channel": "naaim_public_workbook",
+            "finished_at": "2026-08-12T22:45:00+00:00",
+            "evidence_status": "MATCH",
+        },
+        today=date(2026, 8, 14),
+        profile=profile,
+    )
+
+    assert row["freshness_status"] == "STALE"
+    assert row["lifecycle_status"] == "RETIRED_PAYWALL"
+    assert row["migration_status"] == "RETIRED_PAYWALL"
+    assert row["probe_weekdays"] == [4]
+    assert "certified history frozen" in row["next_action"]
+
+
+def test_naaim_retirement_is_effective_on_2026_08_01():
+    row = profiles.enrich_source_status(
+        {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-07-01",
+            "latest_source_channel": "naaim_public_workbook",
+            "finished_at": "2026-07-31T22:45:00+00:00",
+            "evidence_status": "MATCH",
+        },
+        today=date(2026, 8, 1),
+        profile=_effective_source_profile({}, "naaim_exposure"),
+    )
+
+    assert row["lifecycle_status"] == "RETIRED_PAYWALL"
+    assert row["migration_status"] == "RETIRED_PAYWALL"
+
+
+def test_naaim_verified_subscriber_supersedes_retired_public_channel():
+    profile = _effective_source_profile({}, "naaim_exposure")
+
+    row = profiles.enrich_source_status(
+        {
+            "source_id": "naaim_exposure",
+            "status": "OK",
+            "latest_promoted_as_of": "2026-08-12",
+            "latest_source_channel": "naaim_subscriber",
+            "finished_at": "2026-08-13T22:45:00+00:00",
+            "evidence_status": "MATCH",
+        },
+        today=date(2026, 8, 14),
+        profile=profile,
+    )
+
+    assert row["freshness_status"] == "OK"
+    assert row["lifecycle_status"] == "ACTIVE_SUBSCRIBER"
+    assert row["migration_status"] == "SUBSCRIBER_READY"
 
 
 def test_aaii_requires_action_only_when_overdue_without_official_artifact():
