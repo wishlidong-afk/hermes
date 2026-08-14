@@ -179,6 +179,7 @@ def dollar_source(config: dict[str, Any]):
         field="dollar_broad",
         config=config,
         publisher_release_ids=profile_for("dollar").publisher_release_ids,
+        seed_path=target,
     )
     return spec, adapter
 

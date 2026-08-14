@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 from html.parser import HTMLParser
 import hashlib
 import json
@@ -173,6 +174,7 @@ def fred_percentile_spec(
 
 @dataclass(frozen=True)
 class FredBoardH10PercentileAdapter(FredPercentileAdapter):
+    seed_path: Path | None = None
     witness_url: str = "https://www.federalreserve.gov/releases/h10/summary/jrxwtfb_nb.htm"
     fetch_text: FetchText = lambda url: _fetch_text(url)
 
@@ -195,6 +197,8 @@ class FredBoardH10PercentileAdapter(FredPercentileAdapter):
         frame = super().parse(raw)
         if isinstance(raw, dict):
             frame.attrs["board_h10_witness"] = dict(raw.get("board_h10_witness") or {})
+        if self.seed_path is not None:
+            frame = _reconcile_federal_reserve_h10_history(self.seed_path, frame)
         return frame
 
 
@@ -225,6 +229,19 @@ def parse_federal_reserve_h10_broad(html: str) -> dict[str, Any]:
 
 
 def validate_federal_reserve_h10_witness(frame: pd.DataFrame) -> str | None:
+    revision = frame.attrs.get("history_revision")
+    if isinstance(revision, dict) and revision.get("status") == "BLOCKED":
+        reason = str(revision.get("reason") or "").strip()
+        if reason:
+            return reason
+    quarantined_dates = {
+        str(value)
+        for value in (
+            revision.get("changed_dates")
+            if isinstance(revision, dict)
+            else []
+        )
+    }
     witness = dict(frame.attrs.get("board_h10_witness") or {})
     rows = pd.DataFrame(witness.get("rows") or [])
     if rows.empty or not {"date", "value"}.issubset(rows.columns):
@@ -249,12 +266,247 @@ def validate_federal_reserve_h10_witness(frame: pd.DataFrame) -> str | None:
     if comparison.empty:
         return "Federal Reserve H.10 witness has no overlapping observations"
     for row in comparison.itertuples(index=False):
-        if abs(float(row.dollar_broad) - float(row.value)) > 0.0001:
+        if str(row.date) in quarantined_dates:
+            continue
+        if not _same_four_decimal_value(row.dollar_broad, row.value):
             return (
                 f"Federal Reserve H.10 witness mismatch {row.date}: "
                 f"FRED={float(row.dollar_broad):.4f} H10={float(row.value):.4f}"
             )
     return None
+
+
+def _reconcile_federal_reserve_h10_history(
+    target_path: Path,
+    frame: pd.DataFrame,
+) -> pd.DataFrame:
+    incoming = frame.copy()
+    incoming.attrs = dict(frame.attrs)
+    evidence: dict[str, Any] = {
+        "schema_version": "hermes-dollar-history-revision-v1",
+        "policy": "PRESERVE_CERTIFIED_FRED_APPEND_EXACT_H10_TAIL",
+        "status": "NONE",
+        "reason": None,
+        "changed_dates": [],
+        "changed_cells": [],
+        "appended_dates": [],
+        "canonical_rows_preserved": False,
+    }
+    if not target_path.exists():
+        return _with_fred_revision_evidence(incoming, evidence)
+    try:
+        existing = pd.read_csv(target_path)
+    except (OSError, pd.errors.ParserError) as exc:
+        evidence.update(
+            status="BLOCKED",
+            reason=f"history continuity: existing Dollar canonical cannot be read: {exc}",
+        )
+        return _with_fred_revision_evidence(incoming, evidence)
+    required = {"date", "dollar_broad"}
+    if not required.issubset(existing.columns) or not required.issubset(incoming.columns):
+        evidence.update(
+            status="BLOCKED",
+            reason="history continuity: Dollar canonical or incoming frame is missing date/dollar_broad",
+        )
+        return _with_fred_revision_evidence(incoming, evidence)
+
+    existing = existing.copy()
+    incoming = incoming.copy()
+    incoming.attrs = dict(frame.attrs)
+    existing["_day"] = pd.to_datetime(existing["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+    incoming["_day"] = pd.to_datetime(incoming["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+    if existing["_day"].isna().any() or incoming["_day"].isna().any():
+        evidence.update(
+            status="BLOCKED",
+            reason="history continuity: Dollar canonical or incoming frame has unparseable dates",
+        )
+        return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+    if existing["_day"].duplicated().any() or incoming["_day"].duplicated().any():
+        evidence.update(
+            status="BLOCKED",
+            reason="history continuity: Dollar canonical or incoming frame has duplicate dates",
+        )
+        return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+
+    existing_days = set(existing["_day"])
+    incoming_days = set(incoming["_day"])
+    missing = sorted(existing_days - incoming_days)
+    if missing:
+        evidence.update(
+            status="BLOCKED",
+            reason=f"history continuity: missing certified FRED dates ({', '.join(missing[:5])})",
+        )
+        return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+
+    latest_existing = max(existing_days)
+    historical_additions = sorted(
+        day for day in incoming_days - existing_days if day <= latest_existing
+    )
+    if historical_additions:
+        evidence.update(
+            status="BLOCKED",
+            reason=(
+                "history continuity: unreviewed historical FRED additions "
+                f"({', '.join(historical_additions[:5])})"
+            ),
+        )
+        return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+
+    common = existing[["_day", "dollar_broad"]].merge(
+        incoming[["_day", "dollar_broad"]],
+        on="_day",
+        suffixes=("_canonical", "_incoming"),
+    )
+    canonical_values = pd.to_numeric(common["dollar_broad_canonical"], errors="coerce")
+    incoming_values = pd.to_numeric(common["dollar_broad_incoming"], errors="coerce")
+    primary_mismatch = canonical_values.isna() != incoming_values.isna()
+    primary_mismatch |= (canonical_values - incoming_values).abs().fillna(0.0) > 1e-9
+    if primary_mismatch.any():
+        changed_day = str(common.loc[primary_mismatch, "_day"].iloc[0])
+        evidence.update(
+            status="BLOCKED",
+            reason=f"history continuity: changed certified FRED row {changed_day}",
+        )
+        return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+
+    witness = pd.DataFrame(
+        (incoming.attrs.get("board_h10_witness") or {}).get("rows") or []
+    )
+    if witness.empty or not {"date", "value"}.issubset(witness.columns):
+        evidence.update(
+            status="BLOCKED",
+            reason="Federal Reserve H.10 witness unavailable",
+        )
+        return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+    witness["_day"] = pd.to_datetime(witness["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+    witness["value"] = pd.to_numeric(witness["value"], errors="coerce")
+    witness = witness.dropna(subset=["_day", "value"]).drop_duplicates("_day", keep="last")
+    if witness.empty:
+        evidence.update(status="BLOCKED", reason="Federal Reserve H.10 witness unavailable")
+        return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+
+    witnessed_overlap = incoming[["_day", "dollar_broad"]].merge(
+        witness[["_day", "value"]],
+        on="_day",
+        how="inner",
+    )
+    changed_cells: list[dict[str, Any]] = []
+    for day, fred_value, witness_value in witnessed_overlap.itertuples(
+        index=False,
+        name=None,
+    ):
+        if _same_four_decimal_value(fred_value, witness_value):
+            continue
+        if str(day) < latest_existing:
+            changed_cells.append(
+                {
+                    "date": str(day),
+                    "column": "dollar_broad",
+                    "certified_fred": float(fred_value),
+                    "board_h10": float(witness_value),
+                }
+            )
+
+    evidence["changed_cells"] = changed_cells
+    evidence["changed_dates"] = sorted({str(cell["date"]) for cell in changed_cells})
+    evidence["canonical_rows_preserved"] = True
+    if changed_cells:
+        evidence["status"] = "QUARANTINED"
+
+    latest_incoming = max(incoming_days)
+    latest_witness = str(witness["_day"].max())
+    if latest_incoming != latest_witness:
+        evidence.update(
+            status="BLOCKED",
+            reason=(
+                "Federal Reserve H.10 witness latest date mismatch: "
+                f"FRED={latest_incoming} H10={latest_witness}"
+            ),
+        )
+        return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+
+    witness_by_day = witness.set_index("_day")["value"]
+    new_dates = sorted(incoming_days - existing_days)
+    evidence["appended_dates"] = new_dates
+    incoming_by_day = incoming.set_index("_day")
+    for day in new_dates:
+        if day not in witness_by_day:
+            evidence.update(
+                status="BLOCKED",
+                reason=f"new tail witness missing {day}",
+            )
+            return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+        fred_value = float(incoming_by_day.loc[day, "dollar_broad"])
+        witness_value = float(witness_by_day.loc[day])
+        if not _same_four_decimal_value(fred_value, witness_value):
+            evidence.update(
+                status="BLOCKED",
+                reason=(
+                    f"new tail witness mismatch {day}: "
+                    f"FRED={fred_value:.4f} H10={witness_value:.4f}"
+                ),
+            )
+            return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+
+    for day, fred_value, witness_value in witnessed_overlap.itertuples(
+        index=False,
+        name=None,
+    ):
+        if str(day) != latest_existing or _same_four_decimal_value(
+            fred_value,
+            witness_value,
+        ):
+            continue
+        evidence.update(
+            status="BLOCKED",
+            reason=(
+                f"latest certified witness mismatch {day}: "
+                f"FRED={float(fred_value):.4f} H10={float(witness_value):.4f}"
+            ),
+        )
+        return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+
+    columns = [column for column in frame.columns if column != "_day"]
+    existing_rows = existing[[column for column in columns if column in existing.columns] + ["_day"]].copy()
+    if set(columns) - set(existing_rows.columns):
+        evidence.update(
+            status="BLOCKED",
+            reason="history continuity: Dollar canonical columns do not match incoming frame",
+        )
+        return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+    new_rows = incoming[~incoming["_day"].isin(existing_days)][columns + ["_day"]].copy()
+    candidate = pd.concat([existing_rows, new_rows], ignore_index=True)
+    candidate["date"] = candidate["_day"]
+    candidate = candidate.drop(columns="_day").sort_values("date").reset_index(drop=True)
+    candidate.attrs = dict(frame.attrs)
+    return _with_fred_revision_evidence(candidate, evidence)
+
+
+def _with_fred_revision_evidence(
+    frame: pd.DataFrame,
+    evidence: dict[str, Any],
+) -> pd.DataFrame:
+    stable = {
+        "schema_version": evidence.get("schema_version"),
+        "policy": evidence.get("policy"),
+        "status": evidence.get("status"),
+        "reason": evidence.get("reason"),
+        "changed_dates": evidence.get("changed_dates"),
+        "changed_cells": evidence.get("changed_cells"),
+    }
+    evidence["fingerprint"] = hashlib.sha256(
+        json.dumps(stable, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    frame.attrs["history_revision"] = evidence
+    return frame
+
+
+def _same_four_decimal_value(left: object, right: object) -> bool:
+    quantum = Decimal("0.0001")
+    try:
+        return Decimal(str(left)).quantize(quantum) == Decimal(str(right)).quantize(quantum)
+    except (InvalidOperation, ValueError):
+        return False
 
 
 class _H10TableParser(HTMLParser):

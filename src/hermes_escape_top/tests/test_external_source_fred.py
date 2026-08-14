@@ -46,6 +46,23 @@ def _fred_dollar_frame(values: list[tuple[str, float]]) -> pd.DataFrame:
     )
 
 
+def _write_dollar_canonical(
+    target: Path,
+    values: list[tuple[str, float]],
+) -> bytes:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    frame = pd.DataFrame(
+        {
+            "date": [day for day, _value in values],
+            "publish_date": ["2026-07-13"] * len(values),
+            "dollar_broad": [value for _day, value in values],
+            "dollar_broad_pctl": [100.0] * len(values),
+        }
+    )
+    frame.to_csv(target, index=False)
+    return target.read_bytes()
+
+
 def test_fred_release_calendar_uses_exact_release_ids_and_keeps_holiday_shift(
     monkeypatch,
 ):
@@ -161,6 +178,554 @@ def test_dollar_board_witness_mismatch_freezes_certified_canonical(tmp_path):
     assert run.status == "VALIDATION_ERROR"
     assert "H.10 witness mismatch" in str(run.error_message)
     assert target.read_bytes() == certified
+
+
+def test_dollar_historical_witness_revision_is_quarantined_without_rewrite(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    before = _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(
+            [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)]
+        ),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7000),
+            ("10-JUL-26", 120.5046),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "OK"
+    assert run.promotion_status == "UNCHANGED"
+    assert run.history_revision_status == "QUARANTINED"
+    assert run.history_revision_count == 1
+    assert target.read_bytes() == before
+
+
+def test_dollar_historical_witness_revision_keeps_old_rows_and_appends_exact_tail(
+    tmp_path,
+):
+    target = tmp_path / "soft_history/dollar.csv"
+    _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(
+            [
+                ("2026-07-09", 120.7530),
+                ("2026-07-10", 120.5046),
+                ("2026-07-13", 120.6000),
+            ]
+        ),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7000),
+            ("10-JUL-26", 120.5046),
+            ("13-JUL-26", 120.6000),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    canonical = pd.read_csv(target)
+    assert run.status == "OK"
+    assert run.advanced is True
+    assert run.latest_promoted_as_of == "2026-07-13"
+    assert run.history_revision_status == "QUARANTINED"
+    assert canonical["date"].tolist() == ["2026-07-09", "2026-07-10", "2026-07-13"]
+    assert canonical.loc[0, "dollar_broad"] == 120.7530
+    assert canonical.loc[2, "dollar_broad"] == 120.6000
+
+
+def test_dollar_primary_historical_revision_remains_blocked(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    before = _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(
+            [("2026-07-09", 120.7000), ("2026-07-10", 120.5046)]
+        ),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7000),
+            ("10-JUL-26", 120.5046),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert run.history_revision_status == "BLOCKED"
+    assert "changed certified FRED row" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
+def test_dollar_missing_certified_primary_date_remains_blocked(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    before = _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(
+            [("2026-07-10", 120.5046)]
+        ),
+        fetch_text=lambda _url: _h10_html(("10-JUL-26", 120.5046)),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert run.history_revision_status == "BLOCKED"
+    assert "missing certified FRED dates" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
+def test_dollar_new_tail_witness_mismatch_remains_blocked(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    before = _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(
+            [
+                ("2026-07-09", 120.7530),
+                ("2026-07-10", 120.5046),
+                ("2026-07-13", 120.6000),
+            ]
+        ),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7530),
+            ("10-JUL-26", 120.5046),
+            ("13-JUL-26", 121.6000),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert run.history_revision_status == "BLOCKED"
+    assert "new tail witness mismatch" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
+def test_dollar_new_tail_requires_exact_four_decimal_witness_value(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    before = _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(
+            [
+                ("2026-07-09", 120.7530),
+                ("2026-07-10", 120.5046),
+                ("2026-07-13", 120.6000),
+            ]
+        ),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7530),
+            ("10-JUL-26", 120.5046),
+            ("13-JUL-26", 120.5999),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert run.history_revision_status == "BLOCKED"
+    assert "new tail witness mismatch" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
+def test_dollar_five_day_backlog_cannot_hide_latest_certified_witness_mismatch(
+    tmp_path,
+):
+    target = tmp_path / "soft_history/dollar.csv"
+    before = _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    values = [
+        ("2026-07-09", 120.7530),
+        ("2026-07-10", 120.5046),
+        ("2026-07-13", 120.6000),
+        ("2026-07-14", 120.7000),
+        ("2026-07-15", 120.8000),
+        ("2026-07-16", 120.9000),
+        ("2026-07-17", 121.0000),
+    ]
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(values),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7530),
+            ("10-JUL-26", 120.4000),
+            ("13-JUL-26", 120.6000),
+            ("14-JUL-26", 120.7000),
+            ("15-JUL-26", 120.8000),
+            ("16-JUL-26", 120.9000),
+            ("17-JUL-26", 121.0000),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert run.history_revision_status == "BLOCKED"
+    assert "latest certified witness mismatch 2026-07-10" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
+def test_dollar_latest_certified_witness_mismatch_remains_blocked(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    before = _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(
+            [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)]
+        ),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7530),
+            ("10-JUL-26", 120.4000),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert run.history_revision_status == "BLOCKED"
+    assert "latest certified witness mismatch 2026-07-10" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
+def test_dollar_missing_intermediate_new_tail_witness_remains_blocked(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    before = _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(
+            [
+                ("2026-07-09", 120.7530),
+                ("2026-07-10", 120.5046),
+                ("2026-07-13", 120.6000),
+                ("2026-07-14", 120.7000),
+            ]
+        ),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7530),
+            ("10-JUL-26", 120.5046),
+            ("14-JUL-26", 120.7000),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert run.history_revision_status == "BLOCKED"
+    assert "new tail witness missing 2026-07-13" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
+def test_dollar_latest_witness_date_mismatch_remains_blocked(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    before = _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(
+            [
+                ("2026-07-09", 120.7530),
+                ("2026-07-10", 120.5046),
+                ("2026-07-13", 120.6000),
+            ]
+        ),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7530),
+            ("10-JUL-26", 120.5046),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert run.history_revision_status == "BLOCKED"
+    assert "witness latest date mismatch" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
+def test_dollar_unreviewed_historical_fred_insertion_remains_blocked(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    before = _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(
+            [
+                ("2026-07-08", 120.6500),
+                ("2026-07-09", 120.7530),
+                ("2026-07-10", 120.5046),
+            ]
+        ),
+        fetch_text=lambda _url: _h10_html(
+            ("8-JUL-26", 120.6500),
+            ("9-JUL-26", 120.7530),
+            ("10-JUL-26", 120.5046),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "VALIDATION_ERROR"
+    assert run.history_revision_status == "BLOCKED"
+    assert "unreviewed historical FRED additions" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
+def test_dollar_revision_outside_last_five_rows_is_still_quarantined(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    values = [
+        ("2026-07-01", 120.1000),
+        ("2026-07-02", 120.2000),
+        ("2026-07-03", 120.3000),
+        ("2026-07-06", 120.4000),
+        ("2026-07-07", 120.5000),
+        ("2026-07-08", 120.6000),
+        ("2026-07-09", 120.7000),
+    ]
+    before = _write_dollar_canonical(target, values)
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(values),
+        fetch_text=lambda _url: _h10_html(
+            ("1-JUL-26", 120.0000),
+            ("2-JUL-26", 120.2000),
+            ("3-JUL-26", 120.3000),
+            ("6-JUL-26", 120.4000),
+            ("7-JUL-26", 120.5000),
+            ("8-JUL-26", 120.6000),
+            ("9-JUL-26", 120.7000),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "OK"
+    assert run.promotion_status == "UNCHANGED"
+    assert run.history_revision_status == "QUARANTINED"
+    assert run.history_revision_count == 1
+    assert target.read_bytes() == before
+
+
+def test_dollar_blocked_tail_keeps_historical_revision_evidence(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    values = [
+        ("2026-07-01", 120.1000),
+        ("2026-07-02", 120.2000),
+        ("2026-07-03", 120.3000),
+        ("2026-07-06", 120.4000),
+        ("2026-07-07", 120.5000),
+        ("2026-07-08", 120.6000),
+        ("2026-07-09", 120.7000),
+    ]
+    before = _write_dollar_canonical(target, values)
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(values),
+        fetch_text=lambda _url: _h10_html(
+            ("1-JUL-26", 120.0000),
+            ("2-JUL-26", 120.2000),
+            ("3-JUL-26", 120.3000),
+            ("6-JUL-26", 120.4000),
+            ("7-JUL-26", 120.5000),
+            ("8-JUL-26", 120.6000),
+            ("9-JUL-26", 120.9000),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+    validation = json.loads(Path(run.validation_path).read_text(encoding="utf-8"))
+    revision = validation["history_revision"]
+
+    assert run.status == "VALIDATION_ERROR"
+    assert run.history_revision_status == "BLOCKED"
+    assert run.history_revision_count == 1
+    assert revision["changed_dates"] == ["2026-07-01"]
+    assert revision["changed_cells"][0]["board_h10"] == 120.0
+    assert "latest certified witness mismatch 2026-07-09" in str(run.error_message)
+    assert target.read_bytes() == before
+
+
+def test_dollar_unchanged_official_history_has_no_revision(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    before = _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(
+            [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)]
+        ),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7530),
+            ("10-JUL-26", 120.5046),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+
+    assert run.status == "OK"
+    assert run.promotion_status == "UNCHANGED"
+    assert run.history_revision_status == "NONE"
+    assert target.read_bytes() == before
 
 
 def test_fetch_fred_graph_csv_prefers_curl_and_does_not_require_requests(monkeypatch):

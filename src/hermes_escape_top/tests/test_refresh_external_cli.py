@@ -80,6 +80,7 @@ def test_fred_source_reads_only_named_key_from_hermes_env(monkeypatch, tmp_path)
     _spec, adapter = refresh_external.dollar_source(config)
 
     assert adapter.config["fred_api_key"] == "file-key"
+    assert adapter.seed_path == tmp_path / "soft_history" / "dollar.csv"
     assert "fred_api_key" not in config
     assert "OTHER_SECRET" not in adapter.config
 
