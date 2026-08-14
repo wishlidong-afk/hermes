@@ -69,7 +69,13 @@ OCC and disabled COT stay manual; explicit `refresh_external.sh --source <id>`
 remains available for research collection. A busy lock returns exit 75, and
 every result is preserved under `~/.hermes/logs/external-shadow/`. Shadow
 evidence never enters pre-daily readiness, scoring, routing, official receipts,
-or `input_hash`.
+or `input_hash`. If VIX9D advances its controlled `history/` canonical, the same
+pipeline-lock lease also runs the history-integrity scan and re-freezes the data
+manifest. An integrity failure leaves the prior manifest in DRIFT and marks the
+shadow result unsuccessful with a nonzero exit. Before certification, the task
+also requires the target SHA to match the promotion ledger and rejects any drift
+outside this run's promoted history targets; unrelated files are never silently
+re-certified.
 
 ## verify_live.sh — post-deploy end-to-end gate
 

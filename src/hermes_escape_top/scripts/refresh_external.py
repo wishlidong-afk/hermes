@@ -17,6 +17,7 @@ from hermes_escape_top.core.safe_io import (
     PipelineBusy,
     pipeline_lock,
 )
+from hermes_escape_top.core.data.manifest import freeze_manifest, load_manifest
 from hermes_escape_top.core.data.runtime_root import require_explicit_runtime_data_root
 from hermes_escape_top.core.data.store import safe_symbol
 from hermes_escape_top.core.data.source_relevance import source_refresh_lane
@@ -509,7 +510,7 @@ def refresh_all_sources(
     )
     ok_count = sum(1 for run in runs if str(run.get("status")) == "OK")
     error_count = len(runs) - ok_count
-    return {
+    result = {
         "ok": error_count == 0,
         "ok_count": ok_count,
         "error_count": error_count,
@@ -521,6 +522,117 @@ def refresh_all_sources(
             source_id for source_id in configured if source_id not in selected
         ],
     }
+    if lane == "shadow":
+        manifest = _finalize_shadow_history_manifest(cfg, runs)
+        result["history_manifest"] = manifest
+        result["ok"] = bool(result["ok"] and manifest.get("ok", False))
+    return result
+
+
+def _finalize_shadow_history_manifest(
+    config: dict[str, Any],
+    runs: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Re-certify history after a controlled shadow promotion under the caller's lock.
+
+    Only files whose current hash matches this run's promotion evidence may
+    differ from the frozen manifest. Any unrelated drift remains fail-closed.
+    """
+    advanced_runs = [
+        run
+        for run in runs
+        if str(run.get("status") or "") == "OK"
+        and run.get("advanced")
+        and run.get("target_path")
+    ]
+    if not advanced_runs:
+        return {
+            "status": "SKIPPED",
+            "ok": True,
+            "refrozen": False,
+            "reason": "no shadow history advancement",
+        }
+    history_dir = resolve_path(config, "history_dir").resolve()
+    allowed_hashes: dict[str, str] = {}
+    for run in advanced_runs:
+        target = Path(str(run["target_path"])).resolve()
+        try:
+            relative = target.relative_to(history_dir).as_posix()
+        except ValueError:
+            continue
+        allowed_hashes[relative] = str(run.get("canonical_sha256") or "")
+    if not allowed_hashes:
+        return {
+            "status": "SKIPPED",
+            "ok": True,
+            "refrozen": False,
+            "reason": "no shadow history advancement",
+        }
+    manifest_path = resolve_path(config, "archive_dir") / "data_manifest_latest.json"
+    if not manifest_path.exists():
+        return {
+            "status": "MISSING",
+            "ok": False,
+            "refrozen": False,
+            "error": "history manifest missing before shadow certification",
+        }
+    try:
+        expected = load_manifest(manifest_path)
+        current = freeze_manifest(history_dir)
+    except Exception as exc:
+        return {
+            "status": "ERROR",
+            "ok": False,
+            "refrozen": False,
+            "error": f"history manifest comparison failed: {exc}",
+        }
+    expected_paths = set(expected.entries)
+    current_paths = set(current.entries)
+    drift = expected_paths ^ current_paths
+    drift.update(
+        path
+        for path in expected_paths & current_paths
+        if expected.entries[path].sha256 != current.entries[path].sha256
+    )
+    for relative, promoted_hash in sorted(allowed_hashes.items()):
+        entry = current.entries.get(relative)
+        if entry is None or not promoted_hash or entry.sha256 != promoted_hash:
+            actual = entry.sha256 if entry is not None else "missing"
+            return {
+                "status": "EVIDENCE_DRIFT",
+                "ok": False,
+                "refrozen": False,
+                "error": (
+                    f"{relative} canonical sha256 mismatch: "
+                    f"promoted={promoted_hash or 'missing'} actual={actual}"
+                ),
+            }
+    unrelated = sorted(drift - set(allowed_hashes))
+    if unrelated:
+        return {
+            "status": "DRIFT",
+            "ok": False,
+            "refrozen": False,
+            "error": "unrelated history drift: " + ", ".join(unrelated),
+        }
+    if not drift:
+        return {
+            "status": "OK",
+            "ok": True,
+            "refrozen": False,
+            "reason": "history manifest already in sync",
+        }
+    try:
+        from hermes_escape_top.web.refresh import force_refresh_manifest
+
+        return dict(force_refresh_manifest(config))
+    except Exception as exc:
+        return {
+            "status": "ERROR",
+            "ok": False,
+            "refrozen": False,
+            "error": str(exc),
+        }
 
 
 def refresh_retry_sources(
@@ -1115,6 +1227,8 @@ def main(argv: list[str] | None = None) -> int:
                         _lease=lease,
                     )
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True, default=str))
+        if args.all and args.lane == "shadow" and not result.get("ok", False):
+            return 1
         return 0
     except PipelineBusy as exc:
         print(json.dumps({"ok": False, "busy": True, "error": str(exc)}, ensure_ascii=False, indent=2))

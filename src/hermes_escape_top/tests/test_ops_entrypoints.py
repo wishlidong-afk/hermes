@@ -438,7 +438,7 @@ def test_external_precheck_writes_latest_and_dated_reports():
     assert "--retry-needed" in script
 
 
-@pytest.mark.parametrize("exit_code", [0, 75])
+@pytest.mark.parametrize("exit_code", [0, 1, 75])
 def test_external_shadow_uses_managed_runtime_and_preserves_evidence(tmp_path, exit_code):
     home = tmp_path / "home"
     base = home / ".hermes/skills/investment/escape-top"

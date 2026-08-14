@@ -14,6 +14,7 @@ from hermes_escape_top.core.data.external_sources.profiles import (
     enrich_source_status,
     profile_for,
 )
+from hermes_escape_top.core.data.manifest import write_manifest
 from hermes_escape_top.core.data import risk_signals
 from hermes_escape_top.scripts import backfill_soft_data, refresh_external
 
@@ -551,6 +552,217 @@ def test_refresh_all_shadow_runs_only_shadow_sources(monkeypatch, tmp_path):
     assert result["selected_sources"] == calls
 
 
+def test_refresh_all_shadow_refreezes_manifest_after_history_advance(
+    monkeypatch,
+    tmp_path,
+):
+    cfg = _lane_config(tmp_path)
+    history_dir = tmp_path / "history"
+    history_dir.mkdir()
+    cfg["paths"]["history_dir"] = str(history_dir)
+    target = history_dir / "_VIX9D.csv"
+    target.write_text("date,close\n2026-08-12,16.5\n", encoding="utf-8")
+    write_manifest(history_dir, tmp_path / "archive" / "data_manifest_latest.json")
+    target.write_text(
+        "date,close\n2026-08-12,16.5\n2026-08-13,17.5\n",
+        encoding="utf-8",
+    )
+    target_sha = hashlib.sha256(target.read_bytes()).hexdigest()
+    events = []
+
+    def fake_refresh(source_id, *_args, **_kwargs):
+        events.append(source_id)
+        target = (
+            tmp_path / "soft_history" / "btc_funding_basis.csv"
+            if source_id == "btc_funding_basis"
+            else history_dir / "_VIX9D.csv"
+        )
+        return {
+            "source_id": source_id,
+            "status": "OK",
+            "advanced": True,
+            "target_path": str(target),
+            "canonical_sha256": target_sha if source_id == "cboe_vix9d" else "a" * 64,
+        }
+
+    def fake_refreeze(config):
+        events.append("manifest")
+        assert config is cfg
+        return {"status": "OK", "ok": True, "refrozen": True}
+
+    monkeypatch.setattr(refresh_external, "refresh_source", fake_refresh)
+    from hermes_escape_top.web import refresh as web_refresh
+
+    monkeypatch.setattr(web_refresh, "force_refresh_manifest", fake_refreeze)
+
+    result = refresh_external.refresh_all_sources(
+        cfg,
+        today=date(2026, 8, 12),
+        lane="shadow",
+    )
+
+    assert events == ["btc_funding_basis", "cboe_vix9d", "manifest"]
+    assert result["history_manifest"] == {
+        "status": "OK",
+        "ok": True,
+        "refrozen": True,
+    }
+    assert result["ok"] is True
+
+
+def test_refresh_all_shadow_manifest_integrity_failure_fails_result(
+    monkeypatch,
+    tmp_path,
+):
+    cfg = _lane_config(tmp_path)
+    history_dir = tmp_path / "history"
+    history_dir.mkdir()
+    cfg["paths"]["history_dir"] = str(history_dir)
+    target = history_dir / "_VIX9D.csv"
+    target.write_text("date,close\n2026-08-12,16.5\n", encoding="utf-8")
+    write_manifest(history_dir, tmp_path / "archive" / "data_manifest_latest.json")
+    target.write_text(
+        "date,close\n2026-08-12,16.5\n2026-08-13,17.5\n",
+        encoding="utf-8",
+    )
+    target_sha = hashlib.sha256(target.read_bytes()).hexdigest()
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_source",
+        lambda source_id, *_args, **_kwargs: {
+            "source_id": source_id,
+            "status": "OK",
+            "advanced": source_id == "cboe_vix9d",
+            "target_path": str(
+                history_dir / "_VIX9D.csv"
+                if source_id == "cboe_vix9d"
+                else tmp_path / "soft_history" / "btc_funding_basis.csv"
+            ),
+            "canonical_sha256": target_sha if source_id == "cboe_vix9d" else "a" * 64,
+        },
+    )
+    from hermes_escape_top.web import refresh as web_refresh
+
+    monkeypatch.setattr(
+        web_refresh,
+        "force_refresh_manifest",
+        lambda _config: {
+            "status": "DRIFT",
+            "ok": False,
+            "refrozen": False,
+            "error": "history integrity scan failed",
+        },
+    )
+
+    result = refresh_external.refresh_all_sources(
+        cfg,
+        today=date(2026, 8, 12),
+        lane="shadow",
+    )
+
+    assert result["ok"] is False
+    assert result["history_manifest"]["status"] == "DRIFT"
+    assert result["history_manifest"]["refrozen"] is False
+
+
+def test_refresh_all_shadow_refuses_to_certify_unrelated_history_drift(
+    monkeypatch,
+    tmp_path,
+):
+    cfg = _lane_config(tmp_path)
+    history_dir = tmp_path / "history"
+    history_dir.mkdir()
+    cfg["paths"]["history_dir"] = str(history_dir)
+    vix9d = history_dir / "_VIX9D.csv"
+    spy = history_dir / "SPY.csv"
+    vix9d.write_text("date,close\n2026-08-12,16.5\n", encoding="utf-8")
+    spy.write_text("date,close\n2026-08-12,500\n", encoding="utf-8")
+    write_manifest(history_dir, tmp_path / "archive" / "data_manifest_latest.json")
+    vix9d.write_text(
+        "date,close\n2026-08-12,16.5\n2026-08-13,17.5\n",
+        encoding="utf-8",
+    )
+    spy.write_text(
+        "date,close\n2026-08-12,500\n2026-08-13,999\n",
+        encoding="utf-8",
+    )
+    vix9d_sha = hashlib.sha256(vix9d.read_bytes()).hexdigest()
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_source",
+        lambda source_id, *_args, **_kwargs: {
+            "source_id": source_id,
+            "status": "OK",
+            "advanced": source_id == "cboe_vix9d",
+            "target_path": str(
+                vix9d
+                if source_id == "cboe_vix9d"
+                else tmp_path / "soft_history" / "btc_funding_basis.csv"
+            ),
+            "canonical_sha256": vix9d_sha if source_id == "cboe_vix9d" else "a" * 64,
+        },
+    )
+    from hermes_escape_top.web import refresh as web_refresh
+
+    monkeypatch.setattr(
+        web_refresh,
+        "force_refresh_manifest",
+        lambda _config: pytest.fail("unrelated drift must not be re-certified"),
+    )
+
+    result = refresh_external.refresh_all_sources(
+        cfg,
+        today=date(2026, 8, 12),
+        lane="shadow",
+    )
+
+    assert result["ok"] is False
+    assert result["history_manifest"]["status"] == "DRIFT"
+    assert "SPY.csv" in result["history_manifest"]["error"]
+
+
+def test_refresh_all_shadow_requires_promoted_hash_to_match_target(
+    monkeypatch,
+    tmp_path,
+):
+    cfg = _lane_config(tmp_path)
+    history_dir = tmp_path / "history"
+    history_dir.mkdir()
+    cfg["paths"]["history_dir"] = str(history_dir)
+    target = history_dir / "_VIX9D.csv"
+    target.write_text("date,close\n2026-08-12,16.5\n", encoding="utf-8")
+    write_manifest(history_dir, tmp_path / "archive" / "data_manifest_latest.json")
+    target.write_text(
+        "date,close\n2026-08-12,16.5\n2026-08-13,17.5\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_source",
+        lambda source_id, *_args, **_kwargs: {
+            "source_id": source_id,
+            "status": "OK",
+            "advanced": source_id == "cboe_vix9d",
+            "target_path": str(
+                target
+                if source_id == "cboe_vix9d"
+                else tmp_path / "soft_history" / "btc_funding_basis.csv"
+            ),
+            "canonical_sha256": "0" * 64,
+        },
+    )
+
+    result = refresh_external.refresh_all_sources(
+        cfg,
+        today=date(2026, 8, 12),
+        lane="shadow",
+    )
+
+    assert result["ok"] is False
+    assert result["history_manifest"]["status"] == "EVIDENCE_DRIFT"
+    assert "canonical sha256 mismatch" in result["history_manifest"]["error"]
+
+
 def test_refresh_all_skips_retired_naaim_outside_weekly_probe(monkeypatch, tmp_path):
     calls = []
     cfg = _config(tmp_path)
@@ -938,6 +1150,28 @@ def test_shadow_lane_cli_routes_all_refresh_without_readiness(monkeypatch, capsy
     assert calls[0]["lane"] == "shadow"
     assert calls[0]["_lease"] is not None
     assert json.loads(capsys.readouterr().out)["lane"] == "shadow"
+
+
+def test_shadow_lane_cli_returns_failure_when_manifest_finalization_fails(
+    monkeypatch,
+    capsys,
+):
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_all_sources",
+        lambda *args, **kwargs: {
+            "ok": False,
+            "runs": [],
+            "mode": "all",
+            "lane": "shadow",
+            "history_manifest": {"status": "DRIFT", "ok": False},
+        },
+    )
+
+    rc = refresh_external.main(["--all", "--lane", "shadow", "--lock-timeout", "0"])
+
+    assert rc == 1
+    assert json.loads(capsys.readouterr().out)["history_manifest"]["status"] == "DRIFT"
 
 
 def test_shadow_lane_cli_rejects_pre_daily_readiness(capsys):

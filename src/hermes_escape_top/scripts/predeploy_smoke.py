@@ -251,7 +251,11 @@ def _is_policy_verified_slo_stale(config: Dict[str, Any], name: str, record: Dic
     match = _SLO_STALE_REASON.fullmatch(str(record.get("reason", "")))
     if match is None:
         return False
-    configured = ((config.get("soft_data_slo", {}) or {}).get("max_age_days", {}) or {}).get(name)
+    slo = config.get("soft_data_slo", {}) or {}
+    configured = (slo.get("max_age_days", {}) or {}).get(
+        name,
+        slo.get("default_max_age_days"),
+    )
     latency = record.get("latency_days")
     try:
         configured_value = float(configured)

@@ -216,6 +216,39 @@ def test_policy_verified_slo_stale_is_warning_not_fatal():
     assert "dollar" in warning_detail
 
 
+def test_default_slo_stale_is_warning_not_fatal():
+    config = {
+        "features": {"use_soft_data_max_age": True},
+        "soft_data_slo": {
+            "default_max_age_days": 13,
+            "max_age_days": {},
+        },
+    }
+    prev = {"soft_data": {"records": {"naaim": {"data_available": True}}}}
+    curr = {
+        "soft_data": {
+            "records": {
+                "naaim": {
+                    "data_available": False,
+                    "latency_days": 14,
+                    "reason": "stale: latency 14d > max_age 13d",
+                }
+            }
+        }
+    }
+
+    _, regression_ok, regression_detail = smoke.check_no_source_regression(
+        prev,
+        curr,
+        config,
+    )
+    _, warning_ok, warning_detail = smoke.check_expected_slo_stale(config, curr)
+
+    assert regression_ok, regression_detail
+    assert not warning_ok
+    assert "naaim" in warning_detail
+
+
 def test_slo_stale_reason_must_match_config_and_payload_exactly():
     config = _dollar_slo_config()
     prev = {"soft_data": {"records": {"dollar": {"data_available": True}}}}
