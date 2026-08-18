@@ -198,7 +198,12 @@ class FredBoardH10PercentileAdapter(FredPercentileAdapter):
         if isinstance(raw, dict):
             frame.attrs["board_h10_witness"] = dict(raw.get("board_h10_witness") or {})
         if self.seed_path is not None:
-            frame = _reconcile_federal_reserve_h10_history(self.seed_path, frame)
+            frame = _reconcile_federal_reserve_h10_history(
+                self.seed_path,
+                frame,
+                window=self.window,
+                min_periods=self.min_periods,
+            )
         return frame
 
 
@@ -279,6 +284,9 @@ def validate_federal_reserve_h10_witness(frame: pd.DataFrame) -> str | None:
 def _reconcile_federal_reserve_h10_history(
     target_path: Path,
     frame: pd.DataFrame,
+    *,
+    window: int,
+    min_periods: int,
 ) -> pd.DataFrame:
     incoming = frame.copy()
     incoming.attrs = dict(frame.attrs)
@@ -361,13 +369,10 @@ def _reconcile_federal_reserve_h10_history(
     incoming_values = pd.to_numeric(common["dollar_broad_incoming"], errors="coerce")
     primary_mismatch = canonical_values.isna() != incoming_values.isna()
     primary_mismatch |= (canonical_values - incoming_values).abs().fillna(0.0) > 1e-9
-    if primary_mismatch.any():
-        changed_day = str(common.loc[primary_mismatch, "_day"].iloc[0])
-        evidence.update(
-            status="BLOCKED",
-            reason=f"history continuity: changed certified FRED row {changed_day}",
-        )
-        return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+    primary_changes = common.loc[
+        primary_mismatch,
+        ["_day", "dollar_broad_canonical", "dollar_broad_incoming"],
+    ]
 
     witness = pd.DataFrame(
         (incoming.attrs.get("board_h10_witness") or {}).get("rows") or []
@@ -384,6 +389,7 @@ def _reconcile_federal_reserve_h10_history(
     if witness.empty:
         evidence.update(status="BLOCKED", reason="Federal Reserve H.10 witness unavailable")
         return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+    witness_by_day = witness.set_index("_day")["value"]
 
     witnessed_overlap = incoming[["_day", "dollar_broad"]].merge(
         witness[["_day", "value"]],
@@ -391,6 +397,48 @@ def _reconcile_federal_reserve_h10_history(
         how="inner",
     )
     changed_cells: list[dict[str, Any]] = []
+    for day, canonical_value, incoming_value in primary_changes.itertuples(
+        index=False,
+        name=None,
+    ):
+        day = str(day)
+        witness_value = witness_by_day.get(day)
+        revision_confirmed = witness_value is not None and _same_four_decimal_value(
+            incoming_value,
+            witness_value,
+        )
+        cell = {
+            "date": day,
+            "column": "dollar_broad",
+            "canonical_fred": float(canonical_value),
+            "incoming_fred": float(incoming_value),
+            "board_h10": (
+                float(witness_value) if witness_value is not None else None
+            ),
+            "revision_source": (
+                "FRED_PRIMARY_CONFIRMED_BY_H10"
+                if revision_confirmed
+                else "FRED_PRIMARY_UNCONFIRMED"
+            ),
+        }
+        changed_cells.append(cell)
+        evidence["changed_cells"] = changed_cells
+        evidence["changed_dates"] = sorted(
+            {str(changed["date"]) for changed in changed_cells}
+        )
+        if day == latest_existing:
+            evidence.update(
+                status="BLOCKED",
+                reason=f"history continuity: latest certified FRED row changed {day}",
+            )
+            return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+        if not revision_confirmed:
+            evidence.update(
+                status="BLOCKED",
+                reason=f"FRED revision lacks exact H.10 confirmation {day}",
+            )
+            return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
+
     for day, fred_value, witness_value in witnessed_overlap.itertuples(
         index=False,
         name=None,
@@ -404,6 +452,7 @@ def _reconcile_federal_reserve_h10_history(
                     "column": "dollar_broad",
                     "certified_fred": float(fred_value),
                     "board_h10": float(witness_value),
+                    "revision_source": "H10_WITNESS_ONLY",
                 }
             )
 
@@ -425,7 +474,6 @@ def _reconcile_federal_reserve_h10_history(
         )
         return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
 
-    witness_by_day = witness.set_index("_day")["value"]
     new_dates = sorted(incoming_days - existing_days)
     evidence["appended_dates"] = new_dates
     incoming_by_day = incoming.set_index("_day")
@@ -478,6 +526,15 @@ def _reconcile_federal_reserve_h10_history(
     candidate = pd.concat([existing_rows, new_rows], ignore_index=True)
     candidate["date"] = candidate["_day"]
     candidate = candidate.drop(columns="_day").sort_values("date").reset_index(drop=True)
+    percentile_column = "dollar_broad_pctl"
+    if new_dates and percentile_column in candidate.columns:
+        values = pd.to_numeric(candidate["dollar_broad"], errors="coerce")
+        recomputed = values.rolling(window, min_periods=min_periods).apply(
+            _last_percentile,
+            raw=False,
+        )
+        new_mask = candidate["date"].isin(new_dates)
+        candidate.loc[new_mask, percentile_column] = recomputed.loc[new_mask]
     candidate.attrs = dict(frame.attrs)
     return _with_fred_revision_evidence(candidate, evidence)
 

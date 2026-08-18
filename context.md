@@ -161,7 +161,7 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 
 | 源 | canonical | 生产入口 | PIT/可见时间 | 运维边界 |
 |---|---|---|---|---|
-| `dollar` / `real_rate` / `fred_net_liquidity` | production legacy `*.csv`；research-only 独立 `*_vintage.csv` | 默认 FRED API/Graph CSV；Dollar 的 DTWEXBGS 额外由 Federal Reserve Board H.10 同序列见证；研究路径为 ALFRED exact vintage event store | 生产观测日 `+1d`；研究路径为真实 `realtime_start` | Dollar 两条官方路径日期/值不一致或任一路径不可用时冻结旧 canonical；`fred-vintage-pit-v1` 已拒绝，生产 flag 保持 OFF |
+| `dollar` / `real_rate` / `fred_net_liquidity` | production legacy `*.csv`；research-only 独立 `*_vintage.csv` | 默认 FRED API/Graph CSV；Dollar 的 DTWEXBGS 额外由 Federal Reserve Board H.10 同序列见证；研究路径为 ALFRED exact vintage event store | 生产观测日 `+1d`；研究路径为真实 `realtime_start` | Dollar 旧 canonical 行不可改；非最新 FRED 修订仅在 H.10 四位小数精确确认后隔离取证并允许见证后的新尾部追加，最新行修订、缺行、插行或见证不一致仍 fail closed；`fred-vintage-pit-v1` 已拒绝，生产 flag 保持 OFF |
 | `cboe_equity_pcr` | `soft_history/cboe_equity_pcr.csv` | CBOE daily HTML | 观测日 `+1d` | 解析/比率校验失败时保留上一份 canonical |
 | `cboe_vix` / `cboe_vix3m` / `cboe_vix9d` / `cboe_skew` / `cboe_vvix` | `history/_VIX*.csv` / `_SKEW.csv` / `_VVIX.csv` | CBOE official daily history CSV；Yahoo witness-only | 仅已完成美股交易日；未见证尾部不晋升 | 2026-07-14 live 已开启，repo 默认 OFF；`backfill()` 内层禁止 Yahoo 双写，截断/缺日/证据漂移保留旧 canonical |
 | `cot_nq` | `soft_history/cot_nq.csv` | CFTC public API | 周二观测、周五公开 | flag OFF 时不影响生产健康/决策覆盖 |
