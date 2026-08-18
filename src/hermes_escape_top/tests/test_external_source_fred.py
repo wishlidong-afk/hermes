@@ -22,6 +22,7 @@ from hermes_escape_top.core.data.external_sources.fred import (
 )
 from hermes_escape_top.core.data.external_sources.ledger import latest_source_run
 from hermes_escape_top.core.data.external_sources.runner import run_external_source_refresh
+from hermes_escape_top.core.data.risk_signals import FredPercentileSource
 
 
 def _h10_html(*rows: tuple[str, float]) -> str:
@@ -258,6 +259,57 @@ def test_dollar_historical_witness_revision_keeps_old_rows_and_appends_exact_tai
     assert canonical["date"].tolist() == ["2026-07-09", "2026-07-10", "2026-07-13"]
     assert canonical.loc[0, "dollar_broad"] == 120.7530
     assert canonical.loc[2, "dollar_broad"] == 120.6000
+
+
+def test_dollar_revision_append_remains_consumable_by_scoring_source(tmp_path):
+    target = tmp_path / "soft_history/dollar.csv"
+    _write_dollar_canonical(
+        target,
+        [("2026-07-09", 120.7530), ("2026-07-10", 120.5046)],
+    )
+    adapter = FredBoardH10PercentileAdapter(
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+        min_periods=1,
+        fetch_frame=lambda *_args, **_kwargs: _fred_dollar_frame(
+            [
+                ("2026-07-09", 120.7530),
+                ("2026-07-10", 120.5046),
+                ("2026-07-13", 120.6000),
+            ]
+        ).assign(publish_date=lambda frame: frame["date"] + pd.Timedelta(days=1)),
+        fetch_text=lambda _url: _h10_html(
+            ("9-JUL-26", 120.7000),
+            ("10-JUL-26", 120.5046),
+            ("13-JUL-26", 120.6000),
+        ),
+        seed_path=target,
+    )
+    spec = fred_percentile_spec(
+        source_id="dollar",
+        target_path=target,
+        field="dollar_broad",
+        semantic_validator=validate_federal_reserve_h10_witness,
+    )
+
+    run = run_external_source_refresh(spec, adapter, tmp_path / "archive")
+    source = FredPercentileSource(
+        name="dollar",
+        feature_flag="data_dollar",
+        series_id="DTWEXBGS",
+        field="dollar_broad",
+    )
+    record = source.collect(
+        "2026-07-14",
+        {
+            "features": {"data_dollar": True},
+            "paths": {"soft_history_dir": str(target.parent)},
+        },
+    )
+
+    assert run.status == "OK"
+    assert record.data_available is True
+    assert record.fields["dollar_broad"] == 120.6000
 
 
 def test_dollar_primary_historical_revision_confirmed_by_h10_is_quarantined(

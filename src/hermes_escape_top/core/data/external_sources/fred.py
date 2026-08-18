@@ -523,6 +523,10 @@ def _reconcile_federal_reserve_h10_history(
         )
         return _with_fred_revision_evidence(incoming.drop(columns="_day"), evidence)
     new_rows = incoming[~incoming["_day"].isin(existing_days)][columns + ["_day"]].copy()
+    if "publish_date" in new_rows.columns:
+        new_rows["publish_date"] = pd.to_datetime(
+            new_rows["publish_date"], errors="coerce"
+        ).dt.strftime("%Y-%m-%d")
     candidate = pd.concat([existing_rows, new_rows], ignore_index=True)
     candidate["date"] = candidate["_day"]
     candidate = candidate.drop(columns="_day").sort_values("date").reset_index(drop=True)

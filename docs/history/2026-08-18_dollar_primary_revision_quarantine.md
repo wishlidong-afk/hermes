@@ -91,3 +91,43 @@ latest_promoted_as_of=2026-08-14
 ```
 
 The replay used a temporary data root and did not modify live data.
+
+## Deploy verification remediation
+
+The first R6 deployment attempt of `c991c4b` switched to the candidate release,
+failed `verify_live`, and rolled back automatically to `dece122`. The dashboard
+returned to HTTP 200 and the failed release did not remain active.
+
+The deploy verifier removes its isolated run log on exit. Its surviving external
+precheck summary contained a transient `AttributeError: 'list' object has no
+attribute 'get'`, but exact replays of the Dollar retry path succeeded with the
+managed Python, live config, and correctly shaped verify data root. A full
+candidate `manual_rerun` then reproduced the deterministic blocker at the scoring
+boundary:
+
+```text
+AttributeError: 'str' object has no attribute 'date'
+```
+
+The revision merge preserved certified `publish_date` values as ISO date strings
+but appended new rows as pandas timestamps. The resulting mixed CSV column was
+not parsed as datetimes by the scoring source. The remediation serializes only
+new `publish_date` cells as `YYYY-MM-DD`; certified rows remain unchanged.
+
+TDD proof:
+
+```text
+RED: test_dollar_revision_append_remains_consumable_by_scoring_source
+     failed at FredPercentileSource.collect with the production traceback
+GREEN: 1 passed
+Dollar focused: 27 passed
+Expanded external/daily/acceptance suite: 363 passed
+Full suite: 1373 passed
+Governance: 7/7 OK
+```
+
+An exact candidate replay using managed Python, live config, and an isolated
+clone of live history/soft-history/archive completed with exit 0 through OHLCV
+refresh, Dollar promotion, market witness, score pipeline, manifest, reports,
+orders preview, and NEXT5. It used `manual_rerun` without commit-state and did not
+write an official receipt.
