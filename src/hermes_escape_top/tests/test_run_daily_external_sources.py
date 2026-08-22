@@ -249,8 +249,14 @@ def test_daily_prefers_current_session_error_over_stale_disk_ok(monkeypatch):
 def test_daily_market_admission_passes_btc_spot_witness_flag(tmp_path, monkeypatch):
     captured = {}
     expected = MarketAdmissionSession(enabled=True, witness_bars={})
+    inventory = {"BTC-USD": {"roles": ["scored_symbol"]}}
 
     monkeypatch.setattr(rdp, "all_backfill_symbols", lambda _config: ["BTC-USD"])
+    monkeypatch.setattr(
+        rdp,
+        "market_admission_field_inventory",
+        lambda _config: inventory,
+    )
 
     def prepare(symbols, start, end, **kwargs):
         captured.update(
@@ -277,7 +283,10 @@ def test_daily_market_admission_passes_btc_spot_witness_flag(tmp_path, monkeypat
     assert actual is expected
     assert captured["symbols"] == ["BTC-USD"]
     assert captured["end"] == "2026-07-14"
-    assert captured["kwargs"] == {"btc_spot_witness_enabled": True}
+    assert captured["kwargs"] == {
+        "btc_spot_witness_enabled": True,
+        "field_inventory": inventory,
+    }
 
 
 def test_market_third_source_shadow_writes_only_for_blocked_admission(

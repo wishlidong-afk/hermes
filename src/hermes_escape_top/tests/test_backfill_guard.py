@@ -455,6 +455,12 @@ def test_backfill_market_admission_flag_prefetches_and_writes_evidence(tmp_path,
         },
     )
     monkeypatch.setattr(module, "_download_yfinance", lambda *_args: incoming)
+    inventory = {"QQQ": {"roles": ["macro_and_flow_context"]}}
+    monkeypatch.setattr(
+        module,
+        "market_admission_field_inventory",
+        lambda _config: inventory,
+    )
     monkeypatch.setattr(module, "prepare_market_admission_session", prepare)
     monkeypatch.setattr(
         module,
@@ -476,7 +482,10 @@ def test_backfill_market_admission_flag_prefetches_and_writes_evidence(tmp_path,
             ["QQQ"],
             "2026-07-07",
             "2026-07-14",
-            {"btc_spot_witness_enabled": True},
+            {
+                "btc_spot_witness_enabled": True,
+                "field_inventory": inventory,
+            },
         )
     ]
     assert written[0][0] == archive
@@ -611,7 +620,11 @@ def test_backfill_market_admission_records_run_failure_in_evidence(tmp_path, mon
             "paths": {"archive_dir": str(archive)},
         },
     )
-    monkeypatch.setattr(module, "prepare_market_admission_session", lambda *_args: session)
+    monkeypatch.setattr(
+        module,
+        "prepare_market_admission_session",
+        lambda *_args, **_kwargs: session,
+    )
     def partial_write_then_fail(symbol, _start, _end, store, *_args, **_kwargs):
         if symbol == "QQQ":
             (store / "QQQ.csv").write_text(
@@ -783,7 +796,10 @@ def test_backfill_market_admission_rolls_back_when_evidence_write_fails(tmp_path
     monkeypatch.setattr(
         module,
         "prepare_market_admission_session",
-        lambda *_args: MarketAdmissionSession(enabled=True, witness_bars={}),
+        lambda *_args, **_kwargs: MarketAdmissionSession(
+            enabled=True,
+            witness_bars={},
+        ),
     )
 
     def write_candidate(_symbol, _start, _end, store, *_args, **_kwargs):

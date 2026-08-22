@@ -1500,6 +1500,49 @@ def test_refresh_external_pre_daily_check_warns_for_policy_stale_dollar(monkeypa
     )
 
 
+def test_retry_only_precheck_reuses_same_day_success_for_policy_stale_dollar(monkeypatch, tmp_path):
+    cfg = _config(tmp_path)
+    cfg["features"]["use_soft_data_max_age"] = True
+    cfg["soft_data_slo"] = {"max_age_days": {"dollar": 6}}
+    monkeypatch.setattr(
+        refresh_external,
+        "refresh_retry_sources",
+        lambda config=None, today=None, **_kwargs: {
+            "ok": True,
+            "ok_count": 0,
+            "error_count": 0,
+            "runs": [],
+            "mode": "retry_needed",
+            "selected_sources": [],
+        },
+    )
+    monkeypatch.setattr(
+        refresh_external,
+        "status",
+        lambda config=None, today=None: {
+            "dollar": {
+                "source_id": "dollar",
+                "status": "OK",
+                "latest_attempt_status": "OK",
+                "latest_attempt_finished_at": "2026-08-21T22:45:08+00:00",
+                "freshness_status": "STALE",
+                "age_days": 8,
+                "latest_promoted_as_of": "2026-08-14",
+            },
+        },
+    )
+
+    result = refresh_external.pre_daily_check(
+        cfg,
+        today=date(2026, 8, 22),
+        retry_only=True,
+    )
+
+    assert result["ready"] is True
+    assert result["blocking_sources"] == []
+    assert result["policy_warning_sources"] == ["dollar"]
+
+
 def test_policy_stale_dollar_does_not_hide_second_stale_source(monkeypatch, tmp_path):
     cfg = _config(tmp_path)
     cfg["features"]["use_soft_data_max_age"] = True

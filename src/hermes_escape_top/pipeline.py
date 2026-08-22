@@ -219,6 +219,10 @@ def _score_pipeline_locked(
     previous_statuses = (
         latest_decision_statuses(store.archive_dir / "hermes_state.sqlite") if stabilizer_on else {}
     )
+    excluded_component_symbols = _market_admission_component_exclusions(
+        market_admission_status,
+        as_of,
+    )
     bundles = {
         symbol: score_symbol(
             symbol,
@@ -228,6 +232,7 @@ def _score_pipeline_locked(
             histories=histories,
             suspect=suspect_flags.get(symbol, False),
             previous_status=previous_statuses.get(symbol),
+            excluded_component_symbols=excluded_component_symbols,
         )
         for symbol in trade_symbols(config)
     }
@@ -398,6 +403,31 @@ def _score_pipeline_locked(
         payload["signal_journal_path"] = str(signal_path)
 
     return payload
+
+
+def _market_admission_component_exclusions(
+    market_admission_status: Optional[Dict[str, Any]],
+    as_of: str,
+) -> set[str]:
+    if not isinstance(market_admission_status, dict):
+        return set()
+    current_day = str(as_of)[:10]
+    excluded: set[str] = set()
+    for row in market_admission_status.get("rows") or []:
+        if not isinstance(row, dict):
+            continue
+        if row.get("admitted") is not False or row.get("blocking") is False:
+            continue
+        if str(row.get("date") or "")[:10] != current_day:
+            continue
+        if row.get("decision_impact") != "COMPONENT_FLOW_ONLY":
+            continue
+        if set(row.get("decision_roles") or []) != {"component_flow"}:
+            continue
+        symbol = str(row.get("symbol") or "").upper()
+        if symbol:
+            excluded.add(symbol)
+    return excluded
 
 
 def _signal_journal_write_path(store: LocalStore, shadow: bool) -> Path:

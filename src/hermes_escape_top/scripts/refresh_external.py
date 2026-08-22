@@ -690,7 +690,7 @@ def pre_daily_check(
         else refresh_all_sources(cfg, auto_import=True, today=day, **refresh_kwargs)
     )
     sources = status(cfg, today=day)
-    return _evaluate_readiness(cfg, refresh_result, sources)
+    return _evaluate_readiness(cfg, refresh_result, sources, today=day)
 
 
 def daily_source_check(
@@ -740,7 +740,7 @@ def daily_source_check(
             "selected_sources": [],
         }
         refresh_result["ok"] = refresh_result["error_count"] == 0
-        return _evaluate_readiness(cfg, refresh_result, sources)
+        return _evaluate_readiness(cfg, refresh_result, sources, today=day)
     precheck_kwargs = {"_lease": _lease} if _lease is not None else {}
     return pre_daily_check(cfg, today=day, **precheck_kwargs)
 
@@ -767,7 +767,10 @@ def _evaluate_readiness(
     cfg: dict[str, Any],
     refresh_result: dict[str, Any],
     sources: dict[str, dict[str, Any]],
+    *,
+    today: date | None = None,
 ) -> dict[str, Any]:
+    day = today or shanghai_today()
     refresh_runs = {
         str(run.get("source_id")): run
         for run in refresh_result.get("runs") or []
@@ -796,7 +799,11 @@ def _evaluate_readiness(
                 row["readiness_severity"] = "INFO"
                 lifecycle_warnings.append(source_id)
             elif _is_policy_warn_only_stale(
-                cfg, source_id, row, refresh_runs.get(source_id) or {}
+                cfg,
+                source_id,
+                row,
+                refresh_runs.get(source_id) or {},
+                today=day,
             ):
                 row["publisher_status"] = "UNCHANGED_AFTER_REFRESH"
                 row["publisher_note"] = (
@@ -938,6 +945,8 @@ def _is_policy_warn_only_stale(
     source_id: str,
     row: dict[str, Any],
     refresh_run: dict[str, Any],
+    *,
+    today: date,
 ) -> bool:
     if source_id not in POLICY_WARN_ONLY_STALE_SOURCE_IDS:
         return False
@@ -950,7 +959,10 @@ def _is_policy_warn_only_stale(
         return False
     if str(row.get("freshness_status") or "") != "STALE":
         return False
-    if str(refresh_run.get("status") or "") != "OK":
+    if refresh_run:
+        if str(refresh_run.get("status") or "") != "OK":
+            return False
+    elif _source_checked_on(row) != today or _attempt_status(row) != "OK":
         return False
     configured = (
         ((config.get("soft_data_slo") or {}).get("max_age_days") or {}).get(source_id)

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import unittest
-from datetime import date
+from datetime import date, timedelta
 from unittest import mock
 
 from hermes_escape_top.config import load_config
+from hermes_escape_top import pipeline as pipeline_module
 from hermes_escape_top.core.data.base import Field, SymbolSnapshot
 from hermes_escape_top.core.decision.action_intents import build_action_context
 from hermes_escape_top.core.scoring.registry import FactorContext
@@ -211,6 +212,136 @@ class Phase3ScoringTest(unittest.TestCase):
         self.assertEqual(soxl_flow["missing_fields"], [])
         self.assertGreater(fngu_flow["max_score"], 0)
         self.assertGreater(soxl_flow["max_score"], 0)
+
+    def test_component_flow_skips_explicitly_quarantined_constituent(self) -> None:
+        config = load_config()
+        snapshots = base_snapshots()
+        snapshots["SOXL"] = snap(
+            "SOXL",
+            {
+                "close": 120.0,
+                "ma50": 115.0,
+                "ma150": 105.0,
+                "ma200": 100.0,
+                "ma220": 98.0,
+                "ema50": 112.0,
+                "rsi14": 55.0,
+                "drawdown_60d_high_pct": -0.05,
+                "return_2d": 0.01,
+                "distribution_days_25d": 2.0,
+                "chandelier_exit": 90.0,
+                "realized_vol20": 0.35,
+            },
+        )
+        components = ["NVDA", "AVGO", "AMD", "TSM", "ASML", "AMAT", "LRCX", "KLAC", "QCOM", "MU"]
+        for component in components:
+            snapshots[component] = snap(
+                component,
+                {"cmf20": 0.05, "mfi14": 60.0, "ad_slope20": 1.0},
+            )
+        snapshots["KLAC"].fields = {
+            name: Field(name, value, "unit", DAY)
+            for name, value in {
+                "cmf20": -0.20,
+                "mfi14": 20.0,
+                "ad_slope20": -1.0,
+            }.items()
+        }
+
+        result = score_symbol(
+            "SOXL",
+            snapshots,
+            config,
+            excluded_component_symbols={"KLAC"},
+        ).result
+        factor = next(
+            item
+            for item in result.factor_scores["D"]
+            if item["factor_id"] == "D_S4_COMPONENT_FLOW"
+        )
+
+        self.assertEqual(factor["score"], 0.0)
+        self.assertIn("9/10 obs", factor["explain"])
+        self.assertNotIn("KLAC", factor["explain"])
+
+    def test_component_flow_keeps_historical_data_without_current_quarantine(self) -> None:
+        config = load_config()
+        snapshots = base_snapshots()
+        snapshots["SOXL"] = snap(
+            "SOXL",
+            {
+                "close": 120.0,
+                "ma50": 115.0,
+                "ma150": 105.0,
+                "ma200": 100.0,
+                "ma220": 98.0,
+                "ema50": 112.0,
+                "rsi14": 55.0,
+                "drawdown_60d_high_pct": -0.05,
+                "return_2d": 0.01,
+                "distribution_days_25d": 2.0,
+                "chandelier_exit": 90.0,
+                "realized_vol20": 0.35,
+            },
+        )
+        components = ["NVDA", "AVGO", "AMD", "TSM", "ASML", "AMAT", "LRCX", "KLAC", "QCOM", "MU"]
+        for component in components:
+            snapshots[component] = snap(
+                component,
+                {"cmf20": 0.05, "mfi14": 60.0, "ad_slope20": 1.0},
+            )
+        stale_day = DAY - timedelta(days=1)
+        snapshots["KLAC"].fields = {
+            name: Field(name, value, "unit", stale_day)
+            for name, value in {
+                "cmf20": -0.20,
+                "mfi14": 20.0,
+                "ad_slope20": -1.0,
+            }.items()
+        }
+
+        result = score_symbol("SOXL", snapshots, config).result
+        factor = next(
+            item
+            for item in result.factor_scores["D"]
+            if item["factor_id"] == "D_S4_COMPONENT_FLOW"
+        )
+
+        self.assertIn("10/10 obs", factor["explain"])
+
+    def test_pipeline_excludes_only_current_component_flow_rejections(self) -> None:
+        status = {
+            "rows": [
+                {
+                    "symbol": "KLAC",
+                    "date": DAY.isoformat(),
+                    "admitted": False,
+                    "decision_roles": ["component_flow"],
+                    "decision_impact": "COMPONENT_FLOW_ONLY",
+                },
+                {
+                    "symbol": "NVDA",
+                    "date": (DAY - timedelta(days=1)).isoformat(),
+                    "admitted": False,
+                    "decision_roles": ["component_flow"],
+                    "decision_impact": "COMPONENT_FLOW_ONLY",
+                },
+                {
+                    "symbol": "MSTR",
+                    "date": DAY.isoformat(),
+                    "admitted": False,
+                    "decision_roles": ["scored_symbol"],
+                    "decision_impact": "STRATEGY_BLOCKING",
+                },
+            ]
+        }
+
+        excluded = pipeline_module._market_admission_component_exclusions(
+            status,
+            DAY.isoformat(),
+        )
+
+        self.assertEqual(excluded, {"KLAC"})
 
     def test_missing_b6_valuation_counts_as_blind_spot_weight(self) -> None:
         config = load_config()

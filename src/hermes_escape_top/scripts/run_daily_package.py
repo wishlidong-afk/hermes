@@ -94,7 +94,10 @@ sys.path.insert(0, str(PACKAGE_PARENT))
 
 from hermes_escape_top import pipeline
 from hermes_escape_top.config import load_config, resolve_path
-from hermes_escape_top.core.data.market_witness import refresh_market_witness
+from hermes_escape_top.core.data.market_witness import (
+    market_admission_field_inventory,
+    refresh_market_witness,
+)
 from hermes_escape_top.core.data.market_admission import (
     MarketAdmissionSession,
     prepare_market_admission_session,
@@ -214,6 +217,7 @@ def _prepare_daily_market_admission(
         if btc_spot_witness_enabled
         else {}
     )
+    admission_kwargs["field_inventory"] = market_admission_field_inventory(config)
     return prepare_market_admission_session(
         symbols,
         start,

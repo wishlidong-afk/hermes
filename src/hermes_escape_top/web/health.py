@@ -276,10 +276,16 @@ def compute_health(
         detail = " · ".join(
             part for part in (rejected_detail, evidence_text) if part
         )
+        component_only = _market_admission_is_component_only(market_admission)
         add(
             "DEGRADED",
-            "双源行情候选已隔离",
+            (
+                "穿透成分行情候选已隔离"
+                if component_only
+                else "双源行情候选已隔离"
+            ),
             f"rejected={market_admission.get('rejected_rows', 0)} {detail}".strip()[:240],
+            "auxiliary_flows" if component_only else "strategy_data",
         )
 
     # 4. Overall data-quality level
@@ -507,7 +513,19 @@ def compute_health(
                     f"{source_id}: age={row.get('age_days')}d "
                     f"{row.get('next_action') or ''}"
                 ).strip()
-                add_source(failure_level, "外部数据源陈旧", detail[:160])
+                if _verified_policy_stale_after_refresh(
+                    row,
+                    profile=profile,
+                    today=today,
+                ):
+                    add(
+                        "DEGRADED",
+                        "外部数据发布延迟（官方已核验）",
+                        detail[:160],
+                        "operations",
+                    )
+                else:
+                    add_source(failure_level, "外部数据源陈旧", detail[:160])
                 continue
             if status == "OK":
                 continue
@@ -551,6 +569,27 @@ def compute_health(
         "checks": checks,
         "summary": _summary(overall, checks),
     }
+
+
+def _verified_policy_stale_after_refresh(
+    row: Dict[str, Any],
+    *,
+    profile: Any,
+    today: date,
+) -> bool:
+    if profile is None or not bool(profile.warn_only_stale_after_refresh):
+        return False
+    if str(row.get("latest_attempt_status") or row.get("status") or "") != "OK":
+        return False
+    if timestamp_to_shanghai_date(
+        row.get("latest_attempt_finished_at") or row.get("finished_at")
+    ) != today:
+        return False
+    if str(row.get("latest_publisher_calendar_status") or "") != "VERIFIED":
+        return False
+    expected = str(row.get("latest_expected_release_status") or "")
+    grace = str(row.get("latest_expected_release_grace_status") or "")
+    return expected == "ADVANCED" and grace == "MATCHED"
 
 
 def _layers(checks: List[Dict[str, str]]) -> Dict[str, Dict[str, Any]]:
@@ -603,6 +642,32 @@ def _market_admission_rejected_detail(rows: Any, shadow: Any = None) -> str:
             parts.append(f"third={support}")
         return " ".join(parts)
     return ""
+
+
+def _market_admission_is_component_only(payload: Dict[str, Any]) -> bool:
+    try:
+        rejected = int(payload.get("rejected_rows"))
+        strategy_rejected = int(payload.get("strategy_blocking_rejected_rows"))
+        component_rejected = int(payload.get("component_flow_rejected_rows"))
+    except (TypeError, ValueError):
+        return False
+    if rejected <= 0 or strategy_rejected != 0 or component_rejected != rejected:
+        return False
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return False
+    rejected_rows = [
+        row
+        for row in rows
+        if isinstance(row, dict)
+        and row.get("admitted") is False
+        and row.get("blocking") is not False
+    ]
+    return len(rejected_rows) == rejected and all(
+        row.get("decision_impact") == "COMPONENT_FLOW_ONLY"
+        and set(row.get("decision_roles") or []) == {"component_flow"}
+        for row in rejected_rows
+    )
 
 
 def _level_from_checks(checks: List[Dict[str, str]]) -> str:

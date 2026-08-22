@@ -34,10 +34,20 @@ def score_symbol(
     histories: Optional[Dict[str, Any]] = None,
     suspect: bool = False,
     previous_status: Optional[str] = None,
+    excluded_component_symbols: Optional[Iterable[str]] = None,
 ) -> ScoreBundle:
     if symbol not in snapshots:
         raise KeyError(f"missing primary snapshot for {symbol}")
-    factors = build_registry(symbol, config).evaluate(FactorContext(symbol=symbol, snapshots=snapshots, config=config))
+    factors = build_registry(symbol, config).evaluate(
+        FactorContext(
+            symbol=symbol,
+            snapshots=snapshots,
+            config=config,
+            excluded_component_symbols=frozenset(
+                str(item).upper() for item in (excluded_component_symbols or ())
+            ),
+        )
+    )
     module_scores = aggregate_modules(factors, config)
     raw_total = weighted_percent_score(symbol, module_scores, config, regime=regime)
     missing_fields = [field for factor in factors for field in factor.missing_fields]

@@ -56,6 +56,7 @@ class FactorContext:
     symbol: str
     snapshots: Dict[str, SymbolSnapshot]
     config: Optional[Dict[str, Any]] = None
+    excluded_component_symbols: frozenset[str] = field(default_factory=frozenset)
 
     @property
     def snapshot(self) -> SymbolSnapshot:

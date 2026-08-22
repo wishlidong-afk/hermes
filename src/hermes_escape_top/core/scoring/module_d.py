@@ -190,14 +190,20 @@ def _component_flow_score(symbol: str, components: list[str]):
         severe: list[str] = []
         available = 0
         for component in components:
-            cmf = ctx.get(f"{component}.cmf20")
-            mfi = ctx.get(f"{component}.mfi14")
-            ad_slope = ctx.get(f"{component}.ad_slope20")
-            # Partial-eval safe: skip a constituent missing any sub-field rather
-            # than crashing / zeroing the whole factor. Gates scale to the number
-            # actually observed, so 8/9 components still produce a valid signal.
-            if cmf is None or mfi is None or ad_slope is None:
+            if component in ctx.excluded_component_symbols:
                 continue
+            snapshot = ctx.snapshots.get(component)
+            fields = [
+                snapshot.field(name) if snapshot is not None else None
+                for name in ("cmf20", "mfi14", "ad_slope20")
+            ]
+            # Partial-eval safe: skip a constituent missing any sub-field rather
+            # than crashing / zeroing the whole factor. Current-run admission
+            # quarantines are supplied explicitly through the scoring context;
+            # historical replay keeps its existing point-in-time behavior.
+            if any(field is None or field.missing for field in fields):
+                continue
+            cmf, mfi, ad_slope = (float(field.value) for field in fields if field is not None)
             available += 1
             if cmf <= -0.10 and mfi <= 45 and ad_slope < 0:
                 severe.append(component)

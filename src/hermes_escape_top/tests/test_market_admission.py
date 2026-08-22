@@ -106,6 +106,31 @@ def test_market_admission_freezes_price_mismatch() -> None:
     assert evidence[0]["admitted"] is False
 
 
+def test_market_admission_keeps_component_rejection_blocked_but_classifies_impact() -> None:
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"KLAC": [_witness(volume=2_000.0)]},
+        field_inventory={
+            "KLAC": {
+                "roles": ["component_flow"],
+                "decision_fields": ["open", "high", "low", "close", "volume"],
+            }
+        },
+    )
+
+    admitted, evidence = session.admit("KLAC", _candidate(volume=1_000.0))
+    payload = session.payload()
+
+    assert admitted.empty
+    assert evidence[0]["status"] == "VOLUME_MISMATCH"
+    assert evidence[0]["decision_roles"] == ["component_flow"]
+    assert evidence[0]["decision_impact"] == "COMPONENT_FLOW_ONLY"
+    assert payload["status"] == "BLOCKED"
+    assert payload["rejected_rows"] == 1
+    assert payload["strategy_blocking_rejected_rows"] == 0
+    assert payload["component_flow_rejected_rows"] == 1
+
+
 def test_market_admission_mismatch_carries_raw_evidence_without_changing_decision() -> None:
     witness = _witness(close=80.0)
     witness["APCA-API-SECRET-KEY"] = "must-not-leak"
@@ -498,6 +523,40 @@ def test_market_admission_writes_atomic_summary(tmp_path) -> None:
     assert read_market_admission_evidence(tmp_path) == payload
 
 
+def test_market_admission_v1_rejects_inconsistent_impact_counts(tmp_path) -> None:
+    history = tmp_path / "history"
+    history.mkdir()
+    (history / "KLAC.csv").write_text(
+        "date,open,high,low,close,adj_close,volume\n"
+        "2026-07-13,99,101,98,100,100,1000\n",
+        encoding="utf-8",
+    )
+    session = MarketAdmissionSession(
+        enabled=True,
+        witness_bars={"KLAC": [_witness(volume=2_000.0)]},
+        field_inventory={"KLAC": {"roles": ["component_flow"]}},
+        requested_start="2026-07-13",
+        requested_end="2026-07-14",
+        completed_through="2026-07-13",
+    )
+    session.admit("KLAC", _candidate(volume=1_000.0))
+    session.bind_canonical_files(history, ["KLAC"])
+    valid = session.payload(generated_at="2026-07-14T00:02:00+00:00")
+
+    checked = validate_market_admission_evidence(valid, history, as_of="2026-07-13")
+    assert checked["status"] == "BLOCKED"
+
+    corrupted = copy.deepcopy(valid)
+    corrupted["strategy_blocking_rejected_rows"] = 1
+    checked = validate_market_admission_evidence(
+        corrupted,
+        history,
+        as_of="2026-07-13",
+    )
+
+    assert checked["status"] == "EVIDENCE_DRIFT"
+
+
 def test_market_admission_dated_evidence_uses_shanghai_operating_day(tmp_path) -> None:
     session = MarketAdmissionSession(enabled=True, witness_bars={})
     payload = session.payload(generated_at="2026-07-13T22:45:00+00:00")
@@ -519,6 +578,7 @@ def test_market_admission_v2_validator_checks_provenance_and_row_consistency(tmp
     session = MarketAdmissionSession(
         enabled=True,
         witness_bars={"BTC-USD": [_btc_witness()]},
+        field_inventory={"BTC-USD": {"roles": ["scored_symbol"]}},
         btc_spot_witness_enabled=True,
         btc_completed_through="2026-07-13",
         requested_start="2026-07-13",
@@ -566,6 +626,9 @@ def test_market_admission_v2_validator_checks_provenance_and_row_consistency(tmp
     inconsistent_status = copy.deepcopy(valid)
     inconsistent_status["status"] = "BLOCKED"
     corruptions.append(inconsistent_status)
+    inconsistent_impact = copy.deepcopy(valid)
+    inconsistent_impact["component_flow_rejected_rows"] = 1
+    corruptions.append(inconsistent_impact)
     missing_canonical = copy.deepcopy(valid)
     missing_canonical["canonical_files"] = {
         "DOES_NOT_EXIST.csv": {"sha256": None, "latest_as_of": None}

@@ -22,7 +22,10 @@ from ..core.data.history_transaction import (
     HistoryPromotionTransaction,
     recover_history_transactions,
 )
-from ..core.data.market_witness import is_alpaca_supported_symbol
+from ..core.data.market_witness import (
+    is_alpaca_supported_symbol,
+    market_admission_field_inventory,
+)
 from ..core.data.external_sources.cboe_indices import CBOE_INDEX_SYMBOLS
 from ..core.data.store import safe_symbol
 from ..core.safe_io import atomic_write_csv
@@ -141,6 +144,9 @@ def backfill(
                 {"btc_spot_witness_enabled": True}
                 if btc_spot_witness_enabled
                 else {}
+            )
+            admission_kwargs["field_inventory"] = market_admission_field_inventory(
+                config
             )
             active_admission = prepare_market_admission_session(
                 symbols,

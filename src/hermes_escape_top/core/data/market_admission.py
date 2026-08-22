@@ -55,6 +55,7 @@ _ALPACA_PROVENANCE_FIELDS = (
 class MarketAdmissionSession:
     enabled: bool
     witness_bars: Mapping[str, Iterable[Mapping[str, Any]]]
+    field_inventory: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     btc_spot_witness_enabled: bool = False
     btc_completed_through: str | None = None
     witness_provenance: dict[str, Any] = field(default_factory=dict)
@@ -154,6 +155,7 @@ class MarketAdmissionSession:
                 "volume_evidence_status": comparison.get("volume_evidence_status"),
                 "candidate_sha256": comparison.get("local_sha256"),
                 "witness_sha256": comparison.get("witness_sha256"),
+                **self._decision_metadata(symbol),
             }
             if comparison.get("raw_comparison"):
                 evidence["raw_comparison"] = comparison["raw_comparison"]
@@ -231,6 +233,7 @@ class MarketAdmissionSession:
                 "candidate_sha256": comparison.get("local_sha256"),
                 "witness_sha256": comparison.get("witness_sha256"),
                 "witness_source": COINBASE_SOURCE,
+                **self._decision_metadata("BTC-USD"),
             }
             witness_error = self.witness_errors.get("coinbase")
             if witness_error and comparison.get("status") == "NO_WITNESS":
@@ -303,6 +306,12 @@ class MarketAdmissionSession:
             "rejected_rows": rejected_rows,
             "rows": list(self.evidence),
         }
+        if self.field_inventory:
+            strategy_rejected, component_rejected = _rejection_impact_counts(
+                self.evidence
+            )
+            payload["strategy_blocking_rejected_rows"] = strategy_rejected
+            payload["component_flow_rejected_rows"] = component_rejected
         if self.btc_spot_witness_enabled:
             payload["deferred_rows"] = deferred_rows
             payload["btc_spot_witness"] = {
@@ -342,18 +351,18 @@ class MarketAdmissionSession:
                 "latest_as_of": latest_as_of,
             }
 
-    @staticmethod
-    def _bypass_row(symbol: str, index: Any, status: str) -> dict[str, Any]:
+    def _bypass_row(self, symbol: str, index: Any, status: str) -> dict[str, Any]:
         return {
             "symbol": symbol,
             "date": pd.Timestamp(index).date().isoformat(),
             "status": status,
             "admitted": True,
             "reason": "Alpaca SIP admission does not apply",
+            **self._decision_metadata(symbol),
         }
 
-    @staticmethod
     def _rejection_row(
+        self,
         symbol: str,
         day: str,
         status: str,
@@ -367,10 +376,27 @@ class MarketAdmissionSession:
             "status": status,
             "admitted": False,
             "reason": reason,
+            **self._decision_metadata(symbol),
         }
         if not blocking:
             row["blocking"] = False
         return row
+
+    def _decision_metadata(self, symbol: str) -> dict[str, Any]:
+        if not self.field_inventory:
+            return {}
+        inventory = self.field_inventory.get(str(symbol).upper())
+        roles = (
+            [str(role) for role in inventory.get("roles") or []]
+            if isinstance(inventory, Mapping)
+            else []
+        )
+        impact = (
+            "COMPONENT_FLOW_ONLY"
+            if roles and set(roles) <= {"component_flow"}
+            else "STRATEGY_BLOCKING"
+        )
+        return {"decision_roles": roles, "decision_impact": impact}
 
 
 def prepare_market_admission_session(
@@ -383,6 +409,7 @@ def prepare_market_admission_session(
     now: datetime | None = None,
     btc_spot_witness_enabled: bool = False,
     coinbase_request_json: Callable[[str, Mapping[str, str]], Any] | None = None,
+    field_inventory: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> MarketAdmissionSession:
     completed_through = latest_completed_us_market_session(now).isoformat()
     if not btc_spot_witness_enabled:
@@ -408,6 +435,7 @@ def prepare_market_admission_session(
             return MarketAdmissionSession(
                 enabled=True,
                 witness_bars=alpaca_witness_bars,
+                field_inventory=field_inventory or {},
                 witness_provenance=alpaca_provenance,
                 requested_start=str(start)[:10],
                 requested_end=str(end)[:10],
@@ -417,6 +445,7 @@ def prepare_market_admission_session(
             return MarketAdmissionSession(
                 enabled=True,
                 witness_bars={},
+                field_inventory=field_inventory or {},
                 fetch_error=f"{exc.__class__.__name__}: {exc}",
                 requested_start=str(start)[:10],
                 requested_end=str(end)[:10],
@@ -473,6 +502,7 @@ def prepare_market_admission_session(
     return MarketAdmissionSession(
         enabled=True,
         witness_bars=witness_bars,
+        field_inventory=field_inventory or {},
         btc_spot_witness_enabled=True,
         btc_completed_through=latest_completed_utc_day(now).isoformat(),
         witness_provenance=witness_provenance,
@@ -482,6 +512,19 @@ def prepare_market_admission_session(
         requested_end=str(end)[:10],
         completed_through=completed_through,
     )
+
+
+def _rejection_impact_counts(rows: Iterable[Mapping[str, Any]]) -> tuple[int, int]:
+    strategy_rejected = 0
+    component_rejected = 0
+    for row in rows:
+        if row.get("admitted") or row.get("blocking") is False:
+            continue
+        if str(row.get("decision_impact") or "") == "COMPONENT_FLOW_ONLY":
+            component_rejected += 1
+        else:
+            strategy_rejected += 1
+    return strategy_rejected, component_rejected
 
 
 def _alpaca_witness_provenance(
@@ -625,6 +668,11 @@ def validate_market_admission_evidence(
             out["status"] = "EVIDENCE_DRIFT"
             out["evidence_detail"] = f"{name} sha256 mismatch"
             return out
+    impact_detail = _validate_rejection_impact_contract(out)
+    if impact_detail:
+        out["status"] = "EVIDENCE_DRIFT"
+        out["evidence_detail"] = impact_detail
+        return out
     if str(out.get("schema_version") or "") == "hermes-market-admission-v2":
         detail = _validate_market_admission_v2(out)
         if detail:
@@ -784,6 +832,47 @@ def _validate_market_admission_v2(payload: Mapping[str, Any]) -> str | None:
         expected_status = "OK"
     if payload.get("status") != expected_status:
         return f"market admission status does not match evidence ({expected_status})"
+    return None
+
+
+def _validate_rejection_impact_contract(payload: Mapping[str, Any]) -> str | None:
+    rows = payload.get("rows")
+    row_items = rows if isinstance(rows, list) else []
+    impact_contract = any(
+        key in payload
+        for key in (
+            "strategy_blocking_rejected_rows",
+            "component_flow_rejected_rows",
+        )
+    ) or any(
+        isinstance(row, Mapping)
+        and ("decision_impact" in row or "decision_roles" in row)
+        for row in row_items
+    )
+    if not impact_contract:
+        return None
+    if not isinstance(rows, list):
+        return "market admission impact rows are missing"
+    for row in rows:
+        if not isinstance(row, Mapping):
+            return "market admission impact row contract is invalid"
+        roles = row.get("decision_roles")
+        if not isinstance(roles, list) or not all(
+            isinstance(role, str) for role in roles
+        ):
+            return "market admission decision roles are invalid"
+        expected_impact = (
+            "COMPONENT_FLOW_ONLY"
+            if roles and set(roles) <= {"component_flow"}
+            else "STRATEGY_BLOCKING"
+        )
+        if row.get("decision_impact") != expected_impact:
+            return "market admission decision impact does not match roles"
+    strategy_rejected, component_rejected = _rejection_impact_counts(rows)
+    if payload.get("strategy_blocking_rejected_rows") != strategy_rejected:
+        return "market admission strategy rejection count does not match rows"
+    if payload.get("component_flow_rejected_rows") != component_rejected:
+        return "market admission component rejection count does not match rows"
     return None
 
 

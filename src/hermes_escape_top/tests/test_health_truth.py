@@ -571,6 +571,69 @@ def test_market_admission_blocked_degrades_with_quarantine_count():
     )
 
 
+def test_component_only_market_rejection_degrades_auxiliary_flow_not_strategy() -> None:
+    payload = _payload()
+    payload["market_admission_status"] = {
+        "mode": "enforce_consensus",
+        "status": "BLOCKED",
+        "rejected_rows": 1,
+        "strategy_blocking_rejected_rows": 0,
+        "component_flow_rejected_rows": 1,
+        "summary": {"VOLUME_MISMATCH": 1},
+        "rows": [
+            {
+                "symbol": "KLAC",
+                "date": "2026-08-21",
+                "status": "VOLUME_MISMATCH",
+                "admitted": False,
+                "decision_roles": ["component_flow"],
+                "decision_impact": "COMPONENT_FLOW_ONLY",
+            }
+        ],
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "OK"
+    assert health["layers"]["strategy_data"]["level"] == "OK"
+    assert health["layers"]["auxiliary_flows"]["level"] == "DEGRADED"
+    check = next(
+        check
+        for check in health["checks"]
+        if check["label"] == "穿透成分行情候选已隔离"
+    )
+    assert check["layer"] == "auxiliary_flows"
+    assert "KLAC 2026-08-21" in check["detail"]
+
+
+def test_market_rejection_with_missing_impact_metadata_remains_strategy_degraded() -> None:
+    payload = _payload()
+    payload["market_admission_status"] = {
+        "mode": "enforce_consensus",
+        "status": "BLOCKED",
+        "rejected_rows": 1,
+        "summary": {"VOLUME_MISMATCH": 1},
+        "rows": [
+            {
+                "symbol": "KLAC",
+                "date": "2026-08-21",
+                "status": "VOLUME_MISMATCH",
+                "admitted": False,
+            }
+        ],
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "DEGRADED"
+    assert health["layers"]["strategy_data"]["level"] == "DEGRADED"
+    assert any(
+        check["label"] == "双源行情候选已隔离"
+        and check["layer"] == "strategy_data"
+        for check in health["checks"]
+    )
+
+
 def test_market_admission_blocked_explains_price_and_volume_evidence():
     payload = _payload()
     payload["market_admission_status"] = {
@@ -784,6 +847,37 @@ def test_stale_external_source_profile_degrades_even_when_last_run_ok():
         "外部数据源陈旧" in check["label"]
         and "dollar" in check["detail"]
         and "run refresh_external --source dollar" in check["detail"]
+        for check in health["checks"]
+    )
+
+
+def test_verified_policy_stale_dollar_is_operational_not_strategy_degradation():
+    payload = _payload()
+    payload["external_source_status"] = {
+        "dollar": {
+            "source_id": "dollar",
+            "status": "OK",
+            "latest_attempt_status": "OK",
+            "latest_attempt_finished_at": NOW.isoformat(),
+            "freshness_status": "STALE",
+            "age_days": 8,
+            "evidence_status": "MATCH",
+            "latest_publisher_calendar_status": "VERIFIED",
+            "latest_expected_release_status": "ADVANCED",
+            "latest_expected_release_grace_status": "MATCHED",
+            "next_action": "official source checked today; wait for publisher update for dollar",
+        }
+    }
+
+    health = _health(payload)
+
+    assert health["level"] == "OK"
+    assert health["layers"]["strategy_data"]["level"] == "OK"
+    assert health["layers"]["operations"]["level"] == "DEGRADED"
+    assert any(
+        check["label"] == "外部数据发布延迟（官方已核验）"
+        and check["layer"] == "operations"
+        and "dollar" in check["detail"]
         for check in health["checks"]
     )
 
