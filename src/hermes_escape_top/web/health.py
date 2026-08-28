@@ -637,7 +637,7 @@ def _market_admission_rejected_detail(rows: Any, shadow: Any = None) -> str:
                 parts.append(f"volume diff={float(volume_diff):.4f}%")
             except (TypeError, ValueError):
                 pass
-        support = shadow_support.get((symbol, day))
+        support = shadow_support.get((symbol, day), "")
         if support:
             parts.append(f"third={support}")
         return " ".join(parts)
@@ -645,10 +645,19 @@ def _market_admission_rejected_detail(rows: Any, shadow: Any = None) -> str:
 
 
 def _market_admission_is_component_only(payload: Dict[str, Any]) -> bool:
+    rejected_value = payload.get("rejected_rows")
+    strategy_rejected_value = payload.get("strategy_blocking_rejected_rows")
+    component_rejected_value = payload.get("component_flow_rejected_rows")
+    if (
+        rejected_value is None
+        or strategy_rejected_value is None
+        or component_rejected_value is None
+    ):
+        return False
     try:
-        rejected = int(payload.get("rejected_rows"))
-        strategy_rejected = int(payload.get("strategy_blocking_rejected_rows"))
-        component_rejected = int(payload.get("component_flow_rejected_rows"))
+        rejected = int(rejected_value)
+        strategy_rejected = int(strategy_rejected_value)
+        component_rejected = int(component_rejected_value)
     except (TypeError, ValueError):
         return False
     if rejected <= 0 or strategy_rejected != 0 or component_rejected != rejected:
