@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import ast
 import hashlib
+import inspect
 import json
+import textwrap
 from datetime import date, datetime, timedelta, timezone
 
 from hermes_escape_top.core.reporting.system_health import build_system_health_audit_dimensions
+from hermes_escape_top.web import health as health_module
 from hermes_escape_top.web.health import (
     compute_health,
     post_deploy_certification,
@@ -49,6 +53,30 @@ def _health(payload: dict) -> dict:
         now=NOW,
         ibkr_max_age_seconds=900,
         receipt_timeout_seconds=7200,
+    )
+
+
+def _assert_small_function(function, *, branches: int, statements: int) -> None:
+    tree = ast.parse(textwrap.dedent(inspect.getsource(function)))
+    branch_count = sum(
+        isinstance(node, (ast.If, ast.For, ast.While, ast.Try, ast.Match))
+        for node in ast.walk(tree)
+    )
+    statement_count = sum(isinstance(node, ast.stmt) for node in ast.walk(tree))
+
+    assert branch_count <= branches
+    assert statement_count <= statements
+
+
+def test_compute_health_remains_a_small_facade():
+    _assert_small_function(compute_health, branches=3, statements=30)
+
+
+def test_market_admission_rejected_detail_remains_a_small_facade():
+    _assert_small_function(
+        health_module._market_admission_rejected_detail,
+        branches=4,
+        statements=20,
     )
 
 

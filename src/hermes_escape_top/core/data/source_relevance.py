@@ -11,6 +11,9 @@ _ROLE_PRIORITY = {
     "strategy": 2,
     "hard_gate": 3,
 }
+_SOFT_RECORD_FEATURE_FLAGS = {
+    "gex": "data_gex",
+}
 
 
 def source_is_decision_bearing(config: dict[str, Any], source_id: str) -> bool:
@@ -54,3 +57,32 @@ def soft_record_decision_role(config: dict[str, Any], record_name: str) -> str:
         candidates,
         key=lambda profile: _ROLE_PRIORITY[profile.decision_role],
     ).decision_role
+
+
+def soft_record_is_decision_bearing(
+    config: dict[str, Any],
+    record_name: str,
+) -> bool:
+    """Return whether a soft record is enabled and can affect a decision."""
+    name = str(record_name)
+    direct = effective_source_profile(config, name)
+    matches = (
+        [direct]
+        if direct is not None
+        else [
+            effective_source_profile(config, source_id)
+            for source_id, profile in PROFILES.items()
+            if name in profile.soft_record_names
+        ]
+    )
+    resolved = [profile for profile in matches if profile is not None]
+    if resolved:
+        return any(
+            profile.active and profile.decision_role in _DECISION_BEARING_ROLES
+            for profile in resolved
+        )
+
+    feature_flag = _SOFT_RECORD_FEATURE_FLAGS.get(name)
+    if feature_flag is not None:
+        return bool(((config or {}).get("features") or {}).get(feature_flag, False))
+    return soft_record_decision_role(config, name) in _DECISION_BEARING_ROLES

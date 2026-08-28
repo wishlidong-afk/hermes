@@ -19,7 +19,10 @@ from .core.data.run_transaction import recover_incomplete_score_run, score_run_t
 from .core.data.market import MarketData
 from .core.data.audit import write_audit_record
 from .core.data.quality import analyze_missing_fields, quality_from_snapshots
-from .core.data.source_relevance import soft_record_decision_role
+from .core.data.source_relevance import (
+    soft_record_decision_role,
+    soft_record_is_decision_bearing,
+)
 from .core.data.state_store import (
     latest_decision_statuses,
     latest_execution_confirmations,
@@ -657,7 +660,7 @@ def _quality_breakdown(
             "quality_penalty": record.get("quality_penalty", 0.0),
             "reason": record.get("reason", ""),
             "decision_role": decision_role,
-            "decision_bearing": decision_role in {"strategy", "hard_gate"},
+            "decision_bearing": soft_record_is_decision_bearing(config, name),
         })
     flow_stale = []
     for sleeve, row in sorted((flow.get("component_baskets") or {}).items()):

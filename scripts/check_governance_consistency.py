@@ -47,6 +47,7 @@ def governance_snapshot(config: dict[str, Any], baseline: dict[str, Any]) -> dic
             "equity_timing": baseline.get("equity_timing"),
             "effective_end": baseline.get("effective_end"),
             "evidence_status": baseline.get("evidence_status"),
+            "metrics": baseline.get("metrics"),
         },
     }
 
@@ -79,6 +80,7 @@ def check_repository(root: Path) -> dict[str, Any]:
     config_path = root / "src" / "hermes_escape_top" / "config" / "config.json"
     registry_path = root / "docs" / "FLAG_REGISTRY.md"
     context_path = root / "context.md"
+    runbook_path = root / "docs" / "PRODUCTION_RUNBOOK.md"
     baseline_path = root / "building" / "reports" / "flag_sweep" / "baseline.json"
     baseline_doc_path = root / "docs" / "BASELINE_CURRENT.md"
     gate_doc_path = root / "building" / "reports" / "flag_sweep" / "GATE_BASELINE_CURRENT.md"
@@ -94,7 +96,8 @@ def check_repository(root: Path) -> dict[str, Any]:
         checks["config_invariants"] = "ERROR"
         errors.append(f"config invariants: {exc}")
 
-    registry_defaults = parse_registry_defaults(registry_path.read_text(encoding="utf-8"))
+    registry_text = registry_path.read_text(encoding="utf-8")
+    registry_defaults = parse_registry_defaults(registry_text)
     config_features = config.get("features") or {}
     missing_flags = sorted(set(config_features) - set(registry_defaults))
     extra_flags = sorted(set(registry_defaults) - set(config_features))
@@ -136,6 +139,17 @@ def check_repository(root: Path) -> dict[str, Any]:
         errors.extend(f"baseline: {message}" for message in baseline_errors)
     else:
         checks["baseline_metadata"] = "OK"
+
+    current_fact_errors = _current_fact_doc_errors(
+        baseline,
+        registry_text,
+        runbook_path.read_text(encoding="utf-8"),
+    )
+    if current_fact_errors:
+        checks["current_facts_docs"] = "ERROR"
+        errors.extend(f"current facts: {message}" for message in current_fact_errors)
+    else:
+        checks["current_facts_docs"] = "OK"
 
     execution_open_errors = _execution_open_quality_errors(root)
     if execution_open_errors:
@@ -204,6 +218,54 @@ def _baseline_errors(baseline: dict[str, Any], baseline_doc_path: Path, gate_doc
         for expected in expected_text:
             if expected not in text:
                 errors.append(f"{path.name} missing {expected}")
+    return errors
+
+
+def _current_fact_doc_errors(
+    baseline: dict[str, Any],
+    registry_text: str,
+    runbook_text: str,
+) -> list[str]:
+    """Check mutable operational facts that prose historically allowed to drift."""
+    metrics = baseline.get("metrics") or {}
+    baseline_registry_text = "\n".join(
+        line for line in registry_text.splitlines() if "Deployment baseline" in line
+    )
+    baseline_facts = (
+        "CURRENT EXECUTION EVIDENCE",
+        str(baseline.get("git_commit") or ""),
+        "next_open",
+        f"{float(metrics.get('cagr', 0.0)):.2%}",
+        f"{float(metrics.get('max_drawdown', 0.0)):.2%}",
+        f"{float(metrics.get('sharpe', 0.0)):.3f}",
+    )
+    errors = [
+        f"FLAG_REGISTRY baseline missing {fact}"
+        for fact in baseline_facts
+        if fact not in baseline_registry_text
+    ]
+
+    lifecycle_facts = (
+        "ACTIVE_PUBLIC",
+        "ACTIVE_SUBSCRIBER",
+        "RETIRED_PAYWALL",
+        "PUBLIC_OFFICIAL_STABLE",
+    )
+    naaim_registry_text = "\n".join(
+        line for line in registry_text.splitlines() if "`data_naaim`" in line
+    )
+    naaim_runbook_text = "\n".join(
+        line for line in runbook_text.splitlines() if "NAAIM" in line
+    )
+    for name, text in (
+        ("FLAG_REGISTRY", naaim_registry_text),
+        ("PRODUCTION_RUNBOOK", naaim_runbook_text),
+    ):
+        for fact in lifecycle_facts:
+            if fact not in text:
+                errors.append(f"{name} NAAIM lifecycle contract missing {fact}")
+        if "ledger" not in text.lower():
+            errors.append(f"{name} NAAIM lifecycle contract missing runtime ledger authority")
     return errors
 
 

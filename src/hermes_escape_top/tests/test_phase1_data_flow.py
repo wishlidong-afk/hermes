@@ -245,6 +245,11 @@ class Phase1DataFlowTest(unittest.TestCase):
             "all_source_data_quality": {"level": "HIGH", "overall_score": 92.2},
             "soft_data": {
                 "records": {
+                    "gex": {
+                        "as_of": "2026-05-29",
+                        "data_available": False,
+                        "reason": "feature disabled: data_gex",
+                    },
                     "btc_funding_basis": {
                         "as_of": "2026-05-29",
                         "data_available": False,
@@ -260,6 +265,7 @@ class Phase1DataFlowTest(unittest.TestCase):
         }
         config = {
             "features": {
+                "data_gex": False,
                 "data_btc_funding": True,
                 "data_aaii": True,
             }
@@ -272,6 +278,9 @@ class Phase1DataFlowTest(unittest.TestCase):
         self.assertEqual(breakdown["strategy_overall_score"], 93.4)
         self.assertEqual(rows["btc_funding_basis"]["decision_role"], "research")
         self.assertEqual(rows["aaii"]["decision_role"], "strategy")
+        self.assertFalse(rows["gex"]["decision_bearing"])
+        self.assertFalse(rows["btc_funding_basis"]["decision_bearing"])
+        self.assertTrue(rows["aaii"]["decision_bearing"])
 
 
 if __name__ == "__main__":

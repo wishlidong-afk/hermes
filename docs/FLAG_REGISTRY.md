@@ -29,7 +29,7 @@ of four states:
 | `data_skew_vvix` | **ON** ✅ | live | CBOE SKEW + VVIX term-structure inputs (A7) |
 | `data_net_liquidity` | **ON** ✅ | live | FRED net-liquidity (WALCL − WTREGEN − RRP) |
 | `data_aaii` | **ON** ✅ | best-effort | AAII bull/bear sentiment (A2) |
-| `data_naaim` | **ON** ✅ | live/history-retired | NAAIM Exposure Index (A2); public feed is `RETIRED_PAYWALL` from 2026-08-01, certified history stays immutable, and stale rows continue through missing_weight without a flag flip. Reporting label: `已退役来源，等待 SLO 缺失路径` |
+| `data_naaim` | **ON** ✅ | live/evidence-derived | NAAIM Exposure Index (A2). Static fallback policy is `RETIRED_PAYWALL`; a verified `naaim_public_workbook` run may set runtime lifecycle `ACTIVE_PUBLIC` and migration `PUBLIC_OFFICIAL_STABLE`, while a configured verified subscriber may set `ACTIVE_SUBSCRIBER`. The runtime ledger is authoritative; absent valid current evidence, certified history stays immutable and stale rows continue through missing_weight without a flag flip. |
 | `data_cnn_fgi` | OFF | rejected-for-performance | CNN Fear & Greed — wired/full coverage, but system marginal effect is noise |
 | `data_component_breadth` | **ON** ✅ | live | NDX/SOX breadth from FNGU/SOXL component proxies (A3) |
 | `data_cboe_pcr` | **ON** ✅ | live | CBOE equity put/call ratio (A2) |
@@ -105,7 +105,7 @@ These flags had zero code references and were removed from config.json:
 | F4 partial factor eval | Live | Live robustness under partial data | `building/reports/flag_sweep/SWEEP_SUMMARY.md`; no-op on clean history, robustness win | `features.use_partial_factor_eval=false` |
 | Regime multipliers | Live | Scoring module weights | `features.use_regime_multipliers=true`; default ON matches the unconditional pre-2026-06-10 behavior | `features.use_regime_multipliers=false` |
 | Routing combo: MSTR→BTC-USD + DEFCON1 GLD leg | Live | Routing | `src/hermes_escape_top/config/config.json` `_defcon3_note`; historical combo OOS bottom-half rate 0.31, OOS Δ+0.117, CAGR +1.90pp vs baseline; DEFCON1 GLD standalone +1.59pp | `routing.defcon3.MSTR="QQQ"`; restore DEFCON1 BOXX70/TREND30 and remove `extra_legs.GLD` |
-| Deployment baseline | Current comparator | Docs, validation provenance | `docs/BASELINE_CURRENT.md`; cache v4 `baseline.json` is `CURRENT_EXECUTION_EVIDENCE` at gate-code commit `b78e13e`, `equity_timing=next_open`, 15.46% CAGR / -20.83% MaxDD / 1.058 Sharpe; compressed full source and approved-live config authorization are SHA-bound | Rebuild after any gate-code/config/history/soft-history/provenance-policy change; baseline alone authorizes no flip |
+| Deployment baseline | Current comparator | Docs, validation provenance | `docs/BASELINE_CURRENT.md`; cache v4 `baseline.json` is `CURRENT EXECUTION EVIDENCE` at gate-code commit `b23cf124b5b906d897884f2774d354b8cae23d1a`, `equity_timing=next_open`, 15.56% CAGR / -20.83% MaxDD / 1.064 Sharpe; compressed full source and approved-live config authorization are SHA-bound | Rebuild after any gate-code/config/history/soft-history/provenance-policy change; baseline alone authorizes no flip |
 
 ### Rejected / parked
 
@@ -170,4 +170,4 @@ The generated SSOT is `building/reports/factor_capacity/FACTOR_CAPACITY_INVENTOR
 
 ---
 
-*Last updated: 2026-08-12 (NAAIM retirement, MSTR B6 scored gap, and zero-point placeholder reporting lifecycle clarified)*
+*Last updated: 2026-08-28 (NAAIM evidence-derived lifecycle and current baseline facts reconciled)*

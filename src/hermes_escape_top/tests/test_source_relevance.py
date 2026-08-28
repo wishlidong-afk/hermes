@@ -1,4 +1,5 @@
 from hermes_escape_top.core.data.source_relevance import (
+    soft_record_is_decision_bearing,
     soft_record_decision_role,
     source_is_decision_bearing,
     source_refresh_lane,
@@ -80,3 +81,12 @@ def test_soft_record_roles_resolve_through_existing_source_profiles():
 
 def test_unknown_soft_record_defaults_to_strategy():
     assert soft_record_decision_role(_config(), "new_unregistered_feed") == "strategy"
+
+
+def test_disabled_soft_record_is_not_decision_bearing_but_unknowns_fail_closed():
+    disabled = _config(data_gex=False)
+    enabled = _config(data_gex=True)
+
+    assert soft_record_is_decision_bearing(disabled, "gex") is False
+    assert soft_record_is_decision_bearing(enabled, "gex") is True
+    assert soft_record_is_decision_bearing(disabled, "new_unregistered_feed") is True

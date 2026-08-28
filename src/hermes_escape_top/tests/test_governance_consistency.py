@@ -46,6 +46,74 @@ def test_repository_governance_evidence_matches_config_and_baseline():
     assert report["checks"]["factor_capacity"] == "OK"
     assert report["checks"]["live_config_policy"] == "OK"
     assert report["checks"]["execution_open_quality"] == "OK"
+    assert report["checks"]["current_facts_docs"] == "OK"
+
+
+def test_governance_snapshot_includes_current_baseline_metrics():
+    module = _module()
+    baseline = {
+        "git_commit": "a" * 40,
+        "equity_timing": "next_open",
+        "effective_end": "2026-07-21",
+        "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
+        "metrics": {"cagr": 0.1, "max_drawdown": -0.2, "sharpe": 1.0},
+    }
+
+    snapshot = module.governance_snapshot({"features": {}}, baseline)
+
+    assert snapshot["baseline"]["metrics"] == baseline["metrics"]
+
+
+def test_current_fact_docs_reject_stale_baseline_and_retirement_only_naaim():
+    module = _module()
+    baseline = {
+        "git_commit": "a" * 40,
+        "equity_timing": "next_open",
+        "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
+        "metrics": {"cagr": 0.1, "max_drawdown": -0.2, "sharpe": 1.0},
+    }
+    stale_registry = "NAAIM is RETIRED_PAYWALL. Old baseline b78e13e."
+    stale_runbook = "NAAIM is RETIRED_PAYWALL."
+
+    errors = module._current_fact_doc_errors(
+        baseline,
+        stale_registry,
+        stale_runbook,
+    )
+
+    assert any("FLAG_REGISTRY" in error and "baseline" in error for error in errors)
+    assert any("FLAG_REGISTRY" in error and "ACTIVE_PUBLIC" in error for error in errors)
+    assert any("PRODUCTION_RUNBOOK" in error and "ACTIVE_PUBLIC" in error for error in errors)
+
+    baseline_text = (
+        f"CURRENT EXECUTION EVIDENCE {baseline['git_commit']} next_open "
+        "10.00% -20.00% 1.000"
+    )
+    lifecycle_text = (
+        "NAAIM runtime ledger ACTIVE_PUBLIC ACTIVE_SUBSCRIBER RETIRED_PAYWALL "
+        "PUBLIC_OFFICIAL_STABLE"
+    )
+    misplaced_registry = (
+        f"Unrelated notes: {baseline_text} {lifecycle_text}\n"
+        "| `data_naaim` | ON | stale retirement-only claim |\n"
+        "| Deployment baseline | old comparator |\n"
+    )
+    misplaced_errors = module._current_fact_doc_errors(
+        baseline,
+        misplaced_registry,
+        f"Unrelated glossary: {lifecycle_text}\nNAAIM retirement-only procedure",
+    )
+    assert any("FLAG_REGISTRY" in error and "baseline" in error for error in misplaced_errors)
+    assert any("FLAG_REGISTRY" in error and "ACTIVE_PUBLIC" in error for error in misplaced_errors)
+
+    assert module._current_fact_doc_errors(
+        baseline,
+        (
+            f"| `data_naaim` | ON | {lifecycle_text} |\n"
+            f"| Deployment baseline | Current comparator | {baseline_text} |"
+        ),
+        f"NAAIM procedure: {lifecycle_text}",
+    ) == []
 
 
 def test_stale_baseline_requires_explicit_labels_in_both_docs(tmp_path):

@@ -40,6 +40,10 @@ RUNTIME_INTEGRITY_CHECKS = frozenset(
 STRATEGY_DECISION_CHECKS = frozenset(
     {"bound_health_report", "dashboard_health"}
 )
+_EXTERNAL_MIGRATION_AUTOMATIC_CHANNELS = {
+    "aaii_sentiment": frozenset({"public_html", "official_insights_rss"}),
+    "naaim_exposure": frozenset({"naaim_public_workbook", "naaim_subscriber"}),
+}
 
 
 def render_markdown(report: Mapping[str, Any]) -> str:
@@ -745,125 +749,228 @@ def _external_source_migration_observation(
     observed_at: datetime,
 ) -> Dict[str, Any]:
     path = Path(root) / ".hermes/logs/external/external_precheck_latest.json"
-    try:
-        payload = _read_json(path)
-        source_rows = payload.get("sources")
-        if not isinstance(source_rows, Mapping):
-            raise ValueError("precheck sources are missing or invalid")
-    except Exception as exc:
-        return {
-            "status": "WARN",
-            "detail": f"external precheck evidence unavailable: {exc}",
-            "evidence": str(path),
-            "sources": {},
-        }
+    source_rows, unavailable = _read_external_precheck_sources(path)
+    if unavailable is not None:
+        return unavailable
 
     observed_day = _local_datetime(observed_at).date()
-    expected = {
-        "aaii_sentiment": {"public_html", "official_insights_rss"},
-        "naaim_exposure": {"naaim_public_workbook", "naaim_subscriber"},
-    }
     issues: list[str] = []
     observing = False
     retired_sources: list[str] = []
     result_sources: Dict[str, Dict[str, Any]] = {}
-    for source_id, automatic_channels in expected.items():
-        raw = source_rows.get(source_id)
-        if not isinstance(raw, Mapping):
-            issues.append(f"{source_id} missing")
-            continue
-        channel = str(raw.get("latest_source_channel") or raw.get("source_channel") or "")
-        migration_status = str(raw.get("migration_status") or "MISSING")
-        readiness = str(raw.get("migration_readiness") or "MISSING")
-        lifecycle_status = str(raw.get("lifecycle_status") or "ACTIVE")
-        retired = lifecycle_status == "RETIRED_PAYWALL"
-        automated = channel in automatic_channels
-        source_issues: list[str] = []
-        if str(raw.get("status") or "") != "OK":
-            source_issues.append(f"status={raw.get('status') or 'MISSING'}")
-        if str(raw.get("evidence_status") or "") != "MATCH":
-            source_issues.append(
-                f"evidence={raw.get('evidence_status') or 'MISSING'}"
+    for source_id, automatic_channels in (
+        _EXTERNAL_MIGRATION_AUTOMATIC_CHANNELS.items()
+    ):
+        source_result, source_issues, source_observing, source_retired = (
+            _external_source_migration_result(
+                source_id,
+                automatic_channels,
+                source_rows.get(source_id),
+                observed_day,
             )
-        if not retired and str(raw.get("freshness_status") or "") not in {"OK", "DUE_SOON"}:
-            source_issues.append(
-                f"freshness={raw.get('freshness_status') or 'MISSING'}"
-            )
-        finished_at = _parse_timestamp(raw.get("finished_at") or raw.get("last_success_at"))
-        if not retired and (
-            finished_at is None or _local_datetime(finished_at).date() != observed_day
-        ):
-            source_issues.append(
-                f"precheck_date={_local_datetime(finished_at).date() if finished_at else 'MISSING'}"
-            )
-        try:
-            date.fromisoformat(str(raw.get("official_issue_as_of") or "")[:10])
-        except ValueError:
-            source_issues.append("official_issue_as_of invalid")
-        fingerprint = str(raw.get("official_file_sha256") or "")
-        if len(fingerprint) != 64 or any(ch not in "0123456789abcdef" for ch in fingerprint.lower()):
-            source_issues.append("official_file_sha256 invalid")
-        if not automated and not retired:
-            source_issues.append(f"manual/non-automatic channel={channel or 'MISSING'}")
-        if migration_status == "ACTION_REQUIRED":
-            source_issues.append("migration=ACTION_REQUIRED")
-        if retired:
-            if migration_status != "RETIRED_PAYWALL":
-                source_issues.append(f"retired lifecycle has migration={migration_status}")
-            else:
-                retired_sources.append(source_id)
-
-        deadline = str(raw.get("migration_deadline") or "")[:10]
-        if source_id == "naaim_exposure" and migration_status == "MIGRATION_DUE":
-            try:
-                deadline_day = date.fromisoformat(deadline)
-            except ValueError:
-                source_issues.append("migration_deadline invalid")
-            else:
-                if observed_day > deadline_day:
-                    source_issues.append(
-                        f"migration=MIGRATION_DUE after deadline={deadline}"
-                    )
-                else:
-                    observing = True
-
-        if source_issues:
-            issues.append(f"{source_id}: " + ", ".join(source_issues))
-        result_sources[source_id] = {
-            "automated": automated,
-            "source_channel": channel,
-            "migration_status": migration_status,
-            "migration_readiness": readiness,
-            "lifecycle_status": lifecycle_status,
-            "retired": retired,
-            "official_issue_as_of": str(raw.get("official_issue_as_of") or "")[:10],
-            "official_file_sha256": fingerprint,
-        }
-
-    if issues:
-        status = "WARN"
-        detail = "; ".join(issues)
-    elif observing:
-        status = "OBSERVING"
-        detail = (
-            "AAII automatic official channel certified; NAAIM automatic public workbook "
-            "is under pre-deadline observation"
         )
-    elif retired_sources:
-        status = "PASS"
-        detail = (
-            "AAII automatic official channel is certified; NAAIM public source is "
-            "retired behind paywall with frozen certified history and a weekly probe"
-        )
-    else:
-        status = "PASS"
-        detail = "AAII and NAAIM automatic official channels are certified"
+        result_sources.update(source_result)
+        issues.extend(source_issues)
+        observing = observing or source_observing
+        retired_sources.extend(source_retired)
+
+    status, detail = _external_source_migration_summary(
+        issues,
+        observing=observing,
+        retired_sources=retired_sources,
+    )
     return {
         "status": status,
         "detail": detail,
         "evidence": str(path),
         "sources": result_sources,
     }
+
+
+def _read_external_precheck_sources(
+    path: Path,
+) -> Tuple[Mapping[str, Any], Optional[Dict[str, Any]]]:
+    try:
+        payload = _read_json(path)
+        source_rows = payload.get("sources")
+        if not isinstance(source_rows, Mapping):
+            raise ValueError("precheck sources are missing or invalid")
+        return source_rows, None
+    except Exception as exc:
+        return {}, {
+            "status": "WARN",
+            "detail": f"external precheck evidence unavailable: {exc}",
+            "evidence": str(path),
+            "sources": {},
+        }
+
+
+def _external_source_migration_result(
+    source_id: str,
+    automatic_channels: frozenset[str],
+    raw: Any,
+    observed_day: date,
+) -> Tuple[Dict[str, Dict[str, Any]], list[str], bool, list[str]]:
+    if not isinstance(raw, Mapping):
+        return {}, [f"{source_id} missing"], False, []
+
+    channel = str(
+        raw.get("latest_source_channel") or raw.get("source_channel") or ""
+    )
+    migration_status = str(raw.get("migration_status") or "MISSING")
+    readiness = str(raw.get("migration_readiness") or "MISSING")
+    lifecycle_status = str(raw.get("lifecycle_status") or "ACTIVE")
+    retired = lifecycle_status == "RETIRED_PAYWALL"
+    automated = channel in automatic_channels
+    fingerprint = str(raw.get("official_file_sha256") or "")
+
+    source_issues = _external_migration_evidence_issues(
+        raw,
+        retired=retired,
+        observed_day=observed_day,
+        fingerprint=fingerprint,
+    )
+    policy_issues, retired_certified = _external_migration_policy_issues(
+        channel=channel,
+        automated=automated,
+        retired=retired,
+        migration_status=migration_status,
+    )
+    deadline_issues, observing = _external_migration_deadline_issues(
+        source_id,
+        migration_status=migration_status,
+        deadline=str(raw.get("migration_deadline") or "")[:10],
+        observed_day=observed_day,
+    )
+    source_issues.extend(policy_issues)
+    source_issues.extend(deadline_issues)
+
+    issues = (
+        [f"{source_id}: " + ", ".join(source_issues)]
+        if source_issues
+        else []
+    )
+    retired_sources = [source_id] if retired_certified else []
+    result = {
+        "automated": automated,
+        "source_channel": channel,
+        "migration_status": migration_status,
+        "migration_readiness": readiness,
+        "lifecycle_status": lifecycle_status,
+        "retired": retired,
+        "official_issue_as_of": str(raw.get("official_issue_as_of") or "")[:10],
+        "official_file_sha256": fingerprint,
+    }
+    return {source_id: result}, issues, observing, retired_sources
+
+
+def _external_migration_evidence_issues(
+    raw: Mapping[str, Any],
+    *,
+    retired: bool,
+    observed_day: date,
+    fingerprint: str,
+) -> list[str]:
+    issues: list[str] = []
+    if str(raw.get("status") or "") != "OK":
+        issues.append(f"status={raw.get('status') or 'MISSING'}")
+    if str(raw.get("evidence_status") or "") != "MATCH":
+        issues.append(f"evidence={raw.get('evidence_status') or 'MISSING'}")
+    if (
+        not retired
+        and str(raw.get("freshness_status") or "") not in {"OK", "DUE_SOON"}
+    ):
+        issues.append(f"freshness={raw.get('freshness_status') or 'MISSING'}")
+
+    finished_at = _parse_timestamp(
+        raw.get("finished_at") or raw.get("last_success_at")
+    )
+    if (
+        not retired
+        and (
+            finished_at is None
+            or _local_datetime(finished_at).date() != observed_day
+        )
+    ):
+        finished_day = (
+            _local_datetime(finished_at).date()
+            if finished_at
+            else "MISSING"
+        )
+        issues.append(f"precheck_date={finished_day}")
+
+    try:
+        date.fromisoformat(str(raw.get("official_issue_as_of") or "")[:10])
+    except ValueError:
+        issues.append("official_issue_as_of invalid")
+    if (
+        len(fingerprint) != 64
+        or any(ch not in "0123456789abcdef" for ch in fingerprint.lower())
+    ):
+        issues.append("official_file_sha256 invalid")
+    return issues
+
+
+def _external_migration_policy_issues(
+    *,
+    channel: str,
+    automated: bool,
+    retired: bool,
+    migration_status: str,
+) -> Tuple[list[str], bool]:
+    issues: list[str] = []
+    if not automated and not retired:
+        issues.append(f"manual/non-automatic channel={channel or 'MISSING'}")
+    if migration_status == "ACTION_REQUIRED":
+        issues.append("migration=ACTION_REQUIRED")
+    retired_certified = False
+    if retired:
+        if migration_status != "RETIRED_PAYWALL":
+            issues.append(f"retired lifecycle has migration={migration_status}")
+        else:
+            retired_certified = True
+    return issues, retired_certified
+
+
+def _external_migration_deadline_issues(
+    source_id: str,
+    *,
+    migration_status: str,
+    deadline: str,
+    observed_day: date,
+) -> Tuple[list[str], bool]:
+    if source_id != "naaim_exposure" or migration_status != "MIGRATION_DUE":
+        return [], False
+    try:
+        deadline_day = date.fromisoformat(deadline)
+    except ValueError:
+        return ["migration_deadline invalid"], False
+    if observed_day > deadline_day:
+        return [f"migration=MIGRATION_DUE after deadline={deadline}"], False
+    return [], True
+
+
+def _external_source_migration_summary(
+    issues: list[str],
+    *,
+    observing: bool,
+    retired_sources: list[str],
+) -> Tuple[str, str]:
+    if issues:
+        return "WARN", "; ".join(issues)
+    if observing:
+        return (
+            "OBSERVING",
+            "AAII automatic official channel certified; NAAIM automatic public workbook "
+            "is under pre-deadline observation",
+        )
+    if retired_sources:
+        return (
+            "PASS",
+            "AAII automatic official channel is certified; NAAIM public source is "
+            "retired behind paywall with frozen certified history and a weekly probe",
+        )
+    return "PASS", "AAII and NAAIM automatic official channels are certified"
 
 
 def _retention_observation(
@@ -996,10 +1103,25 @@ def _market_admission_observation(
 
 def _health_policy(health: Mapping[str, Any]) -> Tuple[list[str], list[str]]:
     layers = health.get("layers") or {}
-    failures = []
-    warnings = []
+    evaluations = (
+        _strategy_health_policy(layers.get("strategy_data") or {}),
+        _position_health_policy(layers.get("position_reconciliation") or {}),
+        _operations_health_policy(layers.get("operations") or {}),
+        _auxiliary_health_policy(layers.get("auxiliary_flows") or {}),
+    )
+    failures: list[str] = []
+    warnings: list[str] = []
+    for layer_failures, layer_warnings in evaluations:
+        failures.extend(layer_failures)
+        warnings.extend(layer_warnings)
+    return _unique(failures), _unique(warnings)
 
-    strategy = layers.get("strategy_data") or {}
+
+def _strategy_health_policy(
+    strategy: Mapping[str, Any],
+) -> Tuple[list[str], list[str]]:
+    failures: list[str] = []
+    warnings: list[str] = []
     for row in strategy.get("checks") or []:
         level = str(row.get("level") or "")
         detail = str(row.get("detail") or "")
@@ -1014,8 +1136,14 @@ def _health_policy(health: Mapping[str, Any]) -> Tuple[list[str], list[str]]:
         failures.append(f"strategy layer={strategy_level}")
     if strategy_level == "DEGRADED" and not any("dollar stale" in item for item in warnings):
         failures.append("strategy layer DEGRADED without permitted dollar warning")
+    return failures, warnings
 
-    positions = layers.get("position_reconciliation") or {}
+
+def _position_health_policy(
+    positions: Mapping[str, Any],
+) -> Tuple[list[str], list[str]]:
+    failures: list[str] = []
+    warnings: list[str] = []
     for row in positions.get("checks") or []:
         level = str(row.get("level") or "")
         label = str(row.get("label") or "")
@@ -1026,8 +1154,14 @@ def _health_policy(health: Mapping[str, Any]) -> Tuple[list[str], list[str]]:
             failures.append(f"position health: {label} {detail}".strip())
     if str(positions.get("level") or "OK") not in {"OK", "INFO"}:
         failures.append(f"position layer={positions.get('level')}")
+    return failures, warnings
 
-    operations = layers.get("operations") or {}
+
+def _operations_health_policy(
+    operations: Mapping[str, Any],
+) -> Tuple[list[str], list[str]]:
+    failures: list[str] = []
+    warnings: list[str] = []
     for row in operations.get("checks") or []:
         level = str(row.get("level") or "")
         label = str(row.get("label") or "")
@@ -1037,19 +1171,22 @@ def _health_policy(health: Mapping[str, Any]) -> Tuple[list[str], list[str]]:
             failures.append(message)
         elif level in {"DEGRADED", "INFO"}:
             warnings.append(message)
+    return failures, warnings
 
-    auxiliary = layers.get("auxiliary_flows") or {}
+
+def _auxiliary_health_policy(
+    auxiliary: Mapping[str, Any],
+) -> Tuple[list[str], list[str]]:
     auxiliary_level = str(auxiliary.get("level") or "OK")
-    auxiliary_warnings = []
+    warnings: list[str] = []
     for row in auxiliary.get("checks") or []:
         if str(row.get("level") or "") not in {"", "OK"}:
-            auxiliary_warnings.append(
+            warnings.append(
                 f"auxiliary health: {row.get('label')} {row.get('detail') or ''}".strip()
             )
-    warnings.extend(auxiliary_warnings)
-    if auxiliary_level != "OK" and not auxiliary_warnings:
+    if auxiliary_level != "OK" and not warnings:
         warnings.append(f"auxiliary flow layer={auxiliary_level}")
-    return _unique(failures), _unique(warnings)
+    return [], warnings
 
 
 def _is_dollar_only_strategy_warning(level: str, label: str, detail: str) -> bool:

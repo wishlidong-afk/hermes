@@ -7,7 +7,16 @@
     "effective_end": "2026-07-21",
     "equity_timing": "next_open",
     "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
-    "git_commit": "b23cf124b5b906d897884f2774d354b8cae23d1a"
+    "git_commit": "b23cf124b5b906d897884f2774d354b8cae23d1a",
+    "metrics": {
+      "cagr": 0.155556,
+      "final_value": 342742.362508,
+      "max_drawdown": -0.208283,
+      "max_drawdown_end": "2019-10-08",
+      "max_drawdown_start": "2018-06-14",
+      "sharpe": 1.063621,
+      "sortino": 1.335373
+    }
   },
   "config_version": "escape-top-v3.0-greenfield",
   "disabled_features": [
@@ -90,7 +99,7 @@
 ```
 <!-- HERMES_GOVERNANCE_SNAPSHOT_END -->
 
-> 由代码事实与治理检查生成于 2026-07-22。若本文与代码、配置或最新报告漂移，以代码和 `src/hermes_escape_top/config/config.json` 为准；`scripts/check_governance_consistency.py` 会阻止关键快照静默漂移。
+> 文首 machine governance snapshot 由当前代码、配置与 `baseline.json` 生成，是仓库级 current-facts 证据。若本文其它叙述与代码或运行时 ledger 漂移，以代码、`src/hermes_escape_top/config/config.json` 和对应 ledger 为准；`scripts/check_governance_consistency.py` 会阻止关键快照、基线与动态来源契约静默漂移。
 
 本文给新 agent 一个快速、可执行的项目地图：系统做什么、数据怎样进来、评分怎样变成策略、哪些 flag 已经部署、WebUI 两个端口各负责什么，以及当前性能基线在哪里。
 
@@ -168,14 +177,14 @@ Hermes 是一个防御型、只读、永不自动下单的逃顶系统，主目�
 | `occ_equity_pcr` | `soft_history/occ_equity_pcr.csv` | OCC weekly report | 周五 week-ending、周六公开 | 当前 inactive，只做迁移/替代源证据 |
 | `btc_funding_basis` | `soft_history/btc_funding_basis.csv` | Deribit，OKX fallback | 交易所 UTC 时间戳归日 | 增量刷新不再把历史 real 行降成 proxy |
 | `btc_spot_witness` | `history/BTC_USD.csv` 的准入证据 | Coinbase Exchange public BTC-USD 1D candles；Yahoo 仍是候选 writer | 仅完成的 UTC 日；日期相同且 close 差异 <=1% 才晋升 | live 自 2026-07-14 为 ON（repo 默认 OFF）；缺失/失配冻结旧 canonical，成交量口径不参与判断 |
-| `naaim_exposure` | `soft_history/naaim_exposure.csv` | 2026-08-01 起公共源付费退役；历史认证 XLSX 冻结；未来可配置订阅 XLSX | issue `+1d` | `RETIRED_PAYWALL`：周五仅探测官方访问是否恢复，普通陈旧不阻断 daily，但仍按 SLO 走 missing_weight；canonical/ledger 漂移继续 fail closed |
+| `naaim_exposure` | `soft_history/naaim_exposure.csv` | 官方公共工作簿或可选订阅 XLSX；历史认证文件冻结保留 | issue `+1d` | 静态 fallback 是 `RETIRED_PAYWALL`；验证后的 runtime ledger 可裁决为 `ACTIVE_PUBLIC` / `PUBLIC_OFFICIAL_STABLE` 或 `ACTIVE_SUBSCRIBER`；canonical/ledger 漂移继续 fail closed |
 | `aaii_sentiment` | `soft_history/aaii_sentiment.csv` | AAII 结果页 → AAII 官方 Insights RSS → official-file import | 结果页按 reported `+1d`；RSS 只按自身 artifact `pubDate` 可用，不向前回填 | Imperva 不再是自动化单点；RSS 可能比结果页晚约 2 天，两条官方发布面均失败时才需人工文件 |
 
-- 06:45 全量预检，07:05 只重试当日失败/证据未就绪的源，07:10 daily 优先复用当日完整 ledger，不连续重打限流源。`RETIRED_PAYWALL` 的 NAAIM 在周五上海时间才做一次非阻断官方访问探测，非探测日不请求。
+- 06:45 全量预检，07:05 只重试当日失败/证据未就绪的源，07:10 daily 优先复用当日完整 ledger，不连续重打限流源。NAAIM 未配置订阅时只在周五上海时间探测官方发布面；成功证据可维持 `ACTIVE_PUBLIC`，失败或失效则回落 `RETIRED_PAYWALL`，非探测日不请求。
 - 09:02 独立重试 Alpha Vantage market-admission 第三源 shadow，给供应商最新日线留出发布窗口；该任务只补证据，不改 canonical、准入、评分或官方 run。8766 必须同时匹配 operation ID 与 completed-through 才展示；09:10 再执行只读 morning acceptance。
 - 所有外部软数据先写 raw/staging，通过 schema + semantic validation 后才原子晋升；成功 ledger 绑定 canonical SHA-256、最新日期、来源 URL 和 PIT 规则。
 - canonical 字节与最新成功 ledger 不一致时显示 `EVIDENCE_DRIFT`，不会把人工改写重新认证为 OK。
-- AAII 结果页受阻时自动切换官方 Insights RSS，ledger 记录实际 URL 与 XML 指纹；AAII 下载文件及历史 NAAIM 官方文件按 SHA-256 去重，已消费或已失败的旧文件不会在每次预检被当成新候选。NAAIM 退役不生成代理值，也不允许镜像、新闻或其它情绪指标写入其 canonical。
+- AAII 结果页受阻时自动切换官方 Insights RSS，ledger 记录实际 URL 与 XML 指纹；AAII 下载文件及 NAAIM 官方工作簿按 SHA-256 去重，已消费或已失败的旧文件不会在每次预检被当成新候选。NAAIM 在任何 lifecycle 状态都不生成代理值，也不允许镜像、新闻或其它情绪指标写入其 canonical。
 - `CFTC_TFF_ASSET_MANAGER_EQUITY_EXPOSURE` 仅存在于 `core/research/`：按官方 TFF 的 ES/NQ 精确合约代码与精确发布日期构建 Asset Manager/Institutional 净仓位/OI。它不注册生产 source/factor/config；若离线研究幸存，未来实验只能替换 A2 NAAIM 的 2 分，不能给已饱和 A 模块加分，也不复活已拒绝的 `data_cot_nq` 合成信号。
 - 可靠性按 `Asia/Shanghai` 自然日去重；同日失败后重试成功只算一个成功日，避免重试次数虚增成功率。transport/parse/validation/promotion 中 `promotion=UNCHANGED` 是成功检查而不是失败；任何 30/90 日比率在样本少于 5 时显示 `INSUFFICIENT_EVIDENCE`，不把 0%/100% 冒充稳定统计。
 - Alpaca SIP 见证只对比 Yahoo/local canonical 的最近 OHLCV，写 `market_witness_*.json`；`NO_WITNESS`/`FETCH_ERROR` 不改评分、不改 `input_hash`。
@@ -369,7 +378,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 11. 当前性能基线
 
-> **CURRENT EXECUTION EVIDENCE：**baseline 绑定 gate-code commit `b23cf12`、approved-live-policy 校验通过的有效 live-config 快照、当前 history manifest 与 soft-history 指纹；可作为预注册 formal gate 的 next-open 对照，但不授权任何配置翻闸。完整来源以确定性 gzip 归档，并持久记录 raw-live、policy、normalized-replay 三段哈希；治理检查会独立验签和反向重建规范化差异。
+> **CURRENT EXECUTION EVIDENCE：**baseline 的完整 commit、next-open 指标与证据状态以文首 machine snapshot、`docs/BASELINE_CURRENT.md` 和 `baseline.json` 为准；它绑定 approved-live-policy 校验通过的有效 live-config 快照、当前 history manifest 与 soft-history 指纹，可作为预注册 formal gate 的对照，但不授权任何配置翻闸。完整来源以确定性 gzip 归档，并持久记录 raw-live、policy、normalized-replay 三段哈希；治理检查会独立验签和反向重建规范化差异。
 
 | 当前场景 | CAGR | MaxDD | Sharpe | 定位 |
 |---|---:|---:|---:|---|
@@ -410,7 +419,7 @@ MSTR -> BTC-USD 的实际 live 等价说明是 IBIT；回测用 BTC-USD 保留 c
 
 ## 12. 测试与验证
 
-当前回归结果：2026-07-22 当前基线证据批次全套 `1188 passed / 0 failed`。此数绑定当前 repo 候选；后续任何行为改动必须重跑，不得把旧测试数当作健康证明。
+最近一次完整验证记录：2026-08-28 全套 `1392 passed / 0 failed`。这是一次历史执行证据，不是永久 current-fact；任何行为改动都必须重跑，并以新鲜测试输出为准。
 
 标准命令：
 

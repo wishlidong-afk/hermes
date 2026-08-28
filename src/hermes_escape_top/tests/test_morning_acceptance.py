@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import ast
 import importlib.util
 import hashlib
+import inspect
 import json
+import textwrap
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -39,6 +42,18 @@ def _load_module():
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
+
+
+def _assert_small_function(function, *, branches: int, statements: int) -> None:
+    tree = ast.parse(textwrap.dedent(inspect.getsource(function)))
+    branch_count = sum(
+        isinstance(node, (ast.If, ast.For, ast.While, ast.Try, ast.Match))
+        for node in ast.walk(tree)
+    )
+    statement_count = sum(isinstance(node, ast.stmt) for node in ast.walk(tree))
+
+    assert branch_count <= branches
+    assert statement_count <= statements
 
 
 def _write_json(path: Path, value: dict) -> None:
@@ -736,6 +751,28 @@ def test_external_source_migration_observation_accepts_automatic_official_channe
     assert observation["sources"]["naaim_exposure"]["migration_status"] == "MIGRATION_DUE"
 
 
+def test_external_source_migration_observation_remains_a_small_facade():
+    module = _load_module()
+    _assert_small_function(
+        module._external_source_migration_observation,
+        branches=5,
+        statements=30,
+    )
+
+
+def test_external_source_migration_observation_warns_when_precheck_is_missing(tmp_path):
+    module = _load_module()
+
+    observation = module._external_source_migration_observation(
+        tmp_path,
+        datetime(2026, 8, 7, 9, 5, tzinfo=ZoneInfo("Asia/Shanghai")),
+    )
+
+    assert observation["status"] == "WARN"
+    assert "external precheck evidence unavailable" in observation["detail"]
+    assert observation["sources"] == {}
+
+
 def test_external_source_migration_observation_warns_after_manual_or_expired_evidence(tmp_path):
     module = _load_module()
     path = tmp_path / ".hermes/logs/external/external_precheck_latest.json"
@@ -777,6 +814,51 @@ def test_external_source_migration_observation_warns_after_manual_or_expired_evi
     assert observation["status"] == "WARN"
     assert "manual" in observation["detail"].lower()
     assert "ACTION_REQUIRED" in observation["detail"]
+
+
+def test_external_source_migration_observation_warns_on_malformed_certification(tmp_path):
+    module = _load_module()
+    path = tmp_path / ".hermes/logs/external/external_precheck_latest.json"
+    _write_json(
+        path,
+        {
+            "sources": {
+                "aaii_sentiment": {
+                    "status": "OK",
+                    "freshness_status": "OK",
+                    "evidence_status": "MATCH",
+                    "latest_source_channel": "official_insights_rss",
+                    "migration_status": "MONITORED",
+                    "official_issue_as_of": "not-a-date",
+                    "official_file_sha256": "not-a-fingerprint",
+                    "finished_at": "2026-08-06T06:45:05+08:00",
+                },
+                "naaim_exposure": {
+                    "status": "OK",
+                    "freshness_status": "OK",
+                    "evidence_status": "MATCH",
+                    "latest_source_channel": "naaim_public_workbook",
+                    "migration_status": "MIGRATION_DUE",
+                    "migration_readiness": "AUTOMATIC_PUBLIC",
+                    "migration_deadline": "2026-08-01",
+                    "official_issue_as_of": "2026-08-05",
+                    "official_file_sha256": "b" * 64,
+                    "finished_at": "2026-08-07T06:45:04+08:00",
+                },
+            }
+        },
+    )
+
+    observation = module._external_source_migration_observation(
+        tmp_path,
+        datetime(2026, 8, 7, 9, 5, tzinfo=ZoneInfo("Asia/Shanghai")),
+    )
+
+    assert observation["status"] == "WARN"
+    assert "precheck_date=2026-08-06" in observation["detail"]
+    assert "official_issue_as_of invalid" in observation["detail"]
+    assert "official_file_sha256 invalid" in observation["detail"]
+    assert "migration=MIGRATION_DUE after deadline=2026-08-01" in observation["detail"]
 
 
 def test_external_source_migration_observation_accepts_retired_naaim_history(tmp_path):
@@ -1060,6 +1142,73 @@ def test_operational_refresh_failure_is_visible_without_blocking_acceptance():
     assert warnings == [
         "operations: 外部数据源刷新失败（认证缓存仍有效） "
         "naaim_exposure: FETCH_ERROR workbook unavailable"
+    ]
+
+
+def test_health_policy_remains_a_small_facade():
+    module = _load_module()
+    _assert_small_function(module._health_policy, branches=4, statements=25)
+
+
+def test_health_policy_preserves_layer_order_and_classification():
+    module = _load_module()
+    health = {
+        "layers": {
+            "strategy_data": {
+                "level": "DEGRADED",
+                "checks": [
+                    {
+                        "level": "DEGRADED",
+                        "label": "外部数据源陈旧",
+                        "detail": "dollar: publisher lag",
+                    },
+                    {
+                        "level": "DEGRADED",
+                        "label": "外部数据源陈旧",
+                        "detail": "real_rate: refresh required",
+                    },
+                ],
+            },
+            "position_reconciliation": {
+                "level": "INFO",
+                "checks": [
+                    {
+                        "level": "INFO",
+                        "label": "IBKR 快照陈旧",
+                        "detail": "age=3600s",
+                    }
+                ],
+            },
+            "operations": {
+                "level": "CRITICAL",
+                "checks": [
+                    {
+                        "level": "CRITICAL",
+                        "label": "官方 run 失败",
+                        "detail": "receipt invalid",
+                    },
+                    {
+                        "level": "INFO",
+                        "label": "外部源已退役",
+                        "detail": "weekly probe",
+                    },
+                ],
+            },
+            "auxiliary_flows": {"level": "DEGRADED", "checks": []},
+        }
+    }
+
+    failures, warnings = module._health_policy(health)
+
+    assert failures == [
+        "strategy health: 外部数据源陈旧 real_rate: refresh required",
+        "operations: 官方 run 失败 receipt invalid",
+    ]
+    assert warnings == [
+        "dollar stale (expected policy WARN)",
+        "IBKR stale/unavailable (nonblocking INFO)",
+        "operations: 外部源已退役 weekly probe",
+        "auxiliary flow layer=DEGRADED",
     ]
 
 
