@@ -234,6 +234,7 @@ def test_ci_and_package_build_use_the_audited_runtime_contract():
 
     assert "python -m pip install -r requirements.lock" in workflow
     assert "python -m pip install -r requirements.txt" not in workflow
+    assert "python -m pip check" in workflow
     assert "python -m pip_audit -r requirements.lock" in workflow
     assert 'requires-python = ">=3.10"' in pyproject
     assert 'build-backend = "setuptools.build_meta:__legacy__"' in pyproject

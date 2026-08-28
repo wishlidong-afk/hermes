@@ -24,6 +24,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.lock
           python -m pip install -e './src[dev]'
+          python -m pip check
       - name: Test
         env:
           PYTHONPATH: src:src/hermes_escape_top/tests

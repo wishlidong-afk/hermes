@@ -23,7 +23,11 @@ def _config(tmp_path, *, enabled: bool) -> dict:
     }
 
 
-def test_fred_vintage_flag_off_keeps_legacy_source_order_and_adapters(tmp_path) -> None:
+def test_fred_vintage_flag_off_keeps_legacy_source_order_and_adapters(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.delenv("FRED_API_KEY", raising=False)
     config = _config(tmp_path, enabled=False)
 
     assert refresh_external.configured_source_ids(config)[:3] == (
