@@ -43,6 +43,25 @@ def test_rotate_keeps_distinct_run_types_per_day(tmp_path):
     assert set(kept) == {"scheduled", "manual_rerun"}
 
 
+def test_rotate_keeps_each_scheduled_revision_but_compacts_revision_repeats(tmp_path):
+    p = tmp_path / "audit_log.jsonl"
+    base = {"as_of": "2026-08-28", "run_type": "scheduled", "scores": {}}
+    lines = [
+        json.dumps({"payload": {**base, "decision_evidence": {"decision_revision": 1}, "n": "r1"}}),
+        json.dumps({"payload": {**base, "decision_evidence": {"decision_revision": 2}, "n": "r2-first"}}),
+        json.dumps({"payload": {**base, "decision_evidence": {"decision_revision": 2}, "n": "r2-repeat"}}),
+        json.dumps({"payload": {**base, "run_type": "manual_rerun", "n": "preview"}}),
+    ]
+    p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    archive = rotate_audit_log(p, keep_days=90, min_size_mb=0)
+
+    kept = [json.loads(line)["payload"] for line in p.read_text(encoding="utf-8").splitlines()]
+    assert [row["n"] for row in kept] == ["r1", "r2-repeat", "preview"]
+    with gzip.open(archive, "rt", encoding="utf-8") as handle:
+        assert len(handle.read().splitlines()) == 4
+
+
 def test_rotate_is_noop_below_size_threshold(tmp_path):
     p = tmp_path / "audit_log.jsonl"
     original = '{"payload":{"as_of":"2026-06-12","scores":{}}}\n'

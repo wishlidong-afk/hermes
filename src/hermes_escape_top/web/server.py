@@ -409,7 +409,14 @@ def _read_system_health_report(path: Path) -> dict | None:
     return report
 
 
-def _report_matches_input_hash(report: dict, payload_hash: str) -> bool:
+def _report_matches_decision(
+    report: dict,
+    *,
+    payload_hash: str,
+    decision_hash: str,
+) -> bool:
+    if decision_hash:
+        return str(report.get("decision_hash") or "") == decision_hash
     return str(report.get("input_hash") or "") == payload_hash
 
 
@@ -445,14 +452,25 @@ def _attach_system_health_report(payload: dict) -> dict:
         all_paths.extend(_system_health_report_paths(root))
 
     payload_hash = str(payload.get("input_hash") or "")
+    decision_evidence = payload.get("decision_evidence")
+    decision_hash = str(
+        decision_evidence.get("decision_hash")
+        if isinstance(decision_evidence, dict)
+        else ""
+    )
+    evidence_hash = decision_hash or payload_hash
     report = None
     if exact_paths:
-        if payload_hash:
+        if evidence_hash:
             matching = [
                 (path, candidate)
                 for path in exact_paths
                 if (candidate := _read_system_health_report(path)) is not None
-                and _report_matches_input_hash(candidate, payload_hash)
+                and _report_matches_decision(
+                    candidate,
+                    payload_hash=payload_hash,
+                    decision_hash=decision_hash,
+                )
             ]
             if not matching:
                 return payload
@@ -460,7 +478,7 @@ def _attach_system_health_report(payload: dict) -> dict:
         else:
             chosen = max(exact_paths, key=lambda p: p.stat().st_mtime)
             report = _read_system_health_report(chosen)
-    elif all_paths and not payload_hash:
+    elif all_paths and not evidence_hash:
         chosen = max(all_paths, key=lambda p: (p.name, p.stat().st_mtime))
         report = _read_system_health_report(chosen)
     if report is None:
@@ -539,8 +557,9 @@ def _latest_score_payload(as_of: str, records: list | None = None, prefer_previe
         exact_sched = None       # official record exactly matching an explicit target
         exact_any = None         # newest record exactly matching the target (any run_type)
         exact_preview = None     # newest NON-official record for the target (?view=preview)
+        exact_sched_key = None
         latest = None            # newest OFFICIAL (scheduled) run — the default headline
-        latest_day = ""
+        latest_key = None
         latest_any = None        # newest of any run_type — fallback only if no scheduled
         latest_any_day = ""
         for payload in records:
@@ -554,8 +573,11 @@ def _latest_score_payload(as_of: str, records: list | None = None, prefer_previe
                 # An intraday manual_rerun preview must never silently become the
                 # default headline (the SOXL REDUCE->EXIT->REDUCE scare was a
                 # preview flip): `latest` only ever tracks the newest scheduled run.
-                if str(payload.get("run_type", "scheduled")) == "scheduled" and pday > latest_day:
-                    latest_day = pday
+                if str(payload.get("run_type", "scheduled")) == "scheduled":
+                    scheduled_key = _scheduled_payload_rank(payload)
+                    if latest_key is not None and scheduled_key <= latest_key:
+                        continue
+                    latest_key = scheduled_key
                     latest = dict(payload)
                     latest["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True, "requested_as_of": raw_target}
                 continue
@@ -570,9 +592,12 @@ def _latest_score_payload(as_of: str, records: list | None = None, prefer_previe
                 if exact_any is None:
                     exact_any = dict(payload)
                     exact_any["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True, "non_official": rt != "scheduled"}
-                if rt == "scheduled" and exact_sched is None:
-                    exact_sched = dict(payload)
-                    exact_sched["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True}
+                if rt == "scheduled":
+                    scheduled_key = _scheduled_payload_rank(payload)
+                    if exact_sched_key is None or scheduled_key > exact_sched_key:
+                        exact_sched_key = scheduled_key
+                        exact_sched = dict(payload)
+                        exact_sched["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True}
                 if rt != "scheduled" and exact_preview is None:
                     exact_preview = dict(payload)
                     exact_preview["cache_status"] = {"hit": True, "source": "audit_log.jsonl", "exact": True, "non_official": True}
@@ -603,6 +628,19 @@ def _latest_score_payload(as_of: str, records: list | None = None, prefer_previe
         return fallback
     except Exception:
         return None
+
+
+def _scheduled_payload_rank(payload: dict) -> tuple[str, int, str]:
+    evidence = payload.get("decision_evidence") if isinstance(payload.get("decision_evidence"), dict) else {}
+    try:
+        revision = int(evidence.get("decision_revision") or 0)
+    except (TypeError, ValueError):
+        revision = 0
+    return (
+        str(payload.get("as_of") or "")[:10],
+        revision,
+        str(payload.get("run_ts") or ""),
+    )
 
 
 def _recent_status_history(as_of: str, max_days: int = 30, records: list | None = None) -> dict:

@@ -107,7 +107,10 @@ from hermes_escape_top.core.data.market_third_source import (
     collect_market_admission_third_source_shadow,
     write_market_admission_third_source_shadow,
 )
-from hermes_escape_top.core.data.decision_as_of import last_bar_dates as decision_last_bar_dates
+from hermes_escape_top.core.data.decision_as_of import (
+    last_bar_dates as decision_last_bar_dates,
+    resolve_decision_as_of,
+)
 from hermes_escape_top.core.data.store import LocalStore, safe_symbol
 from hermes_escape_top.core.data.run_transaction import recover_incomplete_score_run
 from hermes_escape_top.core.safe_io import atomic_write_text, assert_pipeline_lease
@@ -155,10 +158,7 @@ def _latest_available_as_of() -> str:
     after the batch refresh) repairs symbols that lag their peers only because
     of transient batch rate-limiting, so this min reflects genuine availability
     rather than a fetch hiccup."""
-    dates = _last_bar_dates()
-    if dates:
-        return min(dates.values()).isoformat()
-    return date.today().isoformat()
+    return resolve_decision_as_of("latest", load_config())
 
 
 # ── Step 1: refresh OHLCV history ────────────────────────────────────────────
@@ -1521,12 +1521,19 @@ def _write_system_health_report(
     quality = payload.get("data_quality") if isinstance(payload.get("data_quality"), dict) else {}
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
     generator_identity = _system_health_generator_identity()
+    decision_evidence = payload.get("decision_evidence")
+    decision_hash = (
+        decision_evidence.get("decision_hash")
+        if isinstance(decision_evidence, dict)
+        else None
+    )
     report = {
         "schema_version": "hermes-system-health-v1",
         "generated_at": generated_at,
         **generator_identity,
         "as_of": as_of,
         "input_hash": payload.get("input_hash"),
+        "decision_hash": decision_hash,
         "run_type": payload.get("run_type"),
         "manifest_status": manifest,
         "run_receipt": receipt,

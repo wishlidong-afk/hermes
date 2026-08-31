@@ -961,6 +961,32 @@ def test_health_report_hash_mismatch_fails_acceptance(tmp_path):
     assert "input_hash" in row["detail"]
 
 
+def test_health_report_decision_hash_mismatch_fails_when_snapshot_hash_matches(tmp_path):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    archive = home / ".hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive"
+    audit_path = archive / "audit_log.jsonl"
+    audit_record = json.loads(audit_path.read_text(encoding="utf-8").strip())
+    audit_record["payload"]["decision_evidence"] = {"decision_hash": "decision-r2"}
+    audit_path.write_text(json.dumps(audit_record) + "\n", encoding="utf-8")
+
+    report_path = home / ".hermes/skills/investment/escape-top/current/reports/system_health_2026-07-10.json"
+    health_report = json.loads(report_path.read_text(encoding="utf-8"))
+    health_report["decision_hash"] = "decision-r1"
+    _write_json(report_path, health_report)
+
+    report = module.collect_acceptance(
+        home=home,
+        now=now,
+        dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    row = next(item for item in report["checks"] if item["id"] == "bound_health_report")
+    assert report["status"] == "FAIL"
+    assert row["status"] == "FAIL"
+    assert "decision_hash" in row["detail"]
+
+
 def test_immutable_health_report_wins_when_compatibility_file_was_overwritten(tmp_path):
     module = _load_module()
     home, now, dashboard_health = _acceptance_fixture(tmp_path)

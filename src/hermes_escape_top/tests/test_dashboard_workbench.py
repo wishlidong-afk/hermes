@@ -22,6 +22,21 @@ def test_health_report_copy_marks_post_deploy_pending_without_claiming_failure()
     assert "待当前版本自然日跑再认证" in text
 
 
+def test_health_report_copy_prefers_decision_hash_over_matching_snapshot_hash():
+    text = render_mod._health_report_evidence_text(
+        {
+            "system_health_report": {
+                "input_hash": "same-snapshot",
+                "decision_hash": "decision-r1",
+            },
+            "input_hash": "same-snapshot",
+            "decision_evidence": {"decision_hash": "decision-r2"},
+        }
+    )
+
+    assert text == "decision hash 不一致"
+
+
 def test_trust_header_does_not_authorize_actions_while_post_deploy_is_pending():
     payload = _payload()
     payload.update(
@@ -1550,10 +1565,19 @@ def test_system_health_history_renders_recent_reports():
     assert "策略数据=DEGRADED" in html
 
 
-def _write_health_report(report_dir, as_of: str, *, generated_at: str, input_hash: str | None = "report-hash"):
+def _write_health_report(
+    report_dir,
+    as_of: str,
+    *,
+    generated_at: str,
+    input_hash: str | None = "report-hash",
+    decision_hash: str | None = None,
+):
     report = _system_health_report(as_of)
     report["generated_at"] = generated_at
     report["input_hash"] = input_hash
+    if decision_hash is not None:
+        report["decision_hash"] = decision_hash
     report_dir.mkdir(parents=True, exist_ok=True)
     path = report_dir / f"system_health_{as_of}.json"
     path.write_text(
@@ -1597,6 +1621,64 @@ def test_system_health_report_loader_prefers_matching_input_hash_over_newer_exac
 
     assert payload["system_health_report"]["input_hash"] == "payload-hash"
     assert "matching" in payload["system_health_report"]["source_path"]
+
+
+def test_system_health_report_loader_prefers_matching_decision_hash(monkeypatch, tmp_path):
+    revision_one = tmp_path / "revision_one"
+    revision_two = tmp_path / "revision_two"
+    old = _write_health_report(
+        revision_one,
+        "2026-07-02",
+        generated_at="2026-07-03T07:11:27+08:00",
+        input_hash="same-snapshot",
+        decision_hash="decision-r1",
+    )
+    current = _write_health_report(
+        revision_two,
+        "2026-07-02",
+        generated_at="2026-07-03T08:44:09+08:00",
+        input_hash="same-snapshot",
+        decision_hash="decision-r2",
+    )
+    os.utime(old, (2000, 2000))
+    os.utime(current, (1000, 1000))
+    monkeypatch.setattr(
+        server_mod,
+        "_system_health_report_roots",
+        lambda: [revision_one, revision_two],
+        raising=False,
+    )
+
+    payload = server_mod._attach_system_health_report(
+        {
+            "as_of": "2026-07-02",
+            "input_hash": "same-snapshot",
+            "decision_evidence": {"decision_hash": "decision-r2"},
+        }
+    )
+
+    assert payload["system_health_report"]["decision_hash"] == "decision-r2"
+    assert "revision_two" in payload["system_health_report"]["source_path"]
+
+
+def test_system_health_report_loader_rejects_legacy_report_for_certified_payload(monkeypatch, tmp_path):
+    _write_health_report(
+        tmp_path,
+        "2026-07-02",
+        generated_at="2026-07-03T07:11:27+08:00",
+        input_hash="same-snapshot",
+    )
+    monkeypatch.setattr(server_mod, "_system_health_report_roots", lambda: [tmp_path], raising=False)
+
+    payload = server_mod._attach_system_health_report(
+        {
+            "as_of": "2026-07-02",
+            "input_hash": "same-snapshot",
+            "decision_evidence": {"decision_hash": "decision-r2"},
+        }
+    )
+
+    assert "system_health_report" not in payload
 
 
 def test_system_health_report_loader_finds_matching_immutable_run(monkeypatch, tmp_path):

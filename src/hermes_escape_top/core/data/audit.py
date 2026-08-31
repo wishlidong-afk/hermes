@@ -43,12 +43,12 @@ def rotate_audit_log(path: Path, keep_days: int = 90, min_size_mb: int = 100) ->
 
     The full current log is FIRST archived to a timestamped gzip (lossless — no
     audit record is ever destroyed), then the main file is rewritten to keep only
-    the latest record per (as_of, run_type) within the last ``keep_days`` — this
-    collapses intraday re-run bloat and bounds date-range growth, preserving
-    chronological order so the tail readers (latest payload, prev-entry diff,
-    history strip) still resolve. Atomic replace: an interrupted rotation never
-    loses the live log. No-op below ``min_size_mb``. Returns the archive path or
-    None when nothing was rotated.
+    the latest record per (as_of, run_type, scheduled revision) within the last
+    ``keep_days``. This retains every official same-date revision while collapsing
+    repeated certification and intraday preview bloat, preserving chronological
+    order so the tail readers still resolve. Atomic replace: an interrupted
+    rotation never loses the live log. No-op below ``min_size_mb``. Returns the
+    archive path or None when nothing was rotated.
     """
     import gzip
     import os
@@ -78,13 +78,15 @@ def rotate_audit_log(path: Path, keep_days: int = 90, min_size_mb: int = 100) ->
                 pl = pl if isinstance(pl, dict) else rec
                 ao = str(pl.get("as_of", ""))[:10]
                 rt = str(pl.get("run_type", ""))
+                evidence = pl.get("decision_evidence") if isinstance(pl.get("decision_evidence"), dict) else {}
+                revision = evidence.get("decision_revision") if rt == "scheduled" else None
             except Exception:
                 parsed.append((None, True))
                 continue
             if not ao or ao < cutoff:
                 parsed.append((None, False))     # older than window -> archived only
                 continue
-            key = (ao, rt)
+            key = (ao, rt, revision)
             last_idx[key] = i
             parsed.append((key, False))
         kept = [lines[i] for i, (key, passthrough) in enumerate(parsed)

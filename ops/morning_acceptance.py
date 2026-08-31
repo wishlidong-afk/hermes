@@ -503,10 +503,20 @@ def _collect_bound_health(
                     f"{candidate.name}: {exc.__class__.__name__}: {exc}"
                 )
         expected_hash = str(audit.get("input_hash") or "")
+        decision_evidence = audit.get("decision_evidence")
+        expected_decision_hash = str(
+            decision_evidence.get("decision_hash")
+            if isinstance(decision_evidence, Mapping)
+            else ""
+        )
         matching = [
             item
             for item in reports
-            if str(item[1].get("input_hash") or "") == expected_hash
+            if (
+                str(item[1].get("decision_hash") or "") == expected_decision_hash
+                if expected_decision_hash
+                else str(item[1].get("input_hash") or "") == expected_hash
+            )
         ]
         if matching:
             path, report = max(
@@ -527,6 +537,8 @@ def _collect_bound_health(
             failures.append(f"run_type={report.get('run_type')}")
         if str(report.get("input_hash") or "") != str(audit.get("input_hash") or ""):
             failures.append("input_hash does not match scheduled audit")
+        if expected_decision_hash and str(report.get("decision_hash") or "") != expected_decision_hash:
+            failures.append("decision_hash does not match scheduled audit")
         report_receipt = report.get("run_receipt") or {}
         if str(report_receipt.get("status") or "") != "OK" or report_receipt.get("ok") is not True:
             failures.append("embedded scheduled receipt is not OK")

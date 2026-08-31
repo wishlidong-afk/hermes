@@ -1,0 +1,5138 @@
+{
+  "all_equal": true,
+  "baseline_source": "/private/tmp/hermes-decision-clock-baseline.zBvIc7",
+  "baseline_source_evidence": {
+    "excluded_prefixes": [
+      "src/hermes_escape_top/data",
+      "src/hermes_escape_top/tests/__pycache__"
+    ],
+    "file_count": 334,
+    "files": [
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/cli.py",
+        "sha256": "855fdf5936d5dc4011600e3e76c1cb2a2552604f60534bfaa1626211b14f7a06",
+        "size": 10675
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/config.py",
+        "sha256": "e37e1629e0a8b7cfc4286d0165ead72df140f5e82be20a3ed9aa904143dca03a",
+        "size": 8846
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/config/artifacts/calibration_v1.json",
+        "sha256": "cd8d991adef324d68fc303f42651950becd8d5b0166f2dcad179cec051b1ac68",
+        "size": 10521
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/config/artifacts/calibration_v2.json",
+        "sha256": "2c2c07ca9ee181c336adaf2974c0ad2edeb72adef29a379492a9d03d3dae0d67",
+        "size": 28196
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/config/config.json",
+        "sha256": "1a08fbbd2c72ce2cee9e1b13253a884be145503dc3c14a611d14b151d423c253",
+        "size": 15995
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/audit/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/audit/exporter.py",
+        "sha256": "94225aa5d4af4adbe477cd496a5bd4fcf2b7e20c5fa242da00d66e404ba12baf",
+        "size": 4500
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/costs.py",
+        "sha256": "231db67871af20ea7651de95880ecbe00fcabcbfae5da43571a9b0a4e0156a6c",
+        "size": 634
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/execution.py",
+        "sha256": "1d53779ecc0563197a69209ed03b184e3809dc503cd0a2e56fcc9f206385d02c",
+        "size": 14272
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/formal_gate.py",
+        "sha256": "b9aff61a2e0860b56b519a498e8ebfc22053c1183ecd115f2aeb0a6fff6e5a84",
+        "size": 24579
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/gate_policy.py",
+        "sha256": "5e013c9d4612540493c899f8e148a71754e03c1fff77047016b3f37d39394ecb",
+        "size": 1356
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/harness.py",
+        "sha256": "88fd512ee944a226cd123e3b412258af6862b6d8a88cd408c1f3da07ea803a12",
+        "size": 10845
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/labeling.py",
+        "sha256": "f6691c05dedd4509dace8eb97eedcd1fe167e533a776347e9d154acd34cdf569",
+        "size": 3577
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/metrics.py",
+        "sha256": "68763e5fbaf2dfc1e2bb9293892193743fb49910ad36d35e84c89372a026c827",
+        "size": 3972
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/param_sweep.py",
+        "sha256": "72119554096a8a6becba836ba6319d7ae7d2a73dd4eb49b8f3eb20918dd47cb3",
+        "size": 2832
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/posterior.py",
+        "sha256": "307e311d9dda5d39c46cc2bc3db29a1e3f01d680cc6d20e41213a05e7e4e7a87",
+        "size": 4591
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/replay.py",
+        "sha256": "0d8f8bfad7352fdf3bd592a27c55d65769c4cbf2e56380fffbac35feda9025ca",
+        "size": 3568
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/reports.py",
+        "sha256": "ee310753bb0f8be7e3ae71b016eb7ef828c8d36655fae3714f350e12ed85e26e",
+        "size": 5072
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/run_full.py",
+        "sha256": "4a62d402c25d049c403fc84f01a6db00ae8b798003435cc69650a28fd5411130",
+        "size": 14134
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/simulator.py",
+        "sha256": "ae5c020c8dd77da3de657f6352dc3310976b98f613c38fd68f62a6ea95daa48d",
+        "size": 6479
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/snapshot.py",
+        "sha256": "050b6fc41ae15d3667e6d0511628f876256a6bfb2ef724265f48aedbe11c14fa",
+        "size": 2416
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/validation.py",
+        "sha256": "5d7dd576228f67857504eabbe741bb7a0c0927d491674234ef5271d05ca6b2af",
+        "size": 4300
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/confidence/__init__.py",
+        "sha256": "4cd758ae04bc533c387d23061f200038e7804a4ccb6c9a3952efb233c26d7749",
+        "size": 72
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/confidence/spine.py",
+        "sha256": "d2381f5dd25f423abbe6353d25b5a02e275c751351f882b3c9d6cf3104815af2",
+        "size": 4468
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/contracts.py",
+        "sha256": "6f07fec22ac100fe3798f148d6d800ac01237269be8e929454d0315b262c813b",
+        "size": 1607
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/adapters.py",
+        "sha256": "acaabe34e99b50ae6011c18b91ade8041ee15216366aa6b38867d1197f69af19",
+        "size": 7811
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/alpaca_flow.py",
+        "sha256": "13d116ff452052886f65072298fb53a29456b0bcfdb596c21a6dc82edb82d00c",
+        "size": 13062
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/audit.py",
+        "sha256": "44a80a43a406415992740b971753a2345175b197a14f06eab9fcfe7f5deaf481",
+        "size": 4653
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/base.py",
+        "sha256": "d3560ee85a2e475174b8a8b80ed6369512d605371da4327c9b47c324dcf72313",
+        "size": 2358
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/breadth.py",
+        "sha256": "7b0a6d71f15b2119bd3d2f9e991156863babc5617b25e67c386ae8bb1c8aa0b3",
+        "size": 4746
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/coinbase_witness.py",
+        "sha256": "b81df1e41f5645ccfd61af0b16117863cc2838ab5e97b35d0bad85066b685647",
+        "size": 7859
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/crypto.py",
+        "sha256": "a431c7cee78921d1fb2c61bcb29e439bc2821b8ae7383c73d10fe8000153c923",
+        "size": 6904
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/decision_as_of.py",
+        "sha256": "67ff93466c5eae138ed9601132493f5050c5d878e427ce0f6db9282d0858e12d",
+        "size": 1479
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/__init__.py",
+        "sha256": "63d729471407a541dd770b12f4a1a9f282efcdbf480fd766a99ddbbb1e410fe2",
+        "size": 3091
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/aaii.py",
+        "sha256": "133bb2b3e5de7883e52e0232f4d7511a3d2a7bdb2693943df0732cbe4c55c5cc",
+        "size": 24122
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/cboe_indices.py",
+        "sha256": "6a8540ec28e4026b080850944722d740ae0e077f32be46eda1e7216621df467d",
+        "size": 23246
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/clock.py",
+        "sha256": "c35606d0922be8d1d2add0b316d69bb7c56bcaa757b8e29e43767b0834b4872d",
+        "size": 868
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/fred.py",
+        "sha256": "c5a20e1e48cedf627a6f4e4db61bb0677c8b1488824675c9bb754ef34ce762a9",
+        "size": 30453
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/fred_vintage.py",
+        "sha256": "85fc45d8a32e5073cbde4cd11eddbc74ccae3df6d49c3443c9ee1038b6f7ba55",
+        "size": 25425
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/import_queue.py",
+        "sha256": "90a2037931b5e7905b609c4d1134b10c2958404204fa03b314dd967f84cf9548",
+        "size": 6500
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/ledger.py",
+        "sha256": "f3d0bad0c06db208f64f9c993fc26fe33587a09b895474c38b2f42fd63f70267",
+        "size": 22271
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/market_soft.py",
+        "sha256": "6a8c7f3cef07ca7a4637efb9dd62e96691fcda86034bf1f0e608da9b05f23ab7",
+        "size": 17418
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/naaim.py",
+        "sha256": "40dab77d9f55468c21fe2c4250239bc4bedff459b6fa754c842aaa98ad29cb4e",
+        "size": 18734
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/profiles.py",
+        "sha256": "cdedbbd76f874b645d87c9b882854f361719a2cc6b919ad5c8f8e490210070b5",
+        "size": 27561
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/provenance.py",
+        "sha256": "b715b31a7d731ab20dfb38fce49d4713df9aa1b80fcada08876cbc38c51c7557",
+        "size": 1377
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/registry.py",
+        "sha256": "8f559ac16a38e2b5ede25cb6bfa6c68594c22cc995189ecef86774923c98d2ed",
+        "size": 2453
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/runner.py",
+        "sha256": "623558b6e132cc128cdda82618b08706658b8bcf68679ec709f11a761e418108",
+        "size": 33398
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/failover.py",
+        "sha256": "a8507091cb2bf019c3e81c275fb0ddb86c4957f036de104d8350f19e9006ee84",
+        "size": 4061
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/flow.py",
+        "sha256": "be682f3579d4a606aaaabf1d160100892e2f6f05f8aca633dd2f769dedf4a9ad",
+        "size": 7064
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/flow_store.py",
+        "sha256": "fd38b14545e0437957a649fcf2a45632ea8527a3454b6f6070203e15a329b88c",
+        "size": 3155
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/history_transaction.py",
+        "sha256": "3c740afe1241c940b9d067111176c9ae1e2e710c6ac04843b1e04387c9ad2d57",
+        "size": 12252
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/jsonl.py",
+        "sha256": "a0e9ec3c2e15f377187beef73b3d36fe1d279df64492a2b4afa3bd3d24f728d2",
+        "size": 2605
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/macro.py",
+        "sha256": "7658289f62fe320ba08f0d08d65a22b8b55b87bf4272eac7d261cdabc971df08",
+        "size": 11344
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/manifest.py",
+        "sha256": "7c60ebe24060659ffa5791dbc406dc819bf8117a2c994b037a85185cd6ed0d17",
+        "size": 5729
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/market.py",
+        "sha256": "ad214f383aa070d78b749d5e75ed5a3f883f62547beb01f2f9bd8eeb69fd606b",
+        "size": 5488
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/market_admission.py",
+        "sha256": "54f4a90c2aa5bfaa871ac7924841c8ee89daebb0dfa8a39cb370038d8cc496a1",
+        "size": 35254
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/market_clock.py",
+        "sha256": "ef78b028c17b062723d7ebf58ec0e300f6fb59ef5d8d4614aa23d92dbd655945",
+        "size": 607
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/market_third_source.py",
+        "sha256": "ffaf25288f37a83e288d98e1554cda43cef46056f396dc4ad7ea6ebd94e054c1",
+        "size": 13061
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/market_witness.py",
+        "sha256": "1bec66f0acb8e17cb0ae2573898dabe1f04b207b9326ba2542c73df9a2395873",
+        "size": 19573
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/network_guard.py",
+        "sha256": "df438ce8f00ceed8e1b2c65fe9f51e5ab851751142a29f3c8310a22b91f27112",
+        "size": 476
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/options.py",
+        "sha256": "083102437549fd967d05fca7c863209964fde96fd16c08913f7d18bae183139f",
+        "size": 2238
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/pcr.py",
+        "sha256": "08a2d615203ddc537a8f1dcbb4ddb4e498443931c09ce953a673f20d7e2ed491",
+        "size": 5872
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/pit.py",
+        "sha256": "0b0b9c10a08133c79f6a3a7b655774288d5cd24f3ab67f45174b1577ac9e6297",
+        "size": 1184
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/quality.py",
+        "sha256": "ba46afa61bbcfb7c33e6a493d7b1a0cfa31a87995105702f28a0df40a635baa8",
+        "size": 8871
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/risk_signals.py",
+        "sha256": "1cbdf18e12c7dd5b8c9e9eb4840beedfbd386dfb00908e011d282973964ab0af",
+        "size": 38927
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/run_transaction.py",
+        "sha256": "a12ffd574d1151d6d993db5c3ea3e6ff7bbc67048c08d88959014faf49cf69b6",
+        "size": 13793
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/runtime_root.py",
+        "sha256": "479c3ca3133762f87638f7f8cf7a9287830b9daf4f7e8b146e670740038370ae",
+        "size": 1618
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/sanitize.py",
+        "sha256": "18db0a6601f0782859cfb4af73840bb78296119c267532a31419c011c7065e2f",
+        "size": 8552
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/sentiment.py",
+        "sha256": "bc51c87d884217498979b468b00e39e31f023b163ba338b31766a556564bc02d",
+        "size": 9215
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/source_relevance.py",
+        "sha256": "b33c27b7ee6a8066b434bd4caccf5924709eb63780d934686067cfe5fd43c134",
+        "size": 2904
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/state_store.py",
+        "sha256": "9f35372a8e28a615d314775f47f6e8624fd4bef62f6fb8b5b164ea643276542c",
+        "size": 31414
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/store.py",
+        "sha256": "7556767cbaac599c57ee7cae046f950878faaf74135c8c52e7b6a082411cfd33",
+        "size": 4697
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/synth_leverage.py",
+        "sha256": "a6b575eb569091d5928d468d0ab479abf90719fbb685c04dcaf1f806c4be942d",
+        "size": 13185
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/valuation.py",
+        "sha256": "95f98d6a1e99a9b9d7b66f6c1ecad7170ad7d7655becad11fdf0f95b5a30e37c",
+        "size": 802
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/wso_index.py",
+        "sha256": "f124bc178d2781200665fc015b2097b3213e6a1494d0ffb83912ab7a4ff47156",
+        "size": 3310
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/decision/__init__.py",
+        "sha256": "274baead25f533c42623998375f8ef5c3b07bd67e14102138a1be03782ec9f0a",
+        "size": 36
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/decision/action_intents.py",
+        "sha256": "d2a58d70224819fc23c99c0f4e882ebf761321c1f64429df7f7b7a8bd33a16b5",
+        "size": 19188
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/decision/signal_journal.py",
+        "sha256": "825d39690c3e26721022c314b5c1a0da6246f300b8b1e500d763a0600f10e779",
+        "size": 2522
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/decision/verdict.py",
+        "sha256": "9c5f0dba77da064742604d2ae87335e7d50ecbd9b32cdf11e5cc42614db3b8e9",
+        "size": 9939
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/factors/__init__.py",
+        "sha256": "b26accedbce11021db333433f917d45640f8a216fd651c01e213ee9ac85d49c2",
+        "size": 278
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/factors/lab.py",
+        "sha256": "655a49baaac89c5e1d14f1a5e126b4ea606c2363cfbb1d2d1c2e0c9568786818",
+        "size": 13022
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/factors/onchain_mstr_lab.py",
+        "sha256": "c38968c90779030438e57af91374070677dc3342dfc33f633fd204ecdff73571",
+        "size": 18652
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/features/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/features/context.py",
+        "sha256": "35ddcfa411755df228216707256090fc74bee3bc51b28516b5592740c45893fa",
+        "size": 10732
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/features/indicators.py",
+        "sha256": "2fbaefbec5b441d9b38a808ecb5bbd41e68977920f48ea96eb839659a7adc320",
+        "size": 6155
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/features/normalize.py",
+        "sha256": "f6ee85319eebaef0d793e09b8fbe315545d3ebdf53cc99333281ab44ed17ac65",
+        "size": 2508
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/features/regime.py",
+        "sha256": "c760f298091073477a1c7814f0449b56c15a29c4a3ba0cafbd41361701359f34",
+        "size": 3058
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/features/volatility.py",
+        "sha256": "8d37233703cc6d49a5a05d8689ad05a50f797132abc68d9f01fe161460efc058",
+        "size": 3868
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/governance/__init__.py",
+        "sha256": "1b01d9f92f5a03b31c900f28f43df8a2f89024afa4472c3377265f5b92eeff45",
+        "size": 260
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/governance/governance.py",
+        "sha256": "571b90c95557f3fc2b689a1dd03365385d719e1ee74aa03e553da0ff3ec2f952",
+        "size": 6685
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/monitor/__init__.py",
+        "sha256": "3385f7b3bab7796f0b12838ef24c485f58374377b80dca15e4820f6e1dd074bd",
+        "size": 90
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/monitor/drift.py",
+        "sha256": "98f7036c9877d74cd4a06943acdd8f74d89f9e7c22dba91ec4f5065e5166c519",
+        "size": 4683
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/pipeline.py",
+        "sha256": "74449e35f09e42169c5fc9f8c7bf1a659c384f93a26909a918bd0ce42042b8c1",
+        "size": 451
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/__init__.py",
+        "sha256": "849b53fda061240cd766608d020a7466e7f024d6d8276ceb95ad48773c4bf31d",
+        "size": 106
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/invariants.py",
+        "sha256": "692736aeee2f4757cf6795ae37d88df0d9b88943a63168935d1cc050dccd0474",
+        "size": 557
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/risk_budget.py",
+        "sha256": "347de00f4ce0d0dee3b49b1afd74c36393e93d08e0d6a328f4f48ded7a6845f6",
+        "size": 8513
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/risk_engine.py",
+        "sha256": "1a06f3fb242d0cb77e844155b9d0ee04ec022083dede1856d5832465c0d515bc",
+        "size": 24257
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/sizing.py",
+        "sha256": "f28eed77d9546cdaa0239c0bfec6da30c9c0666b47b0907f2595fe4c1f22122e",
+        "size": 3417
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/sizing_optimizer.py",
+        "sha256": "a5ae871e5e1900e6c241fbb42b6f05d363d0fede779fba6b4f4e039b6aefee27",
+        "size": 22630
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/tax.py",
+        "sha256": "6b64f8df4185f3f4504aca16f6d66891c9659958f8ebd9320279818101551ec4",
+        "size": 5091
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reentry/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reentry/auto_confirm.py",
+        "sha256": "83370a824ec4b552eca19512b23a1737f8386fb5b68dde7fcf514e91ab390bb3",
+        "size": 3443
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reentry/plan.py",
+        "sha256": "21b2283cdbdffb151b1085dba15f9ba54e41f799ff7f33505f0d549224d1919e",
+        "size": 9934
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reentry/store.py",
+        "sha256": "38991a230bb7ac31e9e4f6d3d9c78ed885e143a71c83b721b6b9072c743c1cc2",
+        "size": 3757
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reentry/tracker.py",
+        "sha256": "17f15b503449edce3fb95409d87576438b2c7d0c1016702dd8907965942b9cbe",
+        "size": 6991
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reporting/__init__.py",
+        "sha256": "2041764cb0a442d53f37f117f7ee5ef1f0cc1e5d34f2319dd554eca81a335a87",
+        "size": 63
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reporting/system_health.py",
+        "sha256": "471bcf47596c40ad3d44d7b026acb80af76719aca43920be2208fe9cd32c1f6d",
+        "size": 15520
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/research/__init__.py",
+        "sha256": "f93e1d876f09d14300dbbfdc6cadb30e13cc69eee48eb8dda949f56674141e06",
+        "size": 173
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/research/cftc_tff_asset_manager.py",
+        "sha256": "2952777b31ae7e59bea92b220d57997bb4b9c2410d1e7a669d1099ce8d944f9b",
+        "size": 6785
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/research/integration_pipeline.py",
+        "sha256": "1db8809d46f9c90296314854c9fe665562d2fa690e1cd2c571b59c5c41491302",
+        "size": 15391
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/routing/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/routing/capital_routing.py",
+        "sha256": "9be9e26eb53f1607566e3a17913720b3832beb0dec94a3c68904686eea512662",
+        "size": 5884
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/routing/leg_proxy.py",
+        "sha256": "2ae6f32af7ca3257183f9fc60d2f4804c893475aefcbc63aaaff0dbcbc2c2615",
+        "size": 9011
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/routing/portfolio_routes.py",
+        "sha256": "477b0e8144164f6c558caea82499f989f856bfd4c5c4b7457642b378661780ac",
+        "size": 5062
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/safe_io.py",
+        "sha256": "3bfc78a7b0823b95c8f8e778a148232e2f2e2f38ee22bfa7f0cb5743c6a17f35",
+        "size": 7831
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/__init__.py",
+        "sha256": "7bbb7b23c87ddd073762b2b4c8a825127298eb78f73ca5d2b678a4512d3085f1",
+        "size": 45
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/capacity.py",
+        "sha256": "cfdea28dc606c58d15ad46b5ecc11442080893ed0b74ff0044acdd2d8133c41c",
+        "size": 3452
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/explain_registry.py",
+        "sha256": "4e37d026b1c68c3edb172da96b2d7c4157cab093b8b182653a12b1985bb72342",
+        "size": 16398
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/factors_risk.py",
+        "sha256": "626bfd49feca19159b2a81ef94508b5f375d70990b25a3921e2039a48aeea5e9",
+        "size": 6554
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/hard_valves.py",
+        "sha256": "9634ba99874aaa7234ef753ade7dd7dec5b5f9fe4c7c37d85a3a875b0e170ced",
+        "size": 15734
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/module_a.py",
+        "sha256": "d089ace9d4d2da7a8da04e7358528d553d5b439474612e82343a6e80bd5a27ae",
+        "size": 14287
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/module_b.py",
+        "sha256": "c0096bff84a623e63a57bcb9ccea352f8ce51ef7bce93cea553923385c3fd11c",
+        "size": 5868
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/module_c.py",
+        "sha256": "c64cd8e67e01fa8498809828cc10a7ea00018863f1cb4bd4a0959fa6e9f80cde",
+        "size": 5603
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/module_d.py",
+        "sha256": "d0cf48d0830dadc94be9fd16a3b3202b3c7cf9112e97a6ad71e47cafc2bb7913",
+        "size": 10574
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/registry.py",
+        "sha256": "a04daaeb49076ad43faba66d7dfa33192afc91958c8a69e11e4ab87ccf519678",
+        "size": 4749
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/result.py",
+        "sha256": "3be1ff28b403b2cd2ed697cc9478027baf35f6f797f789e97ac1e48aab12b745",
+        "size": 1369
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/scorer.py",
+        "sha256": "abeb1b1e6518a46753a0f5f7324d9b7dda2fbab57f7232ea6692aebe21f03a57",
+        "size": 11834
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/governance/__init__.py",
+        "sha256": "5bc9b44d15531ba6eecb56e93b6c6e82193bcfa3bc0c5944e05c6ea1cbb725b8",
+        "size": 77
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/governance/approved_live_config.json",
+        "sha256": "8152c0d1a4adce45caceb413f9182f0de0b95918e70007b8140d16e9712a0aeb",
+        "size": 893
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/governance/live_config_policy.py",
+        "sha256": "2ec64aded5139da4412f664ba07f4ba19a97dfc4d3e61024a9100c31ef0c62ef",
+        "size": 11278
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/ibkr/__init__.py",
+        "sha256": "fe8b1906e931e221bbf389cd680e2a7553dec4d63c899648978e846b096695e6",
+        "size": 306
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/ibkr/executions.py",
+        "sha256": "8645a5e71497c144f8a3543ca98efe25fbab75557b7f4b0e6129af74f30ba8b7",
+        "size": 9270
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/ibkr/live_check.py",
+        "sha256": "986b407e74ee00e7dd7fb0dd305fa9161c201c0b97c591679dc5acb7b873a422",
+        "size": 7267
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/ibkr/positions.py",
+        "sha256": "3e533a2ee207f7f399da18f0184d17cecb97f9a70b8b708735c563a8c17dc6ad",
+        "size": 13321
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/ibkr/reconcile.py",
+        "sha256": "356efd920e73dcb05828d33d44fda4ee588b84ae0494f9f304de00ada2a8cf30",
+        "size": 9384
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/integration_config.py",
+        "sha256": "cc60f8419ac858bea09841b15d2d66cc99efde20efe0f3c6a0d2a293eed966ca",
+        "size": 6501
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/mirror/__init__.py",
+        "sha256": "79d1269e5818c3cfa85ab9f82d92de2fae9d2b14133e4b84dcebb212e27e0de5",
+        "size": 33
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/mirror/store.py",
+        "sha256": "b427a8a5195e6b8f8c1011f13df51bc7d9510c14a651c690a12786f2d6cd0794",
+        "size": 1411
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/mirror/strategy.py",
+        "sha256": "73f04edcc00e152e1148cad38b9764868132a161ca85e3d526047fa686e0e304",
+        "size": 20632
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/pipeline.py",
+        "sha256": "5fc5b58649253551b4606b60a2ac2b9551df94a2a2b47c86687c9569bdc0a0fb",
+        "size": 62080
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/__init__.py",
+        "sha256": "3f52ec4ab4ab7c81f0d0094f7a4494b9a56eb374cd6acc335bf6ecb1f4a601dd",
+        "size": 65
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_cnn_fgi.py",
+        "sha256": "3bc9504ae7e6016f78988477593639ab88954619d085307e521ea26c0ae624e4",
+        "size": 4446
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_cot.py",
+        "sha256": "03f46f82cc1f6ca96a5582c5684534029279e53b3d627a463da838472d0be6bb",
+        "size": 6790
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_crypto_micro.py",
+        "sha256": "1e69ffb095638563c4c531784b0ced353d71ffccb1601145fcfeb2128947516d",
+        "size": 11020
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_history.py",
+        "sha256": "f68ac4aaae7af548eafb701c38652f31053c7d97039c9807e9757d18dcc2e8d1",
+        "size": 25072
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_naaim.py",
+        "sha256": "6008a2d2b147a3b8f9ecf6adbf662184e00af7e06358f33c07b1c3013c800cbd",
+        "size": 5729
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_occ_pcr.py",
+        "sha256": "78aa2127ee82040c52164c9a9262c82f26a63e91fd2b96d483293704685a0193",
+        "size": 4726
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_official_indices.py",
+        "sha256": "0a09e643b82e9463e804073e67349d3462085caa5a2ba94d4ac25f23b306100d",
+        "size": 2499
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_pcr_naaim.py",
+        "sha256": "ca9b9c3235e21d7b8cf35d7a33592e4eb59b6207240ca58bea51e1b1872a024c",
+        "size": 10588
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_soft_data.py",
+        "sha256": "976e245db241fb9e0a66f9ac0647463e4e4627ab7977bdbd01ee02fcbdbc0ed8",
+        "size": 2683
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/build_synth_history.py",
+        "sha256": "abf3c6112047a5b5a44d48dfa2b093b4b767145cf2c7b300a9fcf95184c0acbd",
+        "size": 15934
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/calibrate_next3.py",
+        "sha256": "f28c5f7f51cdd4aabde52fc53039a842cccd8be5714a0573a95e7ca934cba45d",
+        "size": 10754
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/calibrate_next3_fast.py",
+        "sha256": "cd98e4c63ca92b5d97f3bcd1059c78960a0fce0638144b230eee17112a04c36b",
+        "size": 23699
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/calibrate_next3_v2.py",
+        "sha256": "a681f152e06f6bed0c557a549b1ba9cc213242e05be734771bead4cde410c726",
+        "size": 28807
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/check_market_witness.py",
+        "sha256": "16162a3d2c184dd69dbf04421becd47474893ac24b81805cd067082ed46173b5",
+        "size": 1492
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/check_next5_unlock.py",
+        "sha256": "d3f8d7806059bbed75e379b8dfe3607c0bc9f90f849525b1a898a3bed288b1a6",
+        "size": 7838
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/generate_baseline_doc.py",
+        "sha256": "062bab8d5bb9ea58045f20edbe39d3ec8ed8f75c2c0aa19c24720c63599b1c40",
+        "size": 19854
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/ibkr_live_check.py",
+        "sha256": "78b100dc55c82d378945af62dddf29c19691518be5bb4215874abe5e5b9fa5fc",
+        "size": 802
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/parity_harness.py",
+        "sha256": "991ca134a252ae5f9ce23571c260c87b7587c82be5d79f31e66a07cd1cf05732",
+        "size": 7092
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/parity_harness_v2.py",
+        "sha256": "1ef65b4eda00fc7a8eed77ec6ec0344121e024a976ba952f42a0c522807cb816",
+        "size": 5355
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/phase2_corr_sensitivity.py",
+        "sha256": "a5e82c42b0538524ed1271b2283dc1c63d514bb0bbac7c9a4602114ab3bd3cbb",
+        "size": 7411
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/phase2_full_backtest_sensitivity.py",
+        "sha256": "bb953a356ad7a6f479f8a47a6d92713baa5d001ae60ac7d0f701b5024809e34e",
+        "size": 30897
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/phase2_shadow_compare.py",
+        "sha256": "09968b9a22324916216ea2e86f35d642b388a7d6dc284be4e07db7b177c0841b",
+        "size": 19029
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/phase3_dry_run_compare.py",
+        "sha256": "6649648715e5cb3fe3f911820cf01cd651905559551b5c1042ce2d1e1ec3306e",
+        "size": 17696
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/phase3_warn_review.py",
+        "sha256": "049ec85949338995aed5715e88f193d130e8e26e7c5e1768cd14357ff1434ac4",
+        "size": 18434
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/phase3_warn_sensitivity.py",
+        "sha256": "86a943476773a556461b76a9f1f7ab800bc9e98cbbd5e138fd71fe47a0b02ada",
+        "size": 21702
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/pipeline_lock_exec.py",
+        "sha256": "504dc89b95d97c186aa9a6ba0a3746b3ba727529998f392a88e84bdef117b8a7",
+        "size": 2159
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/predeploy_smoke.py",
+        "sha256": "2d5e08eb70d34b9f3e8f08b8432bf2d4df1dc3b049b2e621aecf88d5c5ce7ae3",
+        "size": 18784
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/refresh_aaii_member.py",
+        "sha256": "e37bbfa16d9c2187e51b28fa3099b834c306ddf61a3b185548da969d40a35705",
+        "size": 1748
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/refresh_aaii_public.py",
+        "sha256": "1906581e7da7d800f738d20155f9753330167c1c353835004ef6f4468016f10b",
+        "size": 5344
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/refresh_cboe_daily_pcr.py",
+        "sha256": "2f00d00fec581be845540e953fc6ecc0a81d41642d6fbb44dcf83a709b66efc4",
+        "size": 8500
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/refresh_external.py",
+        "sha256": "8a67d130c8225acd4d1ccc1a3dd73e6ca96973dff50b4ac669ba8651db8cf468",
+        "size": 45088
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/retry_market_third_source.py",
+        "sha256": "6df6bc365d2dd3593cef44afbf1ba9b28d89616e314ebe7f8f605f27725a0fe5",
+        "size": 1735
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/run_daily_package.py",
+        "sha256": "3c0566740eaf5152c5786201f66e590c5ba60c929a76bdda43291d6e566bf24c",
+        "size": 75757
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/run_daily_shadow_compare.sh",
+        "sha256": "3447d20989d6330b684da9b7c613d24ee6cd89e071a05f35d01009629e34507f",
+        "size": 3292
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/serve_workbench.py",
+        "sha256": "d8b603503fc8d9e840229c620b65b9e6cfe828794a8cfa4b6612ce3ac7ca652f",
+        "size": 7422
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/conftest.py",
+        "sha256": "f009ac2612bcc68707fafe34679f23d135ee08945c0ceb2d7ccca442076cc5cd",
+        "size": 2525
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/fixtures/data/soft_history/dollar.csv",
+        "sha256": "a5f1fe63207a1dadf9945fceeb5dbc9cd21c1da69a19cb8aec7c522bd8a83fba",
+        "size": 98
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/fixtures/data/soft_history/fred_net_liquidity.csv",
+        "sha256": "599eb300a36a0ab7b470a529ec4a9bf30f815d6f7c6a21515f4af5319868a98f",
+        "size": 174
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/fixtures/data/soft_history/naaim_exposure.csv",
+        "sha256": "95dec2ca62d83a47862c67eadaa332ee5a908fc07178620d5d2b11b02682b03b",
+        "size": 93
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/fixtures/data/soft_history/real_rate.csv",
+        "sha256": "c40e2a94d69191d8c01787ad1a074bcddef934387ffc77a11126ad312fb84ebc",
+        "size": 96
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_action_confidence_split.py",
+        "sha256": "dbe56def21d0c21c68a93979271bf257d84cbc43120cc7581a0d9504d65cd6e6",
+        "size": 5513
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_alpaca_daily_flow.py",
+        "sha256": "a9ced56b967ddea92b84f5fdc699a4f9132d9405c370ab94cf795d3b145f893a",
+        "size": 2754
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_audit_exporter.py",
+        "sha256": "425e9fa4b56b5d66d042e7ce5b4fe49729697966fc6b3063f5bac9378d18a5d0",
+        "size": 4685
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_audit_rotation.py",
+        "sha256": "382a567d5a396b462b9397ca8c76a3f9a4fb0d7eca305bd46b7043d220c8e408",
+        "size": 2297
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_backfill_guard.py",
+        "sha256": "bb05fd1b75176c17a23284176476631b6f53e778acd2f161e6bd90d88a06cd58",
+        "size": 37671
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_cd_trend_ownership.py",
+        "sha256": "463f4d9cfcdf51c1d67f889c30ac9645144532e6abc89f9819a7988be79aa4fb",
+        "size": 2616
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_cftc_tff_asset_manager_research.py",
+        "sha256": "ead2e55890042a3c90d3c9a7b5fcf74cf53c79a7962dd720377a433130dff293",
+        "size": 5590
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_cnn_fgi.py",
+        "sha256": "43e06dcad31987a43066b4d2c5b5ba3546206bd70a998d5685485ec2011175c5",
+        "size": 2798
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_coinbase_witness.py",
+        "sha256": "aee3dffcf18451f0aaa1e24067de89b8f96408f050aad61689d18b85e67ccfbb",
+        "size": 7120
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_confidence_spine.py",
+        "sha256": "f5c2755d0e1855a81f3e89d60411e126cb00fb874b940c122f71f781998c83b8",
+        "size": 2373
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_config_validation.py",
+        "sha256": "6090bd69acacf5eb51b43eae15be2a967341f4a892f668359af64a70f013ac8a",
+        "size": 1289
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_continuous_sell_fraction.py",
+        "sha256": "ee665294b920bbb2f2540cbdea3117279e2e0b65a0989229ba8e0b4fd8314f61",
+        "size": 2524
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_cost_robustness_report.py",
+        "sha256": "dc1544c34d884840fc1d5c4db4eecde6c0d852abf1f4c3b0e1656b9ebedb9d07",
+        "size": 2825
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_crypto_funding_source.py",
+        "sha256": "a252e4752043390e1d934907487eaa0382af90e67a697e2200e16e7a1d7ae33e",
+        "size": 3267
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_current_baseline_builder.py",
+        "sha256": "05733ea61e612208140bd55f0f940d5710c439070b441455c536194c39f04b9c",
+        "size": 10712
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_dashboard_briefing.py",
+        "sha256": "1b3800cfb5d0a8f0aeaad11870baf9d57d08a2cbdcbf0e68d4a839a4bbcba6f5",
+        "size": 1880
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_dashboard_official_only.py",
+        "sha256": "077a1b4da0d68f4d6971061b3ef28fc542059ffea1631b17bf19b48797001359",
+        "size": 4332
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_dashboard_workbench.py",
+        "sha256": "83caa82af6ed59755cce316d2b32b6e98f0cf3c2a6794bac1757a16c04b867d3",
+        "size": 81659
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_data_store_quality.py",
+        "sha256": "2d9a65a095ee6e8749b1793de4cc3a7091bd09b41aec7dffc65fe5a68d28607a",
+        "size": 1127
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_decision_as_of.py",
+        "sha256": "8589c38ddbf8a62e042808368e29f6cc877399163e0bde7e0987cb20536dc0a2",
+        "size": 2142
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_decision_input_coverage.py",
+        "sha256": "ec531ed66b439427428f2eca4116df312aade1e10eed55663b764374396b1256",
+        "size": 1596
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_decision_stabilizer.py",
+        "sha256": "ddfa24bca30f9c32b61fe6afb27486570f6464f175a524ee38f62af99643ce57",
+        "size": 4517
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_deploy_to_live.py",
+        "sha256": "f7f2c72ef37552a26c6eb4c76e584615b60974af4054525e8cf71235cdc07ef2",
+        "size": 35752
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_drift_monitor.py",
+        "sha256": "e5b9afa327f4174bcad171c998aef08f721593bdc78a6a05ef635dfaf93641f7",
+        "size": 3005
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_execution_timing.py",
+        "sha256": "98044c4b65d26fe6fc212d1da1985ee6b0c8a09a61a960fdc68ea8825aab359a",
+        "size": 9058
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_execution_timing_cli.py",
+        "sha256": "5b374a918dbd6cb8a2152788834c6342e2bd0100d1ca87b7235aa84a53bf056a",
+        "size": 9318
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_import_queue.py",
+        "sha256": "6efa5a3f7c07f504deb74ab0e043ed101184dd60b73ad0710def82a311e26b6f",
+        "size": 3962
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_aaii.py",
+        "sha256": "f6b9883403455412eb31bfd89ca7eedc65a251731cf65744df378e1de247cf27",
+        "size": 16162
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_cboe_indices.py",
+        "sha256": "6f0682f3992e46f26e065b78a5b6cd4c8784f7dcad441110f57802945bdc8b52",
+        "size": 27731
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_clock.py",
+        "sha256": "2a39190a7e4215d0e9ac24d46b07b893d5c8d277038a9138815c886c00dce9aa",
+        "size": 599
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_expected_release.py",
+        "sha256": "b1003c89eaf9e1d925571018c8abec30856e8e5bd0b8a32510cb58167be6a905",
+        "size": 12385
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_failure_drill.py",
+        "sha256": "8e69d6e9a15a17d688e46c0352c0ef697285a6917501938e298778318af1a95a",
+        "size": 3338
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_fred.py",
+        "sha256": "727ca46df271a22d7a091072422227a81f64c9557f19bc377847864c86fe5edd",
+        "size": 37693
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_fred_vintage.py",
+        "sha256": "3fa600bc42a4c94213566112cb8f2051ae47664a71df129738f71824bd3af516",
+        "size": 12831
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_market_soft.py",
+        "sha256": "e629b94a8ef5ba3fe7b01ab2420cf1d7b8d9077f2e0e15d636d0af08e2df7c31",
+        "size": 13234
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_naaim.py",
+        "sha256": "926f20dd61f91be1d0871095d7ec5e50f4d65625fbadd77cbfca2e350dc58390",
+        "size": 24855
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_profiles.py",
+        "sha256": "d584624aa9ea16dfbf3bbb5e6fb84f3240e9539f8b1876942200fa6f130178d3",
+        "size": 11744
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_runner.py",
+        "sha256": "d21653bf1bf09c942fc24b153ba0ee47a9f5983a017ccdd10e933ed11a211efd",
+        "size": 37389
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_single_writer.py",
+        "sha256": "b6e11137ff2423d3f0cf30e745d37e17bebe101d5e4afe73d4807a72e6457d58",
+        "size": 3435
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_factor_capacity_inventory.py",
+        "sha256": "80dec1d597e3f4699a728392ae2375c698fa2b24299c46bd23c5df907f31d984",
+        "size": 1485
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_factor_explain_registry.py",
+        "sha256": "88632e5d6a1fac3aa762d15300d286664d49fa28c28953831964899d388513f5",
+        "size": 1334
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_factor_lab.py",
+        "sha256": "db8de6bfcb685fc92092306fe66363d676ae7d28c88991bcefac5a34575b2785",
+        "size": 4792
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_flag_sweep_cache.py",
+        "sha256": "2a515d38e2c63c2cb2462402876d1bf0e3125367115fa1f206a3185f07d3fab0",
+        "size": 12497
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_flow_store.py",
+        "sha256": "e770d0753ded001aa178f1aef4f7bb9bde4d6aebee01b1f58ecd4eb852d76b89",
+        "size": 1464
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_formal_gate.py",
+        "sha256": "829136fa1b34d30fe8ecdf505d7f3617a1e65b9558014b60129eda9a00403a4c",
+        "size": 13622
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_formal_gate_cli.py",
+        "sha256": "ba02f6d71bd08fbdf6af0c866f5e414bac2d011ceaf8a1da292027cb9b99b233",
+        "size": 12653
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_fred_publish_date_pit.py",
+        "sha256": "a96b640f71c04062d49e3bb1b642b2d8eec89e177e8c9bf1d6306ea96d4dab35",
+        "size": 3173
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_gap_closure.py",
+        "sha256": "64e0841520bdc8776d91eef35714d7420c6dae9a226e4c3eb7b5b9885439b25e",
+        "size": 12725
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_gate7_circuit_breaker.py",
+        "sha256": "265982632acb3d638a2154136a8c4c8fa7365f82f41885f33772b4c20a36d834",
+        "size": 13298
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_governance.py",
+        "sha256": "7d164f7ab4c81269ac122fec076997ab3b44af772d849ad9c7ebfda5d69a439d",
+        "size": 3745
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_governance_consistency.py",
+        "sha256": "751441057e0b01f278b8b45a06b1945c059d3413eb1c303a1667c406fabae84a",
+        "size": 15112
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_hard_valve_history.py",
+        "sha256": "f6102e823e90519a695b71ca394e24d0eb61b06cb0a62b68cd84df4192ae8145",
+        "size": 3006
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_hard_valve_suspect.py",
+        "sha256": "31d629ff4e57b3ea0bde7b40249e74f5c382f3ccf3419bcd2214200b20e4279b",
+        "size": 2596
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_health_truth.py",
+        "sha256": "1fa9b88d4ba3a3fe1e022c7a800e6fd171d223e05868f7205184c5e86ab77f5d",
+        "size": 31543
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_history_transaction.py",
+        "sha256": "49615e230071f1c8b8e49e08e2f67a1cb1959cbc4d81aa6682abdcb60b0241cd",
+        "size": 3625
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_hm2_buffer.py",
+        "sha256": "856032470a20abd09a26e497540138888844548a4c85f381d15165e3c4417ff0",
+        "size": 3689
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_ibkr_live_check.py",
+        "sha256": "9f303e1f7190a84f4afb3db0f5cf4830ffd8b94656d263efd9e6c081186f0b64",
+        "size": 2790
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_ibkr_positions.py",
+        "sha256": "cc8ebfcc467f7732ab2dee5f8bc00bc5581e8c8c66283336ee6071042c558fca",
+        "size": 3796
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_ibkr_reconcile.py",
+        "sha256": "195ed1fbc725bd2a757ac89c73e78e6ca4d1543d079fe136fcd301a37e4eee23",
+        "size": 8154
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_integration_config.py",
+        "sha256": "dd30974c1e738c02edba0ac00f743681510ce79722737b1c337419a1c9508ea2",
+        "size": 2271
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_jsonl_tail_repair.py",
+        "sha256": "c2699a7c276946fd817003c82691a8817e261d0fcedb454d1c10657a282b13eb",
+        "size": 2403
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_live_config_policy.py",
+        "sha256": "3401c1e2098d682c217aae0f8bc9cb683c6f2068ab65aa6b5aa68e2f88905ecc",
+        "size": 864
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_maintenance_closure.py",
+        "sha256": "99e272238e88cbf0282d9e14857b53b1f26fbe09bc61c03903251da80ed4fdc1",
+        "size": 1440
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_manifest_button_integrity.py",
+        "sha256": "868a2989d43d70f623926484b2ad469823c71ee2a2442cf3d6c99250c200576f",
+        "size": 1484
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_market_admission.py",
+        "sha256": "c4899337a4e086700d999ffeb1cbfc34c718f29be03c54b9fa5019272d66522c",
+        "size": 26808
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_market_admission_history_analysis.py",
+        "sha256": "3e40b5995d8a7aeca89e3bd01b60a8ee628105e9da9c657716ab7a50f6dc6b95",
+        "size": 9820
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_market_context.py",
+        "sha256": "ec4da35ac555883fc1915483d1ee22842972bc01bf6eb4636533686049aa69bf",
+        "size": 4630
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_market_indicator_cache.py",
+        "sha256": "77e5fbabb4b7c1430478895615e5afc6c1f767cfddea42fb150a2680a9a5d64a",
+        "size": 2795
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_market_third_source_shadow.py",
+        "sha256": "5a2b96571242889178b887e2f9a72fec755e32498b97dcf6c0a93835bf64a263",
+        "size": 11476
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_market_witness.py",
+        "sha256": "470c68f847769d3f8a3e5d280d402e0747c2fb63e252d63d7240a13c3fd6e0da",
+        "size": 14361
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_mirror_web.py",
+        "sha256": "9fa627771a4e42ae53bac4b2827e926d9b1b987642e156ba27891c14428c3d65",
+        "size": 7309
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_morning_acceptance.py",
+        "sha256": "c2e32ea206ff98fc13cb6b5671574766c718efce04aa8be03cea023f0d51fae7",
+        "size": 53149
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_mstr_mnav.py",
+        "sha256": "432b0e9593a82db62750fd5fffa6fc6453c85f0314fa97e92df9fce0481144e5",
+        "size": 4015
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_next0_data_foundation.py",
+        "sha256": "fe46cd3e417266f50b7c70ba444ac8bdb350afbb7f39206e4a1c07b93663a56d",
+        "size": 5258
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_next3_calibration.py",
+        "sha256": "9ac61ecc02649f1b83c62e9d0524de72ab6f0a0a26112b2eccbd38d9fb82fb95",
+        "size": 1412
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_next5_runtime_isolation.py",
+        "sha256": "4e495c15a4aa1e3ce335af3c8ec8f5954d7d0b8535aeba01a994619d3e308726",
+        "size": 1463
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_onchain_mstr_t19.py",
+        "sha256": "3af816a650a22dc5d52f9e5171c5f79fb49cbdc05487e49b3634cbaad97429c7",
+        "size": 2966
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_ops_entrypoints.py",
+        "sha256": "9944a1f963b8bcc9a50fca3d94dba7cc9e59a2b9c0bcd6d26676d2bd9e70598c",
+        "size": 32887
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_p0_synth_leverage.py",
+        "sha256": "228f984bce8469b842222f8755eff6ecd0ca2ce98f4a0bc867a43cfa757b0d4a",
+        "size": 7617
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_p3_payload_blocks.py",
+        "sha256": "b967fc43a3c42d2e8e3bcbe5ef9d30876b0b8824a7f100600720b334e91c4a1e",
+        "size": 1929
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_partial_factor_eval.py",
+        "sha256": "ba309d6aa69d42430acc448ddce0768ec8100c33096d69a04ecf03bfe4e60952",
+        "size": 2490
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pcr_calibration.py",
+        "sha256": "d1340f26984895f06dd6d8ea5f217b9c05fab38f0891c63893f8ccf231c60b75",
+        "size": 1770
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pct_change_semantics.py",
+        "sha256": "25e24a7e41352b6565cfb9399253aa1f061d46403b00948e7d68243b63541c13",
+        "size": 1551
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase0_contracts.py",
+        "sha256": "f0a9e6387c787aa1e7ed4004793dba71ff88fe91a78cb6e98ccc9bf8bca89326",
+        "size": 1830
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase10_adapters.py",
+        "sha256": "5895a858a1683dcccd9998862d7b7dece2a32f80c44be27a41eb675227b8c90c",
+        "size": 4714
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase11_backtest.py",
+        "sha256": "f88172f93780d62358ca406ecf81f0ed72a37b85aef8cf5dbabaa1f79b2c8666",
+        "size": 2841
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase12_mirror.py",
+        "sha256": "0ea481866f01bac95366f9883b33230493c9365c95ac7e9665e73c3d40fd80cb",
+        "size": 3046
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase14_web.py",
+        "sha256": "1f323158da557772be77e51a5f8bce1a80199c99ebc0fdf3fda4c46ea9ac59c7",
+        "size": 20427
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase15_integration.py",
+        "sha256": "57e8c59eeb943644944f46bfd0f973a0cc576d5a07f3ce614bad950b748d6833",
+        "size": 47214
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase1_data_flow.py",
+        "sha256": "4a84d2790eae5059b6f5982b296c6f8510f57fe0222b35003cdac3c63cde8d3d",
+        "size": 11159
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase2_features.py",
+        "sha256": "719d8a53778aa213ea342eea67768c023f27100d3c5ac47a45050b0a065b8ac4",
+        "size": 4652
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase2_full_backtest_sensitivity.py",
+        "sha256": "127a3796beb9e187513f3004e3148089919c88c3009611be24eb0804866112cb",
+        "size": 3860
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase3_dry_run_compare.py",
+        "sha256": "7b6087ed4bd66c30649d34f9fd6c67aac826ee0ec23e84bb359d9a8a08f905d6",
+        "size": 3253
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase3_scoring.py",
+        "sha256": "e0b5797f38b59c4841766a3a0e81f444daeb3447fe38618c4bab4cafd19cc995",
+        "size": 16991
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase3_warn_review.py",
+        "sha256": "b24a257c39fbf4c4363798df0e31d5cb29776f5e14c468d58a701ed77cc285c0",
+        "size": 2112
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase3_warn_sensitivity.py",
+        "sha256": "92d1ed52ba116b5f08c502a644fb29087f89433c7237415272ac6c51e230347d",
+        "size": 4197
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase4_hard_valves.py",
+        "sha256": "d808a87666ccc5a4cfc06f45e659afb9c42471aa5407205fd6ea90c98f9351ff",
+        "size": 3546
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase5_verdict.py",
+        "sha256": "5ce81bcb9dc90e89d73e5a09d33e4078d541f4840a46f46bcb941e6594523b5b",
+        "size": 1979
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase6_portfolio_risk.py",
+        "sha256": "3b24aaf3b10f16b24dcd0331453156abb44e2a4bdfd1afd7ca8f7c124e14158e",
+        "size": 2820
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase7_sizing.py",
+        "sha256": "fda85343ab1dfaa67ea124eb4f04501b71d93c7147d3e21552fcc15bac4f1ecd",
+        "size": 1837
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase8_routing.py",
+        "sha256": "d0d69f22fd59fdf80b0b476923ab6037eeb8a992af7f2c4dbf97942102ae3d0f",
+        "size": 3131
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase9_reentry.py",
+        "sha256": "eb6fb0590cd50bdbf19f8498bb029a4204a6469763d52950327d7db035d66ac1",
+        "size": 3802
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pipeline.py",
+        "sha256": "e295a022c5874d529fcaca67c50c9eebb36cc9e87005b4a352ab83aff05992e7",
+        "size": 8005
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pipeline_lock_exec.py",
+        "sha256": "f17532ae9048991fc54b13518b9eb569313f455eb8a7d811066b692d7077a3fc",
+        "size": 1913
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pipeline_ownership.py",
+        "sha256": "0847ec45bba886f3a711be30a4edf8c420d1fa914f861fe1033e61d07cf4155e",
+        "size": 1460
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pipeline_persistence_comparator.py",
+        "sha256": "103a1d35a82c96f0b3b45ad465eaa167b1bd30f06a7014181ffee9c4f47810ce",
+        "size": 3364
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pipeline_transaction.py",
+        "sha256": "632ba9510d40cb50627e7e42198412f42ef1e4a76babcdfd89220d20b44c3f96",
+        "size": 4784
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pit_migration_governance.py",
+        "sha256": "12c5fefbf814e7b0a0ff310204bb420a6631ff0f8ce035214afb178c4cadd7f2",
+        "size": 2193
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_predeploy_smoke.py",
+        "sha256": "63e647442aac909309530b1c2aae8f07df7e335b14723cf348e4e7cab09d8a97",
+        "size": 15659
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_reentry_tracker.py",
+        "sha256": "a82b4cf580015515123e5d41c34b61b3fe63e848c4a266aeb863d16a52882580",
+        "size": 6063
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_refresh_as_of_gating.py",
+        "sha256": "a0f80a1ea3b520e749d977c03438275629e8e54a5693ea0debe694e0d115bb6e",
+        "size": 7300
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_refresh_external_cli.py",
+        "sha256": "4bc8485e1c925adccf682ce54acc0fdc6bc2379c8efa8aa98d9222316933e52e",
+        "size": 72750
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_refresh_external_fred_vintage.py",
+        "sha256": "8a120e0230c92aece4f84649d1d1bec451d88aa959567ec28fe8c9787cea4377",
+        "size": 7182
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_research_evidence_freeze.py",
+        "sha256": "435a1da39e1ccb80c32258fda3135db2bc2e751437b2b55f8b1490615d4f3c0e",
+        "size": 4978
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_review_invariants.py",
+        "sha256": "ebc36e97c3ff95c7701457ab1ca14af90e3aacaff57ce7350063abf9a8821491",
+        "size": 4576
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_risk_engine.py",
+        "sha256": "624b812320838281636c325207def64f5e9fbab6d402215df8fc272f32a554b1",
+        "size": 7543
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_route_transition_buffer.py",
+        "sha256": "9d6d30024b1f9f43c94560d4f5cfe7bd66e8f6aaf447377a6ecf4397fd74182c",
+        "size": 3237
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_run_daily_external_sources.py",
+        "sha256": "f92ed79fffd271becf888d63bde76b95bb68a3d3ba74a73fbe11c756be5746ac",
+        "size": 13607
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_run_daily_self_heal.py",
+        "sha256": "dfb252e79c5a22304fd94b901fd160113e8850353009b7f137ee69e58078b1c8",
+        "size": 5647
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_run_receipt_banner.py",
+        "sha256": "d3c84493b4c030ccf4c941baf3e048b7ab1ff6797e165d21eee7346457fb061b",
+        "size": 3212
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_run_receipt_writer.py",
+        "sha256": "a9d138d2a8470d2cb09bfa0cc7d17358e37bf5fbb359c44499062be85e30d1d3",
+        "size": 28268
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_runtime_data_root.py",
+        "sha256": "304f39401409f4ed9fb7e6e03bf2a859e8e8731a6aa5347dc6ddb0d1acbae242",
+        "size": 6750
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_runtime_retention.py",
+        "sha256": "8cb93edfac7915196f552e151ce603fd2525c40901321540978f14f6e3535757",
+        "size": 8039
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_safe_io.py",
+        "sha256": "7a65e9879a533ee2c3db902d440f928b8ecc74063c50449d24370883735f3f14",
+        "size": 4398
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_safety_invariants.py",
+        "sha256": "43fb0685d957b78e07476854463c016b5a5ae4caf1184b9a5c05714f96c23152",
+        "size": 3529
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_sanitize_and_failover.py",
+        "sha256": "f5af4f9fdc4f9494b9960917d1cb9e3e6e0a33700e0da854b337c8ab2ee39057",
+        "size": 6506
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_score_run_transaction.py",
+        "sha256": "fc9e8c6f413eafbca4580d49c76f0c0a5a4f3f20dc1ec8c1bfcbac94b675250d",
+        "size": 4789
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_scored_missing_weight.py",
+        "sha256": "d0b934de56da78c924430b7a65dbed44a07fbc80a73b9bfcc70241bb7788a5bd",
+        "size": 2331
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_sizing_capeff.py",
+        "sha256": "075a995d478f37a6f5a8ca05b247541351448741825b994e1969c1ef612ab70d",
+        "size": 1542
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_sizing_optimizer.py",
+        "sha256": "888b9d2512fdcecb202ec1275ba7da85a41401c9e91862656df0630441be67f3",
+        "size": 9006
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_soft_data_slo.py",
+        "sha256": "df3fec8e2f77c9e2559465ef9a779b5593a3bd6bc4b4e8d4e9536f76d721c9f1",
+        "size": 1746
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_source_relevance.py",
+        "sha256": "02ef4fe45f09b8ee92e080821b7d3f838dc9f97f358d90ef96ce15c74f54fb62",
+        "size": 3516
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_state_store_and_actions.py",
+        "sha256": "bd5158a25370d56b822e8e97a465d70fb92b5cf9bcf41c07df4e715282124e9e",
+        "size": 15819
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_t3_reentry_gate.py",
+        "sha256": "85e3f907943c1f860c12b58dd1bc93de6700a1d4532a2a337f576b2132961a79",
+        "size": 2535
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_tax.py",
+        "sha256": "00eaf7fa55cd94b7a83d220e454468cb4908419ff4fa207890eda751df1afd42",
+        "size": 3756
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_trust_zone_off.py",
+        "sha256": "e313b44f0740940fde7b138ac60e28f535cac99189e1e587b38abe8527f52632",
+        "size": 1270
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_validation_harness.py",
+        "sha256": "8e45d1eb9b65170f03d1946022cdda513a1c10c2fc1d01a17beeadc264e11f11",
+        "size": 6379
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_web_market_evidence_module.py",
+        "sha256": "f1db0aaee24a9494d12c73c8a4b2a008fe28f6afa60d258c0b6efe8ae3914927",
+        "size": 841
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_workbench.py",
+        "sha256": "3eeeb194c48ceb5ae09182a18fedf946aea77f7545ea09d1aa96eade775bd5cf",
+        "size": 6513
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/__init__.py",
+        "sha256": "d12437ac3b3fb8e349896a7fd2d299fc77b793d7e8dadfe4dfa1f52e0b9db671",
+        "size": 48
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/external_source_view.py",
+        "sha256": "7b86624924ac59e89429b1f5f0a573898c665f0acdfc725f611dc81116e5beb8",
+        "size": 3211
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/health.py",
+        "sha256": "a73f397cffdea653f1e78857c22b81cfa2c9a62cc028184256057dfaa3d4bd6d",
+        "size": 36957
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/market_evidence.py",
+        "sha256": "5bc64d172d633c4cc2f7766fbe852eb17edd4fed2c3bb38cc3efbb064093590f",
+        "size": 4157
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/mirror_render.py",
+        "sha256": "d2c088d8ef81229aa1a7e0167e8f63559e33a21cf9ce7f91f31fe5e0aabcfaa0",
+        "size": 31834
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/mirror_server.py",
+        "sha256": "83453fe325ad376faf1b32ecf43f0ff256bd9ce1f8fb0f34a47a7e23d9b139a7",
+        "size": 4320
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/refresh.py",
+        "sha256": "aa4095f3596d0da75b90d5960327f17148a32aae78332d2e5d49cf3a94add169",
+        "size": 28494
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/render.py",
+        "sha256": "5a96fb4f76ee1347f195f1c07ceb8e049b8516d235345e5519751852bd8979e9",
+        "size": 234420
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/server.py",
+        "sha256": "6ceb3a27c7701e01f6276117434a6eaa6d923ac936e8ea006d8ca738c6754125",
+        "size": 49634
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/workbench.py",
+        "sha256": "c12a096e434f81c3abeaddc12886d0758d0b033fc2ae21bebc79296f8a19b82c",
+        "size": 24612
+      }
+    ],
+    "label": "028817ac00a71a36cc24a362d20110059c7a3568",
+    "manifest_sha256": "b7cca676f846caeb3bfad94361c5c207adf6f49c022bb101e5d9b34792b27ac6",
+    "relative_roots": [
+      "src/hermes_escape_top"
+    ],
+    "total_bytes": 3382388
+  },
+  "candidate_source": "/Users/liweishi/Documents/github/hermes",
+  "candidate_source_evidence": {
+    "excluded_prefixes": [
+      "src/hermes_escape_top/data",
+      "src/hermes_escape_top/tests/__pycache__"
+    ],
+    "file_count": 336,
+    "files": [
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/cli.py",
+        "sha256": "855fdf5936d5dc4011600e3e76c1cb2a2552604f60534bfaa1626211b14f7a06",
+        "size": 10675
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/config.py",
+        "sha256": "e37e1629e0a8b7cfc4286d0165ead72df140f5e82be20a3ed9aa904143dca03a",
+        "size": 8846
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/config/artifacts/calibration_v1.json",
+        "sha256": "cd8d991adef324d68fc303f42651950becd8d5b0166f2dcad179cec051b1ac68",
+        "size": 10521
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/config/artifacts/calibration_v2.json",
+        "sha256": "2c2c07ca9ee181c336adaf2974c0ad2edeb72adef29a379492a9d03d3dae0d67",
+        "size": 28196
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/config/config.json",
+        "sha256": "1a08fbbd2c72ce2cee9e1b13253a884be145503dc3c14a611d14b151d423c253",
+        "size": 15995
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/audit/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/audit/exporter.py",
+        "sha256": "94225aa5d4af4adbe477cd496a5bd4fcf2b7e20c5fa242da00d66e404ba12baf",
+        "size": 4500
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/costs.py",
+        "sha256": "231db67871af20ea7651de95880ecbe00fcabcbfae5da43571a9b0a4e0156a6c",
+        "size": 634
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/execution.py",
+        "sha256": "1d53779ecc0563197a69209ed03b184e3809dc503cd0a2e56fcc9f206385d02c",
+        "size": 14272
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/formal_gate.py",
+        "sha256": "b9aff61a2e0860b56b519a498e8ebfc22053c1183ecd115f2aeb0a6fff6e5a84",
+        "size": 24579
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/gate_policy.py",
+        "sha256": "5e013c9d4612540493c899f8e148a71754e03c1fff77047016b3f37d39394ecb",
+        "size": 1356
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/harness.py",
+        "sha256": "88fd512ee944a226cd123e3b412258af6862b6d8a88cd408c1f3da07ea803a12",
+        "size": 10845
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/labeling.py",
+        "sha256": "f6691c05dedd4509dace8eb97eedcd1fe167e533a776347e9d154acd34cdf569",
+        "size": 3577
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/metrics.py",
+        "sha256": "68763e5fbaf2dfc1e2bb9293892193743fb49910ad36d35e84c89372a026c827",
+        "size": 3972
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/param_sweep.py",
+        "sha256": "72119554096a8a6becba836ba6319d7ae7d2a73dd4eb49b8f3eb20918dd47cb3",
+        "size": 2832
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/posterior.py",
+        "sha256": "307e311d9dda5d39c46cc2bc3db29a1e3f01d680cc6d20e41213a05e7e4e7a87",
+        "size": 4591
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/replay.py",
+        "sha256": "0d8f8bfad7352fdf3bd592a27c55d65769c4cbf2e56380fffbac35feda9025ca",
+        "size": 3568
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/reports.py",
+        "sha256": "ee310753bb0f8be7e3ae71b016eb7ef828c8d36655fae3714f350e12ed85e26e",
+        "size": 5072
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/run_full.py",
+        "sha256": "4a62d402c25d049c403fc84f01a6db00ae8b798003435cc69650a28fd5411130",
+        "size": 14134
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/simulator.py",
+        "sha256": "ae5c020c8dd77da3de657f6352dc3310976b98f613c38fd68f62a6ea95daa48d",
+        "size": 6479
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/snapshot.py",
+        "sha256": "050b6fc41ae15d3667e6d0511628f876256a6bfb2ef724265f48aedbe11c14fa",
+        "size": 2416
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/backtest/validation.py",
+        "sha256": "5d7dd576228f67857504eabbe741bb7a0c0927d491674234ef5271d05ca6b2af",
+        "size": 4300
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/confidence/__init__.py",
+        "sha256": "4cd758ae04bc533c387d23061f200038e7804a4ccb6c9a3952efb233c26d7749",
+        "size": 72
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/confidence/spine.py",
+        "sha256": "d2381f5dd25f423abbe6353d25b5a02e275c751351f882b3c9d6cf3104815af2",
+        "size": 4468
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/contracts.py",
+        "sha256": "6f07fec22ac100fe3798f148d6d800ac01237269be8e929454d0315b262c813b",
+        "size": 1607
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/adapters.py",
+        "sha256": "acaabe34e99b50ae6011c18b91ade8041ee15216366aa6b38867d1197f69af19",
+        "size": 7811
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/alpaca_flow.py",
+        "sha256": "13d116ff452052886f65072298fb53a29456b0bcfdb596c21a6dc82edb82d00c",
+        "size": 13062
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/audit.py",
+        "sha256": "cc9306a58cade3024327317c38a3242444a0d6b953b03c9d38dce367793a535f",
+        "size": 4883
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/base.py",
+        "sha256": "d3560ee85a2e475174b8a8b80ed6369512d605371da4327c9b47c324dcf72313",
+        "size": 2358
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/breadth.py",
+        "sha256": "7b0a6d71f15b2119bd3d2f9e991156863babc5617b25e67c386ae8bb1c8aa0b3",
+        "size": 4746
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/coinbase_witness.py",
+        "sha256": "b81df1e41f5645ccfd61af0b16117863cc2838ab5e97b35d0bad85066b685647",
+        "size": 7859
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/crypto.py",
+        "sha256": "a431c7cee78921d1fb2c61bcb29e439bc2821b8ae7383c73d10fe8000153c923",
+        "size": 6904
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/decision_as_of.py",
+        "sha256": "b5ad72237f977e65dbe9e2915d75724fc0fc2ae68ff164bbfd4a3ff82a781d8f",
+        "size": 2523
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/decision_revision.py",
+        "sha256": "e9045672db8e6cc30dd3cc378c39a0010a88918ba2806d1e084b95a9ba91be27",
+        "size": 9676
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/__init__.py",
+        "sha256": "63d729471407a541dd770b12f4a1a9f282efcdbf480fd766a99ddbbb1e410fe2",
+        "size": 3091
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/aaii.py",
+        "sha256": "133bb2b3e5de7883e52e0232f4d7511a3d2a7bdb2693943df0732cbe4c55c5cc",
+        "size": 24122
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/cboe_indices.py",
+        "sha256": "6a8540ec28e4026b080850944722d740ae0e077f32be46eda1e7216621df467d",
+        "size": 23246
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/clock.py",
+        "sha256": "c35606d0922be8d1d2add0b316d69bb7c56bcaa757b8e29e43767b0834b4872d",
+        "size": 868
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/fred.py",
+        "sha256": "c5a20e1e48cedf627a6f4e4db61bb0677c8b1488824675c9bb754ef34ce762a9",
+        "size": 30453
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/fred_vintage.py",
+        "sha256": "85fc45d8a32e5073cbde4cd11eddbc74ccae3df6d49c3443c9ee1038b6f7ba55",
+        "size": 25425
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/import_queue.py",
+        "sha256": "90a2037931b5e7905b609c4d1134b10c2958404204fa03b314dd967f84cf9548",
+        "size": 6500
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/ledger.py",
+        "sha256": "f3d0bad0c06db208f64f9c993fc26fe33587a09b895474c38b2f42fd63f70267",
+        "size": 22271
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/market_soft.py",
+        "sha256": "6a8c7f3cef07ca7a4637efb9dd62e96691fcda86034bf1f0e608da9b05f23ab7",
+        "size": 17418
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/naaim.py",
+        "sha256": "40dab77d9f55468c21fe2c4250239bc4bedff459b6fa754c842aaa98ad29cb4e",
+        "size": 18734
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/profiles.py",
+        "sha256": "cdedbbd76f874b645d87c9b882854f361719a2cc6b919ad5c8f8e490210070b5",
+        "size": 27561
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/provenance.py",
+        "sha256": "b715b31a7d731ab20dfb38fce49d4713df9aa1b80fcada08876cbc38c51c7557",
+        "size": 1377
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/registry.py",
+        "sha256": "8f559ac16a38e2b5ede25cb6bfa6c68594c22cc995189ecef86774923c98d2ed",
+        "size": 2453
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/external_sources/runner.py",
+        "sha256": "623558b6e132cc128cdda82618b08706658b8bcf68679ec709f11a761e418108",
+        "size": 33398
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/failover.py",
+        "sha256": "a8507091cb2bf019c3e81c275fb0ddb86c4957f036de104d8350f19e9006ee84",
+        "size": 4061
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/flow.py",
+        "sha256": "be682f3579d4a606aaaabf1d160100892e2f6f05f8aca633dd2f769dedf4a9ad",
+        "size": 7064
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/flow_store.py",
+        "sha256": "fd38b14545e0437957a649fcf2a45632ea8527a3454b6f6070203e15a329b88c",
+        "size": 3155
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/history_transaction.py",
+        "sha256": "3c740afe1241c940b9d067111176c9ae1e2e710c6ac04843b1e04387c9ad2d57",
+        "size": 12252
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/jsonl.py",
+        "sha256": "a0e9ec3c2e15f377187beef73b3d36fe1d279df64492a2b4afa3bd3d24f728d2",
+        "size": 2605
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/macro.py",
+        "sha256": "7658289f62fe320ba08f0d08d65a22b8b55b87bf4272eac7d261cdabc971df08",
+        "size": 11344
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/manifest.py",
+        "sha256": "7c60ebe24060659ffa5791dbc406dc819bf8117a2c994b037a85185cd6ed0d17",
+        "size": 5729
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/market.py",
+        "sha256": "ad214f383aa070d78b749d5e75ed5a3f883f62547beb01f2f9bd8eeb69fd606b",
+        "size": 5488
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/market_admission.py",
+        "sha256": "54f4a90c2aa5bfaa871ac7924841c8ee89daebb0dfa8a39cb370038d8cc496a1",
+        "size": 35254
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/market_clock.py",
+        "sha256": "ef78b028c17b062723d7ebf58ec0e300f6fb59ef5d8d4614aa23d92dbd655945",
+        "size": 607
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/market_third_source.py",
+        "sha256": "ffaf25288f37a83e288d98e1554cda43cef46056f396dc4ad7ea6ebd94e054c1",
+        "size": 13061
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/market_witness.py",
+        "sha256": "1bec66f0acb8e17cb0ae2573898dabe1f04b207b9326ba2542c73df9a2395873",
+        "size": 19573
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/network_guard.py",
+        "sha256": "df438ce8f00ceed8e1b2c65fe9f51e5ab851751142a29f3c8310a22b91f27112",
+        "size": 476
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/options.py",
+        "sha256": "083102437549fd967d05fca7c863209964fde96fd16c08913f7d18bae183139f",
+        "size": 2238
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/pcr.py",
+        "sha256": "08a2d615203ddc537a8f1dcbb4ddb4e498443931c09ce953a673f20d7e2ed491",
+        "size": 5872
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/pit.py",
+        "sha256": "0b0b9c10a08133c79f6a3a7b655774288d5cd24f3ab67f45174b1577ac9e6297",
+        "size": 1184
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/quality.py",
+        "sha256": "ba46afa61bbcfb7c33e6a493d7b1a0cfa31a87995105702f28a0df40a635baa8",
+        "size": 8871
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/risk_signals.py",
+        "sha256": "1cbdf18e12c7dd5b8c9e9eb4840beedfbd386dfb00908e011d282973964ab0af",
+        "size": 38927
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/run_transaction.py",
+        "sha256": "a12ffd574d1151d6d993db5c3ea3e6ff7bbc67048c08d88959014faf49cf69b6",
+        "size": 13793
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/runtime_root.py",
+        "sha256": "479c3ca3133762f87638f7f8cf7a9287830b9daf4f7e8b146e670740038370ae",
+        "size": 1618
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/sanitize.py",
+        "sha256": "18db0a6601f0782859cfb4af73840bb78296119c267532a31419c011c7065e2f",
+        "size": 8552
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/sentiment.py",
+        "sha256": "bc51c87d884217498979b468b00e39e31f023b163ba338b31766a556564bc02d",
+        "size": 9215
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/source_relevance.py",
+        "sha256": "b33c27b7ee6a8066b434bd4caccf5924709eb63780d934686067cfe5fd43c134",
+        "size": 2904
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/state_store.py",
+        "sha256": "9f35372a8e28a615d314775f47f6e8624fd4bef62f6fb8b5b164ea643276542c",
+        "size": 31414
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/store.py",
+        "sha256": "7556767cbaac599c57ee7cae046f950878faaf74135c8c52e7b6a082411cfd33",
+        "size": 4697
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/synth_leverage.py",
+        "sha256": "a6b575eb569091d5928d468d0ab479abf90719fbb685c04dcaf1f806c4be942d",
+        "size": 13185
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/valuation.py",
+        "sha256": "95f98d6a1e99a9b9d7b66f6c1ecad7170ad7d7655becad11fdf0f95b5a30e37c",
+        "size": 802
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/data/wso_index.py",
+        "sha256": "f124bc178d2781200665fc015b2097b3213e6a1494d0ffb83912ab7a4ff47156",
+        "size": 3310
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/decision/__init__.py",
+        "sha256": "274baead25f533c42623998375f8ef5c3b07bd67e14102138a1be03782ec9f0a",
+        "size": 36
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/decision/action_intents.py",
+        "sha256": "d2a58d70224819fc23c99c0f4e882ebf761321c1f64429df7f7b7a8bd33a16b5",
+        "size": 19188
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/decision/signal_journal.py",
+        "sha256": "825d39690c3e26721022c314b5c1a0da6246f300b8b1e500d763a0600f10e779",
+        "size": 2522
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/decision/verdict.py",
+        "sha256": "9c5f0dba77da064742604d2ae87335e7d50ecbd9b32cdf11e5cc42614db3b8e9",
+        "size": 9939
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/factors/__init__.py",
+        "sha256": "b26accedbce11021db333433f917d45640f8a216fd651c01e213ee9ac85d49c2",
+        "size": 278
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/factors/lab.py",
+        "sha256": "655a49baaac89c5e1d14f1a5e126b4ea606c2363cfbb1d2d1c2e0c9568786818",
+        "size": 13022
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/factors/onchain_mstr_lab.py",
+        "sha256": "c38968c90779030438e57af91374070677dc3342dfc33f633fd204ecdff73571",
+        "size": 18652
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/features/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/features/context.py",
+        "sha256": "35ddcfa411755df228216707256090fc74bee3bc51b28516b5592740c45893fa",
+        "size": 10732
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/features/indicators.py",
+        "sha256": "2fbaefbec5b441d9b38a808ecb5bbd41e68977920f48ea96eb839659a7adc320",
+        "size": 6155
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/features/normalize.py",
+        "sha256": "f6ee85319eebaef0d793e09b8fbe315545d3ebdf53cc99333281ab44ed17ac65",
+        "size": 2508
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/features/regime.py",
+        "sha256": "c760f298091073477a1c7814f0449b56c15a29c4a3ba0cafbd41361701359f34",
+        "size": 3058
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/features/volatility.py",
+        "sha256": "8d37233703cc6d49a5a05d8689ad05a50f797132abc68d9f01fe161460efc058",
+        "size": 3868
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/governance/__init__.py",
+        "sha256": "1b01d9f92f5a03b31c900f28f43df8a2f89024afa4472c3377265f5b92eeff45",
+        "size": 260
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/governance/governance.py",
+        "sha256": "571b90c95557f3fc2b689a1dd03365385d719e1ee74aa03e553da0ff3ec2f952",
+        "size": 6685
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/monitor/__init__.py",
+        "sha256": "3385f7b3bab7796f0b12838ef24c485f58374377b80dca15e4820f6e1dd074bd",
+        "size": 90
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/monitor/drift.py",
+        "sha256": "98f7036c9877d74cd4a06943acdd8f74d89f9e7c22dba91ec4f5065e5166c519",
+        "size": 4683
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/pipeline.py",
+        "sha256": "74449e35f09e42169c5fc9f8c7bf1a659c384f93a26909a918bd0ce42042b8c1",
+        "size": 451
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/__init__.py",
+        "sha256": "849b53fda061240cd766608d020a7466e7f024d6d8276ceb95ad48773c4bf31d",
+        "size": 106
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/invariants.py",
+        "sha256": "692736aeee2f4757cf6795ae37d88df0d9b88943a63168935d1cc050dccd0474",
+        "size": 557
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/risk_budget.py",
+        "sha256": "347de00f4ce0d0dee3b49b1afd74c36393e93d08e0d6a328f4f48ded7a6845f6",
+        "size": 8513
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/risk_engine.py",
+        "sha256": "1a06f3fb242d0cb77e844155b9d0ee04ec022083dede1856d5832465c0d515bc",
+        "size": 24257
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/sizing.py",
+        "sha256": "f28eed77d9546cdaa0239c0bfec6da30c9c0666b47b0907f2595fe4c1f22122e",
+        "size": 3417
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/sizing_optimizer.py",
+        "sha256": "a5ae871e5e1900e6c241fbb42b6f05d363d0fede779fba6b4f4e039b6aefee27",
+        "size": 22630
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/portfolio/tax.py",
+        "sha256": "6b64f8df4185f3f4504aca16f6d66891c9659958f8ebd9320279818101551ec4",
+        "size": 5091
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reentry/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reentry/auto_confirm.py",
+        "sha256": "83370a824ec4b552eca19512b23a1737f8386fb5b68dde7fcf514e91ab390bb3",
+        "size": 3443
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reentry/plan.py",
+        "sha256": "21b2283cdbdffb151b1085dba15f9ba54e41f799ff7f33505f0d549224d1919e",
+        "size": 9934
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reentry/store.py",
+        "sha256": "38991a230bb7ac31e9e4f6d3d9c78ed885e143a71c83b721b6b9072c743c1cc2",
+        "size": 3757
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reentry/tracker.py",
+        "sha256": "17f15b503449edce3fb95409d87576438b2c7d0c1016702dd8907965942b9cbe",
+        "size": 6991
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reporting/__init__.py",
+        "sha256": "2041764cb0a442d53f37f117f7ee5ef1f0cc1e5d34f2319dd554eca81a335a87",
+        "size": 63
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/reporting/system_health.py",
+        "sha256": "c6c154e150eccdd5d6678dd6fbc62431c40d37a1cccfee1041133736d6dfe222",
+        "size": 15637
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/research/__init__.py",
+        "sha256": "f93e1d876f09d14300dbbfdc6cadb30e13cc69eee48eb8dda949f56674141e06",
+        "size": 173
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/research/cftc_tff_asset_manager.py",
+        "sha256": "2952777b31ae7e59bea92b220d57997bb4b9c2410d1e7a669d1099ce8d944f9b",
+        "size": 6785
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/research/integration_pipeline.py",
+        "sha256": "1db8809d46f9c90296314854c9fe665562d2fa690e1cd2c571b59c5c41491302",
+        "size": 15391
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/routing/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/routing/capital_routing.py",
+        "sha256": "9be9e26eb53f1607566e3a17913720b3832beb0dec94a3c68904686eea512662",
+        "size": 5884
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/routing/leg_proxy.py",
+        "sha256": "2ae6f32af7ca3257183f9fc60d2f4804c893475aefcbc63aaaff0dbcbc2c2615",
+        "size": 9011
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/routing/portfolio_routes.py",
+        "sha256": "477b0e8144164f6c558caea82499f989f856bfd4c5c4b7457642b378661780ac",
+        "size": 5062
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/safe_io.py",
+        "sha256": "3bfc78a7b0823b95c8f8e778a148232e2f2e2f38ee22bfa7f0cb5743c6a17f35",
+        "size": 7831
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/__init__.py",
+        "sha256": "7bbb7b23c87ddd073762b2b4c8a825127298eb78f73ca5d2b678a4512d3085f1",
+        "size": 45
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/capacity.py",
+        "sha256": "cfdea28dc606c58d15ad46b5ecc11442080893ed0b74ff0044acdd2d8133c41c",
+        "size": 3452
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/explain_registry.py",
+        "sha256": "4e37d026b1c68c3edb172da96b2d7c4157cab093b8b182653a12b1985bb72342",
+        "size": 16398
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/factors_risk.py",
+        "sha256": "626bfd49feca19159b2a81ef94508b5f375d70990b25a3921e2039a48aeea5e9",
+        "size": 6554
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/hard_valves.py",
+        "sha256": "9634ba99874aaa7234ef753ade7dd7dec5b5f9fe4c7c37d85a3a875b0e170ced",
+        "size": 15734
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/module_a.py",
+        "sha256": "d089ace9d4d2da7a8da04e7358528d553d5b439474612e82343a6e80bd5a27ae",
+        "size": 14287
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/module_b.py",
+        "sha256": "c0096bff84a623e63a57bcb9ccea352f8ce51ef7bce93cea553923385c3fd11c",
+        "size": 5868
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/module_c.py",
+        "sha256": "c64cd8e67e01fa8498809828cc10a7ea00018863f1cb4bd4a0959fa6e9f80cde",
+        "size": 5603
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/module_d.py",
+        "sha256": "d0cf48d0830dadc94be9fd16a3b3202b3c7cf9112e97a6ad71e47cafc2bb7913",
+        "size": 10574
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/registry.py",
+        "sha256": "a04daaeb49076ad43faba66d7dfa33192afc91958c8a69e11e4ab87ccf519678",
+        "size": 4749
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/result.py",
+        "sha256": "3be1ff28b403b2cd2ed697cc9478027baf35f6f797f789e97ac1e48aab12b745",
+        "size": 1369
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/core/scoring/scorer.py",
+        "sha256": "abeb1b1e6518a46753a0f5f7324d9b7dda2fbab57f7232ea6692aebe21f03a57",
+        "size": 11834
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/governance/__init__.py",
+        "sha256": "5bc9b44d15531ba6eecb56e93b6c6e82193bcfa3bc0c5944e05c6ea1cbb725b8",
+        "size": 77
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/governance/approved_live_config.json",
+        "sha256": "8152c0d1a4adce45caceb413f9182f0de0b95918e70007b8140d16e9712a0aeb",
+        "size": 893
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/governance/live_config_policy.py",
+        "sha256": "2ec64aded5139da4412f664ba07f4ba19a97dfc4d3e61024a9100c31ef0c62ef",
+        "size": 11278
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/ibkr/__init__.py",
+        "sha256": "fe8b1906e931e221bbf389cd680e2a7553dec4d63c899648978e846b096695e6",
+        "size": 306
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/ibkr/executions.py",
+        "sha256": "8645a5e71497c144f8a3543ca98efe25fbab75557b7f4b0e6129af74f30ba8b7",
+        "size": 9270
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/ibkr/live_check.py",
+        "sha256": "986b407e74ee00e7dd7fb0dd305fa9161c201c0b97c591679dc5acb7b873a422",
+        "size": 7267
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/ibkr/positions.py",
+        "sha256": "3e533a2ee207f7f399da18f0184d17cecb97f9a70b8b708735c563a8c17dc6ad",
+        "size": 13321
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/ibkr/reconcile.py",
+        "sha256": "356efd920e73dcb05828d33d44fda4ee588b84ae0494f9f304de00ada2a8cf30",
+        "size": 9384
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/integration_config.py",
+        "sha256": "cc60f8419ac858bea09841b15d2d66cc99efde20efe0f3c6a0d2a293eed966ca",
+        "size": 6501
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/mirror/__init__.py",
+        "sha256": "79d1269e5818c3cfa85ab9f82d92de2fae9d2b14133e4b84dcebb212e27e0de5",
+        "size": 33
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/mirror/store.py",
+        "sha256": "b427a8a5195e6b8f8c1011f13df51bc7d9510c14a651c690a12786f2d6cd0794",
+        "size": 1411
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/mirror/strategy.py",
+        "sha256": "73f04edcc00e152e1148cad38b9764868132a161ca85e3d526047fa686e0e304",
+        "size": 20632
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/pipeline.py",
+        "sha256": "dd6209574a21c1ecb56d8ce1aac9e673ce421bb6dc504dc746c44901679f42be",
+        "size": 62538
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/__init__.py",
+        "sha256": "3f52ec4ab4ab7c81f0d0094f7a4494b9a56eb374cd6acc335bf6ecb1f4a601dd",
+        "size": 65
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_cnn_fgi.py",
+        "sha256": "3bc9504ae7e6016f78988477593639ab88954619d085307e521ea26c0ae624e4",
+        "size": 4446
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_cot.py",
+        "sha256": "03f46f82cc1f6ca96a5582c5684534029279e53b3d627a463da838472d0be6bb",
+        "size": 6790
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_crypto_micro.py",
+        "sha256": "1e69ffb095638563c4c531784b0ced353d71ffccb1601145fcfeb2128947516d",
+        "size": 11020
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_history.py",
+        "sha256": "f68ac4aaae7af548eafb701c38652f31053c7d97039c9807e9757d18dcc2e8d1",
+        "size": 25072
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_naaim.py",
+        "sha256": "6008a2d2b147a3b8f9ecf6adbf662184e00af7e06358f33c07b1c3013c800cbd",
+        "size": 5729
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_occ_pcr.py",
+        "sha256": "78aa2127ee82040c52164c9a9262c82f26a63e91fd2b96d483293704685a0193",
+        "size": 4726
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_official_indices.py",
+        "sha256": "0a09e643b82e9463e804073e67349d3462085caa5a2ba94d4ac25f23b306100d",
+        "size": 2499
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_pcr_naaim.py",
+        "sha256": "ca9b9c3235e21d7b8cf35d7a33592e4eb59b6207240ca58bea51e1b1872a024c",
+        "size": 10588
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/backfill_soft_data.py",
+        "sha256": "976e245db241fb9e0a66f9ac0647463e4e4627ab7977bdbd01ee02fcbdbc0ed8",
+        "size": 2683
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/build_synth_history.py",
+        "sha256": "abf3c6112047a5b5a44d48dfa2b093b4b767145cf2c7b300a9fcf95184c0acbd",
+        "size": 15934
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/calibrate_next3.py",
+        "sha256": "f28c5f7f51cdd4aabde52fc53039a842cccd8be5714a0573a95e7ca934cba45d",
+        "size": 10754
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/calibrate_next3_fast.py",
+        "sha256": "cd98e4c63ca92b5d97f3bcd1059c78960a0fce0638144b230eee17112a04c36b",
+        "size": 23699
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/calibrate_next3_v2.py",
+        "sha256": "a681f152e06f6bed0c557a549b1ba9cc213242e05be734771bead4cde410c726",
+        "size": 28807
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/check_market_witness.py",
+        "sha256": "16162a3d2c184dd69dbf04421becd47474893ac24b81805cd067082ed46173b5",
+        "size": 1492
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/check_next5_unlock.py",
+        "sha256": "d3f8d7806059bbed75e379b8dfe3607c0bc9f90f849525b1a898a3bed288b1a6",
+        "size": 7838
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/generate_baseline_doc.py",
+        "sha256": "062bab8d5bb9ea58045f20edbe39d3ec8ed8f75c2c0aa19c24720c63599b1c40",
+        "size": 19854
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/ibkr_live_check.py",
+        "sha256": "78b100dc55c82d378945af62dddf29c19691518be5bb4215874abe5e5b9fa5fc",
+        "size": 802
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/parity_harness.py",
+        "sha256": "991ca134a252ae5f9ce23571c260c87b7587c82be5d79f31e66a07cd1cf05732",
+        "size": 7092
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/parity_harness_v2.py",
+        "sha256": "1ef65b4eda00fc7a8eed77ec6ec0344121e024a976ba952f42a0c522807cb816",
+        "size": 5355
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/phase2_corr_sensitivity.py",
+        "sha256": "a5e82c42b0538524ed1271b2283dc1c63d514bb0bbac7c9a4602114ab3bd3cbb",
+        "size": 7411
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/phase2_full_backtest_sensitivity.py",
+        "sha256": "bb953a356ad7a6f479f8a47a6d92713baa5d001ae60ac7d0f701b5024809e34e",
+        "size": 30897
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/phase2_shadow_compare.py",
+        "sha256": "09968b9a22324916216ea2e86f35d642b388a7d6dc284be4e07db7b177c0841b",
+        "size": 19029
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/phase3_dry_run_compare.py",
+        "sha256": "6649648715e5cb3fe3f911820cf01cd651905559551b5c1042ce2d1e1ec3306e",
+        "size": 17696
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/phase3_warn_review.py",
+        "sha256": "049ec85949338995aed5715e88f193d130e8e26e7c5e1768cd14357ff1434ac4",
+        "size": 18434
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/phase3_warn_sensitivity.py",
+        "sha256": "86a943476773a556461b76a9f1f7ab800bc9e98cbbd5e138fd71fe47a0b02ada",
+        "size": 21702
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/pipeline_lock_exec.py",
+        "sha256": "504dc89b95d97c186aa9a6ba0a3746b3ba727529998f392a88e84bdef117b8a7",
+        "size": 2159
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/predeploy_smoke.py",
+        "sha256": "2d5e08eb70d34b9f3e8f08b8432bf2d4df1dc3b049b2e621aecf88d5c5ce7ae3",
+        "size": 18784
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/refresh_aaii_member.py",
+        "sha256": "e37bbfa16d9c2187e51b28fa3099b834c306ddf61a3b185548da969d40a35705",
+        "size": 1748
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/refresh_aaii_public.py",
+        "sha256": "1906581e7da7d800f738d20155f9753330167c1c353835004ef6f4468016f10b",
+        "size": 5344
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/refresh_cboe_daily_pcr.py",
+        "sha256": "2f00d00fec581be845540e953fc6ecc0a81d41642d6fbb44dcf83a709b66efc4",
+        "size": 8500
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/refresh_external.py",
+        "sha256": "8a67d130c8225acd4d1ccc1a3dd73e6ca96973dff50b4ac669ba8651db8cf468",
+        "size": 45088
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/retry_market_third_source.py",
+        "sha256": "6df6bc365d2dd3593cef44afbf1ba9b28d89616e314ebe7f8f605f27725a0fe5",
+        "size": 1735
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/run_daily_package.py",
+        "sha256": "15cb03bc88c0dd7a259e47e89d436ee2b6324d31fee93f0c62af764f3a5d903a",
+        "size": 75963
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/run_daily_shadow_compare.sh",
+        "sha256": "3447d20989d6330b684da9b7c613d24ee6cd89e071a05f35d01009629e34507f",
+        "size": 3292
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/scripts/serve_workbench.py",
+        "sha256": "d8b603503fc8d9e840229c620b65b9e6cfe828794a8cfa4b6612ce3ac7ca652f",
+        "size": 7422
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/conftest.py",
+        "sha256": "f009ac2612bcc68707fafe34679f23d135ee08945c0ceb2d7ccca442076cc5cd",
+        "size": 2525
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/fixtures/data/soft_history/dollar.csv",
+        "sha256": "a5f1fe63207a1dadf9945fceeb5dbc9cd21c1da69a19cb8aec7c522bd8a83fba",
+        "size": 98
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/fixtures/data/soft_history/fred_net_liquidity.csv",
+        "sha256": "599eb300a36a0ab7b470a529ec4a9bf30f815d6f7c6a21515f4af5319868a98f",
+        "size": 174
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/fixtures/data/soft_history/naaim_exposure.csv",
+        "sha256": "95dec2ca62d83a47862c67eadaa332ee5a908fc07178620d5d2b11b02682b03b",
+        "size": 93
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/fixtures/data/soft_history/real_rate.csv",
+        "sha256": "c40e2a94d69191d8c01787ad1a074bcddef934387ffc77a11126ad312fb84ebc",
+        "size": 96
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_action_confidence_split.py",
+        "sha256": "dbe56def21d0c21c68a93979271bf257d84cbc43120cc7581a0d9504d65cd6e6",
+        "size": 5513
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_alpaca_daily_flow.py",
+        "sha256": "a9ced56b967ddea92b84f5fdc699a4f9132d9405c370ab94cf795d3b145f893a",
+        "size": 2754
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_audit_exporter.py",
+        "sha256": "425e9fa4b56b5d66d042e7ce5b4fe49729697966fc6b3063f5bac9378d18a5d0",
+        "size": 4685
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_audit_rotation.py",
+        "sha256": "54aa0d6194238fc4f85fb06539de128eb8fdf608e06c979ee4606c089e4c1003",
+        "size": 3328
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_backfill_guard.py",
+        "sha256": "bb05fd1b75176c17a23284176476631b6f53e778acd2f161e6bd90d88a06cd58",
+        "size": 37671
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_cd_trend_ownership.py",
+        "sha256": "463f4d9cfcdf51c1d67f889c30ac9645144532e6abc89f9819a7988be79aa4fb",
+        "size": 2616
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_cftc_tff_asset_manager_research.py",
+        "sha256": "ead2e55890042a3c90d3c9a7b5fcf74cf53c79a7962dd720377a433130dff293",
+        "size": 5590
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_cnn_fgi.py",
+        "sha256": "43e06dcad31987a43066b4d2c5b5ba3546206bd70a998d5685485ec2011175c5",
+        "size": 2798
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_coinbase_witness.py",
+        "sha256": "aee3dffcf18451f0aaa1e24067de89b8f96408f050aad61689d18b85e67ccfbb",
+        "size": 7120
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_confidence_spine.py",
+        "sha256": "f5c2755d0e1855a81f3e89d60411e126cb00fb874b940c122f71f781998c83b8",
+        "size": 2373
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_config_validation.py",
+        "sha256": "6090bd69acacf5eb51b43eae15be2a967341f4a892f668359af64a70f013ac8a",
+        "size": 1289
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_continuous_sell_fraction.py",
+        "sha256": "ee665294b920bbb2f2540cbdea3117279e2e0b65a0989229ba8e0b4fd8314f61",
+        "size": 2524
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_cost_robustness_report.py",
+        "sha256": "dc1544c34d884840fc1d5c4db4eecde6c0d852abf1f4c3b0e1656b9ebedb9d07",
+        "size": 2825
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_crypto_funding_source.py",
+        "sha256": "a252e4752043390e1d934907487eaa0382af90e67a697e2200e16e7a1d7ae33e",
+        "size": 3267
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_current_baseline_builder.py",
+        "sha256": "05733ea61e612208140bd55f0f940d5710c439070b441455c536194c39f04b9c",
+        "size": 10712
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_dashboard_briefing.py",
+        "sha256": "1b3800cfb5d0a8f0aeaad11870baf9d57d08a2cbdcbf0e68d4a839a4bbcba6f5",
+        "size": 1880
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_dashboard_official_only.py",
+        "sha256": "6aeb70f84d0711983537c4e9ac99633c68889acdd03b7baaa90a171aa1f0448c",
+        "size": 6386
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_dashboard_workbench.py",
+        "sha256": "3b9ab8eb453af5f3ef829f838beec7e8b4653525a195f7dab8c3f69714f2ee4b",
+        "size": 84117
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_data_store_quality.py",
+        "sha256": "2d9a65a095ee6e8749b1793de4cc3a7091bd09b41aec7dffc65fe5a68d28607a",
+        "size": 1127
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_decision_as_of.py",
+        "sha256": "8f9612a381ad5eb4c10a92a59e29342603ea58d695233393d5805d24a4cd0a2b",
+        "size": 4313
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_decision_input_coverage.py",
+        "sha256": "ec531ed66b439427428f2eca4116df312aade1e10eed55663b764374396b1256",
+        "size": 1596
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_decision_revision.py",
+        "sha256": "73155f3d310c1ddff23ce7f9fe66e440bbffa10d39e7b76d8982fa567cfd1c4b",
+        "size": 7840
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_decision_stabilizer.py",
+        "sha256": "ddfa24bca30f9c32b61fe6afb27486570f6464f175a524ee38f62af99643ce57",
+        "size": 4517
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_deploy_to_live.py",
+        "sha256": "f7f2c72ef37552a26c6eb4c76e584615b60974af4054525e8cf71235cdc07ef2",
+        "size": 35752
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_drift_monitor.py",
+        "sha256": "e5b9afa327f4174bcad171c998aef08f721593bdc78a6a05ef635dfaf93641f7",
+        "size": 3005
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_execution_timing.py",
+        "sha256": "98044c4b65d26fe6fc212d1da1985ee6b0c8a09a61a960fdc68ea8825aab359a",
+        "size": 9058
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_execution_timing_cli.py",
+        "sha256": "5b374a918dbd6cb8a2152788834c6342e2bd0100d1ca87b7235aa84a53bf056a",
+        "size": 9318
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_import_queue.py",
+        "sha256": "6efa5a3f7c07f504deb74ab0e043ed101184dd60b73ad0710def82a311e26b6f",
+        "size": 3962
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_aaii.py",
+        "sha256": "f6b9883403455412eb31bfd89ca7eedc65a251731cf65744df378e1de247cf27",
+        "size": 16162
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_cboe_indices.py",
+        "sha256": "6f0682f3992e46f26e065b78a5b6cd4c8784f7dcad441110f57802945bdc8b52",
+        "size": 27731
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_clock.py",
+        "sha256": "2a39190a7e4215d0e9ac24d46b07b893d5c8d277038a9138815c886c00dce9aa",
+        "size": 599
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_expected_release.py",
+        "sha256": "b1003c89eaf9e1d925571018c8abec30856e8e5bd0b8a32510cb58167be6a905",
+        "size": 12385
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_failure_drill.py",
+        "sha256": "8e69d6e9a15a17d688e46c0352c0ef697285a6917501938e298778318af1a95a",
+        "size": 3338
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_fred.py",
+        "sha256": "727ca46df271a22d7a091072422227a81f64c9557f19bc377847864c86fe5edd",
+        "size": 37693
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_fred_vintage.py",
+        "sha256": "3fa600bc42a4c94213566112cb8f2051ae47664a71df129738f71824bd3af516",
+        "size": 12831
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_market_soft.py",
+        "sha256": "e629b94a8ef5ba3fe7b01ab2420cf1d7b8d9077f2e0e15d636d0af08e2df7c31",
+        "size": 13234
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_naaim.py",
+        "sha256": "926f20dd61f91be1d0871095d7ec5e50f4d65625fbadd77cbfca2e350dc58390",
+        "size": 24855
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_profiles.py",
+        "sha256": "d584624aa9ea16dfbf3bbb5e6fb84f3240e9539f8b1876942200fa6f130178d3",
+        "size": 11744
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_runner.py",
+        "sha256": "d21653bf1bf09c942fc24b153ba0ee47a9f5983a017ccdd10e933ed11a211efd",
+        "size": 37389
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_external_source_single_writer.py",
+        "sha256": "b6e11137ff2423d3f0cf30e745d37e17bebe101d5e4afe73d4807a72e6457d58",
+        "size": 3435
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_factor_capacity_inventory.py",
+        "sha256": "80dec1d597e3f4699a728392ae2375c698fa2b24299c46bd23c5df907f31d984",
+        "size": 1485
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_factor_explain_registry.py",
+        "sha256": "88632e5d6a1fac3aa762d15300d286664d49fa28c28953831964899d388513f5",
+        "size": 1334
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_factor_lab.py",
+        "sha256": "db8de6bfcb685fc92092306fe66363d676ae7d28c88991bcefac5a34575b2785",
+        "size": 4792
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_flag_sweep_cache.py",
+        "sha256": "2a515d38e2c63c2cb2462402876d1bf0e3125367115fa1f206a3185f07d3fab0",
+        "size": 12497
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_flow_store.py",
+        "sha256": "e770d0753ded001aa178f1aef4f7bb9bde4d6aebee01b1f58ecd4eb852d76b89",
+        "size": 1464
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_formal_gate.py",
+        "sha256": "829136fa1b34d30fe8ecdf505d7f3617a1e65b9558014b60129eda9a00403a4c",
+        "size": 13622
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_formal_gate_cli.py",
+        "sha256": "ba02f6d71bd08fbdf6af0c866f5e414bac2d011ceaf8a1da292027cb9b99b233",
+        "size": 12653
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_fred_publish_date_pit.py",
+        "sha256": "a96b640f71c04062d49e3bb1b642b2d8eec89e177e8c9bf1d6306ea96d4dab35",
+        "size": 3173
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_gap_closure.py",
+        "sha256": "64e0841520bdc8776d91eef35714d7420c6dae9a226e4c3eb7b5b9885439b25e",
+        "size": 12725
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_gate7_circuit_breaker.py",
+        "sha256": "265982632acb3d638a2154136a8c4c8fa7365f82f41885f33772b4c20a36d834",
+        "size": 13298
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_governance.py",
+        "sha256": "7d164f7ab4c81269ac122fec076997ab3b44af772d849ad9c7ebfda5d69a439d",
+        "size": 3745
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_governance_consistency.py",
+        "sha256": "751441057e0b01f278b8b45a06b1945c059d3413eb1c303a1667c406fabae84a",
+        "size": 15112
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_hard_valve_history.py",
+        "sha256": "f6102e823e90519a695b71ca394e24d0eb61b06cb0a62b68cd84df4192ae8145",
+        "size": 3006
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_hard_valve_suspect.py",
+        "sha256": "31d629ff4e57b3ea0bde7b40249e74f5c382f3ccf3419bcd2214200b20e4279b",
+        "size": 2596
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_health_truth.py",
+        "sha256": "1fa9b88d4ba3a3fe1e022c7a800e6fd171d223e05868f7205184c5e86ab77f5d",
+        "size": 31543
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_history_transaction.py",
+        "sha256": "49615e230071f1c8b8e49e08e2f67a1cb1959cbc4d81aa6682abdcb60b0241cd",
+        "size": 3625
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_hm2_buffer.py",
+        "sha256": "856032470a20abd09a26e497540138888844548a4c85f381d15165e3c4417ff0",
+        "size": 3689
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_ibkr_live_check.py",
+        "sha256": "9f303e1f7190a84f4afb3db0f5cf4830ffd8b94656d263efd9e6c081186f0b64",
+        "size": 2790
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_ibkr_positions.py",
+        "sha256": "cc8ebfcc467f7732ab2dee5f8bc00bc5581e8c8c66283336ee6071042c558fca",
+        "size": 3796
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_ibkr_reconcile.py",
+        "sha256": "195ed1fbc725bd2a757ac89c73e78e6ca4d1543d079fe136fcd301a37e4eee23",
+        "size": 8154
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_integration_config.py",
+        "sha256": "dd30974c1e738c02edba0ac00f743681510ce79722737b1c337419a1c9508ea2",
+        "size": 2271
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_jsonl_tail_repair.py",
+        "sha256": "c2699a7c276946fd817003c82691a8817e261d0fcedb454d1c10657a282b13eb",
+        "size": 2403
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_live_config_policy.py",
+        "sha256": "3401c1e2098d682c217aae0f8bc9cb683c6f2068ab65aa6b5aa68e2f88905ecc",
+        "size": 864
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_maintenance_closure.py",
+        "sha256": "99e272238e88cbf0282d9e14857b53b1f26fbe09bc61c03903251da80ed4fdc1",
+        "size": 1440
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_manifest_button_integrity.py",
+        "sha256": "868a2989d43d70f623926484b2ad469823c71ee2a2442cf3d6c99250c200576f",
+        "size": 1484
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_market_admission.py",
+        "sha256": "c4899337a4e086700d999ffeb1cbfc34c718f29be03c54b9fa5019272d66522c",
+        "size": 26808
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_market_admission_history_analysis.py",
+        "sha256": "3e40b5995d8a7aeca89e3bd01b60a8ee628105e9da9c657716ab7a50f6dc6b95",
+        "size": 9820
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_market_context.py",
+        "sha256": "ec4da35ac555883fc1915483d1ee22842972bc01bf6eb4636533686049aa69bf",
+        "size": 4630
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_market_indicator_cache.py",
+        "sha256": "77e5fbabb4b7c1430478895615e5afc6c1f767cfddea42fb150a2680a9a5d64a",
+        "size": 2795
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_market_third_source_shadow.py",
+        "sha256": "5a2b96571242889178b887e2f9a72fec755e32498b97dcf6c0a93835bf64a263",
+        "size": 11476
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_market_witness.py",
+        "sha256": "470c68f847769d3f8a3e5d280d402e0747c2fb63e252d63d7240a13c3fd6e0da",
+        "size": 14361
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_mirror_web.py",
+        "sha256": "9fa627771a4e42ae53bac4b2827e926d9b1b987642e156ba27891c14428c3d65",
+        "size": 7309
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_morning_acceptance.py",
+        "sha256": "f3bd38c6c570f47b9a952ca4f9cc4f7588069896c5b05cba9fccfb4f7b69151b",
+        "size": 54347
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_mstr_mnav.py",
+        "sha256": "432b0e9593a82db62750fd5fffa6fc6453c85f0314fa97e92df9fce0481144e5",
+        "size": 4015
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_next0_data_foundation.py",
+        "sha256": "fe46cd3e417266f50b7c70ba444ac8bdb350afbb7f39206e4a1c07b93663a56d",
+        "size": 5258
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_next3_calibration.py",
+        "sha256": "9ac61ecc02649f1b83c62e9d0524de72ab6f0a0a26112b2eccbd38d9fb82fb95",
+        "size": 1412
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_next5_runtime_isolation.py",
+        "sha256": "4e495c15a4aa1e3ce335af3c8ec8f5954d7d0b8535aeba01a994619d3e308726",
+        "size": 1463
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_onchain_mstr_t19.py",
+        "sha256": "3af816a650a22dc5d52f9e5171c5f79fb49cbdc05487e49b3634cbaad97429c7",
+        "size": 2966
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_ops_entrypoints.py",
+        "sha256": "9944a1f963b8bcc9a50fca3d94dba7cc9e59a2b9c0bcd6d26676d2bd9e70598c",
+        "size": 32887
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_p0_synth_leverage.py",
+        "sha256": "228f984bce8469b842222f8755eff6ecd0ca2ce98f4a0bc867a43cfa757b0d4a",
+        "size": 7617
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_p3_payload_blocks.py",
+        "sha256": "b967fc43a3c42d2e8e3bcbe5ef9d30876b0b8824a7f100600720b334e91c4a1e",
+        "size": 1929
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_partial_factor_eval.py",
+        "sha256": "ba309d6aa69d42430acc448ddce0768ec8100c33096d69a04ecf03bfe4e60952",
+        "size": 2490
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pcr_calibration.py",
+        "sha256": "d1340f26984895f06dd6d8ea5f217b9c05fab38f0891c63893f8ccf231c60b75",
+        "size": 1770
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pct_change_semantics.py",
+        "sha256": "25e24a7e41352b6565cfb9399253aa1f061d46403b00948e7d68243b63541c13",
+        "size": 1551
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase0_contracts.py",
+        "sha256": "f0a9e6387c787aa1e7ed4004793dba71ff88fe91a78cb6e98ccc9bf8bca89326",
+        "size": 1830
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase10_adapters.py",
+        "sha256": "5895a858a1683dcccd9998862d7b7dece2a32f80c44be27a41eb675227b8c90c",
+        "size": 4714
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase11_backtest.py",
+        "sha256": "f88172f93780d62358ca406ecf81f0ed72a37b85aef8cf5dbabaa1f79b2c8666",
+        "size": 2841
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase12_mirror.py",
+        "sha256": "0ea481866f01bac95366f9883b33230493c9365c95ac7e9665e73c3d40fd80cb",
+        "size": 3046
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase14_web.py",
+        "sha256": "1f323158da557772be77e51a5f8bce1a80199c99ebc0fdf3fda4c46ea9ac59c7",
+        "size": 20427
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase15_integration.py",
+        "sha256": "57e8c59eeb943644944f46bfd0f973a0cc576d5a07f3ce614bad950b748d6833",
+        "size": 47214
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase1_data_flow.py",
+        "sha256": "4a84d2790eae5059b6f5982b296c6f8510f57fe0222b35003cdac3c63cde8d3d",
+        "size": 11159
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase2_features.py",
+        "sha256": "719d8a53778aa213ea342eea67768c023f27100d3c5ac47a45050b0a065b8ac4",
+        "size": 4652
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase2_full_backtest_sensitivity.py",
+        "sha256": "127a3796beb9e187513f3004e3148089919c88c3009611be24eb0804866112cb",
+        "size": 3860
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase3_dry_run_compare.py",
+        "sha256": "7b6087ed4bd66c30649d34f9fd6c67aac826ee0ec23e84bb359d9a8a08f905d6",
+        "size": 3253
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase3_scoring.py",
+        "sha256": "e0b5797f38b59c4841766a3a0e81f444daeb3447fe38618c4bab4cafd19cc995",
+        "size": 16991
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase3_warn_review.py",
+        "sha256": "b24a257c39fbf4c4363798df0e31d5cb29776f5e14c468d58a701ed77cc285c0",
+        "size": 2112
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase3_warn_sensitivity.py",
+        "sha256": "92d1ed52ba116b5f08c502a644fb29087f89433c7237415272ac6c51e230347d",
+        "size": 4197
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase4_hard_valves.py",
+        "sha256": "d808a87666ccc5a4cfc06f45e659afb9c42471aa5407205fd6ea90c98f9351ff",
+        "size": 3546
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase5_verdict.py",
+        "sha256": "5ce81bcb9dc90e89d73e5a09d33e4078d541f4840a46f46bcb941e6594523b5b",
+        "size": 1979
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase6_portfolio_risk.py",
+        "sha256": "3b24aaf3b10f16b24dcd0331453156abb44e2a4bdfd1afd7ca8f7c124e14158e",
+        "size": 2820
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase7_sizing.py",
+        "sha256": "fda85343ab1dfaa67ea124eb4f04501b71d93c7147d3e21552fcc15bac4f1ecd",
+        "size": 1837
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase8_routing.py",
+        "sha256": "d0d69f22fd59fdf80b0b476923ab6037eeb8a992af7f2c4dbf97942102ae3d0f",
+        "size": 3131
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_phase9_reentry.py",
+        "sha256": "eb6fb0590cd50bdbf19f8498bb029a4204a6469763d52950327d7db035d66ac1",
+        "size": 3802
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pipeline.py",
+        "sha256": "e295a022c5874d529fcaca67c50c9eebb36cc9e87005b4a352ab83aff05992e7",
+        "size": 8005
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pipeline_lock_exec.py",
+        "sha256": "f17532ae9048991fc54b13518b9eb569313f455eb8a7d811066b692d7077a3fc",
+        "size": 1913
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pipeline_ownership.py",
+        "sha256": "0847ec45bba886f3a711be30a4edf8c420d1fa914f861fe1033e61d07cf4155e",
+        "size": 1460
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pipeline_persistence_comparator.py",
+        "sha256": "103a1d35a82c96f0b3b45ad465eaa167b1bd30f06a7014181ffee9c4f47810ce",
+        "size": 3364
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pipeline_transaction.py",
+        "sha256": "cae3a1a0ad3eb3a81d75fb6deb4233f109955fe85e6eca990089c5d2890337b5",
+        "size": 7218
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_pit_migration_governance.py",
+        "sha256": "12c5fefbf814e7b0a0ff310204bb420a6631ff0f8ce035214afb178c4cadd7f2",
+        "size": 2193
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_predeploy_smoke.py",
+        "sha256": "63e647442aac909309530b1c2aae8f07df7e335b14723cf348e4e7cab09d8a97",
+        "size": 15659
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_reentry_tracker.py",
+        "sha256": "a82b4cf580015515123e5d41c34b61b3fe63e848c4a266aeb863d16a52882580",
+        "size": 6063
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_refresh_as_of_gating.py",
+        "sha256": "8d69bdd254891963c78788b45bfd64617067987deb1b318dbff5848471a3d89d",
+        "size": 9101
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_refresh_external_cli.py",
+        "sha256": "4bc8485e1c925adccf682ce54acc0fdc6bc2379c8efa8aa98d9222316933e52e",
+        "size": 72750
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_refresh_external_fred_vintage.py",
+        "sha256": "8a120e0230c92aece4f84649d1d1bec451d88aa959567ec28fe8c9787cea4377",
+        "size": 7182
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_research_evidence_freeze.py",
+        "sha256": "435a1da39e1ccb80c32258fda3135db2bc2e751437b2b55f8b1490615d4f3c0e",
+        "size": 4978
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_review_invariants.py",
+        "sha256": "ebc36e97c3ff95c7701457ab1ca14af90e3aacaff57ce7350063abf9a8821491",
+        "size": 4576
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_risk_engine.py",
+        "sha256": "624b812320838281636c325207def64f5e9fbab6d402215df8fc272f32a554b1",
+        "size": 7543
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_route_transition_buffer.py",
+        "sha256": "9d6d30024b1f9f43c94560d4f5cfe7bd66e8f6aaf447377a6ecf4397fd74182c",
+        "size": 3237
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_run_daily_external_sources.py",
+        "sha256": "f92ed79fffd271becf888d63bde76b95bb68a3d3ba74a73fbe11c756be5746ac",
+        "size": 13607
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_run_daily_self_heal.py",
+        "sha256": "dfb252e79c5a22304fd94b901fd160113e8850353009b7f137ee69e58078b1c8",
+        "size": 5647
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_run_receipt_banner.py",
+        "sha256": "d3c84493b4c030ccf4c941baf3e048b7ab1ff6797e165d21eee7346457fb061b",
+        "size": 3212
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_run_receipt_writer.py",
+        "sha256": "aa25d7bc6ebf0b4d561e3e71ab72249986a3460ed21af9e808def5167b680364",
+        "size": 28504
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_runtime_data_root.py",
+        "sha256": "304f39401409f4ed9fb7e6e03bf2a859e8e8731a6aa5347dc6ddb0d1acbae242",
+        "size": 6750
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_runtime_retention.py",
+        "sha256": "8cb93edfac7915196f552e151ce603fd2525c40901321540978f14f6e3535757",
+        "size": 8039
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_safe_io.py",
+        "sha256": "7a65e9879a533ee2c3db902d440f928b8ecc74063c50449d24370883735f3f14",
+        "size": 4398
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_safety_invariants.py",
+        "sha256": "43fb0685d957b78e07476854463c016b5a5ae4caf1184b9a5c05714f96c23152",
+        "size": 3529
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_sanitize_and_failover.py",
+        "sha256": "f5af4f9fdc4f9494b9960917d1cb9e3e6e0a33700e0da854b337c8ab2ee39057",
+        "size": 6506
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_score_run_transaction.py",
+        "sha256": "fc9e8c6f413eafbca4580d49c76f0c0a5a4f3f20dc1ec8c1bfcbac94b675250d",
+        "size": 4789
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_scored_missing_weight.py",
+        "sha256": "d0b934de56da78c924430b7a65dbed44a07fbc80a73b9bfcc70241bb7788a5bd",
+        "size": 2331
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_sizing_capeff.py",
+        "sha256": "075a995d478f37a6f5a8ca05b247541351448741825b994e1969c1ef612ab70d",
+        "size": 1542
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_sizing_optimizer.py",
+        "sha256": "888b9d2512fdcecb202ec1275ba7da85a41401c9e91862656df0630441be67f3",
+        "size": 9006
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_soft_data_slo.py",
+        "sha256": "df3fec8e2f77c9e2559465ef9a779b5593a3bd6bc4b4e8d4e9536f76d721c9f1",
+        "size": 1746
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_source_relevance.py",
+        "sha256": "02ef4fe45f09b8ee92e080821b7d3f838dc9f97f358d90ef96ce15c74f54fb62",
+        "size": 3516
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_state_store_and_actions.py",
+        "sha256": "bd5158a25370d56b822e8e97a465d70fb92b5cf9bcf41c07df4e715282124e9e",
+        "size": 15819
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_t3_reentry_gate.py",
+        "sha256": "85e3f907943c1f860c12b58dd1bc93de6700a1d4532a2a337f576b2132961a79",
+        "size": 2535
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_tax.py",
+        "sha256": "00eaf7fa55cd94b7a83d220e454468cb4908419ff4fa207890eda751df1afd42",
+        "size": 3756
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_trust_zone_off.py",
+        "sha256": "e313b44f0740940fde7b138ac60e28f535cac99189e1e587b38abe8527f52632",
+        "size": 1270
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_validation_harness.py",
+        "sha256": "8e45d1eb9b65170f03d1946022cdda513a1c10c2fc1d01a17beeadc264e11f11",
+        "size": 6379
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_web_market_evidence_module.py",
+        "sha256": "f1db0aaee24a9494d12c73c8a4b2a008fe28f6afa60d258c0b6efe8ae3914927",
+        "size": 841
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/tests/test_workbench.py",
+        "sha256": "3eeeb194c48ceb5ae09182a18fedf946aea77f7545ea09d1aa96eade775bd5cf",
+        "size": 6513
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/__init__.py",
+        "sha256": "d12437ac3b3fb8e349896a7fd2d299fc77b793d7e8dadfe4dfa1f52e0b9db671",
+        "size": 48
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/external_source_view.py",
+        "sha256": "7b86624924ac59e89429b1f5f0a573898c665f0acdfc725f611dc81116e5beb8",
+        "size": 3211
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/health.py",
+        "sha256": "a73f397cffdea653f1e78857c22b81cfa2c9a62cc028184256057dfaa3d4bd6d",
+        "size": 36957
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/market_evidence.py",
+        "sha256": "5bc64d172d633c4cc2f7766fbe852eb17edd4fed2c3bb38cc3efbb064093590f",
+        "size": 4157
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/mirror_render.py",
+        "sha256": "d2c088d8ef81229aa1a7e0167e8f63559e33a21cf9ce7f91f31fe5e0aabcfaa0",
+        "size": 31834
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/mirror_server.py",
+        "sha256": "83453fe325ad376faf1b32ecf43f0ff256bd9ce1f8fb0f34a47a7e23d9b139a7",
+        "size": 4320
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/refresh.py",
+        "sha256": "7a76a44afbe3cb4ff084d050d53e18c699dee26fb59e6169d6089131715ca495",
+        "size": 28598
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/render.py",
+        "sha256": "c60e943892c6dd4ca05a12a91f3c4744b1dd8e46d9fe26b255c3a812a70e63ff",
+        "size": 236962
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/server.py",
+        "sha256": "cf47126aef9184f08a449dd523d095118e4441c02407a207f9104924acb2c77a",
+        "size": 50963
+      },
+      {
+        "kind": "file",
+        "path": "src/hermes_escape_top/web/workbench.py",
+        "sha256": "c12a096e434f81c3abeaddc12886d0758d0b033fc2ae21bebc79296f8a19b82c",
+        "size": 24612
+      }
+    ],
+    "label": "working-tree-release-a",
+    "manifest_sha256": "45aa74f1e954c564c423149475ef3c51be8add36306fb0794cfc1ba8ecef145e",
+    "relative_roots": [
+      "src/hermes_escape_top"
+    ],
+    "total_bytes": 3419317
+  },
+  "comparator_sha256": "19540147b21004355d0f54eb14c0455301bddb870b47a370b0a753178d5bd76d",
+  "contract": "strict",
+  "dates": {
+    "2022-06-30": {
+      "baseline": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "f9b33f43767d0ee87b12157ce061446470e1fe68a76cb940b7426c286e18b342",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "65ad3cd5d68b32a47ef6f19a0de1afbfe51f1e9f7b8b3d61e884e5035c7ed00c",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "571540840711c39e223c7ccc1e8a4366720b3b0fd50f6c5ce4f5fa18d21c6262",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "8e232e01a4d5cacc19d8f2473b4c5d4bb14e1c68a32610443c850ac882339d6d",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "8dc2efd106b059d41141eb9638051867f166488302a8cb6e2eedc5cbda330101",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "47d57a7a1ed59a31e8e8fa5ca1bf3a29f28c3919a5e9e92608f8f5607603f887",
+            "tables": {}
+          },
+          "soft_adapter_snapshot_2022-06-30.json": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "df29cfce852c2795dc070c89017e91a11f620cde7a2f153a79d18ec3c7f9bf53",
+            "tables": {}
+          }
+        },
+        "input_hash": "e3963e7e55e74cf0fc96e5e762e5ba9e9324ad72dae372ef60a5fe31011a44bf",
+        "payload_sha256": "168f35cd83d8a3d447b54841520ccbfd321fde980ed41169a0cd435d13eed170",
+        "status": {
+          "FNGU": "EXIT",
+          "MSTR": "EXIT",
+          "SOXL": "EXIT"
+        }
+      },
+      "candidate": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "f9b33f43767d0ee87b12157ce061446470e1fe68a76cb940b7426c286e18b342",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "65ad3cd5d68b32a47ef6f19a0de1afbfe51f1e9f7b8b3d61e884e5035c7ed00c",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "571540840711c39e223c7ccc1e8a4366720b3b0fd50f6c5ce4f5fa18d21c6262",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "8e232e01a4d5cacc19d8f2473b4c5d4bb14e1c68a32610443c850ac882339d6d",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "8dc2efd106b059d41141eb9638051867f166488302a8cb6e2eedc5cbda330101",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "47d57a7a1ed59a31e8e8fa5ca1bf3a29f28c3919a5e9e92608f8f5607603f887",
+            "tables": {}
+          },
+          "soft_adapter_snapshot_2022-06-30.json": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "df29cfce852c2795dc070c89017e91a11f620cde7a2f153a79d18ec3c7f9bf53",
+            "tables": {}
+          }
+        },
+        "input_hash": "e3963e7e55e74cf0fc96e5e762e5ba9e9324ad72dae372ef60a5fe31011a44bf",
+        "payload_sha256": "168f35cd83d8a3d447b54841520ccbfd321fde980ed41169a0cd435d13eed170",
+        "status": {
+          "FNGU": "EXIT",
+          "MSTR": "EXIT",
+          "SOXL": "EXIT"
+        }
+      },
+      "differences": [],
+      "equal": true,
+      "strict_differences": []
+    },
+    "2024-06-28": {
+      "baseline": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "c393449146d795a5fef5d8fa5bb4e977e62f20ae81ea9d2e97dbb7d535dc4e6a",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "62c73d11f01dda77a2ce4947cd7f5482a476e954c9e0d6a52be9c04384ba4a9f",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "02f741fc2c2873262ebc96006e7e6ae099cedc153272f26e7c0e29008bd05efc",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "32ca7d8195fa1a0d78708735a740020281a306facbfafe0e959d514b6fbffe08",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "8094087ede86da8b15d614ba254d102d4fe0400c65991fa83d495c78c7e1a6f4",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "85f08db81b6515fc8741650b41cf1769c9fb8025d15c4a6fa9cb134cb6d70fa0",
+            "tables": {}
+          },
+          "soft_adapter_snapshot_2024-06-28.json": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "a66d9b9696402f941fa667971843dd0c933a1bf6a92c38572d1499761656bc6f",
+            "tables": {}
+          }
+        },
+        "input_hash": "e46bec705d06acf81be6e77767c1bb0be555b7586d31354f87481dbffe519515",
+        "payload_sha256": "3dd8a716b1eb8cd63a880c548c2bf758228f41aa1f9366cf3aced9ecee4d94df",
+        "status": {
+          "FNGU": "REDUCE",
+          "MSTR": "REDUCE",
+          "SOXL": "REDUCE"
+        }
+      },
+      "candidate": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "c393449146d795a5fef5d8fa5bb4e977e62f20ae81ea9d2e97dbb7d535dc4e6a",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "62c73d11f01dda77a2ce4947cd7f5482a476e954c9e0d6a52be9c04384ba4a9f",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "02f741fc2c2873262ebc96006e7e6ae099cedc153272f26e7c0e29008bd05efc",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "32ca7d8195fa1a0d78708735a740020281a306facbfafe0e959d514b6fbffe08",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "8094087ede86da8b15d614ba254d102d4fe0400c65991fa83d495c78c7e1a6f4",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "85f08db81b6515fc8741650b41cf1769c9fb8025d15c4a6fa9cb134cb6d70fa0",
+            "tables": {}
+          },
+          "soft_adapter_snapshot_2024-06-28.json": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "a66d9b9696402f941fa667971843dd0c933a1bf6a92c38572d1499761656bc6f",
+            "tables": {}
+          }
+        },
+        "input_hash": "e46bec705d06acf81be6e77767c1bb0be555b7586d31354f87481dbffe519515",
+        "payload_sha256": "3dd8a716b1eb8cd63a880c548c2bf758228f41aa1f9366cf3aced9ecee4d94df",
+        "status": {
+          "FNGU": "REDUCE",
+          "MSTR": "REDUCE",
+          "SOXL": "REDUCE"
+        }
+      },
+      "differences": [],
+      "equal": true,
+      "strict_differences": []
+    },
+    "2026-05-29": {
+      "baseline": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "823902e1e45d9e6bc1089c7e90ae002af3ebca7d7a71c0e2b1953a9de1880545",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "4f77f061a3cbae49b6f1a5191db441b52f4cc26544f4fad793b6e5a47638da36",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "a4ce1e5296a932ca81e1dfecc6aa1da42332ae785fe8be84029c68f0636ed53a",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "bcbf991fe3a0374dda245836fc446bdf8f37f366d8268600206244b2fee8f9c3",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "dff47ca7ffa6222a62d7de5dac5296a3619c08b0fd9d1c851a3cb5aa3a54298c",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "c5ad06fea2e9378d9f0cb4b60c07dc462d934885d85c6f8141722d220d19a478",
+            "tables": {}
+          },
+          "soft_adapter_snapshot_2026-05-29.json": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "2f2f6df1cf4df51c6cfd2629f6222ffe90c2ee6a35bc0b5a35d808647c1b12ca",
+            "tables": {}
+          }
+        },
+        "input_hash": "b9327d63229390d3545530f13c03c16972450d81bcccdab9bcb64d582d492f31",
+        "payload_sha256": "0e355dd2fc3926dc962b9f33c3381524cbef74ca3f70b11d4812b38fe10b685d",
+        "status": {
+          "FNGU": "REDUCE",
+          "MSTR": "EXIT",
+          "SOXL": "REDUCE"
+        }
+      },
+      "candidate": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "823902e1e45d9e6bc1089c7e90ae002af3ebca7d7a71c0e2b1953a9de1880545",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "4f77f061a3cbae49b6f1a5191db441b52f4cc26544f4fad793b6e5a47638da36",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "a4ce1e5296a932ca81e1dfecc6aa1da42332ae785fe8be84029c68f0636ed53a",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "bcbf991fe3a0374dda245836fc446bdf8f37f366d8268600206244b2fee8f9c3",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "dff47ca7ffa6222a62d7de5dac5296a3619c08b0fd9d1c851a3cb5aa3a54298c",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "c5ad06fea2e9378d9f0cb4b60c07dc462d934885d85c6f8141722d220d19a478",
+            "tables": {}
+          },
+          "soft_adapter_snapshot_2026-05-29.json": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "2f2f6df1cf4df51c6cfd2629f6222ffe90c2ee6a35bc0b5a35d808647c1b12ca",
+            "tables": {}
+          }
+        },
+        "input_hash": "b9327d63229390d3545530f13c03c16972450d81bcccdab9bcb64d582d492f31",
+        "payload_sha256": "0e355dd2fc3926dc962b9f33c3381524cbef74ca3f70b11d4812b38fe10b685d",
+        "status": {
+          "FNGU": "REDUCE",
+          "MSTR": "EXIT",
+          "SOXL": "REDUCE"
+        }
+      },
+      "differences": [],
+      "equal": true,
+      "strict_differences": []
+    },
+    "2026-07-10": {
+      "baseline": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "e31b00f0233b7210fcc2a7c2e8a9f55f41616e8851e79ae3d171c9bc7138417d",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "d46b69904e441601f208cd75eebcf232af427ed289fdf3c6ace7ac4aaa41b37c",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "8f36019c82a4105aa60c12c72932231cf3387191fdc91edae5adbb167e082588",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "a782333fe20f033e573b7d01123055308ad20a5cda7509714bd016bb2583214f",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "5d9c7f0e3061049f204c541866e1ec248fa179c3118cc95cc34bd141187ae589",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "d6c4e2529d3c12eeb49829eb06610e8404e82599fd38f93b2e9ea671e1c0a297",
+            "tables": {}
+          },
+          "soft_adapter_snapshot_2026-07-10.json": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "b5b76ca516403a77018d0b8e67ba6406de1f41263823d2fa54e839257e2b1775",
+            "tables": {}
+          }
+        },
+        "input_hash": "fd73b0345b89915f4e1f7e6a43cc072b8ec9ffcc474e0d589d13420464468185",
+        "payload_sha256": "2a9fdfa34026b8dcab7c25a15debf1c9d1607b788d5f7181f5fd144a5cf7e5e0",
+        "status": {
+          "FNGU": "REDUCE",
+          "MSTR": "EXIT",
+          "SOXL": "DEFENSIVE_EXIT"
+        }
+      },
+      "candidate": {
+        "artifacts": {
+          "audit_log.jsonl": {
+            "jsonl_rows": 1,
+            "missing": false,
+            "sha256": "e31b00f0233b7210fcc2a7c2e8a9f55f41616e8851e79ae3d171c9bc7138417d",
+            "tables": {}
+          },
+          "flow_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "d46b69904e441601f208cd75eebcf232af427ed289fdf3c6ace7ac4aaa41b37c",
+            "tables": {
+              "flow_snapshots": 5
+            }
+          },
+          "hermes_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "8f36019c82a4105aa60c12c72932231cf3387191fdc91edae5adbb167e082588",
+            "tables": {
+              "calibration_logs": 6,
+              "data_sources": 22,
+              "decisions": 3,
+              "execution_confirmations": 0,
+              "factor_values": 101,
+              "ibkr_snapshots": 1,
+              "posterior_pnl": 6,
+              "reentry_states": 3,
+              "refresh_runs": 0,
+              "score_runs": 1
+            }
+          },
+          "mirror_reference.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "a782333fe20f033e573b7d01123055308ad20a5cda7509714bd016bb2583214f",
+            "tables": {
+              "mirror_snapshots": 3
+            }
+          },
+          "reentry_state.sqlite": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "5d9c7f0e3061049f204c541866e1ec248fa179c3118cc95cc34bd141187ae589",
+            "tables": {
+              "reentry_plans": 3,
+              "reentry_state": 3
+            }
+          },
+          "signal_journal.jsonl": {
+            "jsonl_rows": 3,
+            "missing": false,
+            "sha256": "d6c4e2529d3c12eeb49829eb06610e8404e82599fd38f93b2e9ea671e1c0a297",
+            "tables": {}
+          },
+          "soft_adapter_snapshot_2026-07-10.json": {
+            "jsonl_rows": 0,
+            "missing": false,
+            "sha256": "b5b76ca516403a77018d0b8e67ba6406de1f41263823d2fa54e839257e2b1775",
+            "tables": {}
+          }
+        },
+        "input_hash": "fd73b0345b89915f4e1f7e6a43cc072b8ec9ffcc474e0d589d13420464468185",
+        "payload_sha256": "2a9fdfa34026b8dcab7c25a15debf1c9d1607b788d5f7181f5fd144a5cf7e5e0",
+        "status": {
+          "FNGU": "REDUCE",
+          "MSTR": "EXIT",
+          "SOXL": "DEFENSIVE_EXIT"
+        }
+      },
+      "differences": [],
+      "equal": true,
+      "strict_differences": []
+    }
+  },
+  "python_evidence": {
+    "executable": "/Users/liweishi/.hermes-v3/.venv/bin/python",
+    "executable_resolved": "/Users/liweishi/.local/share/uv/python/cpython-3.11.15-macos-aarch64-none/bin/python3.11",
+    "executable_sha256": "4c78423e7d5986362ac04df40edb18cdd1174f9818d653402e3abbd2a5bbf793",
+    "numpy": "2.4.4",
+    "pandas": "3.0.3",
+    "python": "3.11.15",
+    "scipy": null
+  },
+  "schema_version": "hermes-pipeline-persistence-equivalence-v2",
+  "scope_notes": [
+    "Covers score_pipeline persistence: four SQLite files, two JSONL ledgers, and the dated soft-adapter snapshot.",
+    "Timestamps, temporary data-root prefixes, and the audit row's timestamp-derived payload_hash are normalized.",
+    "The recoverable transaction envelope is omitted because its random run_id is operational metadata; every business field and persisted row remains strict.",
+    "Source and seed manifests bind every compared run to relative paths, byte sizes, and SHA-256 values."
+  ],
+  "seed_evidence": {
+    "excluded_prefixes": [],
+    "file_count": 77,
+    "files": [
+      {
+        "kind": "file",
+        "path": "history/AAPL.csv",
+        "sha256": "210d65fc246edbc9c3a9c0f40df5ddff83a29afc1d7dae501bc0a700d487f9dc",
+        "size": 223285
+      },
+      {
+        "kind": "file",
+        "path": "history/AMAT.csv",
+        "sha256": "a32a58a0060d0068354a75ac12af56ea1f57a9ef0d546a0d23807b1622e7e1e0",
+        "size": 221029
+      },
+      {
+        "kind": "file",
+        "path": "history/AMD.csv",
+        "sha256": "7ad9da8c4df622e5f291d37b4b946fb3ce11cee8025d6d3f58f31031dcf3e0b0",
+        "size": 219630
+      },
+      {
+        "kind": "file",
+        "path": "history/AMZN.csv",
+        "sha256": "905d0a9882a64db6b38289d53b453d11a3ee25e5d27c431478d4dd56128b871b",
+        "size": 218674
+      },
+      {
+        "kind": "file",
+        "path": "history/ASML.csv",
+        "sha256": "fecd2411954865159112095d3d7a7ff94f6a7f8a242d7821a5f7b92deaaa5417",
+        "size": 215383
+      },
+      {
+        "kind": "file",
+        "path": "history/AVGO.csv",
+        "sha256": "68315b448de806de9cd462187eee95e6952898ebd023b5759688f74e32b65a82",
+        "size": 224261
+      },
+      {
+        "kind": "file",
+        "path": "history/BIL.csv",
+        "sha256": "a0e4c4a0a5bfa7634212364214a7719fd1f87c51619103ffd762a14a5d53a32f",
+        "size": 222245
+      },
+      {
+        "kind": "file",
+        "path": "history/BOXX.csv",
+        "sha256": "8b4222f6b0d40c70e58a800453b90d25aac70007076d59ba5e975d93b4b0b113",
+        "size": 94075
+      },
+      {
+        "kind": "file",
+        "path": "history/BRK.B.csv",
+        "sha256": "b884fb166f50ef804fb5cea71b81cbd4661589c3f3d57396d42fcd54699ec614",
+        "size": 223790
+      },
+      {
+        "kind": "file",
+        "path": "history/BTC_USD.csv",
+        "sha256": "94533f03ebd065649b3558dda37f04699efb00da34eddda3a72898c638e37983",
+        "size": 285795
+      },
+      {
+        "kind": "file",
+        "path": "history/DBMF.csv",
+        "sha256": "39c028ccb5ce13bd8ffe7d008ab1b031d002473d5bfce0bc0239f8e0cb885db5",
+        "size": 191335
+      },
+      {
+        "kind": "file",
+        "path": "history/FANG3X.csv",
+        "sha256": "58293d3a128cbda3fbbaa16de4663219e3b996c69057d235f4562106ef0658e9",
+        "size": 161001
+      },
+      {
+        "kind": "file",
+        "path": "history/FANGT3X.csv",
+        "sha256": "0a3dc57050517ea6dc260d93184a333825e3a3d80101041a0d2235c943271b79",
+        "size": 161821
+      },
+      {
+        "kind": "file",
+        "path": "history/FNGS.csv",
+        "sha256": "1c79c08f30648dcdab7cf686ae92a1629956732bbafba0b9de43364dbd227c7b",
+        "size": 228481
+      },
+      {
+        "kind": "file",
+        "path": "history/FNGU.csv",
+        "sha256": "a7a3ebbfac7d722670fcea9a4eff68bcd2fe87fa47207523bc55b3c0132fe980",
+        "size": 228233
+      },
+      {
+        "kind": "file",
+        "path": "history/GLD.csv",
+        "sha256": "329409da69717829ff998f7220b0e0cd0a6f3a06e9b644a4b7a1f39b75116bd2",
+        "size": 396898
+      },
+      {
+        "kind": "file",
+        "path": "history/GOOGL.csv",
+        "sha256": "559677e457c153b695aec4247196424d159780f44a2e2c1055c5f86e27278cec",
+        "size": 222855
+      },
+      {
+        "kind": "file",
+        "path": "history/HYG.csv",
+        "sha256": "875e84392e5db454fab604071dbe2ef551944851d3c75bbfbdb29a60cca45f3f",
+        "size": 226916
+      },
+      {
+        "kind": "file",
+        "path": "history/IAU.csv",
+        "sha256": "44cea73a198629d6d7f8a41067d2f6692577008878be399535c31940fff067af",
+        "size": 230465
+      },
+      {
+        "kind": "file",
+        "path": "history/IEF.csv",
+        "sha256": "f0c57f63b5245fcd58731dfba100f78c3b9f57a0d963899cb8b9aa3d22e68ca7",
+        "size": 229922
+      },
+      {
+        "kind": "file",
+        "path": "history/KLAC.csv",
+        "sha256": "8f9daf4fa70885a03a008b299051670ff8a2ad2b38e7bd2519668579fbe1a240",
+        "size": 217720
+      },
+      {
+        "kind": "file",
+        "path": "history/KRE.csv",
+        "sha256": "dd208545738f42b6a96e0f2aa6447d7e10dad469dd2c412444fd0cb569712b79",
+        "size": 229331
+      },
+      {
+        "kind": "file",
+        "path": "history/LQD.csv",
+        "sha256": "f817e2d411c8c908461e4fc60b05d37ecbc461eff703780d660783713d93402a",
+        "size": 235293
+      },
+      {
+        "kind": "file",
+        "path": "history/LRCX.csv",
+        "sha256": "7704d6c1b9acf85f51978aaa6925f8e2ef535ed5c8466a19ab91a6390a982e6e",
+        "size": 222737
+      },
+      {
+        "kind": "file",
+        "path": "history/META.csv",
+        "sha256": "fc861f043ea86fbe5731bb5a67c141543862d4ebe46e77593aff077455a6db97",
+        "size": 219724
+      },
+      {
+        "kind": "file",
+        "path": "history/MSFT.csv",
+        "sha256": "695b7ca0fecab5630ee9699fef0549b807b2becdae5e2c8db01cd67e36f321d9",
+        "size": 221529
+      },
+      {
+        "kind": "file",
+        "path": "history/MSTR.csv",
+        "sha256": "2ab0a05cb0de10d3d4121a4eddfc648ab3f6b01d45413ab16753eb67324631a4",
+        "size": 218094
+      },
+      {
+        "kind": "file",
+        "path": "history/MU.csv",
+        "sha256": "dd635807b620e4fcd0f256198885fb76166a2f590d54d0b8af2bb59f119cd93c",
+        "size": 220091
+      },
+      {
+        "kind": "file",
+        "path": "history/NFLX.csv",
+        "sha256": "02f1bc17cf00d0ca14e1f46670ad0f386b2465107bd1beea67aba323de32eaa0",
+        "size": 221699
+      },
+      {
+        "kind": "file",
+        "path": "history/NVDA.csv",
+        "sha256": "d95137706aa52b2b34f0b1a8e29507b7f5502f40dc0becdec3ed881f235aaad2",
+        "size": 226842
+      },
+      {
+        "kind": "file",
+        "path": "history/QCOM.csv",
+        "sha256": "790f1b89e18a7eee03af39f347951ca541f2e500ff49e6eadf3c945ab1011a41",
+        "size": 220831
+      },
+      {
+        "kind": "file",
+        "path": "history/QQQ.csv",
+        "sha256": "2bf10f4f98c097eef9f24093bc3333766de12bc326bee7cc1fa00e880a661f29",
+        "size": 222024
+      },
+      {
+        "kind": "file",
+        "path": "history/QQQE.csv",
+        "sha256": "da315c574381b61d210c30bc374373176597189b85b33473e2d5aff3b13c3814",
+        "size": 222581
+      },
+      {
+        "kind": "file",
+        "path": "history/RSP.csv",
+        "sha256": "d463e60b524d33e8d1943bce9537ee85e666b5a497533700c71624e04fc0248d",
+        "size": 232069
+      },
+      {
+        "kind": "file",
+        "path": "history/SHV.csv",
+        "sha256": "bffd6cc192d4337dc58e169022474a3ede5474f025f789079e3511b9cf6af4be",
+        "size": 232348
+      },
+      {
+        "kind": "file",
+        "path": "history/SMH.csv",
+        "sha256": "77c6416f81b05545b57253e9ec253da3b60be89f118d1cdfd1a1e9f27a16f818",
+        "size": 220993
+      },
+      {
+        "kind": "file",
+        "path": "history/SOXL.csv",
+        "sha256": "dfb8eba3fcbd76a323146caf8daea096eb503f5222161212c66ca83d25fd82e9",
+        "size": 224100
+      },
+      {
+        "kind": "file",
+        "path": "history/SOXX.csv",
+        "sha256": "94c0942d18f88fa5d45da57a9fefff2991221a3220a9fa529d541bf15736fc84",
+        "size": 222182
+      },
+      {
+        "kind": "file",
+        "path": "history/SPY.csv",
+        "sha256": "4d58135febdba31a96b0f28e5f0fb37957d900c21fa0fbd8a80ced05a1becd4a",
+        "size": 220364
+      },
+      {
+        "kind": "file",
+        "path": "history/TSLA.csv",
+        "sha256": "998c8f228e47c090be2cc2875eabfc95b8845d412499a2846f72d282600b279e",
+        "size": 220868
+      },
+      {
+        "kind": "file",
+        "path": "history/TSM.csv",
+        "sha256": "83f53c55c0ad297323b29ce2fabfe9d32da9e7a033be4faf2f7fbae1e8070eda",
+        "size": 219558
+      },
+      {
+        "kind": "file",
+        "path": "history/XLF.csv",
+        "sha256": "f0e054c978d010ff26b3d3cbf45a65c42bb365bad47258d155eaa10b0d6ad112",
+        "size": 233165
+      },
+      {
+        "kind": "file",
+        "path": "history/XLI.csv",
+        "sha256": "2933e7a8d980847e6589fef2f2f46fa2944ef520e069c460e4d7575fe419fc9e",
+        "size": 230139
+      },
+      {
+        "kind": "file",
+        "path": "history/XLP.csv",
+        "sha256": "9c2f69d979d8affc8eed303280508407994acc2f3f1141069ab229b1d2f44b34",
+        "size": 227471
+      },
+      {
+        "kind": "file",
+        "path": "history/XLU.csv",
+        "sha256": "b759d956be50ddf41cc89b455763b60bf07b861210f21ba9e0fa949451599eae",
+        "size": 232977
+      },
+      {
+        "kind": "file",
+        "path": "history/XLV.csv",
+        "sha256": "ae74907a937ec681852ed781fe3c6e49dffe90192a65ba7c4a10d24b71318ceb",
+        "size": 232101
+      },
+      {
+        "kind": "file",
+        "path": "history/XLY.csv",
+        "sha256": "2f1d609f153eed3845570c11e4635a178ec238c9111837c25a4ad103daf0b14d",
+        "size": 228973
+      },
+      {
+        "kind": "file",
+        "path": "history/_MOVE.csv",
+        "sha256": "fa26c16f2375eaf726033a2ecfafbc22a599e891a90e515caeb2aa05644bb5ed",
+        "size": 214366
+      },
+      {
+        "kind": "file",
+        "path": "history/_NYFANG.csv",
+        "sha256": "a9f9a0bfaac898742ddab2df972d08289bebe73b43e0575684c223f6be2632a0",
+        "size": 189205
+      },
+      {
+        "kind": "file",
+        "path": "history/_SKEW.csv",
+        "sha256": "75d853fd810ddac2d6fe88ad1b651e5ea97b19284d19824c30bc32c140f7e5d2",
+        "size": 215093
+      },
+      {
+        "kind": "file",
+        "path": "history/_SOX.csv",
+        "sha256": "617cb8e3969bbe388fdb1322f70aa9ccdc325ead871f044e79031f5d9ef670ea",
+        "size": 196317
+      },
+      {
+        "kind": "file",
+        "path": "history/_VIX.csv",
+        "sha256": "dd4a3194a1c7fd3fcbe9fe1e4f5702335081391a2fd19062388031f7e1fc7fdd",
+        "size": 208864
+      },
+      {
+        "kind": "file",
+        "path": "history/_VIX3M.csv",
+        "sha256": "a0a4df12af66e6ebb8403c05808d7ae772208a762b7bd10a833dedbe16901675",
+        "size": 208971
+      },
+      {
+        "kind": "file",
+        "path": "history/_VIX9D.csv",
+        "sha256": "b892b4720b2f996864c3cfc1b4b3c960bfa22561a2e2b3c0a3481449cb3a08b2",
+        "size": 219044
+      },
+      {
+        "kind": "file",
+        "path": "history/_VVIX.csv",
+        "sha256": "35759ffe84416156f77e724e5dc01d61af648e797752c987b4f074c5b5dacd87",
+        "size": 214792
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/aaii_sentiment.csv",
+        "sha256": "2d7cf2429d1024d582f753ba462ac1e5ab26509460976695337b7a7ee79f4ed5",
+        "size": 165859
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/btc_funding_basis.csv",
+        "sha256": "4854296fa77cab53a38ee6f3937ed314da412b5ed29bb82a976ea5ee35ed31c5",
+        "size": 188812
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/cboe_equity_pcr.csv",
+        "sha256": "9f2d2a3e2b6a4f5b5fc7cb1544d0e10e8f99b0629345f6c8d21f4f319dd10363",
+        "size": 144968
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/cnn_fear_greed.csv",
+        "sha256": "73780de291a656c75a0aecd48a71a5274d9300ada9005eef3a3f9c94fa364c85",
+        "size": 162093
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/cot_nq.csv",
+        "sha256": "cb687a7396205e028c8cf5bf7b2fbd34ce4a9d49591f9d4478fcc221f1469c8e",
+        "size": 58753
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/cot_nq.csv.bak",
+        "sha256": "cb687a7396205e028c8cf5bf7b2fbd34ce4a9d49591f9d4478fcc221f1469c8e",
+        "size": 58753
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/dollar.csv",
+        "sha256": "08a653af8c369ab9e83efd94a00d4aea17874ccd4bb659ccf3be3ae2a27eb506",
+        "size": 245315
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/dollar.csv.bak",
+        "sha256": "08a653af8c369ab9e83efd94a00d4aea17874ccd4bb659ccf3be3ae2a27eb506",
+        "size": 245315
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/dollar.csv.bak_pubdate_20260614_092222",
+        "sha256": "6343e86e460b7e4fe75b64e7ee6ccb5d8812eeb16231b22b348551506f845062",
+        "size": 245069
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/fred_net_liquidity.csv",
+        "sha256": "7402dbab74e3696dfff864950d13032d4df91fbcc7f19a0dbf673d931acbe4ba",
+        "size": 275007
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/fred_net_liquidity.csv.bak",
+        "sha256": "7402dbab74e3696dfff864950d13032d4df91fbcc7f19a0dbf673d931acbe4ba",
+        "size": 275007
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/hy_oas.csv",
+        "sha256": "8ce50fa3e061c2f353d9016779b36345eddf9cfc263b81a40fdff381139e2635",
+        "size": 34341
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/mstr_btc_holdings.csv",
+        "sha256": "4a51c6cf38a5bf5cfd81ae60877916bc02000fcb60932a8275d61c8a60467b83",
+        "size": 2247
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/mstr_shares_outstanding.csv",
+        "sha256": "7ecffc7599447b1c63610d7b982877386923650035038b1266c656b76c4e743e",
+        "size": 1334
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/naaim_exposure.csv",
+        "sha256": "cac3fd8b15f0ecee1c5f296b968df300c56ee9e164ccab04691b1d70523e0904",
+        "size": 41281
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/nfci.csv",
+        "sha256": "7b84bd52cd172481f2a4c0777bd22078f15d75010634c5b8323fc0851d16affd",
+        "size": 87624
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/occ_equity_pcr.csv",
+        "sha256": "48275495b2837d0c05985c6a5d9fc90deb0ebdb6a284700b0aac3dc2bfc23894",
+        "size": 6602
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/onchain_mstr_features.csv",
+        "sha256": "91726582fff74d1eda5bb217148b17022c80ca9200c508d3e7d0074b25710e84",
+        "size": 267903
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/real_rate.csv",
+        "sha256": "8b7c426249137fab69bd326a1edb2e4299e2a5674af3f4ab4bd3c7d47656e5ca",
+        "size": 262036
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/real_rate.csv.bak",
+        "sha256": "8b7c426249137fab69bd326a1edb2e4299e2a5674af3f4ab4bd3c7d47656e5ca",
+        "size": 262036
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/real_rate.csv.bak_pubdate_20260614_092222",
+        "sha256": "a50e29ce2f19f4f4ddc05138dc3c910721ffec636ec955477fa2c13100e34124",
+        "size": 261901
+      },
+      {
+        "kind": "file",
+        "path": "soft_history/yield_curve.csv",
+        "sha256": "67872cab511ac23465e8e74bdd31291ee4e4382b2544395ee7f9a5df802c9ed9",
+        "size": 407311
+      }
+    ],
+    "manifest_sha256": "c119ae18b453b0e6838629c5af5c377cd4b2aa209aba84002c92303320455c99",
+    "relative_roots": [
+      "history",
+      "soft_history",
+      "sentiment.xls"
+    ],
+    "total_bytes": 15868117
+  }
+}

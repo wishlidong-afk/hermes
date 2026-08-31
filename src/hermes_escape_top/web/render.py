@@ -562,6 +562,7 @@ def render_dashboard(
 
     {_render_run_receipt_banner(payload)}
     {_render_preview_banner(payload)}
+    {_render_decision_revision_banner(payload)}
     {_render_trust_section(payload, manifest_status, health)}
     {_render_cache_hint(cache)}
     {_render_strategy_console(payload, health)}
@@ -905,6 +906,19 @@ def _health_report_evidence_text(
     report = payload.get("system_health_report")
     if not isinstance(report, dict):
         return "无报告"
+    decision_evidence = payload.get("decision_evidence")
+    payload_decision_hash = str(
+        decision_evidence.get("decision_hash")
+        if isinstance(decision_evidence, dict)
+        else ""
+    )
+    if payload_decision_hash:
+        report_decision_hash = str(report.get("decision_hash") or "")
+        return (
+            "decision hash 匹配"
+            if report_decision_hash == payload_decision_hash
+            else "decision hash 不一致"
+        )
     payload_hash = str(payload.get("input_hash") or "")
     report_hash = str(report.get("input_hash") or "")
     if payload_hash and report_hash and payload_hash == report_hash:
@@ -3485,6 +3499,48 @@ def _render_preview_banner(payload: Dict[str, Any]) -> str:
         f'<div class="subtle" style="margin:4px 0 0">当前展示的是 {as_of} 的{label}，<b>不是今日官方建议</b>。'
         '官方建议来自每日 07:10 的 scheduled 运行 — '
         '<a href="/?as_of=latest">点此回到官方</a>。</div>'
+        '</section>'
+    )
+
+
+def _render_decision_revision_banner(payload: Dict[str, Any]) -> str:
+    if str(payload.get("run_type") or "scheduled") != "scheduled":
+        return ""
+    evidence = payload.get("decision_evidence")
+    if not isinstance(evidence, dict):
+        return ""
+    try:
+        revision = int(evidence.get("decision_revision") or 0)
+    except (TypeError, ValueError):
+        return ""
+    finality = str(evidence.get("bar_finality") or "")
+    if revision < 1 or (revision == 1 and finality != "PROVISIONAL"):
+        return ""
+    decision_id = str(evidence.get("decision_id") or "")
+    supersedes = str(evidence.get("supersedes_decision_id") or "")
+    reason = str(evidence.get("revision_reason") or "")
+    if finality == "PROVISIONAL":
+        title = f"官方结论尚未最终化 · r{revision}"
+        detail = "当前是周末首份认证；供应商最终化窗口结束后可能产生一次显式修订。"
+        color = "var(--amber)"
+        background = "#fffbeb"
+    else:
+        title = f"官方结论已修订 · r{revision}"
+        reason_label = {
+            "BAR_FINALITY_ADVANCED": "行情从 provisional 完成最终认证",
+            "CANONICAL_EVIDENCE_CHANGED": "认证行情证据发生变化",
+            "CANONICAL_EVIDENCE_CHANGED_AND_FINALIZED": "认证行情发生变化并完成最终化",
+            "LEGACY_CERTIFICATION_SUPERSEDED": "旧版官方记录已纳入显式修订链",
+        }.get(reason, reason or "证据版本发生变化")
+        detail = f"原因：{reason_label}。被替代版本：{supersedes or 'NA'}。"
+        color = "#1d4ed8"
+        background = "#eff6ff"
+    return (
+        f'<section class="panel" style="border:2px solid {color};background:{background};'
+        'padding:10px 14px;margin-bottom:12px">'
+        f'<div style="font-weight:700;color:{color};font-size:15px">{esc(title)}</div>'
+        f'<div class="subtle" style="margin-top:4px">{esc(detail)} '
+        f'current={esc(decision_id or "NA")}</div>'
         '</section>'
     )
 

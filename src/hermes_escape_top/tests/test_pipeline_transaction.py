@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import json
+import sqlite3
 from pathlib import Path
 from unittest import mock
 
@@ -10,7 +12,6 @@ import pytest
 from hermes_escape_top import pipeline
 from hermes_escape_top.config import load_config, resolve_path
 from hermes_escape_top.core.safe_io import assert_pipeline_lease, pipeline_lock
-
 
 BUSINESS_ARTIFACTS = (
     "audit_log.jsonl",
@@ -102,6 +103,79 @@ def test_score_transaction_manifest_includes_dated_soft_snapshot():
         archive / f".score_run_transactions/runs/{run_id}/manifest.json"
     ).read_text(encoding="utf-8")
     assert "archive/soft_adapter_snapshot_2026-05-29.json" in manifest
+
+
+def test_scheduled_live_score_persists_decision_evidence_in_state_and_audit():
+    config = load_config()
+    archive = resolve_path(config, "archive_dir")
+    evidence = {
+        "schema_version": "hermes-decision-certification-v1",
+        "decision_id": "decision-2026-05-29-r1-test",
+        "decision_hash": "decision-hash",
+        "decision_revision": 1,
+        "bar_finality": "FINAL",
+    }
+
+    with mock.patch.object(
+        pipeline,
+        "build_scheduled_decision_evidence",
+        return_value=evidence,
+    ) as build:
+        payload = pipeline.score_pipeline(
+            "2026-05-29",
+            include_ibkr=False,
+            run_type="scheduled",
+        )
+
+    assert payload["decision_evidence"] == evidence
+    build.assert_called_once()
+    audit_record = json.loads(
+        (archive / "audit_log.jsonl").read_text(encoding="utf-8").splitlines()[-1]
+    )
+    assert audit_record["payload"]["decision_evidence"] == evidence
+
+    with sqlite3.connect(archive / "hermes_state.sqlite") as conn:
+        stored = json.loads(
+            conn.execute("SELECT payload_json FROM score_runs ORDER BY id DESC LIMIT 1").fetchone()[0]
+        )
+    assert stored["decision_evidence"] == evidence
+
+
+def test_decision_certification_failure_rolls_back_every_business_artifact():
+    config = load_config()
+    archive = resolve_path(config, "archive_dir")
+    pipeline.score_pipeline("2026-05-29", include_ibkr=False)
+    before = _artifact_hashes(archive)
+
+    with mock.patch.object(
+        pipeline,
+        "build_scheduled_decision_evidence",
+        side_effect=RuntimeError("revision budget exhausted"),
+    ):
+        with pytest.raises(RuntimeError, match="revision budget exhausted"):
+            pipeline.score_pipeline(
+                "2026-05-29",
+                include_ibkr=False,
+                run_type="scheduled",
+            )
+
+    assert _artifact_hashes(archive) == before
+
+
+def test_manual_preview_never_enters_decision_certification_path():
+    with mock.patch.object(
+        pipeline,
+        "build_scheduled_decision_evidence",
+        side_effect=AssertionError("manual preview entered official certification"),
+    ) as build:
+        payload = pipeline.score_pipeline(
+            "2026-05-29",
+            include_ibkr=False,
+            run_type="manual_rerun",
+        )
+
+    build.assert_not_called()
+    assert "decision_evidence" not in payload
 
 
 def test_fault_restores_prior_soft_snapshot_bytes():

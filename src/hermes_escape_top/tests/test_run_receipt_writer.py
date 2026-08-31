@@ -290,6 +290,7 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     payload = {
         "as_of": "2026-06-17",
         "input_hash": "abc123def456",
+        "decision_evidence": {"decision_hash": "decision-hash-r1"},
         "cache_status": {"hit": True},
         "data_quality": {
             "level": "HIGH",
@@ -351,9 +352,11 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     assert out["markdown"].exists()
     assert out["run_json"].exists()
     assert out["run_markdown"].exists()
+    assert "decision-hash-r1" in out["run_json"].name
     data = json.loads(out["json"].read_text(encoding="utf-8"))
     assert data["generator_release_hash"] == "new-release-hash"
     assert data["generator_policy_sha256"] == "policy-sha256"
+    assert data["decision_hash"] == "decision-hash-r1"
     assert data["health"]["layers"]["position_reconciliation"]["level"] == "INFO"
     assert data["decision_input_coverage"]["coverage_score"] == 96.0
     assert data["market_witness_status"]["summary"]["MATCH"] == 3
@@ -382,6 +385,7 @@ def test_system_health_report_writes_json_and_markdown(monkeypatch, tmp_path):
     markdown = out["markdown"].read_text(encoding="utf-8")
     assert "generator_release_hash: `new-release-hash`" in markdown
     assert "generator_policy_sha256: `policy-sha256`" in markdown
+    assert "decision_hash: `decision-hash-r1`" in markdown
     assert "策略数据" in markdown
     assert "## 20 维自检" in markdown
     assert "| external_file_evidence | PASS |" in markdown

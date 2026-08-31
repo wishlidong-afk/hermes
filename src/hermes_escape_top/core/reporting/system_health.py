@@ -86,9 +86,9 @@ def system_health_run_stem(
         or "unknown"
     )
     timestamp = "".join(char for char in raw_timestamp if char.isalnum()) or "unknown"
-    raw_hash = str(report.get("input_hash") or "no-input-hash")
-    input_hash = "".join(char for char in raw_hash if char.isalnum() or char in {"-", "_"})
-    return f"system_health_{as_of}_{timestamp}_{input_hash or 'no-input-hash'}"
+    raw_hash = str(report.get("decision_hash") or report.get("input_hash") or "no-evidence-hash")
+    evidence_hash = "".join(char for char in raw_hash if char.isalnum() or char in {"-", "_"})
+    return f"system_health_{as_of}_{timestamp}_{evidence_hash or 'no-evidence-hash'}"
 
 
 def factor_score_symbol_count(payload: Dict[str, Any]) -> int:
@@ -343,6 +343,7 @@ def render_system_health_markdown(report: Dict[str, Any]) -> str:
         f"- generator_policy_sha256: `{report.get('generator_policy_sha256', 'NA')}`",
         f"- overall_strategy_level: `{health.get('level')}`",
         f"- input_hash: `{str(report.get('input_hash') or 'NA')[:16]}`",
+        f"- decision_hash: `{str(report.get('decision_hash') or 'NA')}`",
         f"- manifest: `{(report.get('manifest_status') or {}).get('status', 'NA')}`",
         f"- receipt: `{(report.get('run_receipt') or {}).get('status', 'NA')}`",
         "",

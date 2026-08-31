@@ -13,7 +13,11 @@ import pandas as pd
 
 from ..config import load_config, resolve_path, trade_symbols
 from ..core.data.base import SymbolSnapshot
-from ..core.data.decision_as_of import decision_gating_symbols, latest_common_history_date
+from ..core.data.decision_as_of import (
+    decision_gating_symbols,
+    latest_common_history_date,
+    resolve_decision_as_of,
+)
 from ..core.data.manifest import verify_manifest, write_manifest
 from ..core.data.market_admission import read_market_admission_evidence
 from ..core.data.run_transaction import recover_incomplete_score_run
@@ -84,12 +88,19 @@ def refresh_positions_only(
         )
         history = recent_ibkr_snapshots(state_db_path, limit=5)
         refreshed_at = datetime.now(timezone.utc).isoformat()
+        decision_evidence = payload.get("decision_evidence")
+        base_decision_hash = (
+            decision_evidence.get("decision_hash")
+            if isinstance(decision_evidence, dict)
+            else None
+        )
         status = {
             "schema_version": "hermes-ibkr-position-overlay-v1",
             "status": "OK" if ibkr.get("source") == "tws" and not ibkr.get("snapshot_stale") else "DEGRADED",
             "as_of": as_of,
             "refreshed_at": refreshed_at,
             "base_input_hash": payload.get("input_hash"),
+            "base_decision_hash": base_decision_hash,
             "score_pipeline": False,
             "history_refreshed": False,
             "official_run_written": False,
@@ -123,14 +134,16 @@ def apply_ibkr_position_overlay(payload: Dict[str, Any], config: Optional[Dict[s
         return refresh_action_context_for_display(payload, config=cfg)
     base_hash = overlay.get("base_input_hash")
     payload_hash = payload.get("input_hash")
-    # A scored payload carries an input_hash and the overlay must have been keyed
-    # to that exact run. Reject when the payload has a hash but the overlay's is
-    # missing or different -- otherwise an overlay written before any official run
-    # existed (base_input_hash=None) would bleed onto a later, different official
-    # run for the same as_of, which is the cross-run staleness this gate exists to
-    # stop. A payload without a hash (empty/fallback dashboard) keeps the lenient
-    # path so a just-refreshed position layer still shows before the first run.
-    if payload_hash and str(base_hash or "") != str(payload_hash):
+    decision_evidence = payload.get("decision_evidence")
+    payload_decision_hash = (
+        decision_evidence.get("decision_hash")
+        if isinstance(decision_evidence, dict)
+        else None
+    )
+    if payload_decision_hash:
+        if str(overlay.get("base_decision_hash") or "") != str(payload_decision_hash):
+            return refresh_action_context_for_display(payload, config=cfg)
+    elif payload_hash and str(base_hash or "") != str(payload_hash):
         return refresh_action_context_for_display(payload, config=cfg)
     ibkr = overlay.get("ibkr")
     if not isinstance(ibkr, dict):
@@ -724,7 +737,4 @@ def _normalize_as_of(value: Any) -> str:
     text = str(value or "").strip()
     if len(text) >= 10 and text[:4].isdigit():
         return text[:10]
-    fallback = latest_history_date()
-    if fallback:
-        return fallback
-    return "2026-06-02"
+    return resolve_decision_as_of("latest", load_config())

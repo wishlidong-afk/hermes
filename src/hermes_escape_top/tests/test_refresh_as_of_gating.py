@@ -28,6 +28,7 @@ def test_refresh_positions_only_reads_ibkr_without_scoring_or_history(tmp_path):
     base_payload = {
         "as_of": "2026-06-30",
         "input_hash": "official-hash",
+        "decision_evidence": {"decision_hash": "official-decision-hash"},
         "sizing": {"SOXL": {"target_weight": 0.1}},
         "routing": {},
     }
@@ -69,6 +70,7 @@ def test_refresh_positions_only_reads_ibkr_without_scoring_or_history(tmp_path):
     assert out["ibkr"]["snapshot_stale"] is False
     assert out["ibkr_refresh_status"]["score_pipeline"] is False
     assert out["ibkr_refresh_status"]["history_refreshed"] is False
+    assert out["ibkr_refresh_status"]["base_decision_hash"] == "official-decision-hash"
     assert (archive / "ibkr_position_overlay.json").exists()
 
 
@@ -108,6 +110,65 @@ def test_overlay_rejected_when_hash_differs(tmp_path):
     archive = tmp_path / "archive"
     _write_overlay(archive, as_of="2026-06-30", base_input_hash="h1")
     out = _apply(archive, {"as_of": "2026-06-30", "input_hash": "h2", "ibkr": {"source": "kept"}})
+    assert out["ibkr"]["source"] == "kept"
+
+
+def test_overlay_merges_only_when_decision_hash_matches(tmp_path):
+    archive = tmp_path / "archive"
+    _write_overlay(
+        archive,
+        as_of="2026-06-30",
+        base_input_hash="same-snapshot",
+        base_decision_hash="decision-r2",
+    )
+    out = _apply(
+        archive,
+        {
+            "as_of": "2026-06-30",
+            "input_hash": "same-snapshot",
+            "decision_evidence": {"decision_hash": "decision-r2"},
+            "ibkr": {"source": "stale"},
+        },
+    )
+    assert out["ibkr"]["source"] == "tws"
+
+
+def test_overlay_rejected_when_snapshot_matches_but_decision_hash_differs(tmp_path):
+    archive = tmp_path / "archive"
+    _write_overlay(
+        archive,
+        as_of="2026-06-30",
+        base_input_hash="same-snapshot",
+        base_decision_hash="decision-r1",
+    )
+    out = _apply(
+        archive,
+        {
+            "as_of": "2026-06-30",
+            "input_hash": "same-snapshot",
+            "decision_evidence": {"decision_hash": "decision-r2"},
+            "ibkr": {"source": "kept"},
+        },
+    )
+    assert out["ibkr"]["source"] == "kept"
+
+
+def test_overlay_rejected_when_decision_hash_missing_for_certified_payload(tmp_path):
+    archive = tmp_path / "archive"
+    _write_overlay(
+        archive,
+        as_of="2026-06-30",
+        base_input_hash="same-snapshot",
+    )
+    out = _apply(
+        archive,
+        {
+            "as_of": "2026-06-30",
+            "input_hash": "same-snapshot",
+            "decision_evidence": {"decision_hash": "decision-r2"},
+            "ibkr": {"source": "kept"},
+        },
+    )
     assert out["ibkr"]["source"] == "kept"
 
 

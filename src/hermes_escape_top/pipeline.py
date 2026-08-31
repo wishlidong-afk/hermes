@@ -13,6 +13,7 @@ import pandas as pd
 from .config import CONFIG_PATH, load_config, resolve_path, trade_symbols
 from .core.data.base import Field, SymbolSnapshot
 from .core.data.decision_as_of import resolve_decision_as_of
+from .core.data.decision_revision import build_scheduled_decision_evidence
 from .core.data.flow import basket_flow, money_flow_metrics
 from .core.data.flow_store import write_flow_snapshot
 from .core.data.run_transaction import recover_incomplete_score_run, score_run_transaction
@@ -380,6 +381,14 @@ def _score_pipeline_locked(
             payload["portfolio_target_weights"] = portfolio_target_weights
             payload["route_transition"] = route_transition.to_dict()
         payload["input_hash"] = stable_hash(payload["snapshots"])
+        if str(run_type) == "scheduled" and not shadow:
+            payload["decision_evidence"] = build_scheduled_decision_evidence(
+                payload,
+                config,
+                archive_dir=store.archive_dir,
+                package_root=Path(__file__).resolve().parent,
+                certified_at=datetime.fromisoformat(str(payload["run_ts"])),
+            )
         payload["data_quality_breakdown"] = _quality_breakdown(payload, snapshots, flow, config)
         payload.update(build_action_context(payload, snapshots))
         payload["state"] = write_state_snapshot(state_db_path, payload, retention=config.get("state_retention"))
