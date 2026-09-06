@@ -387,6 +387,7 @@ def _score_pipeline_locked(
                 config,
                 archive_dir=store.archive_dir,
                 package_root=Path(__file__).resolve().parent,
+                histories=histories,
                 certified_at=datetime.fromisoformat(str(payload["run_ts"])),
             )
         payload["data_quality_breakdown"] = _quality_breakdown(payload, snapshots, flow, config)
