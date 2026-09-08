@@ -56,6 +56,17 @@ def semantic_identity(
             if name not in excluded_fields
         }
         scoped_snapshots["SOFT"] = soft_snapshot
+    valuation = active.get("valuation")
+    stable_source = _valuation_source_alias(valuation, config, package_root)
+    if stable_source is not None and isinstance(valuation, Mapping):
+        active["valuation"] = {**valuation, "source": stable_source}
+        if "SOFT" in scoped_snapshots:
+            fields = scoped_snapshots["SOFT"]["fields"]
+            for name in ("valuation", "FNGU_valuation_pctl", "MSTR_valuation_pctl", "SOXL_valuation_pctl"):
+                field = fields.get(name)
+                if (name == "valuation" or name in valuation.get("fields", {})) and isinstance(field, Mapping):
+                    if field.get("source") == valuation["source"]:
+                        fields[name] = {**field, "source": stable_source}
     history_hashes: dict[str, str | None] = {}
     for symbol, frame in sorted(histories.items()):
         if frame is None:
@@ -74,6 +85,39 @@ def semantic_identity(
         "scoring_logic_hash": scoring_logic_hash(package_root),
         "decision_outputs_hash": stable_hash(decision_outputs(payload)),
     }
+
+
+def _valuation_source_alias(
+    record: Any, config: Mapping[str, Any], package_root: Path,
+) -> str | None:
+    # Only the two default R6 links are aliases. Keep the raw record and
+    # input_hash intact; this verifies location, not historical file contents.
+    if not isinstance(record, Mapping) or (config.get("valuation") or {}).get("snapshot_path"):
+        return None
+    package = Path(package_root).resolve()
+    release = package.parent
+    if package.name != "hermes_escape_top" or release.parent.name != "releases":
+        return None
+    live = release.parent.parent
+    roots = {
+        release / "data": live / "data",
+        package / "data": live / "shared/hermes_escape_top/data",
+    }
+    for alias, shared in roots.items():
+        if record.get("source") != str(alias / "valuation_snapshot.json"):
+            continue
+        try:
+            target = alias / "valuation_snapshot.json"
+            if (not alias.is_symlink() or alias.resolve(strict=True) != shared
+                    or target.resolve(strict=True) != shared / target.name
+                    or not target.is_file()):
+                raise ValueError("valuation source alias is not verified")
+            with target.open("rb"):
+                pass
+        except (OSError, RuntimeError) as exc:
+            raise ValueError("valuation source alias is not verified") from exc
+        return str(shared / target.name)
+    return None
 
 
 def _soft_inputs(records: Mapping[str, Any]) -> dict[str, Any]:
