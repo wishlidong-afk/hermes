@@ -29,6 +29,7 @@ from ..core.data.market_witness import (
 from ..core.data.external_sources.cboe_indices import CBOE_INDEX_SYMBOLS
 from ..core.data.store import safe_symbol
 from ..core.safe_io import atomic_write_csv
+from ..core.reporting.market_comparisons import MarketComparisonRecorder
 
 
 ROUTE_LEGS = ["BRK.B", "BOXX", "DBMF", "BIL", "SHV"]
@@ -170,6 +171,11 @@ def backfill(
         )
         for symbol in symbols
     } if active_admission is not None and active_admission.enabled else {}
+    comparison_recorder = (
+        MarketComparisonRecorder(admission_archive_path, active_admission)
+        if active_admission is not None and active_admission.enabled
+        and admission_archive_path is not None else None
+    )
     try:
         for symbol in symbols:
             out[symbol] = _backfill_one(
@@ -182,6 +188,7 @@ def backfill(
                 admission_session=active_admission,
                 repair_history_head=repair_history_head,
                 history_transaction=transaction,
+                comparison_recorder=comparison_recorder,
             )
         if active_admission is not None and admission_archive_path is not None:
             for evidence_path in market_admission_evidence_paths(
@@ -189,6 +196,8 @@ def backfill(
                 active_admission.payload(),
             ):
                 transaction.track_path(evidence_path)
+        if comparison_recorder is not None:
+            transaction.track_path(comparison_recorder.path)
         transaction.prepare()
         transaction.promote()
         if active_admission is not None:
@@ -198,6 +207,8 @@ def backfill(
                 admission_archive_path,
                 active_admission.payload(),
             )
+            if comparison_recorder is not None:
+                comparison_recorder.write(active_admission.payload())
         transaction.mark_committed()
     except BaseException as exc:
         rollback_error: BaseException | None = None
@@ -322,6 +333,7 @@ def _backfill_one(
     admission_session: MarketAdmissionSession | None = None,
     repair_history_head: bool = False,
     history_transaction: HistoryPromotionTransaction | None = None,
+    comparison_recorder: MarketComparisonRecorder | None = None,
 ) -> BackfillResult:
     path = store_dir / f"{safe_symbol(symbol)}.csv"
     existing = _read_existing(path)
@@ -380,7 +392,10 @@ def _backfill_one(
                            reason=f"REJECTED corrupt download: {why}")
     if admission_session is not None and not normalized.empty:
         candidate_rows = len(normalized)
-        normalized, _ = admission_session.admit(symbol, normalized)
+        candidate = normalized
+        normalized, admission_rows = admission_session.admit(symbol, candidate)
+        if comparison_recorder is not None:
+            comparison_recorder.capture(symbol, candidate, admission_rows)
         frozen_rows = candidate_rows - len(normalized)
         if frozen_rows:
             reasons.append(f"market admission froze {frozen_rows}/{candidate_rows} rows")

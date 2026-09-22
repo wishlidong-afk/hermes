@@ -3,8 +3,31 @@ from __future__ import annotations
 
 import gzip
 import json
+from datetime import date
+
+import pytest
 
 from hermes_escape_top.core.data.audit import rotate_audit_log
+
+
+@pytest.fixture(autouse=True)
+def fixed_rotation_date(monkeypatch):
+    class FixedDate(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 8, 29)
+
+    monkeypatch.setattr("datetime.date", FixedDate)
+
+
+def test_rotate_archives_expired_rows_without_retaining_them(tmp_path):
+    path = tmp_path / "audit_log.jsonl"
+    original = json.dumps({"payload": {"as_of": "2026-01-01", "run_type": "scheduled"}}) + "\n"
+    path.write_text(original)
+    archive = rotate_audit_log(path, keep_days=90, min_size_mb=0)
+    assert not path.read_text().strip()
+    with gzip.open(archive, "rt") as handle:
+        assert handle.read() == original
 
 
 def test_rotate_compacts_to_latest_per_day_losslessly(tmp_path):
