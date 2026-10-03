@@ -150,6 +150,7 @@ def collect_acceptance(
         archive,
         audit,
         require_soft_snapshot=release.get("policy_bound") == "true",
+        validator_path=base / "current/hermes_escape_top/core/data/transaction_evidence.py",
     )
     checks.append(transaction_check)
 
@@ -416,6 +417,7 @@ def _collect_transaction(
     audit: Mapping[str, Any],
     *,
     require_soft_snapshot: bool,
+    validator_path: Optional[Path] = None,
 ) -> Dict[str, str]:
     root = archive / ".score_run_transactions"
     try:
@@ -424,12 +426,16 @@ def _collect_transaction(
             raise ValueError("audit persistence evidence missing")
         protocol = str(persistence.get("protocol") or "")
         run_id = str(persistence.get("run_id") or "")
-        if protocol != "recoverable-journal-v1" or not run_id:
+        if protocol not in {"recoverable-journal-v1", "recoverable-journal-v2"} or not run_id:
             raise ValueError(f"protocol={protocol or 'missing'} run_id={run_id or 'missing'}")
+        if Path(run_id).name != run_id or run_id in {".", ".."}:
+            raise ValueError("invalid transaction run_id")
         active = root / "active.json"
-        if active.exists():
+        if active.exists() or active.is_symlink():
             raise ValueError(f"residual active transaction: {active}")
         manifest_path = root / "runs" / run_id / "manifest.json"
+        if any(path.is_symlink() for path in (root, root / "runs", manifest_path.parent, manifest_path)):
+            raise ValueError("transaction journal symlink is not allowed")
         manifest = _read_json(manifest_path)
         if str(manifest.get("run_id") or "") != run_id:
             raise ValueError(
@@ -449,13 +455,19 @@ def _collect_transaction(
             raise ValueError(
                 f"metadata mismatch observed={observed_metadata} expected={expected_metadata}"
             )
+        if protocol == "recoverable-journal-v2":
+            evidence_count = _verify_transaction_v2(archive, manifest, audit, validator_path)
+        else:
+            if manifest.get("schema_version") not in {None, "hermes-score-run-transaction-v1"}:
+                raise ValueError("transaction protocol/schema mismatch")
+            evidence_count = 0
         artifact_rows = [
             str(row.get("path") or "")
             for row in manifest.get("artifacts") or []
-            if isinstance(row, Mapping)
+            if isinstance(row, Mapping) and (protocol == "recoverable-journal-v1" or row.get("role") == "BUSINESS")
         ]
         expected_names = set(EXPECTED_ARTIFACTS)
-        if require_soft_snapshot:
+        if require_soft_snapshot or protocol == "recoverable-journal-v2":
             expected_names.add(
                 f"soft_adapter_snapshot_{str(audit.get('as_of') or '')[:10]}.json"
             )
@@ -469,11 +481,31 @@ def _collect_transaction(
             "persistence_transaction",
             "PASS",
             f"run_id={run_id} status=COMMITTED "
-            f"artifacts={len(expected_paths)} active=absent",
+            f"artifacts={len(expected_paths)} active=absent" + (f" evidence={evidence_count}" if evidence_count else ""),
             manifest_path,
         )
     except Exception as exc:
         return _check("persistence_transaction", "FAIL", str(exc), root)
+
+
+def _verify_transaction_v2(
+    archive: Path, manifest: Mapping[str, Any], audit: Mapping[str, Any], validator_path: Optional[Path],
+) -> int:
+    if validator_path is None or not validator_path.is_file():
+        raise ValueError("v2 transaction validator unavailable")
+    spec = importlib.util.spec_from_file_location("hermes_transaction_evidence", validator_path)
+    if spec is None or spec.loader is None:
+        raise ValueError("v2 transaction validator cannot load")
+    validator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(validator)
+    _business, evidence = validator.validate_inventory(manifest)
+    binding = manifest.get("input_binding") or {}
+    decision = audit.get("decision_evidence") or {}
+    if (not decision.get("decision_id") or binding.get("decision_id") != decision["decision_id"]
+            or binding.get("input_hash") != audit.get("input_hash")):
+        raise ValueError("transaction input binding does not match scheduled audit")
+    validator.validate_input_evidence(manifest, archive.resolve().parent)
+    return len(evidence)
 
 
 def _collect_bound_health(

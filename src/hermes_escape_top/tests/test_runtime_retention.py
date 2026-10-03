@@ -7,6 +7,8 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 
 SCRIPT = Path(__file__).resolve().parents[3] / "ops" / "prune_runtime_artifacts.py"
 
@@ -225,3 +227,79 @@ def test_apply_mode_records_busy_and_deletes_nothing_when_pipeline_locked(tmp_pa
     assert latest["status"] == "BUSY"
     assert latest["result"]["deleted_count"] == 0
     assert "pipeline busy" in latest["result"]["skipped"][0]["reason"]
+
+
+def _v2_pending_cleanup(tmp_path: Path):
+    live = tmp_path / "live"
+    archive = live / "shared/hermes_escape_top/data/archive"
+    run_id = "a" * 32
+    run = archive / f".score_run_transactions/runs/{run_id}"
+    run.mkdir(parents=True)
+    (run / "manifest.json").write_text(json.dumps({"run_id": run_id, "status": "COMMITTED"}))
+    pointer = {"schema_version": "hermes-score-run-transaction-v2",
+               "run_id": "V2_REQUIRES_UPGRADED_WRITER", "v2_run_id": run_id}
+    return live, archive, run, pointer
+
+
+def test_v2_committed_but_active_transaction_is_protected_in_prune_plan(tmp_path: Path):
+    module = _module()
+    live, archive, run, pointer = _v2_pending_cleanup(tmp_path)
+    (archive / ".score_run_transactions/active.json").write_text(json.dumps(pointer))
+    plan = module.build_prune_plan(live_root=live, backup_root=tmp_path / "backups",
+                                   archive_dir=archive, keep_transactions=0, max_transaction_bytes=0)
+    assert str(run) in plan["summary"]["score_transaction"]["protected"]
+    assert not any(row["path"] == str(run) for row in plan["delete"])
+
+
+def test_v2_active_transaction_is_rechecked_before_applying_an_old_plan(tmp_path: Path):
+    module = _module()
+    live, archive, run, pointer = _v2_pending_cleanup(tmp_path)
+    plan = module.build_prune_plan(live_root=live, backup_root=tmp_path / "backups",
+                                   archive_dir=archive, keep_transactions=0)
+    assert any(row["path"] == str(run) for row in plan["delete"])
+    (archive / ".score_run_transactions/active.json").write_text(json.dumps(pointer))
+    result = module.apply_prune_plan(plan)
+    assert result["deleted_count"] == 0
+    assert result["skipped"][0]["reason"] == "score transaction is active"
+    assert run.exists()
+
+
+@pytest.mark.parametrize("case", ["guard", "run_id"])
+def test_malformed_v2_active_pointer_refuses_pruning(tmp_path: Path, case: str):
+    module = _module()
+    live, archive, _run, pointer = _v2_pending_cleanup(tmp_path)
+    pointer["run_id" if case == "guard" else "v2_run_id"] = "../../outside"
+    (archive / ".score_run_transactions/active.json").write_text(json.dumps(pointer))
+    with pytest.raises(ValueError, match="invalid v2 active transaction"):
+        module.build_prune_plan(live_root=live, backup_root=tmp_path / "backups",
+                                archive_dir=archive, keep_transactions=0)
+
+
+@pytest.mark.parametrize("linked_part", ["root", "runs"])
+def test_retention_refuses_linked_transaction_namespace(tmp_path: Path, linked_part: str):
+    module = _module()
+    live, archive, _run, _pointer = _v2_pending_cleanup(tmp_path)
+    journal = archive / ".score_run_transactions"
+    link = journal if linked_part == "root" else journal / "runs"
+    outside = tmp_path / "outside-journal"
+    link.rename(outside)
+    link.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ValueError, match="transaction.*symlink"):
+        module.build_prune_plan(live_root=live, backup_root=tmp_path / "backups",
+                                archive_dir=archive, keep_transactions=0)
+    assert list(outside.rglob("manifest.json"))
+
+
+def test_retention_rechecks_namespace_links_when_applying_saved_plan(tmp_path: Path):
+    module = _module()
+    live, archive, _run, _pointer = _v2_pending_cleanup(tmp_path)
+    plan = module.build_prune_plan(live_root=live, backup_root=tmp_path / "backups",
+                                   archive_dir=archive, keep_transactions=0)
+    journal = archive / ".score_run_transactions"
+    outside = tmp_path / "outside-journal"
+    journal.rename(outside)
+    journal.symlink_to(outside, target_is_directory=True)
+    result = module.apply_prune_plan(plan)
+    assert result["deleted_count"] == 0
+    assert "symlink" in result["skipped"][0]["reason"]
+    assert list(outside.rglob("manifest.json"))

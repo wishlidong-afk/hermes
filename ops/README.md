@@ -38,6 +38,17 @@ nonblocking `.pipeline.lock` as scoring and deployment; a busy lock records
 `BUSY` and deletes nothing. Dated/latest evidence is written to
 `~/.hermes/logs/retention/runtime_retention_*.json`.
 
+The A2 candidate conservatively protects all v2 terminal journals, including
+rolled-back records, until reference-aware evidence GC is defined. Unknown
+protocols and legacy-labelled records with capture/binding/evidence markers are
+also protected. Plan creation and apply-time validation use the same rule;
+linked or malformed transaction manifests cannot authorize deletion.
+`summary.score_transaction` reports `protection_reasons`, `retained_bytes`, and
+`capacity_exceeded`. A successful APPLY means the validated deletion operation
+completed, not that protected evidence fits the byte cap. These metrics cover
+the parsed terminal inventory, not all runtime storage. This is a preservation
+guard, not a claim that production v2 capture or complete A2 GC is deployed.
+
 ## External precheck severity
 
 `com.hermes.external-precheck` runs the `decision` lane at 06:45 and 07:05.
