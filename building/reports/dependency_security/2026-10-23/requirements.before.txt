@@ -1,0 +1,11 @@
+# Production direct dependencies. ``requirements.lock`` pins the complete
+# transitive graph with hashes; change these only through a reviewed runtime
+# migration and regenerate that lock with uv.
+numpy==2.0.2
+pandas==2.3.3
+scipy==1.13.1
+certifi==2026.4.22
+yfinance==1.2.1
+requests==2.33.0
+curl-cffi==0.15.0
+ib-insync==0.9.86

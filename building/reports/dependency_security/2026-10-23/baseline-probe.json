@@ -1,0 +1,12 @@
+{
+  "affected_root_present": true,
+  "ca_count": 113,
+  "certifi_version": "2026.04.22",
+  "chunk_detail": "oversized chunk line accepted",
+  "limits": "Offline chunk parser and CA-store checks, not an external TLS/proxy connectivity test.",
+  "network_attempts": 0,
+  "oversized_chunk_line_rejected": false,
+  "status": "FAIL",
+  "tls_verification_enabled": true,
+  "urllib3_version": "2.7.0"
+}

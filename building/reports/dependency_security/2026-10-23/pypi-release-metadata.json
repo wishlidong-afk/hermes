@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-23",
+  "source": "https://pypi.org/pypi/{name}/{version}/json",
+  "certifi": {
+    "name": "certifi",
+    "version": "2026.10.19",
+    "requires_python": ">=3.7",
+    "files": [
+      {
+        "filename": "certifi-2026.10.19-py3-none-any.whl",
+        "url": "https://files.pythonhosted.org/packages/c4/51/29046e48f693c54e5b7412216d447a1d8362c9653148d98c02cdf65fa733/certifi-2026.10.19-py3-none-any.whl",
+        "sha256": "42d35340cc5b9ba78e818ddbff0c5b1c2b779de448a340fd1b989f5fa8670e1b",
+        "yanked": false,
+        "upload_time_iso_8601": "2026-10-20T02:24:15.072385Z"
+      },
+      {
+        "filename": "certifi-2026.10.19.tar.gz",
+        "url": "https://files.pythonhosted.org/packages/a6/bd/1436c50cc46699de0230fbaacc1d1de7bfec413176099949e9d5112e88f2/certifi-2026.10.19.tar.gz",
+        "sha256": "035c1e85572b141bf1c3a3eff0e33a8eb74917522f2559075ff8d2fea780a1ae",
+        "yanked": false,
+        "upload_time_iso_8601": "2026-10-20T02:24:16.604828Z"
+      }
+    ]
+  },
+  "urllib3": {
+    "name": "urllib3",
+    "version": "2.8.0",
+    "requires_python": ">=3.10",
+    "files": [
+      {
+        "filename": "urllib3-2.8.0-py3-none-any.whl",
+        "url": "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl",
+        "sha256": "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3",
+        "yanked": false,
+        "upload_time_iso_8601": "2026-09-15T19:29:34.577402Z"
+      },
+      {
+        "filename": "urllib3-2.8.0.tar.gz",
+        "url": "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz",
+        "sha256": "63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63",
+        "yanked": false,
+        "upload_time_iso_8601": "2026-09-15T19:29:36.253420Z"
+      }
+    ]
+  }
+}

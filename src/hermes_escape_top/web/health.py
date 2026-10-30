@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -375,7 +376,11 @@ class _HealthEvaluator:
             self.market_admission.get("third_source_shadow") or {},
         )
         detail = " · ".join(
-            part for part in (rejected_detail, evidence_text) if part
+            part for part in (
+                _market_admission_attempt_summary(self.market_admission),
+                rejected_detail,
+                evidence_text,
+            ) if part
         )
         component_only = _market_admission_is_component_only(self.market_admission)
         self._add(
@@ -873,6 +878,34 @@ def _layers(checks: List[Dict[str, str]]) -> Dict[str, Dict[str, Any]]:
             "checks": subset,
         }
     return out
+
+
+def _market_admission_attempt_summary(payload: Dict[str, Any]) -> str:
+    """Deduplicate only complete, reconciled comparison evidence for display."""
+    unknown = "unique_conflicts=UNKNOWN attempts=UNKNOWN"
+    rows = payload.get("rows")
+    count = payload.get("rejected_rows")
+    if (not isinstance(rows, list) or not isinstance(count, int)
+            or isinstance(count, bool) or count <= 0
+            or any(not isinstance(row, dict) for row in rows)):
+        return unknown
+    rejected = [
+        row for row in rows
+        if row.get("admitted") is False and row.get("blocking") is not False
+    ]
+    if len(rejected) != count:
+        return unknown
+    unknown = f"unique_conflicts=UNKNOWN attempts={count}"
+    fields = ("symbol", "date", "status", "candidate_sha256", "witness_sha256")
+    keys: set[tuple[str, ...]] = set()
+    for row in rejected:
+        key = tuple(row.get(field) for field in fields)
+        if not all(isinstance(value, str) and value for value in key):
+            return unknown
+        if any(re.fullmatch(r"[0-9a-f]{64}", value) is None for value in key[-2:]):
+            return unknown
+        keys.add(key)
+    return f"unique_conflicts={len(keys)} attempts={count}"
 
 
 def _market_admission_rejected_detail(rows: Any, shadow: Any = None) -> str:

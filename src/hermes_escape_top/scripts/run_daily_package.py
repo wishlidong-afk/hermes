@@ -1602,6 +1602,7 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
         "step": "startup",
     }
     started_at = datetime.now().astimezone().isoformat(timespec="seconds")
+    payload: Optional[Dict[str, Any]] = None
     if scheduled:
         running = _write_run_receipt(
             context["as_of"],
@@ -1616,6 +1617,7 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
         if scheduled:
             context["step"] = "alpaca_flow"
             payload = _attach_alpaca_flow_for_health(payload, context["as_of"])
+            context["step"] = "run_receipt"
             finished = _write_run_receipt(
                 context["as_of"],
                 args.run_type,
@@ -1628,7 +1630,7 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
             _write_system_health_report(payload, context["as_of"], finished, shadow=False)
     except BaseException as exc:
         if scheduled:
-            _write_run_receipt(
+            failed = _write_run_receipt(
                 context["as_of"],
                 args.run_type,
                 steps_ok=False,
@@ -1637,6 +1639,11 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
                 started_at=started_at,
                 failed_step=str(context.get("step") or "unknown"),
             )
+            if payload is not None and failed is not None:
+                try:
+                    _write_system_health_report(payload, context["as_of"], failed, shadow=False)
+                except Exception as health_exc:
+                    print(f"[health] ERROR: failed-run report unavailable ({health_exc!r}); preserving original failure.")
         raise
 
 

@@ -1,0 +1,12 @@
+{
+  "config_readback": "PASS",
+  "configured_max_wait_seconds": 600,
+  "forwarder_kind_schedule_target_unchanged": true,
+  "generator_config_unchanged": true,
+  "natural_forward_after_update": "PENDING",
+  "observed_generation_lag_seconds": 101.037,
+  "prompt_sha256": "08645d9bf5fd1c570d45c499ab69c1971d9e2048edc225db7ec8d430341cdad3",
+  "timing_check_scope": "Observed episode fits the configured budget; this is not execution proof of the next scheduled forwarder.",
+  "today_report_pair_matches": true,
+  "today_status_preserved": "FAIL"
+}
