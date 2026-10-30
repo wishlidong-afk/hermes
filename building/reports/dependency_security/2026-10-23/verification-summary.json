@@ -1,0 +1,35 @@
+{
+  "audit_after": 0,
+  "audit_before": 4,
+  "business_artifacts_per_date": 7,
+  "cloud_ci": "NOT_RUN",
+  "cross_runtime_dates": 4,
+  "date": "2026-10-23",
+  "deployment": "HOLD",
+  "focused_suite": "75 passed in 17.62s",
+  "full_suite": "1490 passed in 158.89s",
+  "governance": "8/8 OK",
+  "incremental_scope": [
+    "requirements.txt",
+    "requirements.lock"
+  ],
+  "live_modified": false,
+  "main_a2_bindings_unchanged": 13,
+  "source_sha256": {
+    "building/reports/daily_failure_remediation/2026-10-23/equivalence.json": "7df7bfe8c45f024e0be2418af15f88a655e29b71f36a3229bfa77b70002c55fa",
+    "docs/history/2026-10-23_daily_failure_evidence_remediation.md": "342f9a87dcc8dc9af082a02841e2ae64fce1433bed64b53c8d09ad150b2394c3",
+    "offline_security_probe.py": "9bcd9a70bf43bb0321108f6375c82a9c747e652483dd8d35607ac55e5d5eccc8",
+    "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+    "requirements.txt": "037be4f24a13220684ec36939d37a7f11659a8711b281f2004d5148454f77931",
+    "scripts/compare_pipeline_persistence.py": "19540147b21004355d0f54eb14c0455301bddb870b47a370b0a753178d5bd76d",
+    "src/hermes_escape_top/scripts/run_daily_package.py": "abb69acb5778c20159844863d6fb94499794bde31f85f4de124b43d59191315b",
+    "src/hermes_escape_top/tests/test_daily_failure_evidence.py": "362b877b028a14a0da2d3baa75ec9e94e645141b4146fa4ec23b14af52976a26"
+  },
+  "status": "PASS",
+  "unchanged_prior_candidate_bindings": {
+    "building/reports/daily_failure_remediation/2026-10-23/equivalence.json": "7df7bfe8c45f024e0be2418af15f88a655e29b71f36a3229bfa77b70002c55fa",
+    "docs/history/2026-10-23_daily_failure_evidence_remediation.md": "342f9a87dcc8dc9af082a02841e2ae64fce1433bed64b53c8d09ad150b2394c3",
+    "src/hermes_escape_top/scripts/run_daily_package.py": "abb69acb5778c20159844863d6fb94499794bde31f85f4de124b43d59191315b",
+    "src/hermes_escape_top/tests/test_daily_failure_evidence.py": "362b877b028a14a0da2d3baa75ec9e94e645141b4146fa4ec23b14af52976a26"
+  }
+}

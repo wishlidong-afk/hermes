@@ -1,0 +1,64 @@
+{
+  "canonical_promotion": "NOT_AUTHORIZED",
+  "live_inputs_unchanged": true,
+  "mode": "OFFLINE_DIAGNOSTIC_NOT_OFFICIAL_HEALTH",
+  "network_attempts": 0,
+  "operation_id": "df32965ce7ab4a1caaae8d364146a479",
+  "previous_sessions_recorded_not_recomputed": {
+    "2026-10-19": {
+      "recorded_status": "MATCH",
+      "recorded_volume_diff_pct": 0.0078
+    },
+    "2026-10-20": {
+      "recorded_status": "MATCH",
+      "recorded_volume_diff_pct": 0.0087
+    },
+    "2026-10-21": {
+      "recorded_status": "MATCH",
+      "recorded_volume_diff_pct": 0.0046
+    },
+    "2026-10-22": {
+      "recorded_status": "MATCH",
+      "recorded_volume_diff_pct": 0.0064
+    }
+  },
+  "recomputed_comparisons": {
+    "alpaca_vs_third": {
+      "price": "MATCH",
+      "status": "VOLUME_MISMATCH",
+      "volume_diff_pct": 100.7539
+    },
+    "yahoo_vs_alpaca": {
+      "price": "MATCH",
+      "status": "VOLUME_MISMATCH",
+      "volume_diff_pct": 25.1322
+    },
+    "yahoo_vs_third": {
+      "price": "MATCH",
+      "status": "VOLUME_MISMATCH",
+      "volume_diff_pct": 50.3001
+    }
+  },
+  "session_and_publication_comparability": "NOT_ESTABLISHED",
+  "source_sha256": {
+    "admission": "7da1c2c5c20a20716d4483f217be2a7456933f18f4d011134a161d3e0fb1271c",
+    "receipt": "4d0e3da6fa11441c0d2c76e774c0eed6b0ae230cfa8e25bfb905824c6692cb8c",
+    "shadow": "b2f10186b2dc2f3033249e06c11337aed4540343fbbdaa58c0226f8ebeafb0d0"
+  },
+  "third_source_support": "NEITHER_WITHIN_POLICY",
+  "updated_health_preview": {
+    "level": "CRITICAL",
+    "quarantine": {
+      "detail": "rejected=3 unique_conflicts=1 attempts=3 \u00b7 FNGU 2026-10-23 VOLUME_MISMATCH price=MATCH volume diff=25.1322% third=NEITHER_WITHIN_POLICY \u00b7 price[MATCH=195] volume[MATCH=192,MISMATCH=3]",
+      "label": "\u53cc\u6e90\u884c\u60c5\u5019\u9009\u5df2\u9694\u79bb",
+      "layer": "strategy_data",
+      "level": "DEGRADED"
+    }
+  },
+  "volumes": {
+    "alpaca": 2009902.0,
+    "third": 1001177.0,
+    "yahoo": 1504770.0
+  },
+  "witness_fetched_at_ny": "2026-10-23T19:10:05-04:00"
+}

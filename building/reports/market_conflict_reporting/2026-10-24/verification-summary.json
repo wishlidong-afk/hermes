@@ -1,0 +1,27 @@
+{
+  "automation_rule": "APPLIED_CONFIG_READBACK_PASS_NATURAL_RUN_PENDING",
+  "deployment": "HOLD",
+  "focused": "64 passed in 1.48s",
+  "four_date_strict": "all_equal",
+  "full_suite": "1513 passed in 152.21s",
+  "governance": "8/8 OK",
+  "head": "2db0cdc562309b6222a69aaee8dbdaf51c763b93",
+  "live_modified": false,
+  "main_a2_bindings_unchanged": 13,
+  "market_source_cause": "UNRESOLVED",
+  "new_tests": 23,
+  "scoring_logic_hash": "42d207d6b6c84001bf85324ea6af84b5947c7748b7217d72f0d715b21232ad8a",
+  "source_sha256": {
+    "src/hermes_escape_top/config/config.json": "1a08fbbd2c72ce2cee9e1b13253a884be145503dc3c14a611d14b151d423c253",
+    "src/hermes_escape_top/core/data/decision_identity.py": "0765fe3c23a37a998f6addb91db62930f56689837a8c532b14eebe3a565f39a5",
+    "src/hermes_escape_top/core/data/decision_revision.py": "f1abb0818f7e4ef57c933bfe7ede92ae2b4af3cfcfb6942be02eb96a2d483089",
+    "src/hermes_escape_top/core/data/market_admission.py": "54f4a90c2aa5bfaa871ac7924841c8ee89daebb0dfa8a39cb370038d8cc496a1",
+    "src/hermes_escape_top/core/data/market_third_source.py": "ffaf25288f37a83e288d98e1554cda43cef46056f396dc4ad7ea6ebd94e054c1",
+    "src/hermes_escape_top/core/data/market_witness.py": "1bec66f0acb8e17cb0ae2573898dabe1f04b207b9326ba2542c73df9a2395873",
+    "src/hermes_escape_top/pipeline.py": "0dacd386f498fdd7d3d9d8a1c02b66c96403f7bf37a39f6fd890b2ef7ff11cb0",
+    "src/hermes_escape_top/tests/test_market_conflict_counts.py": "5473f758d086d1668706181bf91a0c36f407d0df526ed48a31722fe955be9375",
+    "src/hermes_escape_top/web/health.py": "211e9ffd327060221c7dd95555a1a662732b8b79577d4f02e839cff7718f57d7"
+  },
+  "status": "LOCAL_VERIFICATION_PASS",
+  "unchanged_prior_security_packet": true
+}

@@ -1,0 +1,12 @@
+{
+  "affected_root_present": false,
+  "ca_count": 114,
+  "certifi_version": "2026.10.19",
+  "chunk_detail": "Response chunk size line exceeded maximum allowed length",
+  "limits": "Offline chunk parser and CA-store checks, not an external TLS/proxy connectivity test.",
+  "network_attempts": 0,
+  "oversized_chunk_line_rejected": true,
+  "status": "PASS",
+  "tls_verification_enabled": true,
+  "urllib3_version": "2.8.0"
+}

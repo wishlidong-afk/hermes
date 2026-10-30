@@ -1,0 +1,27 @@
+{
+  "all_equal": true,
+  "comparator_sha256": "19540147b21004355d0f54eb14c0455301bddb870b47a370b0a753178d5bd76d",
+  "dates": {
+    "2022-01-03": {
+      "artifact_count": 7,
+      "equal": true,
+      "payload_sha256": "954525a1aaa3ffd6fd9e92812cc806ff30d9fbc80af1af009cbfa510eef70dba"
+    },
+    "2022-01-25": {
+      "artifact_count": 7,
+      "equal": true,
+      "payload_sha256": "406503a87934c81e197231d76f2be254810eff6aa6b1edc0d2823cf31da667dd"
+    },
+    "2026-05-29": {
+      "artifact_count": 7,
+      "equal": true,
+      "payload_sha256": "5ef1831c699494e29c7e73f0f57e3b5464b32c59b099270bd921d19cd4be6c78"
+    },
+    "2026-06-04": {
+      "artifact_count": 7,
+      "equal": true,
+      "payload_sha256": "7200471161a9fe53fb5fc83bd8267888cfdf9fab421f3a52961c33cf766bb04d"
+    }
+  },
+  "scope": "SHA256 equality of full normalized payload and all seven business artifacts, across the two unchanged-comparator strict reports; not raw SQLite file bytes."
+}
