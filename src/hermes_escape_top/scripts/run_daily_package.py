@@ -19,14 +19,20 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack, contextmanager, redirect_stdout
 import hashlib
+import io
 import json
 import os
+import runpy
+import socket
+import stat
 import subprocess
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterator, Optional
+from unittest.mock import patch
 
 SCRIPT_PATH = Path(__file__).resolve()
 
@@ -394,6 +400,7 @@ def run_score_pipeline(
     market_admission_status: Dict[str, Any] | None = None,
     *,
     _lease: Any,
+    include_ibkr: bool = True,
 ) -> Dict[str, Any]:
     print(f"[M4-1] Running score_pipeline({as_of}, shadow={shadow}, run_type={run_type})…")
     payload = pipeline._score_pipeline_locked(
@@ -402,6 +409,7 @@ def run_score_pipeline(
         run_type=run_type,
         market_admission_status=market_admission_status,
         _lease=_lease,
+        **({"include_ibkr": False} if not include_ibkr else {}),
     )
     print(f"[M4-1] score_pipeline OK. Schema: {payload.get('schema_version')}")
     return payload
@@ -1235,10 +1243,21 @@ def _post_run_diff(payload: Dict[str, Any], as_of: str, shadow: bool) -> None:
     print(f"[M4-diff] written: {out_path}")
 
 
-def _refresh_next5_unlock() -> None:
+def _refresh_next5_unlock(*, offline: bool = False) -> None:
     """Refresh the NEXT-5 meta-model unlock progress (non-fatal). Keeps the unlock
     status file current as 20-day labels accumulate, so the gate isn't tracked off
     a stale snapshot."""
+    if offline:
+        output = io.StringIO()
+        with redirect_stdout(output):
+            try:
+                runpy.run_module("hermes_escape_top.scripts.check_next5_unlock", run_name="__main__")
+            except SystemExit as exc:
+                if exc.code not in (0, 1):
+                    raise
+        for line in output.getvalue().strip().splitlines()[-3:]:
+            print(f"[NEXT5] {line}")
+        return
     result = subprocess.run(
         [PYTHON, "-m", "hermes_escape_top.scripts.check_next5_unlock"],
         cwd=str(BASE_DIR), env=_subprocess_env(), capture_output=True, text=True, timeout=60,
@@ -1592,7 +1611,77 @@ def _build_daily_parser() -> argparse.ArgumentParser:
                              "and shows manual_rerun separately as non-official preview.")
     parser.add_argument("--lock-timeout", type=float, default=600.0,
                         help=argparse.SUPPRESS)
+    parser.add_argument("--deploy-verify", action="store_true", help=argparse.SUPPRESS)
     return parser
+
+
+@contextmanager
+def _deploy_verification_guard(args: argparse.Namespace) -> Iterator[None]:
+    if not getattr(args, "deploy_verify", False):
+        yield
+        return
+    if not (args.live and args.run_type == "manual_rerun" and args.skip_refresh and not args.commit_state):
+        raise ValueError("deploy verification requires a cached-only, non-official preview")
+    raw_root = os.environ.get("HERMES_DEPLOY_VERIFY_ROOT", "")
+    root = Path(raw_root)
+    container = root.parent
+    marker = container / ".deploy-verify"
+    if (
+        not raw_root or not root.is_absolute() or root.name != "runtime"
+        or not container.name.startswith("hermes-deploy-verify.")
+        or not root.is_dir() or root.resolve() != root
+        or stat.S_IMODE(container.stat().st_mode) != 0o700
+        or not marker.is_file() or marker.read_text() != "hermes-deploy-verify-v1\n"
+        or Path(os.environ.get("HERMES_DATA_DIR", "")).resolve() != root
+        or Path.cwd().resolve() != root
+        or (Path.home() / ".hermes").resolve() in root.parents
+    ):
+        raise ValueError("deploy verification requires its private temporary data root")
+    config = load_config()
+    for key in config.get("paths", {}):
+        if not resolve_path(config, key).resolve().is_relative_to(container):
+            raise ValueError(f"deploy verification path escapes its private container: {key}")
+    valuation = (config.get("valuation") or {}).get("snapshot_path")
+    if valuation and not (root / str(valuation)).resolve().is_relative_to(container):
+        raise ValueError("deploy verification valuation path escapes its private container")
+    if any(path.is_symlink() for path in container.rglob("*")):
+        raise ValueError("deploy verification refuses symlinks in its private container")
+
+    # Refusals remain fatal even if a collector catches and suppresses the error.
+    attempts: list[str] = []
+
+    def forbidden(*_args: Any, **_kwargs: Any) -> Any:
+        attempts.append("network")
+        raise RuntimeError("deploy verification forbids network and unapproved child processes")
+
+    original_popen = subprocess.Popen
+
+    def local_copy_only(command: Any, *positional: Any, **kwargs: Any) -> Any:
+        # NumPy's optional CPU probe must not start a process in this mode.
+        if isinstance(command, str) and command == "lscpu":
+            raise FileNotFoundError("optional CPU probe disabled during deploy verification")
+        if (
+            isinstance(command, (list, tuple)) and len(command) == 4
+            and list(command[:2]) == ["/bin/cp", "-c"] and not positional
+            and kwargs == {"stdout": subprocess.PIPE, "stderr": subprocess.PIPE}
+            and all(isinstance(value, str) and Path(value).is_absolute()
+                    and Path(value).resolve().is_relative_to(container) for value in command[2:])
+        ):
+            return original_popen(command, **kwargs)
+        program = str(command[0]) if isinstance(command, (list, tuple)) and command else "unapproved command"
+        attempts.append(f"child process: {program}")
+        raise RuntimeError(f"deploy verification forbids child process: {program}")
+
+    with ExitStack() as stack:
+        for name in ("connect", "connect_ex", "sendto"):
+            stack.enter_context(patch.object(socket.socket, name, forbidden))
+        for name in ("create_connection", "getaddrinfo", "gethostbyname", "gethostbyname_ex"):
+            stack.enter_context(patch.object(socket, name, forbidden))
+        stack.enter_context(patch.object(subprocess, "Popen", local_copy_only))
+        yield
+        if attempts:
+            raise RuntimeError(f"deploy verification forbids suppressed attempts: {', '.join(attempts)}")
+    print("[deploy-verify] offline PASS network_attempts=0 include_ibkr=false refresh=false")
 
 
 def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
@@ -1756,6 +1845,7 @@ def _execute_daily(
         run_type=args.run_type,
         market_admission_status=market_admission_status,
         _lease=_lease,
+        **({"include_ibkr": False} if getattr(args, "deploy_verify", False) else {}),
     )
     if market_witness_status is not None:
         payload["market_witness_status"] = market_witness_status
@@ -1778,7 +1868,7 @@ def _execute_daily(
     _post_run_diff(payload, as_of, shadow)
     _run_context["step"] = "next5_refresh"
     try:
-        _refresh_next5_unlock()
+        _refresh_next5_unlock(**({"offline": True} if getattr(args, "deploy_verify", False) else {}))
     except Exception as exc:
         print(f"[NEXT5] WARNING: unlock scan failed ({exc!r}); continuing.")
     if not shadow:
@@ -1822,7 +1912,7 @@ def main() -> None:
     args = _build_daily_parser().parse_args()
     require_explicit_runtime_data_root("daily")
     try:
-        with pipeline_lock(blocking=True, timeout=max(float(args.lock_timeout), 0.0)) as lease:
+        with _deploy_verification_guard(args), pipeline_lock(blocking=True, timeout=max(float(args.lock_timeout), 0.0)) as lease:
             config = load_config()
             recover_incomplete_score_run(resolve_path(config, "archive_dir"), _lease=lease)
             _run_daily_with_receipt(args, _lease=lease)

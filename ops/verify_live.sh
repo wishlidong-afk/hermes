@@ -53,11 +53,29 @@ seed_verify_data() {
   if [ -e "$PKG/data/sentiment.xls" ]; then
     clone_item "$PKG/data/sentiment.xls" "$root/data/sentiment.xls" || return 1
   fi
+  mkdir -p "$root/../data" || return 1
+  if [ -e "$BASE/data/history" ]; then
+    clone_item "$BASE/data/history" "$root/../data/history" || return 1
+  fi
+  for source in "$PKG/data/valuation_snapshot.json" "$BASE/data/valuation_snapshot.json"; do
+    if [ -f "$source" ]; then
+      clone_item "$source" "$root/data/valuation_snapshot.json" || return 1
+      break
+    fi
+  done
+  # Explicit cached absence prevents the adapter falling back into live data.
+  if [ ! -e "$root/data/valuation_snapshot.json" ]; then
+    printf '{"items":{}}\n' > "$root/data/valuation_snapshot.json" || return 1
+  fi
 }
 
-VERIFY_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/hermes-deploy-verify.XXXXXX") \
+VERIFY_CONTAINER=$(mktemp -d "${TMPDIR:-/tmp}/hermes-deploy-verify.XXXXXX") \
   || { echo "FAIL: cannot create isolated verify data dir"; exit 1; }
-trap 'rm -rf "$VERIFY_ROOT"' EXIT
+VERIFY_CONTAINER=$(cd "$VERIFY_CONTAINER" && pwd -P) || exit 1
+trap 'rm -rf "$VERIFY_CONTAINER"' EXIT
+VERIFY_ROOT="$VERIFY_CONTAINER/runtime"
+mkdir -m 700 "$VERIFY_ROOT" || exit 1
+printf 'hermes-deploy-verify-v1\n' > "$VERIFY_CONTAINER/.deploy-verify" || exit 1
 seed_verify_data "$VERIFY_ROOT" \
   || { echo "FAIL: cannot seed isolated verify data"; exit 1; }
 
@@ -65,7 +83,7 @@ AUDIT="$VERIFY_ROOT/data/archive/audit_log.jsonl"
 LOG="$VERIFY_ROOT/verify_daily.log"
 
 echo "== verify_live: running the REAL daily entry in non-official mode =="
-HERMES_DATA_DIR="$VERIFY_ROOT" HERMES_RUN_LOG="$LOG" \
+HERMES_DATA_DIR="$VERIFY_ROOT" HERMES_DEPLOY_VERIFY_ROOT="$VERIFY_ROOT" HERMES_RUN_LOG="$LOG" \
   bash "$RUN_DAILY" --deploy-verify
 rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL: run_daily.sh exited $rc"; exit 1; }
@@ -91,13 +109,16 @@ PY
 
 # 2. the maintenance steps actually executed (effects visible in this run's log) —
 #    a stale/half engine would be missing these even on exit 0.
-for step in "score_pipeline OK" "\[manifest\]" "\[NEXT5\]"; do
+for step in "score_pipeline OK" "\[NEXT5\]"; do
   if grep -qE "$step" "$LOG"; then
     echo "  ok: ran $step"
   else
     echo "  FAIL: real run is missing step: $step"; fail=1
   fi
 done
+if ! grep -qFx '[deploy-verify] offline PASS network_attempts=0 include_ibkr=false refresh=false' "$LOG"; then
+  echo "  FAIL: offline deployment attestation missing"; fail=1
+fi
 if grep -qE "\[receipt\]|state committed" "$LOG"; then
   echo "  FAIL: deploy verification wrote official receipt/state"; fail=1
 else

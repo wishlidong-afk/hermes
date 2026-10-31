@@ -28,7 +28,7 @@ def build_command(args):
     if deploy_verify:
         if forwarded:
             raise SystemExit("--deploy-verify does not accept additional arguments")
-        cmd.extend(["--run-type", "manual_rerun"])
+        cmd.extend(["--deploy-verify", "--skip-refresh", "--run-type", "manual_rerun"])
     else:
         cmd.append("--commit-state")
         cmd.extend(forwarded)
@@ -40,5 +40,12 @@ if __name__ == "__main__":
     env["HERMES_RUNTIME_ROOT"] = str(RUNTIME_ROOT)
     env["PYTHONPATH"] = str(ESCAPE_TOP) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     cmd = build_command(sys.argv[1:])
-    r = subprocess.run(cmd, cwd=str(RUNTIME_ROOT), env=env)
+    cwd = RUNTIME_ROOT
+    if "--deploy-verify" in sys.argv[1:]:
+        raw_root = os.environ.get("HERMES_DEPLOY_VERIFY_ROOT", "")
+        if not raw_root or not Path(raw_root).is_absolute():
+            raise SystemExit("--deploy-verify requires its private temporary data root")
+        cwd = Path(raw_root)
+        env["HERMES_RUNTIME_ROOT"] = str(cwd)
+    r = subprocess.run(cmd, cwd=str(cwd), env=env)
     sys.exit(r.returncode)
