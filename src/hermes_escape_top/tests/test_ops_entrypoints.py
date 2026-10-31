@@ -51,6 +51,8 @@ def test_deploy_verify_is_manual_and_does_not_commit_state():
     command = module.build_command(["--deploy-verify"])
 
     assert "--commit-state" not in command
+    assert "--skip-refresh" in command
+    assert "--deploy-verify" in command
     assert command[-2:] == ["--run-type", "manual_rerun"]
 
 
@@ -723,10 +725,12 @@ def test_verify_live_uses_isolated_data_and_cleans_it(tmp_path):
     run_daily.write_text(
         "#!/bin/bash\n"
         "set -eu\n"
+        "test \"${HERMES_DEPLOY_VERIFY_ROOT:-}\" = \"$HERMES_DATA_DIR\"\n"
+        "test -f \"${HERMES_DATA_DIR%/runtime}/.deploy-verify\"\n"
         "mkdir -p \"$HERMES_DATA_DIR/data/archive\"\n"
         "ts=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)\n"
         "printf '{\"payload\":{\"run_type\":\"manual_rerun\",\"run_ts\":\"%s\",\"as_of\":\"2026-06-18\"}}\\n' \"$ts\" > \"$HERMES_DATA_DIR/data/archive/audit_log.jsonl\"\n"
-        "printf '[M4-1] score_pipeline OK\\n[manifest] OK\\n[NEXT5] OK\\n' > \"$HERMES_RUN_LOG\"\n",
+        "printf '[M4-1] score_pipeline OK\\n[NEXT5] OK\\n[deploy-verify] offline PASS network_attempts=0 include_ibkr=false refresh=false\\n' > \"$HERMES_RUN_LOG\"\n",
         encoding="utf-8",
     )
     run_daily.chmod(0o755)
@@ -756,7 +760,8 @@ def test_verify_live_uses_isolated_data_and_cleans_it(tmp_path):
     assert not list(temp_root.glob("hermes-deploy-verify.*"))
 
 
-def test_verify_live_fails_when_real_run_writes_official_receipt(tmp_path):
+@pytest.mark.parametrize("failure", ["official_receipt", "missing_attestation"])
+def test_verify_live_rejects_official_receipt_or_missing_offline_attestation(tmp_path, failure):
     # Counterexample for the receipt-pollution gate (the MARK fix): a deploy-verify
     # run that stamps an official receipt/state MUST make verify_live fail. Before
     # the MARK fix this check was silently short-circuited under `set -u`.
@@ -768,6 +773,8 @@ def test_verify_live_fails_when_real_run_writes_official_receipt(tmp_path):
     (package_data / "history" / "MSTR.csv").write_text("date,Close\n2026-06-18,100\n")
 
     run_daily = tmp_path / "run_daily.sh"
+    extra = ("[deploy-verify] offline PASS network_attempts=0 include_ibkr=false refresh=false\\n"
+             "[receipt] official run stamped\\n") if failure == "official_receipt" else ""
     run_daily.write_text(
         "#!/bin/bash\n"
         "set -eu\n"
@@ -775,7 +782,7 @@ def test_verify_live_fails_when_real_run_writes_official_receipt(tmp_path):
         "ts=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)\n"
         "printf '{\"payload\":{\"run_type\":\"manual_rerun\",\"run_ts\":\"%s\",\"as_of\":\"2026-06-18\"}}\\n' \"$ts\" > \"$HERMES_DATA_DIR/data/archive/audit_log.jsonl\"\n"
         # maintenance steps pass, but the run ALSO stamps an official receipt -> pollution
-        "printf '[M4-1] score_pipeline OK\\n[manifest] OK\\n[NEXT5] OK\\n[receipt] official run stamped\\n' > \"$HERMES_RUN_LOG\"\n",
+        f"printf '[M4-1] score_pipeline OK\\n[NEXT5] OK\\n{extra}' > \"$HERMES_RUN_LOG\"\n",
         encoding="utf-8",
     )
     run_daily.chmod(0o755)
@@ -799,7 +806,8 @@ def test_verify_live_fails_when_real_run_writes_official_receipt(tmp_path):
     )
 
     assert result.returncode != 0, result.stdout + result.stderr
-    assert "wrote official receipt/state" in result.stdout
+    expected = "wrote official receipt/state" if failure == "official_receipt" else "offline deployment attestation missing"
+    assert expected in result.stdout
     assert "verify_live PASS" not in result.stdout
 
 
