@@ -1,0 +1,1418 @@
+--- a/ops/run_daily.py
++++ b/ops/run_daily.py
+@@ -28,7 +28,7 @@
+     if deploy_verify:
+         if forwarded:
+             raise SystemExit("--deploy-verify does not accept additional arguments")
+-        cmd.extend(["--run-type", "manual_rerun"])
++        cmd.extend(["--deploy-verify", "--skip-refresh", "--run-type", "manual_rerun"])
+     else:
+         cmd.append("--commit-state")
+         cmd.extend(forwarded)
+@@ -40,5 +40,12 @@
+     env["HERMES_RUNTIME_ROOT"] = str(RUNTIME_ROOT)
+     env["PYTHONPATH"] = str(ESCAPE_TOP) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+     cmd = build_command(sys.argv[1:])
+-    r = subprocess.run(cmd, cwd=str(RUNTIME_ROOT), env=env)
++    cwd = RUNTIME_ROOT
++    if "--deploy-verify" in sys.argv[1:]:
++        raw_root = os.environ.get("HERMES_DEPLOY_VERIFY_ROOT", "")
++        if not raw_root or not Path(raw_root).is_absolute():
++            raise SystemExit("--deploy-verify requires its private temporary data root")
++        cwd = Path(raw_root)
++        env["HERMES_RUNTIME_ROOT"] = str(cwd)
++    r = subprocess.run(cmd, cwd=str(cwd), env=env)
+     sys.exit(r.returncode)
+--- a/ops/verify_live.sh
++++ b/ops/verify_live.sh
+@@ -53,11 +53,29 @@
+   if [ -e "$PKG/data/sentiment.xls" ]; then
+     clone_item "$PKG/data/sentiment.xls" "$root/data/sentiment.xls" || return 1
+   fi
++  mkdir -p "$root/../data" || return 1
++  if [ -e "$BASE/data/history" ]; then
++    clone_item "$BASE/data/history" "$root/../data/history" || return 1
++  fi
++  for source in "$PKG/data/valuation_snapshot.json" "$BASE/data/valuation_snapshot.json"; do
++    if [ -f "$source" ]; then
++      clone_item "$source" "$root/data/valuation_snapshot.json" || return 1
++      break
++    fi
++  done
++  # Explicit cached absence prevents the adapter falling back into live data.
++  if [ ! -e "$root/data/valuation_snapshot.json" ]; then
++    printf '{"items":{}}\n' > "$root/data/valuation_snapshot.json" || return 1
++  fi
+ }
+ 
+-VERIFY_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/hermes-deploy-verify.XXXXXX") \
++VERIFY_CONTAINER=$(mktemp -d "${TMPDIR:-/tmp}/hermes-deploy-verify.XXXXXX") \
+   || { echo "FAIL: cannot create isolated verify data dir"; exit 1; }
+-trap 'rm -rf "$VERIFY_ROOT"' EXIT
++VERIFY_CONTAINER=$(cd "$VERIFY_CONTAINER" && pwd -P) || exit 1
++trap 'rm -rf "$VERIFY_CONTAINER"' EXIT
++VERIFY_ROOT="$VERIFY_CONTAINER/runtime"
++mkdir -m 700 "$VERIFY_ROOT" || exit 1
++printf 'hermes-deploy-verify-v1\n' > "$VERIFY_CONTAINER/.deploy-verify" || exit 1
+ seed_verify_data "$VERIFY_ROOT" \
+   || { echo "FAIL: cannot seed isolated verify data"; exit 1; }
+ 
+@@ -65,7 +83,7 @@
+ LOG="$VERIFY_ROOT/verify_daily.log"
+ 
+ echo "== verify_live: running the REAL daily entry in non-official mode =="
+-HERMES_DATA_DIR="$VERIFY_ROOT" HERMES_RUN_LOG="$LOG" \
++HERMES_DATA_DIR="$VERIFY_ROOT" HERMES_DEPLOY_VERIFY_ROOT="$VERIFY_ROOT" HERMES_RUN_LOG="$LOG" \
+   bash "$RUN_DAILY" --deploy-verify
+ rc=$?
+ [ "$rc" -eq 0 ] || { echo "FAIL: run_daily.sh exited $rc"; exit 1; }
+@@ -91,13 +109,16 @@
+ 
+ # 2. the maintenance steps actually executed (effects visible in this run's log) —
+ #    a stale/half engine would be missing these even on exit 0.
+-for step in "score_pipeline OK" "\[manifest\]" "\[NEXT5\]"; do
++for step in "score_pipeline OK" "\[NEXT5\]"; do
+   if grep -qE "$step" "$LOG"; then
+     echo "  ok: ran $step"
+   else
+     echo "  FAIL: real run is missing step: $step"; fail=1
+   fi
+ done
++if ! grep -qFx '[deploy-verify] offline PASS network_attempts=0 include_ibkr=false refresh=false' "$LOG"; then
++  echo "  FAIL: offline deployment attestation missing"; fail=1
++fi
+ if grep -qE "\[receipt\]|state committed" "$LOG"; then
+   echo "  FAIL: deploy verification wrote official receipt/state"; fail=1
+ else
+--- a/requirements.lock
++++ b/requirements.lock
+@@ -4,9 +4,9 @@
+     --hash=sha256:288e3ca7d54b06f2ac191970bc275c1939cb46d450b255bf6718b04aa37ab4f7 \
+     --hash=sha256:d6f88de62e1d4e38ecb1077eb9724cd0eff29d2a08ca16a401e9b9e93f117cf9
+     # via yfinance
+-certifi==2026.4.22 \
+-    --hash=sha256:3cb2210c8f88ba2318d29b0388d1023c8492ff72ecdde4ebdaddbb13a31b1c4a \
+-    --hash=sha256:8d455352a37b71bf76a79caa83a3d6c25afee4a385d632127b6afb3963f1c580
++certifi==2026.10.19 \
++    --hash=sha256:035c1e85572b141bf1c3a3eff0e33a8eb74917522f2559075ff8d2fea780a1ae \
++    --hash=sha256:42d35340cc5b9ba78e818ddbff0c5b1c2b779de448a340fd1b989f5fa8670e1b
+     # via
+     #   -r requirements.txt
+     #   curl-cffi
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -4,7 +4,7 @@
+ numpy==2.0.2
+ pandas==2.3.3
+ scipy==1.13.1
+-certifi==2026.4.22
++certifi==2026.10.19
+ yfinance==1.2.1
+ requests==2.33.0
+ curl-cffi==0.15.0
+--- a/scripts/deploy_to_live.sh
++++ b/scripts/deploy_to_live.sh
+@@ -5,7 +5,40 @@
+ 
+ SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+ TEST_MODE="${HERMES_DEPLOY_TEST_MODE:-0}"
+-MODE="${1:---main}"
++SOURCE_REPO_OPTION=""
++if [ "${1:-}" = "--source-repo" ]; then
++  [ "$#" -ge 2 ] && [ -n "$2" ] || { echo "!! --source-repo requires an absolute Git root" >&2; exit 64; }
++  case "$2" in
++    /*) ;;
++    *) echo "!! --source-repo requires an absolute Git root" >&2; exit 64 ;;
++  esac
++  SOURCE_REPO_OPTION=$(cd "$2" && pwd -P) || exit 64
++  source_top=$(git -C "$SOURCE_REPO_OPTION" rev-parse --show-toplevel 2>/dev/null) \
++    || { echo "!! --source-repo must name an existing Git root" >&2; exit 64; }
++  [ "$source_top" = "$SOURCE_REPO_OPTION" ] \
++    || { echo "!! --source-repo must name the Git root" >&2; exit 64; }
++  shift 2
++fi
++MODE="${1---main}"
++for argument in "$@"; do
++  case "$argument" in
++    --source-repo|--source-repo=*)
++      echo "!! unexpected deploy arguments; --source-repo must precede the mode" >&2
++      exit 64
++      ;;
++  esac
++done
++case "$MODE" in
++  --main)
++    [ "$#" -le 1 ] \
++      || { echo "!! unexpected deploy arguments; --source-repo must precede the mode" >&2; exit 64; }
++    ;;
++  --locked-swap|--locked-rollback)
++    [ "$#" -eq 4 ] \
++      || { echo "!! unexpected deploy arguments; internal mode requires STAMP HASH BACKUP only" >&2; exit 64; }
++    ;;
++  *) echo "!! unknown deploy mode: $MODE" >&2; exit 64 ;;
++esac
+ 
+ # Test overrides are deliberately unavailable in production mode. A caller that
+ # merely exports HERMES_DEPLOY_* cannot bypass a production guard or smoke gate.
+@@ -62,6 +95,13 @@
+   FAIL_ROLLBACK=0
+ fi
+ 
++if [ -n "$SOURCE_REPO_OPTION" ]; then
++  REPO="$SOURCE_REPO_OPTION"
++  if [ "$TEST_MODE" != "1" ]; then
++    LOCK_PYTHONPATH="$REPO/src"
++  fi
++fi
++
+ if [ "$MODE" = "--locked-swap" ] || [ "$MODE" = "--locked-rollback" ]; then
+   STAMP="${2:-}"
+   HASH="${3:-}"
+@@ -250,6 +290,9 @@
+ source_tree_matches_commit() {
+   local observed paths=()
+   [ -n "$SOURCE_COMMIT" ] || return 1
++  if [ -n "$SOURCE_REPO_OPTION" ]; then
++    cmp -s "$SCRIPT_PATH" "$REPO/scripts/deploy_to_live.sh" || return 1
++  fi
+   observed=$(git -C "$REPO" rev-parse HEAD 2>/dev/null) || return 1
+   [ "$observed" = "$SOURCE_COMMIT" ] || return 1
+   while IFS= read -r path; do
+@@ -400,6 +443,10 @@
+ run_with_pipeline_lock() {
+   local internal_mode="$1"
+   local archive_dir
++  local source_args=("$internal_mode" "$STAMP" "$HASH" "$BACKUP")
++  if [ -n "$SOURCE_REPO_OPTION" ]; then
++    source_args=(--source-repo "$REPO" "${source_args[@]}")
++  fi
+   if [ -d "$SHARED_PKG/data/archive" ]; then
+     archive_dir="$SHARED_PKG/data/archive"
+   else
+@@ -408,7 +455,7 @@
+   PYTHONPATH="$LOCK_PYTHONPATH" "$PYTHON" \
+     -m hermes_escape_top.scripts.pipeline_lock_exec \
+     --archive-dir "$archive_dir" --timeout 600 -- \
+-    /bin/bash "$SCRIPT_PATH" "$internal_mode" "$STAMP" "$HASH" "$BACKUP"
++    /bin/bash "$SCRIPT_PATH" "${source_args[@]}"
+ }
+ 
+ install_entry_atomic() {
+--- a/src/hermes_escape_top/scripts/run_daily_package.py
++++ b/src/hermes_escape_top/scripts/run_daily_package.py
+@@ -19,15 +19,21 @@
+ from __future__ import annotations
+ 
+ import argparse
++from contextlib import ExitStack, contextmanager, redirect_stdout
+ import hashlib
++import io
+ import json
+ import os
+ import re
++import runpy
++import socket
++import stat
+ import subprocess
+ import sys
+ from datetime import date, datetime, timezone
+ from pathlib import Path
+-from typing import Any, Callable, Dict, Optional
++from typing import Any, Callable, Dict, Iterator, Optional
++from unittest.mock import patch
+ 
+ SCRIPT_PATH = Path(__file__).resolve()
+ 
+@@ -397,6 +403,7 @@
+     capture_inputs: bool = False,
+     commit_observer: Optional[Callable[[Dict[str, Any]], None]] = None,
+     _lease: Any,
++    include_ibkr: bool = True,
+ ) -> Dict[str, Any]:
+     if commit_observer is not None and not capture_inputs:
+         raise ValueError("commit observation requires explicit capture")
+@@ -411,6 +418,7 @@
+         market_admission_status=market_admission_status,
+         **capture_options,
+         _lease=_lease,
++        **({"include_ibkr": False} if not include_ibkr else {}),
+     )
+     print(f"[M4-1] score_pipeline OK. Schema: {payload.get('schema_version')}")
+     return payload
+@@ -1244,10 +1252,21 @@
+     print(f"[M4-diff] written: {out_path}")
+ 
+ 
+-def _refresh_next5_unlock() -> None:
++def _refresh_next5_unlock(*, offline: bool = False) -> None:
+     """Refresh the NEXT-5 meta-model unlock progress (non-fatal). Keeps the unlock
+     status file current as 20-day labels accumulate, so the gate isn't tracked off
+     a stale snapshot."""
++    if offline:
++        output = io.StringIO()
++        with redirect_stdout(output):
++            try:
++                runpy.run_module("hermes_escape_top.scripts.check_next5_unlock", run_name="__main__")
++            except SystemExit as exc:
++                if exc.code not in (0, 1):
++                    raise
++        for line in output.getvalue().strip().splitlines()[-3:]:
++            print(f"[NEXT5] {line}")
++        return
+     result = subprocess.run(
+         [PYTHON, "-m", "hermes_escape_top.scripts.check_next5_unlock"],
+         cwd=str(BASE_DIR), env=_subprocess_env(), capture_output=True, text=True, timeout=60,
+@@ -1631,7 +1650,77 @@
+                              "and shows manual_rerun separately as non-official preview.")
+     parser.add_argument("--lock-timeout", type=float, default=600.0,
+                         help=argparse.SUPPRESS)
++    parser.add_argument("--deploy-verify", action="store_true", help=argparse.SUPPRESS)
+     return parser
++
++
++@contextmanager
++def _deploy_verification_guard(args: argparse.Namespace) -> Iterator[None]:
++    if not getattr(args, "deploy_verify", False):
++        yield
++        return
++    if not (args.live and args.run_type == "manual_rerun" and args.skip_refresh and not args.commit_state):
++        raise ValueError("deploy verification requires a cached-only, non-official preview")
++    raw_root = os.environ.get("HERMES_DEPLOY_VERIFY_ROOT", "")
++    root = Path(raw_root)
++    container = root.parent
++    marker = container / ".deploy-verify"
++    if (
++        not raw_root or not root.is_absolute() or root.name != "runtime"
++        or not container.name.startswith("hermes-deploy-verify.")
++        or not root.is_dir() or root.resolve() != root
++        or stat.S_IMODE(container.stat().st_mode) != 0o700
++        or not marker.is_file() or marker.read_text() != "hermes-deploy-verify-v1\n"
++        or Path(os.environ.get("HERMES_DATA_DIR", "")).resolve() != root
++        or Path.cwd().resolve() != root
++        or (Path.home() / ".hermes").resolve() in root.parents
++    ):
++        raise ValueError("deploy verification requires its private temporary data root")
++    config = load_config()
++    for key in config.get("paths", {}):
++        if not resolve_path(config, key).resolve().is_relative_to(container):
++            raise ValueError(f"deploy verification path escapes its private container: {key}")
++    valuation = (config.get("valuation") or {}).get("snapshot_path")
++    if valuation and not (root / str(valuation)).resolve().is_relative_to(container):
++        raise ValueError("deploy verification valuation path escapes its private container")
++    if any(path.is_symlink() for path in container.rglob("*")):
++        raise ValueError("deploy verification refuses symlinks in its private container")
++
++    # Refusals remain fatal even if a collector catches and suppresses the error.
++    attempts: list[str] = []
++
++    def forbidden(*_args: Any, **_kwargs: Any) -> Any:
++        attempts.append("network")
++        raise RuntimeError("deploy verification forbids network and unapproved child processes")
++
++    original_popen = subprocess.Popen
++
++    def local_copy_only(command: Any, *positional: Any, **kwargs: Any) -> Any:
++        # NumPy's optional CPU probe must not start a process in this mode.
++        if isinstance(command, str) and command == "lscpu":
++            raise FileNotFoundError("optional CPU probe disabled during deploy verification")
++        if (
++            isinstance(command, (list, tuple)) and len(command) == 4
++            and list(command[:2]) == ["/bin/cp", "-c"] and not positional
++            and kwargs == {"stdout": subprocess.PIPE, "stderr": subprocess.PIPE}
++            and all(isinstance(value, str) and Path(value).is_absolute()
++                    and Path(value).resolve().is_relative_to(container) for value in command[2:])
++        ):
++            return original_popen(command, **kwargs)
++        program = str(command[0]) if isinstance(command, (list, tuple)) and command else "unapproved command"
++        attempts.append(f"child process: {program}")
++        raise RuntimeError(f"deploy verification forbids child process: {program}")
++
++    with ExitStack() as stack:
++        for name in ("connect", "connect_ex", "sendto"):
++            stack.enter_context(patch.object(socket.socket, name, forbidden))
++        for name in ("create_connection", "getaddrinfo", "gethostbyname", "gethostbyname_ex"):
++            stack.enter_context(patch.object(socket, name, forbidden))
++        stack.enter_context(patch.object(subprocess, "Popen", local_copy_only))
++        yield
++        if attempts:
++            raise RuntimeError(f"deploy verification forbids suppressed attempts: {', '.join(attempts)}")
++    print("[deploy-verify] offline PASS network_attempts=0 include_ibkr=false refresh=false")
+ 
+ 
+ def _run_daily_with_receipt(
+@@ -1645,6 +1734,7 @@
+         "step": "startup",
+     }
+     started_at = datetime.now().astimezone().isoformat(timespec="seconds")
++    payload: Optional[Dict[str, Any]] = None
+     commit_observation: Optional[Dict[str, Any]] = None
+ 
+     def observe(value: Dict[str, Any]) -> None:
+@@ -1683,6 +1773,7 @@
+             context["step"] = "alpaca_flow"
+             payload = _attach_alpaca_flow_for_health(payload, context["as_of"])
+             receipt_options = {"commit_observation": commit_observation} if commit_observation is not None else {}
++            context["step"] = "run_receipt"
+             finished = _write_run_receipt(
+                 context["as_of"],
+                 args.run_type,
+@@ -1697,7 +1788,7 @@
+     except BaseException as exc:
+         if scheduled:
+             receipt_options = {"commit_observation": commit_observation} if commit_observation is not None else {}
+-            _write_run_receipt(
++            failed = _write_run_receipt(
+                 context["as_of"],
+                 args.run_type,
+                 steps_ok=False,
+@@ -1707,6 +1798,11 @@
+                 failed_step=str(context.get("step") or "unknown"),
+                 **receipt_options,
+             )
++            if payload is not None and failed is not None:
++                try:
++                    _write_system_health_report(payload, context["as_of"], failed, shadow=False)
++                except Exception as health_exc:
++                    print(f"[health] ERROR: failed-run report unavailable ({health_exc!r}); preserving original failure.")
+         raise
+ 
+ 
+@@ -1726,6 +1822,7 @@
+     capture_options: Dict[str, Any] = (
+         {"capture_inputs": True, "commit_observer": commit_observer} if capture_inputs else {}
+     )
++    broker_options: Dict[str, Any] = {"include_ibkr": False} if getattr(args, "deploy_verify", False) else {}
+ 
+     if shadow:
+         print(f"[M4-1] SHADOW mode — writing to data/shadow/ (production untouched)")
+@@ -1825,6 +1922,7 @@
+         market_admission_status=market_admission_status,
+         **capture_options,
+         _lease=_lease,
++        **broker_options,
+     )
+     if market_witness_status is not None:
+         payload["market_witness_status"] = market_witness_status
+@@ -1847,7 +1945,7 @@
+     _post_run_diff(payload, as_of, shadow)
+     _run_context["step"] = "next5_refresh"
+     try:
+-        _refresh_next5_unlock()
++        _refresh_next5_unlock(**({"offline": True} if getattr(args, "deploy_verify", False) else {}))
+     except Exception as exc:
+         print(f"[NEXT5] WARNING: unlock scan failed ({exc!r}); continuing.")
+     if not shadow:
+@@ -1891,7 +1989,7 @@
+     args = _build_daily_parser().parse_args()
+     require_explicit_runtime_data_root("daily")
+     try:
+-        with pipeline_lock(blocking=True, timeout=max(float(args.lock_timeout), 0.0)) as lease:
++        with _deploy_verification_guard(args), pipeline_lock(blocking=True, timeout=max(float(args.lock_timeout), 0.0)) as lease:
+             config = load_config()
+             recover_incomplete_score_run(resolve_path(config, "archive_dir"), _lease=lease)
+             _run_daily_with_receipt(args, _lease=lease)
+--- /dev/null
++++ b/src/hermes_escape_top/tests/test_daily_failure_evidence.py
+@@ -0,0 +1,191 @@
++"""Failed daily finalization must retain current, truthful diagnostic evidence."""
++from __future__ import annotations
++
++import json
++import socket
++from datetime import date
++from types import SimpleNamespace
++
++import pytest
++
++from hermes_escape_top.scripts import run_daily_package as rdp
++
++
++AS_OF = "2026-10-20"
++
++
++@pytest.fixture
++def daily(monkeypatch, tmp_path):
++    monkeypatch.setenv("HERMES_DATA_DIR", str(tmp_path))
++    monkeypatch.setattr(
++        rdp, "load_config", lambda: {"paths": {"archive_dir": "data/archive"}},
++    )
++    monkeypatch.setattr(
++        rdp, "_last_bar_dates",
++        lambda: {"QQQ": date(2026, 10, 21), "SOXL": date(2026, 10, 20)},
++    )
++    monkeypatch.setattr(
++        "hermes_escape_top.web.refresh.manifest_status",
++        lambda _config=None: {"status": "OK"},
++    )
++    monkeypatch.setattr(
++        rdp, "_system_health_generator_identity",
++        lambda: {"generator_release_hash": "test-release", "generator_policy_sha256": "test-policy"},
++    )
++
++    def no_network(*_args, **_kwargs):
++        pytest.fail("daily finalization must not request network data")
++
++    monkeypatch.setattr(socket.socket, "connect", no_network)
++    monkeypatch.setattr(socket.socket, "connect_ex", no_network)
++    monkeypatch.setattr(socket, "create_connection", no_network)
++    payload = {
++        "as_of": AS_OF,
++        "run_type": "scheduled",
++        "input_hash": "a" * 64,
++        "decision_evidence": {"decision_hash": "current-decision"},
++    }
++
++    def execute(*, _run_context, **_kwargs):
++        _run_context["as_of"] = AS_OF
++        return payload
++
++    flow_calls = []
++
++    def attach_flow(value, as_of):
++        flow_calls.append(as_of)
++        value["alpaca_daily_flow_status"] = {"status": "OK", "as_of": as_of}
++        return value
++
++    monkeypatch.setattr(rdp, "_execute_daily", execute)
++    monkeypatch.setattr(rdp, "_attach_alpaca_flow_for_health", attach_flow)
++    return SimpleNamespace(
++        args=SimpleNamespace(live=True, run_type="scheduled", as_of=AS_OF),
++        root=tmp_path,
++        receipt=tmp_path / "data/archive/run_receipt.json",
++        payload=payload,
++        flow_calls=flow_calls,
++    )
++
++
++def test_failed_end_state_identifies_receipt_not_successful_flow(daily):
++    with pytest.raises(RuntimeError, match="scheduled run end-state receipt failed"):
++        rdp._run_daily_with_receipt(daily.args, _lease=object())
++
++    receipt = json.loads(daily.receipt.read_text())
++    assert daily.flow_calls == [AS_OF]
++    assert receipt["status"] == "FAILED"
++    assert receipt["failed_step"] == "run_receipt"
++    assert any(row["name"] == "as_of_latest" and not row["ok"] for row in receipt["checks"])
++
++
++@pytest.mark.parametrize("implicit_date", [False, True])
++def test_failed_self_check_writes_current_bound_health_report(daily, implicit_date):
++    if implicit_date:
++        daily.args.as_of = None
++    report_path = daily.root / f"reports/system_health_{AS_OF}.json"
++    report_path.parent.mkdir(parents=True)
++    report_path.write_text(json.dumps({"input_hash": "old-input", "run_receipt": {"status": "OK"}}))
++
++    with pytest.raises(RuntimeError, match="scheduled run end-state receipt failed"):
++        rdp._run_daily_with_receipt(daily.args, _lease=object())
++
++    report = json.loads(report_path.read_text())
++    receipt = json.loads(daily.receipt.read_text())
++    assert report["as_of"] == AS_OF
++    assert report["input_hash"] == daily.payload["input_hash"]
++    assert report["decision_hash"] == "current-decision"
++    assert report["run_receipt"] == receipt
++    assert report["run_receipt"]["status"] == "FAILED"
++    assert report["health"]["level"] == "CRITICAL"
++    scheduled = next(row for row in report["audit_dimensions"] if row["id"] == "scheduled_receipt")
++    assert scheduled["status"] == "FAIL"
++    assert "FAILED" in report_path.with_suffix(".md").read_text()
++    archived = list((report_path.parent / "system_health_runs").glob("*.json"))
++    assert len(archived) == 1
++    assert json.loads(archived[0].read_text()) == report
++
++
++def test_secondary_report_failure_preserves_original_error(daily, monkeypatch, capsys):
++    def fail_report(*_args, **_kwargs):
++        raise OSError("health storage unavailable")
++
++    monkeypatch.setattr(rdp, "_write_system_health_report", fail_report)
++    with pytest.raises(RuntimeError, match="scheduled run end-state receipt failed"):
++        rdp._run_daily_with_receipt(daily.args, _lease=object())
++
++    receipt = json.loads(daily.receipt.read_text())
++    assert receipt["failed_step"] == "run_receipt"
++    assert "health storage unavailable" in capsys.readouterr().out
++
++
++def test_failure_before_scoring_result_does_not_fabricate_report(daily, monkeypatch):
++    def fail_execute(*, _run_context, **_kwargs):
++        _run_context["step"] = "score_pipeline"
++        raise ValueError("scoring failed before returning inputs")
++
++    def unexpected_report(*_args, **_kwargs):
++        pytest.fail("must not manufacture a bound report without the current payload")
++
++    monkeypatch.setattr(rdp, "_execute_daily", fail_execute)
++    monkeypatch.setattr(rdp, "_write_system_health_report", unexpected_report)
++    with pytest.raises(ValueError, match="scoring failed before returning inputs"):
++        rdp._run_daily_with_receipt(daily.args, _lease=object())
++
++    receipt = json.loads(daily.receipt.read_text())
++    assert receipt["status"] == "FAILED"
++    assert receipt["failed_step"] == "score_pipeline"
++    assert not (daily.root / "reports").exists()
++
++
++def test_missing_failed_receipt_cannot_be_replaced_by_synthetic_health(daily, monkeypatch):
++    write_json = rdp._atomic_write_json
++
++    def fail_finished_receipt(path, value):
++        if path == daily.receipt and value.get("status") == "FAILED":
++            raise OSError("receipt storage unavailable")
++        write_json(path, value)
++
++    monkeypatch.setattr(rdp, "_atomic_write_json", fail_finished_receipt)
++    with pytest.raises(RuntimeError, match="scheduled run end-state receipt failed"):
++        rdp._run_daily_with_receipt(daily.args, _lease=object())
++
++    assert not daily.receipt.exists()
++    assert not (daily.root / "reports").exists()
++
++
++def test_initial_health_failure_can_only_be_replaced_by_failed_report(daily, monkeypatch):
++    monkeypatch.setattr(rdp, "_last_bar_dates", lambda: {})
++    write_health = rdp._write_system_health_report
++    statuses = []
++
++    def fail_first_health(payload, as_of, receipt, shadow=False):
++        statuses.append(receipt["status"])
++        if len(statuses) == 1:
++            raise OSError("initial health report failure")
++        return write_health(payload, as_of, receipt, shadow=shadow)
++
++    monkeypatch.setattr(rdp, "_write_system_health_report", fail_first_health)
++    with pytest.raises(OSError, match="initial health report failure"):
++        rdp._run_daily_with_receipt(daily.args, _lease=object())
++
++    report = json.loads((daily.root / f"reports/system_health_{AS_OF}.json").read_text())
++    assert statuses == ["OK", "FAILED"]
++    assert report["run_receipt"]["failed_step"] == "system_health_report"
++    assert report["health"]["level"] == "CRITICAL"
++
++
++@pytest.mark.parametrize("live,run_type", [(False, "shadow"), (True, "manual_rerun")])
++def test_unofficial_failure_does_not_publish_official_evidence(daily, monkeypatch, live, run_type):
++    daily.args.live = live
++    daily.args.run_type = run_type
++
++    def fail_execute(**_kwargs):
++        raise ValueError("unofficial failure")
++
++    monkeypatch.setattr(rdp, "_execute_daily", fail_execute)
++    with pytest.raises(ValueError, match="unofficial failure"):
++        rdp._run_daily_with_receipt(daily.args, _lease=object())
++
++    assert not daily.receipt.exists()
++    assert not (daily.root / "reports").exists()
+--- /dev/null
++++ b/src/hermes_escape_top/tests/test_deploy_offline_verification.py
+@@ -0,0 +1,236 @@
++"""Deployment previews must be private, cached-only, and fail on network use."""
++from __future__ import annotations
++
++import hashlib
++import json
++import os
++import shlex
++import shutil
++import socket
++import subprocess
++import sys
++from pathlib import Path
++from types import SimpleNamespace
++
++import pytest
++
++from hermes_escape_top.scripts import run_daily_package as daily
++
++
++@pytest.fixture
++def preview(monkeypatch, tmp_path):
++    container = tmp_path / "hermes-deploy-verify.test"
++    container.mkdir(mode=0o700)
++    root = container / "runtime"
++    root.mkdir(mode=0o700)
++    (container / ".deploy-verify").write_text("hermes-deploy-verify-v1\n")
++    monkeypatch.setenv("HERMES_DATA_DIR", str(root))
++    monkeypatch.setenv("HERMES_DEPLOY_VERIFY_ROOT", str(root))
++    monkeypatch.chdir(root)
++    args = SimpleNamespace(deploy_verify=True, live=True, run_type="manual_rerun",
++                           commit_state=False, skip_refresh=True)
++    return root, args
++
++
++def test_deploy_parser_accepts_explicit_offline_mode():
++    args = daily._build_daily_parser().parse_args(["--deploy-verify", "--live", "--skip-refresh"])
++    assert args.deploy_verify and args.skip_refresh
++
++
++@pytest.mark.parametrize("change", ["scheduled", "commit", "refresh", "shadow", "missing_root", "wrong_root", "marker"])
++def test_invalid_preview_refuses_before_any_pipeline_work(preview, monkeypatch, change):
++    root, args = preview
++    if change == "scheduled":
++        args.run_type = "scheduled"
++    elif change == "commit":
++        args.commit_state = True
++    elif change == "refresh":
++        args.skip_refresh = False
++    elif change == "shadow":
++        args.live = False
++    elif change == "missing_root":
++        monkeypatch.delenv("HERMES_DEPLOY_VERIFY_ROOT")
++    elif change == "wrong_root":
++        monkeypatch.setenv("HERMES_DATA_DIR", str(root.parent))
++    else:
++        (root.parent / ".deploy-verify").unlink()
++    with pytest.raises(ValueError, match="deploy verification"):
++        with daily._deploy_verification_guard(args):
++            pytest.fail("invalid deployment preview reached pipeline work")
++    assert not (root / "data").exists()
++
++
++def test_preview_rejects_a_different_working_directory(preview, monkeypatch):
++    root, args = preview
++    monkeypatch.chdir(root.parent)
++    with pytest.raises(ValueError, match="deploy verification"):
++        with daily._deploy_verification_guard(args):
++            pytest.fail("preview accepted a different working directory")
++    assert not (root / "data").exists()
++
++
++@pytest.mark.parametrize("transport", ["connect", "connect_ex", "dns", "subprocess", "udp", "connection"])
++def test_swallowed_network_or_child_attempt_still_fails_preview(preview, transport):
++    _, args = preview
++    with pytest.raises(RuntimeError, match="deploy verification forbids"):
++        with daily._deploy_verification_guard(args):
++            try:
++                if transport == "dns":
++                    socket.getaddrinfo("example.invalid", 443)
++                elif transport == "subprocess":
++                    subprocess.run(["curl", "https://example.invalid"], check=False)
++                elif transport == "udp":
++                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as connection:
++                        connection.sendto(b"forbidden", ("127.0.0.1", 7497))
++                elif transport == "connection":
++                    socket.create_connection(("127.0.0.1", 7497))
++                else:
++                    with socket.socket() as connection:
++                        getattr(connection, transport)(("127.0.0.1", 7497))
++            except RuntimeError:
++                pass
++
++
++def test_preview_score_explicitly_disables_both_broker_readers(monkeypatch):
++    calls = []
++    monkeypatch.setattr(daily.pipeline, "_score_pipeline_locked", lambda *a, **kw: calls.append(kw) or {})
++    daily.run_score_pipeline("2026-05-29", _lease=object(), include_ibkr=False)
++    assert calls[0]["include_ibkr"] is False
++
++
++@pytest.mark.parametrize("unsafe", ["outside", "shell", "executable", "environment"])
++def test_private_copy_allowlist_cannot_start_another_command(preview, tmp_path, unsafe):
++    root, args = preview
++    source = root / "source"
++    source.write_bytes(b"private input")
++    command = ["/bin/cp", "-c", str(source), str(root / "copy")]
++    kwargs = {"stdout": subprocess.PIPE, "stderr": subprocess.PIPE}
++    if unsafe == "outside":
++        command[3] = str(tmp_path / "outside")
++    elif unsafe == "shell":
++        kwargs["shell"] = True
++    elif unsafe == "executable":
++        kwargs["executable"] = "/bin/sh"
++    else:
++        kwargs["env"] = dict(os.environ)
++    with pytest.raises(RuntimeError, match="deploy verification forbids"):
++        with daily._deploy_verification_guard(args):
++            subprocess.Popen(command, **kwargs)
++    assert not (root / "copy").exists()
++    assert not (tmp_path / "outside").exists()
++
++
++@pytest.mark.parametrize("stream_name", ["stdout", "stderr", "inherit", "missing"])
++def test_private_copy_refuses_uncontrolled_output(preview, tmp_path, stream_name):
++    root, args = preview
++    source = root / "source"
++    source.write_bytes(b"private input")
++    outside = tmp_path / "outside-output"
++    outside.write_bytes(b"untouched\n")
++    with outside.open("ab") as stream:
++        kwargs = {"stdout": subprocess.PIPE, "stderr": subprocess.PIPE}
++        if stream_name in {"stdout", "stderr"}:
++            kwargs[stream_name] = stream
++        elif stream_name == "inherit":
++            kwargs["stdout"] = None
++        else:
++            kwargs = {}
++        with pytest.raises(RuntimeError, match="deploy verification forbids"):
++            with daily._deploy_verification_guard(args):
++                subprocess.run(["/bin/cp", "-c", str(source), str(root / "copy")], check=False, **kwargs)
++    assert not (root / "copy").exists()
++    assert outside.read_bytes() == b"untouched\n"
++
++
++def test_optional_cpu_probe_is_disabled_without_starting_a_child(preview, monkeypatch):
++    _, args = preview
++    monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: pytest.fail("CPU probe started a child"))
++    with daily._deploy_verification_guard(args):
++        with pytest.raises(FileNotFoundError, match="optional CPU probe disabled"):
++            subprocess.run("lscpu", capture_output=True, text=True, check=False)
++
++
++def test_ordinary_runs_do_not_install_deployment_guards(monkeypatch):
++    connect, popen = socket.socket.connect, subprocess.Popen
++    monkeypatch.setattr(daily, "load_config", lambda: pytest.fail("ordinary mode loaded verification config"))
++    with daily._deploy_verification_guard(SimpleNamespace(deploy_verify=False)):
++        assert socket.socket.connect is connect and subprocess.Popen is popen
++
++
++@pytest.mark.parametrize("path_kind", ["absolute", "absolute_parent", "symlink", "legacy_escape"])
++def test_preview_rejects_paths_outside_private_container(preview, monkeypatch, tmp_path, path_kind):
++    root, args = preview
++    config = daily.load_config()
++    if path_kind == "absolute":
++        config["paths"]["archive_dir"] = str(tmp_path / "outside")
++    elif path_kind == "absolute_parent":
++        config["paths"]["archive_dir"] = str(root.parent / ".." / "outside")
++    elif path_kind == "legacy_escape":
++        config["paths"]["legacy_history_dir"] = "../../outside"
++    else:
++        (root / "data").symlink_to(tmp_path, target_is_directory=True)
++    monkeypatch.setattr(daily, "load_config", lambda: config)
++    with pytest.raises(ValueError, match="deploy verification"):
++        with daily._deploy_verification_guard(args):
++            pytest.fail("unsafe path reached pipeline")
++
++
++def test_real_shell_and_package_preview_commit_only_private_artifacts(tmp_path, isolated_data_dir):
++    repo = Path(__file__).resolve().parents[3]
++    home = tmp_path / "home"
++    base = home / ".hermes/skills/investment/escape-top"
++    package = base / "hermes_escape_top"
++
++    def excluded(directory, _names):
++        names = {"tests", "__pycache__"}
++        if Path(directory) == repo / "src/hermes_escape_top":
++            names.add("data")
++        return names
++
++    shutil.copytree(repo / "src/hermes_escape_top", package, ignore=excluded)
++    shutil.copytree(isolated_data_dir / "data", package / "data")
++    (base / "scripts").mkdir()
++    shutil.copy2(repo / "ops/run_daily.py", base / "scripts/run_daily.py")
++    (package / "RUNTIME_LOCK_SHA256").write_text("fixture-lock\n")
++    runtime = base / "runtime/fixture-lock"
++    runtime.mkdir(parents=True)
++    (runtime / ".venv").symlink_to(Path(sys.prefix), target_is_directory=True)
++    archive = package / "data/archive"
++    archive.mkdir(exist_ok=True)
++    (archive / "audit_log.jsonl").write_text('{"original":"scheduled audit sentinel"}\n')
++    (archive / "run_receipt.json").write_text('{"status":"OK","original":true}\n')
++    (package / "data/state.json").write_text('{"original":"state sentinel"}\n')
++    before = {str(path.relative_to(package)): (hashlib.sha256(path.read_bytes()).hexdigest(), path.stat().st_mtime_ns)
++              for path in package.rglob("*") if path.is_file()}
++    observed = tmp_path / "observed"
++    entry = home / ".hermes/bin/run_daily.sh"
++    entry.parent.mkdir(parents=True)
++    entry.write_text("#!/bin/bash\nset -e\n"
++                     f"if ! bash {shlex.quote(str(repo / 'ops/run_daily.sh'))} \"$@\"; then cat \"$HERMES_RUN_LOG\" >&2; exit 1; fi\n"
++                     f"cp -R \"$HERMES_DATA_DIR\" {shlex.quote(str(observed))}\n")
++    entry.chmod(0o755)
++    temporary = tmp_path / "temporary"
++    temporary.mkdir()
++    result = subprocess.run(
++        ["bash", str(repo / "ops/verify_live.sh")],
++        env={**os.environ, "HOME": str(home), "TMPDIR": str(temporary),
++             "HERMES_VERIFY_TEST_MODE": "0", "PYTHONDONTWRITEBYTECODE": "1"},
++        capture_output=True, text=True, timeout=90,
++    )
++    assert result.returncode == 0, result.stdout + result.stderr
++    assert "verify_live PASS" in result.stdout
++    captured = observed / "data/archive"
++    row = json.loads((captured / "audit_log.jsonl").read_text().splitlines()[-1])["payload"]
++    assert row["run_type"] == "manual_rerun"
++    assert row["ibkr"]["source"] == "disabled"
++    assert row["execution_sync"]["status"] == "SKIPPED"
++    assert not (observed / "data/state.json").exists()
++    assert json.loads((captured / "run_receipt.json").read_text()) == {"status": "OK", "original": True}
++    runs = [json.loads(path.read_text()) for path in (captured / ".score_run_transactions/runs").glob("*/manifest.json")]
++    assert any(run["status"] == "COMMITTED" and len(run["artifacts"]) == 7 for run in runs)
++    assert not (captured / ".score_run_transactions/active.json").exists()
++    assert (captured / "NEXT5_unlock_status.md").is_file()
++    after = {str(path.relative_to(package)): (hashlib.sha256(path.read_bytes()).hexdigest(), path.stat().st_mtime_ns)
++             for path in package.rglob("*") if path.is_file()}
++    assert after == before
++    assert not list(temporary.glob("hermes-deploy-verify.*"))
+--- a/src/hermes_escape_top/tests/test_deploy_to_live.py
++++ b/src/hermes_escape_top/tests/test_deploy_to_live.py
+@@ -112,6 +112,7 @@
+     events = tmp_path / "deploy-events.log"
+ 
+     _write(repo / "src/hermes_escape_top/core/keep.py", "VALUE = 'new'\n")
++    _write(repo / "scripts/deploy_to_live.sh", DEPLOY_SCRIPT.read_text())
+     _write(repo / "src/hermes_escape_top/core/added.py", "ADDED = True\n")
+     _write(repo / "src/hermes_escape_top/core/data/keep.py", "DATA_CODE = True\n")
+     repo_config = {"features": {}, "ibkr": {"readonly": True}}
+@@ -849,6 +850,138 @@
+     assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
+ 
+ 
++def test_production_explicit_source_is_used_before_live_path_checks(
++    deploy_fixture: dict[str, object], tmp_path: Path,
++) -> None:
++    home = tmp_path / "explicit-source-home"
++    home.mkdir()
++    env = dict(deploy_fixture["env"])
++    env.update(HOME=str(home), HERMES_DEPLOY_TEST_MODE="0")
++    result = subprocess.run(
++        ["bash", str(DEPLOY_SCRIPT), "--source-repo", str(deploy_fixture["repo"])],
++        capture_output=True, text=True, env=env, timeout=10,
++    )
++    assert result.returncode == 64
++    assert "live package missing" in result.stderr
++    assert "repo package missing" not in result.stderr
++    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
++
++
++@pytest.mark.parametrize("production", [False, True])
++def test_source_option_after_mode_is_rejected_before_default_source_can_deploy(deploy_fixture, tmp_path, production):
++    env = dict(deploy_fixture["env"])
++    if production:
++        home = tmp_path / "empty-production-home"
++        home.mkdir()
++        env.update(HOME=str(home), HERMES_DEPLOY_TEST_MODE="0")
++    result = subprocess.run(
++        ["bash", str(DEPLOY_SCRIPT), "--main", "--source-repo", str(tmp_path / "not-a-source")],
++        input="N\n", capture_output=True, text=True, env=env, timeout=30,
++    )
++    assert result.returncode == 64, result.stdout + result.stderr
++    assert "unexpected deploy arguments" in result.stderr
++    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
++    assert not Path(deploy_fixture["events"]).exists()
++
++
++@pytest.mark.parametrize("arguments", [
++    ["--main", "--source-repo=/unselected"],
++    ["--main", "--unknown"],
++    ["--main", "--main"],
++    ["--locked-swap", "stamp", "hash", "/unused-backup", "--source-repo", "/unselected"],
++    ["--locked-rollback", "stamp", "hash", "/unused-backup", "--unknown"],
++    ["--locked-swap", "--source-repo", "/unselected", "/unused-backup"],
++    ["--locked-rollback", "stamp", "hash", "--source-repo=/unselected"],
++    ["--locked-swap"],
++    ["--locked-rollback", "stamp", "hash"],
++    ["--unknown"],
++    [""],
++])
++def test_extra_or_unknown_deploy_arguments_are_rejected_before_any_side_effect(deploy_fixture, arguments):
++    result = subprocess.run(
++        ["bash", str(DEPLOY_SCRIPT), *arguments],
++        capture_output=True, text=True, env=deploy_fixture["env"], timeout=10,
++    )
++    assert result.returncode == 64, result.stdout + result.stderr
++    assert "deploy arguments" in result.stderr or "unknown deploy mode" in result.stderr
++    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
++    assert not Path(deploy_fixture["events"]).exists()
++
++
++def test_duplicate_source_option_is_rejected_without_using_either_source(deploy_fixture):
++    source = str(deploy_fixture["repo"])
++    result = subprocess.run(
++        ["bash", str(DEPLOY_SCRIPT), "--source-repo", source, "--main", "--source-repo", source],
++        capture_output=True, text=True, env=deploy_fixture["env"], timeout=10,
++    )
++    assert result.returncode == 64
++    assert "unexpected deploy arguments" in result.stderr
++    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
++    assert not Path(deploy_fixture["events"]).exists()
++
++
++def test_explicit_source_survives_locked_swap_and_commits_selected_tree(deploy_fixture):
++    env = dict(deploy_fixture["env"])
++    env["HERMES_DEPLOY_REPO"] = "/nonexistent-unselected-source"
++    result = subprocess.run(
++        ["bash", str(DEPLOY_SCRIPT), "--source-repo", str(deploy_fixture["repo"])],
++        input="N\n", capture_output=True, text=True, env=env, timeout=30,
++    )
++    assert result.returncode == 0, result.stdout + result.stderr
++    assert "deploy OK" in result.stdout
++    live = Path(deploy_fixture["live"])
++    assert (live / "current/hermes_escape_top/core/keep.py").read_text() == "VALUE = 'new'\n"
++    events = Path(deploy_fixture["events"]).read_text().splitlines()
++    assert "smoke-locked" in events and "verify-" in events
++
++
++@pytest.mark.parametrize("fail_at,expected", [("post_sync", 1), ("verify_live", 3)])
++def test_explicit_source_survives_both_rollback_paths(deploy_fixture, fail_at, expected):
++    env = dict(deploy_fixture["env"])
++    env.update(HERMES_DEPLOY_REPO="/nonexistent-unselected-source", HERMES_DEPLOY_FAIL_AT=fail_at)
++    result = subprocess.run(
++        ["bash", str(DEPLOY_SCRIPT), "--source-repo", str(deploy_fixture["repo"])],
++        input="N\n", capture_output=True, text=True, env=env, timeout=30,
++    )
++    assert result.returncode == expected, result.stdout + result.stderr
++    assert "ROLLBACK" in result.stderr
++    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
++
++
++@pytest.mark.parametrize("path_kind", ["missing", "relative", "nested", "non_git"])
++def test_invalid_explicit_source_is_rejected_before_any_live_write(deploy_fixture, tmp_path, path_kind):
++    repo = Path(deploy_fixture["repo"])
++    paths = {"relative": "relative-repo", "nested": str(repo / "src"), "non_git": str(tmp_path)}
++    command = ["bash", str(DEPLOY_SCRIPT), "--source-repo"]
++    if path_kind != "missing":
++        command.append(paths[path_kind])
++    result = subprocess.run(command, capture_output=True, text=True, env=deploy_fixture["env"], timeout=10)
++    assert result.returncode == 64
++    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
++    assert not Path(deploy_fixture["events"]).exists()
++
++
++@pytest.mark.parametrize("source_change", ["dirty", "untracked", "different_tool"])
++def test_explicit_source_guard_precedes_runtime_prepare_and_dashboard_stop(deploy_fixture, source_change):
++    repo = Path(deploy_fixture["repo"])
++    if source_change == "dirty":
++        _write(repo / "src/hermes_escape_top/core/keep.py", "VALUE = 'dirty'\n")
++    elif source_change == "untracked":
++        _write(repo / "src/hermes_escape_top/core/untracked.py", "VALUE = 'untracked'\n")
++    else:
++        _write(repo / "scripts/deploy_to_live.sh", "#!/bin/bash\nexit 0\n")
++        _git(repo, "add", "scripts/deploy_to_live.sh")
++        _git(repo, "commit", "-qm", "different deployment tool")
++    result = subprocess.run(
++        ["bash", str(DEPLOY_SCRIPT), "--source-repo", str(repo)],
++        capture_output=True, text=True, env=deploy_fixture["env"], timeout=30,
++    )
++    assert result.returncode == 4, result.stdout + result.stderr
++    assert "source tree differs" in result.stderr
++    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
++    assert not Path(deploy_fixture["events"]).exists()
++
++
+ def test_pre_staged_allowlist_file_aborts_before_dashboard_stop(
+     deploy_fixture: dict[str, object],
+ ) -> None:
+--- /dev/null
++++ b/src/hermes_escape_top/tests/test_market_conflict_counts.py
+@@ -0,0 +1,157 @@
++"""Admission retry counts are diagnostic, never permission to admit a bar."""
++from __future__ import annotations
++
++from copy import deepcopy
++from datetime import date, datetime, timezone
++
++import pytest
++
++from hermes_escape_top.web.health import compute_health
++
++
++NOW = datetime(2026, 10, 24, 1, 13, tzinfo=timezone.utc)
++
++
++def _payload():
++    row = {
++        "symbol": "FNGU",
++        "date": "2026-10-23",
++        "status": "VOLUME_MISMATCH",
++        "admitted": False,
++        "candidate_sha256": "a" * 64,
++        "witness_sha256": "b" * 64,
++        "decision_roles": ["scored_symbol"],
++        "decision_impact": "STRATEGY_BLOCKING",
++        "price_evidence_status": "MATCH",
++        "volume_evidence_status": "MISMATCH",
++        "volume_diff_pct": 25.1322,
++    }
++    return {
++        "as_of": "2026-10-23",
++        "cache_status": {"hit": True},
++        "data_quality": {"level": "HIGH"},
++        "data_quality_breakdown": {"sources": []},
++        "run_receipt": {
++            "status": "OK", "ok": True, "run_type": "scheduled",
++            "run_at": NOW.isoformat(), "finished_at": NOW.isoformat(),
++        },
++        "market_admission_status": {
++            "mode": "enforce_consensus", "status": "BLOCKED",
++            "rejected_rows": 3, "strategy_blocking_rejected_rows": 3,
++            "component_flow_rejected_rows": 0,
++            "rows": [deepcopy(row) for _ in range(3)],
++        },
++    }
++
++
++def _health(payload):
++    return compute_health(payload, {"status": "OK"}, today=date(2026, 10, 24), now=NOW)
++
++
++def _quarantine(health):
++    return next(row for row in health["checks"] if row["label"].endswith("行情候选已隔离"))
++
++
++def test_identical_rejections_are_one_conflict_and_three_attempts():
++    payload = _payload()
++    before = deepcopy(payload)
++
++    health = _health(payload)
++    check = _quarantine(health)
++
++    assert "unique_conflicts=1" in check["detail"]
++    assert "attempts=3" in check["detail"]
++    assert "rejected=3" in check["detail"]
++    assert "FNGU 2026-10-23 VOLUME_MISMATCH" in check["detail"]
++    assert check["layer"] == "strategy_data"
++    assert health["layers"]["strategy_data"]["level"] == "DEGRADED"
++    assert payload == before
++
++
++@pytest.mark.parametrize("field,value", [
++    ("candidate_sha256", "c" * 64),
++    ("witness_sha256", "d" * 64),
++    ("symbol", "SOXL"),
++    ("date", "2026-10-22"),
++    ("status", "PRICE_MISMATCH"),
++])
++def test_materially_different_comparisons_are_not_collapsed(field, value):
++    payload = _payload()
++    payload["market_admission_status"]["rows"][1][field] = value
++
++    health = _health(payload)
++
++    assert "unique_conflicts=2" in _quarantine(health)["detail"]
++    assert "attempts=3" in _quarantine(health)["detail"]
++    assert health["layers"]["strategy_data"]["level"] == "DEGRADED"
++
++
++@pytest.mark.parametrize("field,value", [
++    ("candidate_sha256", None),
++    ("witness_sha256", "unknown"),
++    ("candidate_sha256", "g" * 64),
++    ("witness_sha256", []),
++    ("symbol", None),
++    ("date", ""),
++    ("status", 42),
++])
++def test_incomplete_evidence_does_not_claim_one_verified_conflict(field, value):
++    payload = _payload()
++    payload["market_admission_status"]["rows"][0][field] = value
++
++    health = _health(payload)
++
++    assert "unique_conflicts=UNKNOWN" in _quarantine(health)["detail"]
++    assert "attempts=3" in _quarantine(health)["detail"]
++    assert health["layers"]["strategy_data"]["level"] == "DEGRADED"
++
++
++@pytest.mark.parametrize("reported", [None, 2, 4, "3", True])
++def test_nonreconciled_counts_remain_unknown_and_blocking(reported):
++    payload = _payload()
++    payload["market_admission_status"]["rejected_rows"] = reported
++
++    health = _health(payload)
++
++    assert "unique_conflicts=UNKNOWN attempts=UNKNOWN" in _quarantine(health)["detail"]
++    assert health["layers"]["strategy_data"]["level"] == "DEGRADED"
++
++
++@pytest.mark.parametrize("rows", [None, {}, [None]])
++def test_malformed_row_collection_does_not_manufacture_counts(rows):
++    payload = _payload()
++    payload["market_admission_status"]["rows"] = rows
++
++    health = _health(payload)
++
++    assert "unique_conflicts=UNKNOWN attempts=UNKNOWN" in _quarantine(health)["detail"]
++    assert health["layers"]["strategy_data"]["level"] == "DEGRADED"
++
++
++def test_admitted_and_deferred_rows_do_not_inflate_rejection_attempts():
++    payload = _payload()
++    rows = payload["market_admission_status"]["rows"]
++    rows.extend([
++        dict(rows[0], admitted=True, status="MATCH"),
++        dict(rows[0], symbol="BTC-USD", blocking=False, status="DEFERRED_UNFINALIZED"),
++    ])
++
++    check = _quarantine(_health(payload))
++
++    assert "unique_conflicts=1 attempts=3" in check["detail"]
++
++
++def test_component_only_classification_is_not_changed_by_count_presentation():
++    payload = _payload()
++    admission = payload["market_admission_status"]
++    admission["strategy_blocking_rejected_rows"] = 0
++    admission["component_flow_rejected_rows"] = 3
++    for row in admission["rows"]:
++        row["decision_roles"] = ["component_flow"]
++        row["decision_impact"] = "COMPONENT_FLOW_ONLY"
++
++    health = _health(payload)
++
++    assert "unique_conflicts=1 attempts=3" in _quarantine(health)["detail"]
++    assert health["layers"]["strategy_data"]["level"] == "OK"
++    assert health["layers"]["auxiliary_flows"]["level"] == "DEGRADED"
+--- a/src/hermes_escape_top/tests/test_ops_entrypoints.py
++++ b/src/hermes_escape_top/tests/test_ops_entrypoints.py
+@@ -51,6 +51,8 @@
+     command = module.build_command(["--deploy-verify"])
+ 
+     assert "--commit-state" not in command
++    assert "--skip-refresh" in command
++    assert "--deploy-verify" in command
+     assert command[-2:] == ["--run-type", "manual_rerun"]
+ 
+ 
+@@ -723,10 +725,12 @@
+     run_daily.write_text(
+         "#!/bin/bash\n"
+         "set -eu\n"
++        "test \"${HERMES_DEPLOY_VERIFY_ROOT:-}\" = \"$HERMES_DATA_DIR\"\n"
++        "test -f \"${HERMES_DATA_DIR%/runtime}/.deploy-verify\"\n"
+         "mkdir -p \"$HERMES_DATA_DIR/data/archive\"\n"
+         "ts=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)\n"
+         "printf '{\"payload\":{\"run_type\":\"manual_rerun\",\"run_ts\":\"%s\",\"as_of\":\"2026-06-18\"}}\\n' \"$ts\" > \"$HERMES_DATA_DIR/data/archive/audit_log.jsonl\"\n"
+-        "printf '[M4-1] score_pipeline OK\\n[manifest] OK\\n[NEXT5] OK\\n' > \"$HERMES_RUN_LOG\"\n",
++        "printf '[M4-1] score_pipeline OK\\n[NEXT5] OK\\n[deploy-verify] offline PASS network_attempts=0 include_ibkr=false refresh=false\\n' > \"$HERMES_RUN_LOG\"\n",
+         encoding="utf-8",
+     )
+     run_daily.chmod(0o755)
+@@ -756,7 +760,8 @@
+     assert not list(temp_root.glob("hermes-deploy-verify.*"))
+ 
+ 
+-def test_verify_live_fails_when_real_run_writes_official_receipt(tmp_path):
++@pytest.mark.parametrize("failure", ["official_receipt", "missing_attestation"])
++def test_verify_live_rejects_official_receipt_or_missing_offline_attestation(tmp_path, failure):
+     # Counterexample for the receipt-pollution gate (the MARK fix): a deploy-verify
+     # run that stamps an official receipt/state MUST make verify_live fail. Before
+     # the MARK fix this check was silently short-circuited under `set -u`.
+@@ -768,6 +773,8 @@
+     (package_data / "history" / "MSTR.csv").write_text("date,Close\n2026-06-18,100\n")
+ 
+     run_daily = tmp_path / "run_daily.sh"
++    extra = ("[deploy-verify] offline PASS network_attempts=0 include_ibkr=false refresh=false\\n"
++             "[receipt] official run stamped\\n") if failure == "official_receipt" else ""
+     run_daily.write_text(
+         "#!/bin/bash\n"
+         "set -eu\n"
+@@ -775,7 +782,7 @@
+         "ts=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)\n"
+         "printf '{\"payload\":{\"run_type\":\"manual_rerun\",\"run_ts\":\"%s\",\"as_of\":\"2026-06-18\"}}\\n' \"$ts\" > \"$HERMES_DATA_DIR/data/archive/audit_log.jsonl\"\n"
+         # maintenance steps pass, but the run ALSO stamps an official receipt -> pollution
+-        "printf '[M4-1] score_pipeline OK\\n[manifest] OK\\n[NEXT5] OK\\n[receipt] official run stamped\\n' > \"$HERMES_RUN_LOG\"\n",
++        f"printf '[M4-1] score_pipeline OK\\n[NEXT5] OK\\n{extra}' > \"$HERMES_RUN_LOG\"\n",
+         encoding="utf-8",
+     )
+     run_daily.chmod(0o755)
+@@ -799,7 +806,8 @@
+     )
+ 
+     assert result.returncode != 0, result.stdout + result.stderr
+-    assert "wrote official receipt/state" in result.stdout
++    expected = "wrote official receipt/state" if failure == "official_receipt" else "offline deployment attestation missing"
++    assert expected in result.stdout
+     assert "verify_live PASS" not in result.stdout
+ 
+ 
+--- a/src/hermes_escape_top/web/health.py
++++ b/src/hermes_escape_top/web/health.py
+@@ -11,6 +11,7 @@
+ 
+ import hashlib
+ import json
++import re
+ from datetime import date, datetime, time, timedelta, timezone
+ from pathlib import Path
+ from typing import Any, Dict, List, Optional
+@@ -375,7 +376,11 @@
+             self.market_admission.get("third_source_shadow") or {},
+         )
+         detail = " · ".join(
+-            part for part in (rejected_detail, evidence_text) if part
++            part for part in (
++                _market_admission_attempt_summary(self.market_admission),
++                rejected_detail,
++                evidence_text,
++            ) if part
+         )
+         component_only = _market_admission_is_component_only(self.market_admission)
+         self._add(
+@@ -875,6 +880,34 @@
+     return out
+ 
+ 
++def _market_admission_attempt_summary(payload: Dict[str, Any]) -> str:
++    """Deduplicate only complete, reconciled comparison evidence for display."""
++    unknown = "unique_conflicts=UNKNOWN attempts=UNKNOWN"
++    rows = payload.get("rows")
++    count = payload.get("rejected_rows")
++    if (not isinstance(rows, list) or not isinstance(count, int)
++            or isinstance(count, bool) or count <= 0
++            or any(not isinstance(row, dict) for row in rows)):
++        return unknown
++    rejected = [
++        row for row in rows
++        if row.get("admitted") is False and row.get("blocking") is not False
++    ]
++    if len(rejected) != count:
++        return unknown
++    unknown = f"unique_conflicts=UNKNOWN attempts={count}"
++    fields = ("symbol", "date", "status", "candidate_sha256", "witness_sha256")
++    keys: set[tuple[str, ...]] = set()
++    for row in rejected:
++        key = tuple(row.get(field) for field in fields)
++        if not all(isinstance(value, str) and value for value in key):
++            return unknown
++        if any(re.fullmatch(r"[0-9a-f]{64}", value) is None for value in key[-2:]):
++            return unknown
++        keys.add(key)
++    return f"unique_conflicts={len(keys)} attempts={count}"
++
++
+ def _market_admission_rejected_detail(rows: Any, shadow: Any = None) -> str:
+     if not isinstance(rows, list):
+         return ""
+--- /dev/null
++++ b/src/hermes_escape_top/tests/test_release_integration.py
+@@ -0,0 +1,139 @@
++"""Cross-contract checks for the isolated A2 and deployed-hotfix integration."""
++from __future__ import annotations
++
++import hashlib
++import json
++from datetime import date, timedelta
++
++import pytest
++
++from hermes_escape_top.core.data.run_transaction import load_score_run_transaction
++from hermes_escape_top.core.data.transaction_evidence import business_paths
++from hermes_escape_top.core.safe_io import pipeline_lock
++from hermes_escape_top.scripts import run_daily_package as daily
++from test_a2_production_capture import capture_root as capture_root
++from test_broker_input_capture import broker_run as broker_run
++from test_commit_observation_receipt import receipt_run as receipt_run
++from test_deploy_offline_verification import preview as preview
++from test_score_transaction_v2 import AS_OF
++
++
++_WRITE_HEALTH = daily._write_system_health_report
++
++
++def _business_bytes(archive):
++    return {name: (archive.parent / name).read_bytes() for name in business_paths(AS_OF)}
++
++
++def _committed_receipt(receipt_run, before):
++    archive = receipt_run.archive
++    receipt = json.loads((archive / "run_receipt.json").read_bytes())
++    observation = receipt["commit_observation"]
++    record = load_score_run_transaction(archive, observation["run_id"])
++    assert record["status"] == "COMMITTED"
++    assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
++    assert _business_bytes(archive) == before
++    assert not (archive / ".score_run_transactions/active.json").exists()
++    journal = archive / f".score_run_transactions/runs/{observation['run_id']}/manifest.json"
++    assert observation["journal_sha256"] == hashlib.sha256(journal.read_bytes()).hexdigest()
++    payload = json.loads((archive / "audit_log.jsonl").read_text().splitlines()[-1])["payload"]
++    assert observation["input_hash"] == payload["input_hash"]
++    assert observation["decision_id"] == payload["decision_evidence"]["decision_id"]
++    assert observation["capture_id"] == payload["persistence"]["capture_id"]
++    return receipt, payload
++
++
++@pytest.mark.parametrize("health_storage_failure", [False, True])
++def test_failed_freshness_retains_commit_anchor_and_current_failed_health(
++    receipt_run, monkeypatch, capsys, health_storage_failure,
++):
++    before = {}
++
++    def flow(payload, _as_of):
++        before.update(_business_bytes(receipt_run.archive))
++        return payload
++
++    monkeypatch.setattr(daily, "_attach_alpaca_flow_for_health", flow)
++    monkeypatch.setattr(daily, "_last_bar_dates", lambda: {
++        "SOXL": date.fromisoformat(AS_OF), "QQQ": date.fromisoformat(AS_OF) + timedelta(days=1),
++    })
++    monkeypatch.setattr(daily, "_system_health_generator_identity", lambda: {
++        "generator_release_hash": "isolated-integration", "generator_policy_sha256": "a" * 64,
++    })
++
++    def unavailable(*_args, **_kwargs):
++        raise OSError("integration health storage unavailable")
++
++    monkeypatch.setattr(daily, "_write_system_health_report",
++                        unavailable if health_storage_failure else _WRITE_HEALTH)
++    with pipeline_lock(path=receipt_run.archive / ".pipeline.lock") as lease:
++        with pytest.raises(RuntimeError, match="scheduled run end-state receipt failed"):
++            daily._run_daily_with_receipt(receipt_run.args, _lease=lease, capture_inputs=True)
++
++    receipt, payload = _committed_receipt(receipt_run, before)
++    assert receipt["status"] == "FAILED" and receipt["ok"] is False
++    assert receipt["failed_step"] == "run_receipt"
++    assert any(row["name"] == "as_of_latest" and not row["ok"] for row in receipt["checks"])
++    if health_storage_failure:
++        assert "integration health storage unavailable" in capsys.readouterr().out
++        assert not daily._system_health_report_dir().exists()
++    else:
++        report = json.loads((daily._system_health_report_dir() / f"system_health_{AS_OF}.json").read_bytes())
++        assert report["run_receipt"] == receipt
++        assert report["input_hash"] == payload["input_hash"]
++        assert report["decision_hash"] == payload["decision_evidence"]["decision_hash"]
++        assert report["health"]["level"] == "CRITICAL"
++        assert next(row for row in report["audit_dimensions"]
++                    if row["id"] == "scheduled_receipt")["status"] == "FAIL"
++
++
++def test_initial_health_failure_preserves_anchor_in_failed_replacement(receipt_run, monkeypatch):
++    before = {}
++    statuses = []
++
++    def flow(payload, _as_of):
++        before.update(_business_bytes(receipt_run.archive))
++        return payload
++
++    def report(_payload, _as_of, receipt, **_kwargs):
++        statuses.append(receipt)
++        if len(statuses) == 1:
++            raise OSError("integration initial health failure")
++
++    monkeypatch.setattr(daily, "_attach_alpaca_flow_for_health", flow)
++    monkeypatch.setattr(daily, "_write_system_health_report", report)
++    with pipeline_lock(path=receipt_run.archive / ".pipeline.lock") as lease:
++        with pytest.raises(OSError, match="integration initial health failure"):
++            daily._run_daily_with_receipt(receipt_run.args, _lease=lease, capture_inputs=True)
++    receipt, _payload = _committed_receipt(receipt_run, before)
++    assert [row["status"] for row in statuses] == ["OK", "FAILED"]
++    assert statuses[0]["commit_observation"] == statuses[1]["commit_observation"]
++    assert statuses[1] == receipt
++    assert receipt["failed_step"] == "system_health_report"
++
++
++def test_capture_forwarding_keeps_explicit_broker_disable(monkeypatch):
++    calls = []
++
++    def observer(_value):
++        pass
++
++    lease = object()
++    monkeypatch.setattr(daily.pipeline, "_score_pipeline_locked",
++                        lambda *args, **kwargs: calls.append((args, kwargs)) or {})
++    daily.run_score_pipeline(AS_OF, shadow=False, run_type="scheduled", capture_inputs=True,
++                             commit_observer=observer, include_ibkr=False, _lease=lease)
++    assert calls == [((AS_OF,), {
++        "shadow": False, "run_type": "scheduled", "market_admission_status": None,
++        "capture_inputs": True, "commit_observer": observer, "_lease": lease, "include_ibkr": False,
++    })]
++
++
++def test_offline_preview_cannot_enter_capture_path(preview, monkeypatch):
++    root, args = preview
++    monkeypatch.setattr(daily, "_execute_daily",
++                        lambda **_kwargs: pytest.fail("unofficial preview entered capture producer"))
++    with daily._deploy_verification_guard(args):
++        with pytest.raises(ValueError, match="capture requires a non-shadow scheduled invocation"):
++            daily._run_daily_with_receipt(args, _lease=object(), capture_inputs=True)
++    assert not (root / "data").exists()

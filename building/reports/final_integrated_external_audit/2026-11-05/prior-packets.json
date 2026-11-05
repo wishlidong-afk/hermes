@@ -1,0 +1,26 @@
+{
+  "/Users/liweishi/Documents/github/hermes/building/reports/a2_release_integration/2026-11-04": {
+    "manifest_sha256": "f90080bf62fcefc116b90c5623811d9a13336cc086cc360ed7bd7ca775ad84d0",
+    "bound_files": 38
+  },
+  "/Users/liweishi/Documents/github/hermes/building/reports/a2_postcommit_health/2026-11-04": {
+    "manifest_sha256": "958ed44498c80000501fa7d8767866dca13bb1bfa43c9d1f7c112f84c82c6267",
+    "bound_files": 24
+  },
+  "/Users/liweishi/Documents/github/hermes/building/reports/a2_final_gates/2026-11-04": {
+    "manifest_sha256": "e171778ffb5198da45f4b8d53c8fbbfa84e26ac83558e44e6ce738189ac386cb",
+    "bound_files": 45
+  },
+  "/Users/liweishi/Documents/github/hermes/building/reports/a2_a1_boundaries/2026-11-04": {
+    "manifest_sha256": "91e97ee8a83f13f99a23d510af7ce34da4022323c0e50a128a0c793e2c134204",
+    "bound_files": 44
+  },
+  "/Users/liweishi/Documents/github/hermes/building/reports/a1_v2_rollback/2026-11-04": {
+    "manifest_sha256": "abc36c9f30529c8b76d166dcb270ce2ae8dd6b484fc968d9a6c3c062bbf89767",
+    "bound_files": 89
+  },
+  "/Users/liweishi/Documents/github/hermes/building/reports/final_external_review_preflight/2026-11-04": {
+    "manifest_sha256": "c44534768cd2ba0ea1e24ec53a95e6f5b89191b416f76c45e61a1740c705eaae",
+    "bound_files": 6
+  }
+}

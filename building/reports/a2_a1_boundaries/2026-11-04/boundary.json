@@ -1,0 +1,22 @@
+{
+  "synthetic_only": true,
+  "capture_inputs": false,
+  "transaction_protocol": "v1",
+  "completed": [
+    "real old r2 rejects candidate without business overwrite",
+    "actual new as_of r1 stable across candidate releases",
+    "old audit prefix and predecessor fields preserved"
+  ],
+  "not_proved": [
+    "v2 PENDING/COMMITTED-active/clean rollback",
+    "actual live config/data release proof",
+    "final external review",
+    "Git integration and CI",
+    "natural observation",
+    "deployment"
+  ],
+  "security_scope": "Controlled local rehearsal, not an adversarial same-user or concurrent ancestor replacement security boundary; hashes are not signatures",
+  "DEPLOY": "HOLD",
+  "A2": "OPEN",
+  "Phase_B": "NOT_STARTED"
+}

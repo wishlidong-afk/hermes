@@ -1,0 +1,15 @@
+{
+  "reviewer": "Leibniz",
+  "agent_id": "01a1a6cd-558a-7cf0-ada6-d52e9b8285b2",
+  "scope": "internal static tool review only; not independent external approval; no reviewer execution",
+  "finding": "P2: all roots and every output including summary must be checked before any first scoring PID",
+  "disposition": "preflight_all is the first action of run; verifies all three gates and per-stage report/log/process plus summary; late case existing/link summary tests require launch_count=0",
+  "followup": "Sole P2 statically confirmed closed; no new finding reported",
+  "driver_sha256": "dd804e34ed7a59b3db23643b07b4701482053dc5d3b653513eadaec991cc06f4",
+  "additional_author_changes": [
+    "reject linked case parents before import or writes",
+    "persist actual process PID/command/return code/SIGKILL metadata",
+    "retain and compare all existing v2 journal and input-evidence SHA across old-writer probes"
+  ],
+  "limits": "local controlled rehearsal; not a hostile same-user/concurrent ancestor replacement security boundary"
+}

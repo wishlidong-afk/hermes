@@ -1,0 +1,359 @@
+F.F.F.F.F.F....                                                          [100%]
+=================================== FAILURES ===================================
+_ test_translation_failure_writes_current_health_without_undoing_commit[False-False] _
+
+health_run = namespace(args=namespace(live=True, run_type='scheduled', as_of='2026-05-29', skip_refresh=True, commit_state=False), ...m0000gn/T/pytest-of-liweishi/pytest-93/test_translation_failure_write0/capture-root/data/archive'), health_receipts=[])
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10e483a10>
+capture = False, implicit_date = False
+
+    @pytest.mark.parametrize("capture", [False, True])
+    @pytest.mark.parametrize("implicit_date", [False, True])
+    def test_translation_failure_writes_current_health_without_undoing_commit(
+        health_run, monkeypatch, capture, implicit_date,
+    ):
+        before = {}
+        error = OSError("synthetic translation failure after score commit")
+    
+        def fail(_payload):
+            before.update(_business_bytes(health_run.archive))
+            raise error
+    
+        monkeypatch.setattr(daily, "translate", fail)
+        if implicit_date:
+            health_run.args.as_of = None
+            monkeypatch.setattr(daily, "_latest_available_as_of", lambda: AS_OF)
+        with pipeline_lock(path=health_run.archive / ".pipeline.lock") as lease:
+            with pytest.raises(OSError) as caught:
+                daily._run_daily_with_receipt(health_run.args, _lease=lease, capture_inputs=capture)
+        assert caught.value is error
+>       _assert_failed_current_report(health_run, before, "translate", capture=capture)
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:67: in _assert_failed_current_report
+    receipt, payload = _assert_failed_commit(run, before, failed_step, capture=capture)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:46: in _assert_failed_commit
+    assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = <list_iterator object at 0x10cea22c0>
+
+>   assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+                                                      ^^^^^^^^^^^
+E   KeyError: 'role'
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:46: KeyError
+----------------------------- Captured stdout call -----------------------------
+[receipt] RUNNING -> run_receipt.json
+[M4-1] LIVE mode — writing to live dirs
+[M4-1] Running score_pipeline(2026-05-29, shadow=False, run_type=scheduled)…
+[M4-1] score_pipeline OK. Schema: escape-top-greenfield-phase3-score-v1
+[receipt] self-check FAIL -> run_receipt.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_translation_failure_write0/capture-root/reports/system_health_runs/system_health_2026-05-29_20261104T2000220800_cee174e6fbec9ea70caf63c6015b56898295c027fc3ad479b01342e271ad80fd.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_translation_failure_write0/capture-root/reports/system_health_runs/system_health_2026-05-29_20261104T2000220800_cee174e6fbec9ea70caf63c6015b56898295c027fc3ad479b01342e271ad80fd.md
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_translation_failure_write0/capture-root/reports/system_health_2026-05-29.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_translation_failure_write0/capture-root/reports/system_health_2026-05-29.md
+_ test_translation_failure_writes_current_health_without_undoing_commit[True-False] _
+
+health_run = namespace(args=namespace(live=True, run_type='scheduled', as_of=None, skip_refresh=True, commit_state=False), archive=...m0000gn/T/pytest-of-liweishi/pytest-93/test_translation_failure_write2/capture-root/data/archive'), health_receipts=[])
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10df95810>
+capture = False, implicit_date = True
+
+    @pytest.mark.parametrize("capture", [False, True])
+    @pytest.mark.parametrize("implicit_date", [False, True])
+    def test_translation_failure_writes_current_health_without_undoing_commit(
+        health_run, monkeypatch, capture, implicit_date,
+    ):
+        before = {}
+        error = OSError("synthetic translation failure after score commit")
+    
+        def fail(_payload):
+            before.update(_business_bytes(health_run.archive))
+            raise error
+    
+        monkeypatch.setattr(daily, "translate", fail)
+        if implicit_date:
+            health_run.args.as_of = None
+            monkeypatch.setattr(daily, "_latest_available_as_of", lambda: AS_OF)
+        with pipeline_lock(path=health_run.archive / ".pipeline.lock") as lease:
+            with pytest.raises(OSError) as caught:
+                daily._run_daily_with_receipt(health_run.args, _lease=lease, capture_inputs=capture)
+        assert caught.value is error
+>       _assert_failed_current_report(health_run, before, "translate", capture=capture)
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:67: in _assert_failed_current_report
+    receipt, payload = _assert_failed_commit(run, before, failed_step, capture=capture)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:46: in _assert_failed_commit
+    assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = <list_iterator object at 0x10dcea770>
+
+>   assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+                                                      ^^^^^^^^^^^
+E   KeyError: 'role'
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:46: KeyError
+----------------------------- Captured stdout call -----------------------------
+[receipt] RUNNING -> run_receipt.json
+[M4-1] LIVE mode — writing to live dirs
+[M4-1] Auto-selected latest available as_of=2026-05-29
+[M4-1] Running score_pipeline(2026-05-29, shadow=False, run_type=scheduled)…
+[M4-1] score_pipeline OK. Schema: escape-top-greenfield-phase3-score-v1
+[receipt] self-check FAIL -> run_receipt.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_translation_failure_write2/capture-root/reports/system_health_runs/system_health_2026-05-29_20261104T2000290800_cee174e6fbec9ea70caf63c6015b56898295c027fc3ad479b01342e271ad80fd.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_translation_failure_write2/capture-root/reports/system_health_runs/system_health_2026-05-29_20261104T2000290800_cee174e6fbec9ea70caf63c6015b56898295c027fc3ad479b01342e271ad80fd.md
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_translation_failure_write2/capture-root/reports/system_health_2026-05-29.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_translation_failure_write2/capture-root/reports/system_health_2026-05-29.md
+_ test_later_wrapper_failure_keeps_commit_and_current_failed_health[artifact_write-write_artifacts-False] _
+
+health_run = namespace(args=namespace(live=True, run_type='scheduled', as_of='2026-05-29', skip_refresh=True, commit_state=False), ...m0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee0/capture-root/data/archive'), health_receipts=[])
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10df8b050>
+capture = False, failed_step = 'artifact_write', target = 'write_artifacts'
+
+    @pytest.mark.parametrize("capture", [False, True])
+    @pytest.mark.parametrize("failed_step,target", [
+        ("artifact_write", "write_artifacts"),
+        ("post_run_diff", "_post_run_diff"),
+        ("state_commit", "commit_state"),
+    ])
+    def test_later_wrapper_failure_keeps_commit_and_current_failed_health(
+        health_run, monkeypatch, capture, failed_step, target,
+    ):
+        before = {}
+        error = OSError(f"synthetic {failed_step} failure after score commit")
+    
+        def fail(*_args, **_kwargs):
+            before.update(_business_bytes(health_run.archive))
+            raise error
+    
+        monkeypatch.setattr(daily, target, fail)
+        health_run.args.commit_state = failed_step == "state_commit"
+        with pipeline_lock(path=health_run.archive / ".pipeline.lock") as lease:
+            with pytest.raises(RuntimeError if failed_step == "state_commit" else OSError) as caught:
+                daily._run_daily_with_receipt(health_run.args, _lease=lease, capture_inputs=capture)
+        if failed_step == "state_commit":
+            assert str(error) in str(caught.value)
+            assert "state commit failed" in str(caught.value)
+        else:
+            assert caught.value is error
+>       _assert_failed_current_report(health_run, before, failed_step, capture=capture)
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:130: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:67: in _assert_failed_current_report
+    receipt, payload = _assert_failed_commit(run, before, failed_step, capture=capture)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:46: in _assert_failed_commit
+    assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = <list_iterator object at 0x10cb76fb0>
+
+>   assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+                                                      ^^^^^^^^^^^
+E   KeyError: 'role'
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:46: KeyError
+----------------------------- Captured stdout call -----------------------------
+[receipt] RUNNING -> run_receipt.json
+[M4-1] LIVE mode — writing to live dirs
+[M4-1] Running score_pipeline(2026-05-29, shadow=False, run_type=scheduled)…
+[M4-1] score_pipeline OK. Schema: escape-top-greenfield-phase3-score-v1
+[receipt] self-check FAIL -> run_receipt.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee0/capture-root/reports/system_health_runs/system_health_2026-05-29_20261104T2000370800_cee174e6fbec9ea70caf63c6015b56898295c027fc3ad479b01342e271ad80fd.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee0/capture-root/reports/system_health_runs/system_health_2026-05-29_20261104T2000370800_cee174e6fbec9ea70caf63c6015b56898295c027fc3ad479b01342e271ad80fd.md
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee0/capture-root/reports/system_health_2026-05-29.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee0/capture-root/reports/system_health_2026-05-29.md
+_ test_later_wrapper_failure_keeps_commit_and_current_failed_health[post_run_diff-_post_run_diff-False] _
+
+health_run = namespace(args=namespace(live=True, run_type='scheduled', as_of='2026-05-29', skip_refresh=True, commit_state=False), ...m0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee2/capture-root/data/archive'), health_receipts=[])
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x12883d6d0>
+capture = False, failed_step = 'post_run_diff', target = '_post_run_diff'
+
+    @pytest.mark.parametrize("capture", [False, True])
+    @pytest.mark.parametrize("failed_step,target", [
+        ("artifact_write", "write_artifacts"),
+        ("post_run_diff", "_post_run_diff"),
+        ("state_commit", "commit_state"),
+    ])
+    def test_later_wrapper_failure_keeps_commit_and_current_failed_health(
+        health_run, monkeypatch, capture, failed_step, target,
+    ):
+        before = {}
+        error = OSError(f"synthetic {failed_step} failure after score commit")
+    
+        def fail(*_args, **_kwargs):
+            before.update(_business_bytes(health_run.archive))
+            raise error
+    
+        monkeypatch.setattr(daily, target, fail)
+        health_run.args.commit_state = failed_step == "state_commit"
+        with pipeline_lock(path=health_run.archive / ".pipeline.lock") as lease:
+            with pytest.raises(RuntimeError if failed_step == "state_commit" else OSError) as caught:
+                daily._run_daily_with_receipt(health_run.args, _lease=lease, capture_inputs=capture)
+        if failed_step == "state_commit":
+            assert str(error) in str(caught.value)
+            assert "state commit failed" in str(caught.value)
+        else:
+            assert caught.value is error
+>       _assert_failed_current_report(health_run, before, failed_step, capture=capture)
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:130: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:67: in _assert_failed_current_report
+    receipt, payload = _assert_failed_commit(run, before, failed_step, capture=capture)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:46: in _assert_failed_commit
+    assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = <list_iterator object at 0x10d874dc0>
+
+>   assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+                                                      ^^^^^^^^^^^
+E   KeyError: 'role'
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:46: KeyError
+----------------------------- Captured stdout call -----------------------------
+[receipt] RUNNING -> run_receipt.json
+[M4-1] LIVE mode — writing to live dirs
+[M4-1] Running score_pipeline(2026-05-29, shadow=False, run_type=scheduled)…
+[M4-1] score_pipeline OK. Schema: escape-top-greenfield-phase3-score-v1
+[receipt] self-check FAIL -> run_receipt.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee2/capture-root/reports/system_health_runs/system_health_2026-05-29_20261104T2000450800_cee174e6fbec9ea70caf63c6015b56898295c027fc3ad479b01342e271ad80fd.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee2/capture-root/reports/system_health_runs/system_health_2026-05-29_20261104T2000450800_cee174e6fbec9ea70caf63c6015b56898295c027fc3ad479b01342e271ad80fd.md
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee2/capture-root/reports/system_health_2026-05-29.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee2/capture-root/reports/system_health_2026-05-29.md
+_ test_later_wrapper_failure_keeps_commit_and_current_failed_health[state_commit-commit_state-False] _
+
+health_run = namespace(args=namespace(live=True, run_type='scheduled', as_of='2026-05-29', skip_refresh=True, commit_state=True), a...m0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee4/capture-root/data/archive'), health_receipts=[])
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x128c8bb10>
+capture = False, failed_step = 'state_commit', target = 'commit_state'
+
+    @pytest.mark.parametrize("capture", [False, True])
+    @pytest.mark.parametrize("failed_step,target", [
+        ("artifact_write", "write_artifacts"),
+        ("post_run_diff", "_post_run_diff"),
+        ("state_commit", "commit_state"),
+    ])
+    def test_later_wrapper_failure_keeps_commit_and_current_failed_health(
+        health_run, monkeypatch, capture, failed_step, target,
+    ):
+        before = {}
+        error = OSError(f"synthetic {failed_step} failure after score commit")
+    
+        def fail(*_args, **_kwargs):
+            before.update(_business_bytes(health_run.archive))
+            raise error
+    
+        monkeypatch.setattr(daily, target, fail)
+        health_run.args.commit_state = failed_step == "state_commit"
+        with pipeline_lock(path=health_run.archive / ".pipeline.lock") as lease:
+            with pytest.raises(RuntimeError if failed_step == "state_commit" else OSError) as caught:
+                daily._run_daily_with_receipt(health_run.args, _lease=lease, capture_inputs=capture)
+        if failed_step == "state_commit":
+            assert str(error) in str(caught.value)
+            assert "state commit failed" in str(caught.value)
+        else:
+            assert caught.value is error
+>       _assert_failed_current_report(health_run, before, failed_step, capture=capture)
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:130: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:67: in _assert_failed_current_report
+    receipt, payload = _assert_failed_commit(run, before, failed_step, capture=capture)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:46: in _assert_failed_commit
+    assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = <list_iterator object at 0x113f33190>
+
+>   assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+                                                      ^^^^^^^^^^^
+E   KeyError: 'role'
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:46: KeyError
+----------------------------- Captured stdout call -----------------------------
+[receipt] RUNNING -> run_receipt.json
+[M4-1] LIVE mode — writing to live dirs
+[M4-1] Running score_pipeline(2026-05-29, shadow=False, run_type=scheduled)…
+[M4-1] score_pipeline OK. Schema: escape-top-greenfield-phase3-score-v1
+[M4-1] ERROR: state commit failed: OSError('synthetic state_commit failure after score commit')
+[receipt] self-check FAIL -> run_receipt.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee4/capture-root/reports/system_health_runs/system_health_2026-05-29_20261104T2000530800_cee174e6fbec9ea70caf63c6015b56898295c027fc3ad479b01342e271ad80fd.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee4/capture-root/reports/system_health_runs/system_health_2026-05-29_20261104T2000530800_cee174e6fbec9ea70caf63c6015b56898295c027fc3ad479b01342e271ad80fd.md
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee4/capture-root/reports/system_health_2026-05-29.json
+[health] written: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/pytest-of-liweishi/pytest-93/test_later_wrapper_failure_kee4/capture-root/reports/system_health_2026-05-29.md
+__ test_secondary_health_failure_cannot_replace_original_wrapper_error[False] __
+
+health_run = namespace(args=namespace(live=True, run_type='scheduled', as_of='2026-05-29', skip_refresh=True, commit_state=False), ...m0000gn/T/pytest-of-liweishi/pytest-93/test_secondary_health_failure_0/capture-root/data/archive'), health_receipts=[])
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x128c8b650>
+capsys = <_pytest.capture.CaptureFixture object at 0x128f0e450>, capture = False
+
+    @pytest.mark.parametrize("capture", [False, True])
+    def test_secondary_health_failure_cannot_replace_original_wrapper_error(
+        health_run, monkeypatch, capsys, capture,
+    ):
+        before = {}
+        seen = []
+        error = OSError("synthetic original artifact failure")
+        report = daily._system_health_report_dir() / f"system_health_{AS_OF}.json"
+        previous = report.read_bytes()
+    
+        def fail_artifact(*_args, **_kwargs):
+            before.update(_business_bytes(health_run.archive))
+            raise error
+    
+        def fail_health(payload, _as_of, receipt, **_kwargs):
+            seen.append((payload, receipt))
+            raise OSError("synthetic secondary health storage failure")
+    
+        monkeypatch.setattr(daily, "write_artifacts", fail_artifact)
+        monkeypatch.setattr(daily, "_write_system_health_report", fail_health)
+        with pipeline_lock(path=health_run.archive / ".pipeline.lock") as lease:
+            with pytest.raises(OSError) as caught:
+                daily._run_daily_with_receipt(health_run.args, _lease=lease, capture_inputs=capture)
+        assert caught.value is error
+>       receipt, payload = _assert_failed_commit(health_run, before, "artifact_write", capture=capture)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:157: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:46: in _assert_failed_commit
+    assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = <list_iterator object at 0x10b5a1ae0>
+
+>   assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+                                                      ^^^^^^^^^^^
+E   KeyError: 'role'
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:46: KeyError
+----------------------------- Captured stdout call -----------------------------
+[receipt] RUNNING -> run_receipt.json
+[M4-1] LIVE mode — writing to live dirs
+[M4-1] Running score_pipeline(2026-05-29, shadow=False, run_type=scheduled)…
+[M4-1] score_pipeline OK. Schema: escape-top-greenfield-phase3-score-v1
+[receipt] self-check FAIL -> run_receipt.json
+[health] ERROR: failed-run report unavailable (OSError('synthetic secondary health storage failure')); preserving original failure.
+=========================== short test summary info ============================
+FAILED src/hermes_escape_top/tests/test_postcommit_failure_health.py::test_translation_failure_writes_current_health_without_undoing_commit[False-False]
+FAILED src/hermes_escape_top/tests/test_postcommit_failure_health.py::test_translation_failure_writes_current_health_without_undoing_commit[True-False]
+FAILED src/hermes_escape_top/tests/test_postcommit_failure_health.py::test_later_wrapper_failure_keeps_commit_and_current_failed_health[artifact_write-write_artifacts-False]
+FAILED src/hermes_escape_top/tests/test_postcommit_failure_health.py::test_later_wrapper_failure_keeps_commit_and_current_failed_health[post_run_diff-_post_run_diff-False]
+FAILED src/hermes_escape_top/tests/test_postcommit_failure_health.py::test_later_wrapper_failure_keeps_commit_and_current_failed_health[state_commit-commit_state-False]
+FAILED src/hermes_escape_top/tests/test_postcommit_failure_health.py::test_secondary_health_failure_cannot_replace_original_wrapper_error[False]
+6 failed, 9 passed in 62.81s (0:01:02)

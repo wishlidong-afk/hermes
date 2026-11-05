@@ -1,0 +1,50 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "case": "undeclared_case",
+      "refused": true,
+      "exit_code": 2
+    },
+    {
+      "case": "wrong_stage_for_case",
+      "refused": true,
+      "exit_code": 2
+    },
+    {
+      "case": "parent_with_worker_arguments",
+      "refused": true,
+      "exit_code": 2
+    },
+    {
+      "case": "unsandboxed_worker",
+      "refused": true,
+      "exit_code": 1
+    },
+    {
+      "case": "wrong_driver_binding",
+      "refused": true
+    },
+    {
+      "case": "linked_report",
+      "refused": true
+    },
+    {
+      "case": "late_summary_existing",
+      "refused": true,
+      "scoring_launches": 0
+    },
+    {
+      "case": "late_summary_link",
+      "refused": true,
+      "scoring_launches": 0
+    },
+    {
+      "case": "linked_cases_parent",
+      "refused": true
+    }
+  ],
+  "scoring_invoked": false,
+  "driver_sha256": "dd804e34ed7a59b3db23643b07b4701482053dc5d3b653513eadaec991cc06f4"
+}
+

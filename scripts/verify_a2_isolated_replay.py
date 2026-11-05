@@ -328,8 +328,31 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--probe-net-liq-change", action="store_true", help="negative control; expect FAIL")
+    parser.add_argument("--runtime-capture", action="store_true", help="replay a real sandbox ON capture")
+    parser.add_argument("--capture-replay", action="store_true", help="enable a new capture during runtime replay")
+    parser.add_argument("--selected-legacy", action="store_true", help="use a sandbox SOXL legacy history")
+    parser.add_argument("--external-legacy", action="store_true", help="preserve the default external legacy layout")
+    parser.add_argument("--confirmation-tranche", choices=["T1", "T2"], help="synthetic eligible-plan rehearsal")
+    parser.add_argument("--probe-execution-sell", action="store_true", help="BUY-to-SELL negative control")
+    parser.add_argument("--probe-input-change", choices=["history", "soft", "state"],
+                        help="restored-input negative control")
     parser.add_argument("--worker", nargs=4, metavar=("ROOT", "CONFIG", "MODE", "TAPE"), help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.capture_replay and (not args.runtime_capture or args.worker):
+        parser.error("capture replay requires runtime rehearsal, not a legacy worker")
+    if args.selected_legacy and (not args.runtime_capture or args.worker):
+        parser.error("selected legacy requires runtime rehearsal, not a legacy worker")
+    if args.external_legacy and (not args.runtime_capture or args.worker or args.selected_legacy):
+        parser.error("external legacy requires runtime rehearsal without a nested legacy fixture")
+    if args.confirmation_tranche and not args.runtime_capture:
+        parser.error("confirmation tranche requires --runtime-capture")
+    if args.probe_execution_sell and (not args.runtime_capture or not args.confirmation_tranche):
+        parser.error("execution probe requires runtime capture and confirmation tranche")
+    if args.probe_input_change and not args.runtime_capture:
+        parser.error("input probe requires --runtime-capture")
+    if sum(bool(value) for value in (
+            args.probe_execution_sell, args.probe_net_liq_change, args.probe_input_change)) > 1:
+        parser.error("use one negative probe at a time")
     if args.worker:
         root, config, mode, tape = args.worker
         if mode not in {"seed", "reference", "replay"}:
@@ -341,7 +364,16 @@ def main() -> int:
         if (args.output.exists() or args.output.is_symlink()
                 or not any(args.output.resolve().is_relative_to(root) for root in roots)):
             parser.error("output must be a new file under a temporary root")
-    result = rehearse(probe_net_liq_change=args.probe_net_liq_change)
+    if args.runtime_capture:
+        from verify_a2_runtime_replay import rehearse_runtime
+        result = rehearse_runtime(probe_net_liq_change=args.probe_net_liq_change,
+                                 confirmation_tranche=args.confirmation_tranche,
+                                 probe_execution_sell=args.probe_execution_sell,
+                                 probe_input_change=args.probe_input_change,
+                                 capture_replay=args.capture_replay, selected_legacy=args.selected_legacy,
+                                 external_legacy=args.external_legacy)
+    else:
+        result = rehearse(probe_net_liq_change=args.probe_net_liq_change)
     if args.output is not None:
         _json(args.output, result)
     print(json.dumps(result, sort_keys=True, indent=2))

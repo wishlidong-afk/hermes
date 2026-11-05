@@ -1,0 +1,21 @@
+{
+  "main_files_unchanged": 1370,
+  "previous_candidate_files_unchanged": 511,
+  "previous_packet_files_unchanged": 38,
+  "original_git_unchanged": true,
+  "previous_git": {
+    "main": {
+      "root": "/Users/liweishi/Documents/github/hermes",
+      "head": "8d16ad8ba639341a38ca5c29e278d12b81bb8efe",
+      "index_sha256": "74e066496338276a6e200b86e0998bb5641ac1cad11cd0868e3878b9c9d16f6e",
+      "config_sha256": "da511e2309d1a529fd05624bf08e8d32c5d2ffc05baa2181f26e2a5d1008ec88"
+    },
+    "live_source": {
+      "root": "/Users/liweishi/Documents/New project/hermes-r6-offline-tools-2026-10-30",
+      "head": "c1f4b8fc1df23876fefeccd33bc08e0270627f9e",
+      "index_sha256": "41cc88175e0fb2a7620d6e21b993569fbc1281cfa9dd76a86de382b5932c7714",
+      "config_sha256": "aec97f8b4ac402fd27de311dc756b84f7bb60d60c3aee078f3c5ab87f4b1521b"
+    }
+  },
+  "runtime_pins_match": 32
+}

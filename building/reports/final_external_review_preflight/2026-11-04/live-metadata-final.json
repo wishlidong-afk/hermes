@@ -1,0 +1,285 @@
+{
+  "scope": "READ_ONLY_METADATA_PREFLIGHT_NOT_RELEASE_PROOF",
+  "started_at": "2026-11-04T22:04:35.443566+08:00",
+  "finished_at": "2026-11-04T22:04:36.007841+08:00",
+  "stable_observation": true,
+  "release": {
+    "target": "/Users/liweishi/.hermes/skills/investment/escape-top/releases/c1f4b8f_20261031_113642",
+    "VERSION": "c1f4b8f 20261031_113642",
+    "baseline_commit": "c1f4b8fc1df23876fefeccd33bc08e0270627f9e",
+    "non_test_python_files_match_commit": 188
+  },
+  "decision": {
+    "as_of": "2026-11-03",
+    "bar_finality": "FINAL",
+    "canonical_market_evidence_hash": "2f95f3b97adbe83280cdccc2dcbcf8f1b53c9e9d41e96b61cf6d9945c35250ee",
+    "certified_at": "2026-11-04T07:10:36.681367+08:00",
+    "config_hash": "a455e0d64685548377e82329603de0b6a0770e65a91ec82b6956a26422d531bc",
+    "decision_hash": "9d72e72f52e797e38413040a5a479b571e29ed98c4b4f2b5316612b7dba686df",
+    "decision_id": "decision-2026-11-03-r1-3f3f139ad0cec0a9089a",
+    "decision_revision": 1,
+    "identity_schema_version": "hermes-decision-identity-v2",
+    "market_admission_completed_through": "2026-11-03",
+    "market_admission_operation_id": "407696cc7aa64d1daa1722c0e789639e",
+    "policy_hash": "8152c0d1a4adce45caceb413f9182f0de0b95918e70007b8140d16e9712a0aeb",
+    "previous_decision_hash": null,
+    "revision_budget": 2,
+    "revision_reason": "INITIAL_CERTIFICATION",
+    "schema_version": "hermes-decision-certification-v1",
+    "scorer_release_hash": "c1f4b8f",
+    "semantic_hash": "9d72e72f52e797e38413040a5a479b571e29ed98c4b4f2b5316612b7dba686df",
+    "snapshot_hash": "d1dde1819a8961a717244c5218ede8c11b44307096ee36aeae73fe9d6ccd22fd",
+    "soft_input_evidence_hash": "bccdd58d5fd9cc7e613439f0102da6e5e814107e4d664bf2adebc9cbb7e16d3c",
+    "supersedes_decision_id": null
+  },
+  "semantic_logic_hash": "42d207d6b6c84001bf85324ea6af84b5947c7748b7217d72f0d715b21232ad8a",
+  "audit_state_identity_input_equal": true,
+  "audit_successful_scheduled_rows_total": 154,
+  "persistence": {
+    "protocol": "recoverable-journal-v1",
+    "recovered_run_id": null,
+    "run_id": "62df10c45a4a40a1ae73d28a12906ce4"
+  },
+  "transaction_status": "COMMITTED",
+  "artifacts": 7,
+  "active_absent": true,
+  "config": {
+    "live_raw_sha256": "5cff823ecaec5a5e9b8595f102e7f25d888ab9d1b2f7efb5dc856ec832d67d09",
+    "candidate_default_raw_sha256": "1a08fbbd2c72ce2cee9e1b13253a884be145503dc3c14a611d14b151d423c253",
+    "attestation_sha256": "3faccbcb1d76f091bf3c8c52b10a6371e7e1bb04a426c501f9e9784b932b1290",
+    "attestation_matches": true,
+    "policy_sha256": "8152c0d1a4adce45caceb413f9182f0de0b95918e70007b8140d16e9712a0aeb",
+    "feature_diff": {
+      "use_btc_spot_witness": {
+        "live": true,
+        "candidate_default": false,
+        "live_key_present": true,
+        "candidate_key_present": true
+      },
+      "use_cboe_official_indices": {
+        "live": true,
+        "candidate_default": false,
+        "live_key_present": true,
+        "candidate_key_present": true
+      },
+      "use_cd_trend_dedup": {
+        "live": null,
+        "candidate_default": false,
+        "live_key_present": false,
+        "candidate_key_present": true
+      },
+      "use_fred_vintage_pit": {
+        "live": null,
+        "candidate_default": false,
+        "live_key_present": false,
+        "candidate_key_present": true
+      },
+      "use_indicator_cache": {
+        "live": null,
+        "candidate_default": false,
+        "live_key_present": false,
+        "candidate_key_present": true
+      },
+      "use_market_admission_gate": {
+        "live": true,
+        "candidate_default": false,
+        "live_key_present": true,
+        "candidate_key_present": true
+      },
+      "use_route_set_transition_buffer": {
+        "live": null,
+        "candidate_default": false,
+        "live_key_present": false,
+        "candidate_key_present": true
+      }
+    },
+    "ibkr_readonly": true,
+    "actual_live_config_used_in_synthetic_rehearsals": false
+  },
+  "current_manifest": {
+    "raw_sha256": "0caedcb3ea19a0f1aa48e56a327ea0008bcb7b8a8eb9d87f396467fd74d77f6f",
+    "manifest_id": "669d779762f83f0d4ea86bf61163f19880e358e8a261d063b5a23626f869ee88",
+    "frozen_at": "2026-11-04T01:20:10.811411+00:00",
+    "root": "/Users/liweishi/.hermes/skills/investment/escape-top/shared/hermes_escape_top/data/history",
+    "entries_verified": 55,
+    "entries_sha256": {
+      "AAPL.csv": "5b12bbe7ac64fb3d7d341489fbb500473101e86179d75d45c2156ae23d1470c3",
+      "AMAT.csv": "35ab8cbdc2d26fca7bbe49a749e432317133285629c61cf8ec55124eb47e6760",
+      "AMD.csv": "97974357127201622a6bcb6e06f975d0173dd9565636d4aa91697c92278cbcd8",
+      "AMZN.csv": "3a690a147819d162867557c60fdbcc127b11f1442676ff6d0f515e54fdfbb428",
+      "ASML.csv": "e065eeb5b24d198949050c90c48da0d8c6698eb73c139aab62de0d9474db7417",
+      "AVGO.csv": "99cfbb8d8da5e88d7d19dfc6a0249a2b835d8f11cd22ca17aa78949004d556d1",
+      "BIL.csv": "abe34f2b409bb117c18826102f97fd47fa0c2bf297c43225662e5e4c0aec6088",
+      "BOXX.csv": "d312bf73aea89e198750298ad4e499b0cc4c28f51e0a54f58843872753d3f3b4",
+      "BRK.B.csv": "8d883c4392434b0a984106911bea6450c37a24a76eddf7c53a1cac0dd792f6c0",
+      "BTC_USD.csv": "c01cb9346aaf06d388973e44dfd786d1bda6a6f9660a3e61e51fabba2d741675",
+      "DBMF.csv": "c6a0d1dbe2ea72f738110f039af775721d0ee3af7b749cc75bf8252a2e50c310",
+      "FANG3X.csv": "58293d3a128cbda3fbbaa16de4663219e3b996c69057d235f4562106ef0658e9",
+      "FANGT3X.csv": "0a3dc57050517ea6dc260d93184a333825e3a3d80101041a0d2235c943271b79",
+      "FNGS.csv": "afe3a8ba123cc7dbc5cafa5b33bd38f4838b9d078b9c4391e6d5dadbda36a869",
+      "FNGU.csv": "dbc8353ef1f7290f7d1e58001204d246c5ac0a63c7669e34e6dc70a4a3c402fd",
+      "GLD.csv": "1d942ec3568a425f88ac93ebac4221b71274b58ea7e16edef30af123b27d87e2",
+      "GOOGL.csv": "acc8231a41ad90e2c5dbd3e80fbbe2a250ae57d1f9817b307feb647ea850c384",
+      "HYG.csv": "875e84392e5db454fab604071dbe2ef551944851d3c75bbfbdb29a60cca45f3f",
+      "IAU.csv": "0314a3e45ae88b7a3efb3eb483932330474c317efe80fe7bb362f029a4c3f7b5",
+      "IEF.csv": "f0c57f63b5245fcd58731dfba100f78c3b9f57a0d963899cb8b9aa3d22e68ca7",
+      "KLAC.csv": "614fecf2c5779b3bf8725a6af57f4e2c493642cd9792fd3d6dd8ae953439e95c",
+      "KRE.csv": "dd208545738f42b6a96e0f2aa6447d7e10dad469dd2c412444fd0cb569712b79",
+      "LQD.csv": "f817e2d411c8c908461e4fc60b05d37ecbc461eff703780d660783713d93402a",
+      "LRCX.csv": "54443ef75bb756a1a40ce281cec13116dfa10905fda597a938ed6d44f735cef4",
+      "META.csv": "1304a30d483d6519c82557986da7a5e648ebe6521568fb01a78c8624f8940fde",
+      "MSFT.csv": "203fc10035cd8b4e7cbf7a5bcf98f7605659d49137fb734e761f000e103fda0a",
+      "MSTR.csv": "369de68a0dfb04b9906d4e2a58cdc35b581e24ab133d2afbc5e5e87448c88e41",
+      "MU.csv": "b1c2818ef5142813b227a96d840ddb473eba815d8776b1b5400ff5ff6938bce5",
+      "NFLX.csv": "c59b96a37864916a49e6b5f158a507b6e8659e8db80fe6b55c52b452c1128b0b",
+      "NVDA.csv": "b9293e9af6af7881b68a5ef87582a59788ed47d951a1097c4600e66b71a3ba65",
+      "QCOM.csv": "d20cb107182477f7f24b67dfd8e580950cd74861070a05618cb0177366c11d16",
+      "QQQ.csv": "942f03a969b6c33a9c9ac0d0a0455009ac74a5797dd62b59dfe962754d20ba2a",
+      "QQQE.csv": "da315c574381b61d210c30bc374373176597189b85b33473e2d5aff3b13c3814",
+      "RSP.csv": "d463e60b524d33e8d1943bce9537ee85e666b5a497533700c71624e04fc0248d",
+      "SHV.csv": "1181a9edbbc5e5bc4c2e4f43835fef5e60364d003347326d77aca5c8c5c9d53d",
+      "SMH.csv": "c793d78f09359a161e4acd2b91edec5337807997bbebbd3fea0d16c0f587c152",
+      "SOXL.csv": "1834cc27355f3800639e830828f2d9667542d066b83bf2a092629140395c195c",
+      "SOXX.csv": "72e73431653fbcf493922a9d934ac5acb86e539e6ce1b2ee08b4ad2eae907ed0",
+      "SPY.csv": "bfbe4d6c2566b83cb2588d833137ff6ae9be6e2c38f86b2fdb6f0b91928a47e3",
+      "TSLA.csv": "96c303b4c911ab7a92fd74f0b9cca42987c8e2ff07b3ea299ed833e406285d61",
+      "TSM.csv": "04c9704030fe946912f8fc32df3b1dfaf0f2ce672105c3322443271a295ba594",
+      "XLF.csv": "318569cdd4ea2ad5fc2cb03f4df15139f270a32cf586ac0e517f22c0426b5325",
+      "XLI.csv": "0f178ead0b902f713aea8ba4c995cca4f55de4352d86aab2da3d6b904969bc82",
+      "XLP.csv": "4363038f730e374e47a8ee5ad47848f9fc05fc1724cee805f94e931608e071f6",
+      "XLU.csv": "0b041c8ba5f28650f8d01b9d38d95bc996b4eaec659670abdc694d35e8a4cc09",
+      "XLV.csv": "fe196a63ef8b82668f4ffa76ac1067224605a0c6bcdae6975825415d96bd8818",
+      "XLY.csv": "2b8bedd9c69c034fbedef88687f02344d2edfc953b9662b096cf4cec518cc811",
+      "_MOVE.csv": "fa26c16f2375eaf726033a2ecfafbc22a599e891a90e515caeb2aa05644bb5ed",
+      "_NYFANG.csv": "ace9789205ce463ebdc85aa5d1d23030f4fecf38fa69b678c1dec61243e1c553",
+      "_SKEW.csv": "10e0e6ecfc9bad6cb27215833be63b02816c28711bb98af940b4edbb77cc28e5",
+      "_SOX.csv": "bdf881127795844b01b3b4d44a9b4d94aa1767fafe2d21c313e1f7b1ab47b390",
+      "_VIX.csv": "cf44f61f7fc2b50ac79bad1f71705a03aa0c9b87b27be194768c284cb17149fe",
+      "_VIX3M.csv": "294ec067e6ba9c0c920c88d109be64b48a049e81fc474464d4ffc13ca596e54e",
+      "_VIX9D.csv": "da5d65636a0d724a3b5ed239f0813c222ed5e6565c6daaafba151102000ddb41",
+      "_VVIX.csv": "f37a63bbc923871d0b468c86ddbe964134a8d5de4904470a65c4e02e1833b0ca"
+    },
+    "matches_certified_full_manifest": false
+  },
+  "morning": {
+    "acceptance_date": "2026-11-04",
+    "generated_at": "2026-11-04T09:10:05+08:00",
+    "status": "PASS",
+    "runtime_integrity": "PASS",
+    "strategy_decision": "WARN",
+    "post_deploy_certification": "CERTIFIED",
+    "json_md_match": true,
+    "checks": [
+      {
+        "id": "release_identity",
+        "status": "PASS",
+        "evidence": "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/LIVE_CONFIG_ATTESTATION.json"
+      },
+      {
+        "id": "scheduled_receipt",
+        "status": "PASS",
+        "evidence": "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/run_receipt.json"
+      },
+      {
+        "id": "scheduled_audit",
+        "status": "PASS",
+        "evidence": "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/audit_log.jsonl"
+      },
+      {
+        "id": "persistence_transaction",
+        "status": "PASS",
+        "evidence": "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/.score_run_transactions/runs/62df10c45a4a40a1ae73d28a12906ce4/manifest.json"
+      },
+      {
+        "id": "bound_health_report",
+        "status": "WARN",
+        "evidence": "/Users/liweishi/.hermes/skills/investment/escape-top/current/reports/system_health_runs/system_health_2026-11-03_20261104T0710390800_9d72e72f52e797e38413040a5a479b571e29ed98c4b4f2b5316612b7dba686df.json"
+      },
+      {
+        "id": "dashboard_health",
+        "status": "WARN",
+        "evidence": "http://127.0.0.1:8766/api/health_status"
+      },
+      {
+        "id": "watchdog",
+        "status": "PASS",
+        "evidence": "/Users/liweishi/.hermes/logs/watchdog.log"
+      }
+    ],
+    "health_labels": [
+      {
+        "label": "IBKR 快照陈旧",
+        "level": "INFO",
+        "layer": "position_reconciliation"
+      },
+      {
+        "label": "外部数据源已付费退役",
+        "level": "INFO",
+        "layer": "operations"
+      }
+    ],
+    "ibkr_age_seconds": 7893461.320187,
+    "Dollar_WARN": "NOT_LISTED_IN_THIS_BOUND_HEALTH_REPORT"
+  },
+  "acceptance_install": {
+    "plist_sha256": "d973d9e0bc5f9c86228680f8c1676c875756f83363d5cb6b56f13ae46983c023",
+    "label": "com.hermes.morning-acceptance",
+    "program_arguments": [
+      "/usr/bin/python3",
+      "-B",
+      "/Users/liweishi/.local/libexec/hermes-morning-acceptance/morning_acceptance.py",
+      "--home",
+      "/Users/liweishi"
+    ],
+    "schedule": {
+      "Hour": 9,
+      "Minute": 10
+    },
+    "installed_script_sha256": "985c617d739b7e45dd9b77d4af3ada440f10e7c6cae6f27c87cbbd283660029d",
+    "candidate_script_sha256": "217857aa94632ba89db62db630864b56d231e1bc27dd371f9db022187b4698b9",
+    "publication_reader_dependencies": {
+      "core/reporting/broker_publication_status.py": {
+        "live_exists": false,
+        "candidate_sha256": "fbe8c13483a38efa9234be349a3554f03472dfef82d153fa74ce55bf0260d912"
+      },
+      "core/reporting/scheduled_broker_publication.py": {
+        "live_exists": false,
+        "candidate_sha256": "e33a71b585be04a58f502e532cda9ff6c78ccd56a84e80b8b18e9efcaee065fa"
+      }
+    }
+  },
+  "observed_source_hashes_before_after_equal": {
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/VERSION": "e78e791e9df8f540e5c25242ccf5515a4c1296eb958ed4f97726529c698e7fcd",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/config/config.json": "5cff823ecaec5a5e9b8595f102e7f25d888ab9d1b2f7efb5dc856ec832d67d09",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/governance/approved_live_config.json": "8152c0d1a4adce45caceb413f9182f0de0b95918e70007b8140d16e9712a0aeb",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/LIVE_CONFIG_ATTESTATION.json": "3faccbcb1d76f091bf3c8c52b10a6371e7e1bb04a426c501f9e9784b932b1290",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/audit_log.jsonl": "f3a7c5f56d3689c136d098080ebf20d1dec871ccc5787c99603d99b1c8d8e175",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/hermes_state.sqlite": "4e852e203300c96d66fa2bc2600821955576cd7c139f875c786b7c528afdb596",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/run_receipt.json": "c6bb568ba0a742ff344864b691d641ae6fe02d0bc28d198dab182819896a610d",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/data_manifest_latest.json": "0caedcb3ea19a0f1aa48e56a327ea0008bcb7b8a8eb9d87f396467fd74d77f6f",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/.score_run_transactions/runs/62df10c45a4a40a1ae73d28a12906ce4/manifest.json": "e076de37bc7d492a44abbc47ab2ad96fd7ac672d0c8cd21075f538147d5ecc06",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/.score_run_transactions/active.json": null,
+    "/Users/liweishi/.hermes/logs/acceptance/morning_acceptance_2026-11-04.json": "ef1a9ceae9cd1918225310621fad2d0d8ff46dfdbe9218a47ae0df90773dfcca",
+    "/Users/liweishi/.hermes/logs/acceptance/morning_acceptance_2026-11-04.md": "0306beb2cca5d9349fe207e8d2aa7a1ff840e02c0d6d38cc8c4eb70f3d0d8473",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/reports/system_health_runs/system_health_2026-11-03_20261104T0710390800_9d72e72f52e797e38413040a5a479b571e29ed98c4b4f2b5316612b7dba686df.json": "c19f403a1f271a1a7cd773b6c616432c1f67ada8bdbd9a632d35e963c70944d8",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/hermes_state.sqlite-wal": null,
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/hermes_state.sqlite-shm": null,
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/hermes_state.sqlite-journal": null,
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/reentry_state.sqlite": "053a91dc8f0a10fd48dcb2e7aa00dc45a58fbaa2be4c6fb2a3af7e9b89251731",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/mirror_reference.sqlite": "fc189d287ddd41725fd6803dfb5af6be893770b766d851ddbda70914a643976c",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/flow_reference.sqlite": "50a96104353c2a8e9d71206d69d6ebf86e59ea063a41fde572f1aa2310e4497b",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/signal_journal.jsonl": "1c8afabf881c900e7a1130a87bd61340823935fd8e989b09b50d17da5884838e",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/soft_adapter_snapshot_2026-11-03.json": "deaeeb5194e618218113a8bbdfa8e84ba585445036fa078e2f67e964f67bf05a"
+  },
+  "sqlite_read_mode": "mode=ro&immutable=1; all WAL/SHM/journal absent before and after; OS writes denied",
+  "not_done": [
+    "No score recalculation",
+    "No market/external/IBKR request",
+    "No deployment/runtime/libexec/cron changes",
+    "No writer lock acquired; active absence is an observation, not a reserved deployment window",
+    "No final-candidate same-as-of release approval or natural ON/v2 certification"
+  ],
+  "DEPLOY": "HOLD",
+  "A2": "OPEN",
+  "Phase_B": "NOT_STARTED"
+}

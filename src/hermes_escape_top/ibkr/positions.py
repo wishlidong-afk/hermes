@@ -71,7 +71,7 @@ class PositionSnapshot:
         return {p.symbol: p for p in self.positions}
 
 
-def read_positions(config: Optional[Dict[str, Any]] = None) -> PositionSnapshot:
+def read_positions(config: Optional[Dict[str, Any]] = None, *, publish_cache: bool = True) -> PositionSnapshot:
     """Read live positions from TWS; fall back to snapshot on connection failure.
 
     Iron rule: this function NEVER places orders. It is strictly read-only.
@@ -132,7 +132,7 @@ def read_positions(config: Optional[Dict[str, Any]] = None) -> PositionSnapshot:
                 detail = f": {last_error}" if last_error else ""
                 raise ConnectionError(f"Could not connect to TWS on any of {open_ports}{detail}")
 
-            snapshot = _read_from_tws(ib, config, connected_client_id)
+            snapshot = _read_from_tws(ib, config, connected_client_id, **({"publish_cache": False} if not publish_cache else {}))
         finally:
             try:
                 ib.disconnect()
@@ -166,7 +166,9 @@ def _close_thread_event_loop(loop: Optional[asyncio.AbstractEventLoop]) -> None:
     asyncio.set_event_loop(None)
 
 
-def _read_from_tws(ib: Any, config: Optional[Dict[str, Any]], client_id: int) -> PositionSnapshot:
+def _read_from_tws(
+    ib: Any, config: Optional[Dict[str, Any]], client_id: int, *, publish_cache: bool = True,
+) -> PositionSnapshot:
     """Internal: read from connected IB instance."""
     acct_vals = ib.accountValues()
     acct_map = {
@@ -223,8 +225,16 @@ def _read_from_tws(ib: Any, config: Optional[Dict[str, Any]], client_id: int) ->
         snapshot_stale=False,
         client_id=client_id,
     )
-    _save_snapshot(snap)
+    if publish_cache:
+        _save_snapshot(snap)
     return snap
+
+
+def publish_positions_cache(snapshot: PositionSnapshot) -> None:
+    """Publish an already-read live response without another broker request."""
+    if snapshot.source != "tws":
+        raise ValueError("only live positions may be published")
+    _save_snapshot(snapshot)
 
 
 def _save_snapshot(snap: PositionSnapshot) -> None:

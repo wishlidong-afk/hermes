@@ -1,0 +1,27 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_failed_end_state_identifies_receipt_not_successful_flow _________
+
+daily = namespace(args=namespace(live=True, run_type='scheduled', as_of='2026-10-20'), root=PosixPath('/private/var/folders/yk...: 'current-decision'}, 'alpaca_daily_flow_status': {'status': 'OK', 'as_of': '2026-10-20'}}, flow_calls=['2026-10-20'])
+
+    def test_failed_end_state_identifies_receipt_not_successful_flow(daily):
+        with pytest.raises(RuntimeError, match="scheduled run end-state receipt failed"):
+            rdp._run_daily_with_receipt(daily.args, _lease=object())
+    
+        receipt = json.loads(daily.receipt.read_text())
+        assert daily.flow_calls == [AS_OF]
+        assert receipt["status"] == "FAILED"
+>       assert receipt["failed_step"] == "run_receipt"
+E       AssertionError: assert 'alpaca_flow' == 'run_receipt'
+E         
+E         - run_receipt
+E         + alpaca_flow
+
+src/hermes_escape_top/tests/test_daily_failure_evidence.py:78: AssertionError
+----------------------------- Captured stdout call -----------------------------
+[receipt] RUNNING -> run_receipt.json
+[receipt] self-check FAIL -> run_receipt.json
+[receipt] self-check FAIL -> run_receipt.json
+=========================== short test summary info ============================
+FAILED src/hermes_escape_top/tests/test_daily_failure_evidence.py::test_failed_end_state_identifies_receipt_not_successful_flow
+1 failed in 1.42s

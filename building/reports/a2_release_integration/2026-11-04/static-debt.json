@@ -1,0 +1,15 @@
+{
+  "scope": "daily wrapper, not the complete project",
+  "mypy_before": 4,
+  "mypy_initial_merge": 5,
+  "mypy_final": 4,
+  "mypy_final_message_multiset_equals_a2": true,
+  "ruff_before": 17,
+  "ruff_final": 17,
+  "ruff_final_message_multiset_equals_a2": true,
+  "new_test_full_ruff_pass": true,
+  "global_ruff_severe_pass": true,
+  "specified_15_file_mypy_pass": true,
+  "global_mypy_clean": false,
+  "full_wrapper_ruff_clean": false
+}

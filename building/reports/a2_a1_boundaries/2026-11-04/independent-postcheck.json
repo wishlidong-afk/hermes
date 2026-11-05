@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "synthetic_only": true,
+  "audit_rows": 5,
+  "successful_revisions": [
+    1,
+    2,
+    2,
+    1,
+    1
+  ],
+  "old_material_semantic_difference_paths": [
+    "/decision_outputs_hash",
+    "/history_hashes/SOXL",
+    "/scored_snapshot_hash"
+  ],
+  "new_release_semantic_difference_paths": [],
+  "old_r2_candidate_refused_seven_existing_artifacts_unchanged": true,
+  "old_audit_prefix_still_present_after_new_date": true,
+  "report_audit_state_equal": true,
+  "transaction_protocol": "v1",
+  "separate_processes": 6,
+  "reports_sha256": {
+    "old_r1": "5bf26c5df690e92170cf8655b741884bba0e79f8aea42016c68777fbee1da33b",
+    "old_r2": "9c00266cfec773bb117ca8355725ca005015389cde40f25d29464f224614d6ce",
+    "candidate_blocked": "d1207a61cb9abba520ae318b7afded710af2d701ca49adb27ee1bed53482a06f",
+    "old_repeat": "9ffb498f2c09353fa3a5875e9989ea36221788644266cebdbfb64ab4f72dca98",
+    "new_date": "008855b424a1232a3451592ae82493d069395852a50f9f4e874377f78c2c9a46",
+    "new_release_repeat": "99a32117085f17c1ac50c86f361e13bcf596114b549f94ae8c9278d9c5c33038"
+  },
+  "helper_sha256": "067572cc7931acf40026a0e044d4c380add3d97ff0561a4d771e97ec21462dd5",
+  "DEPLOY": "HOLD",
+  "A2": "OPEN",
+  "Phase_B": "NOT_STARTED"
+}

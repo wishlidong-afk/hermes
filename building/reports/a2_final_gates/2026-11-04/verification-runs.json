@@ -1,0 +1,189 @@
+[
+  {
+    "stage": "full-suite",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "-m",
+      "pytest",
+      "src/hermes_escape_top/tests",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "--durations=20"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 1621.4,
+    "log": "full-suite.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "a1-tool-negative-guards",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_tool_guards.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.4,
+    "log": "a1-tool-negative-guards.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "a1-tools-ruff",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/a1_r1_transition.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_a1_sources.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_tool_guards.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/postcheck_a1.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.15,
+    "log": "a1-tools-ruff.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "a1-tools-mypy",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "mypy",
+      "--ignore-missing-imports",
+      "--follow-imports=skip",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/a1_r1_transition.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_a1_sources.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_tool_guards.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/postcheck_a1.py",
+      "--cache-dir",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/mypy-tools"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 1,
+    "seconds": 0.87,
+    "log": "a1-tools-mypy.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "a1-tools-compile",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "py_compile",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/a1_r1_transition.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_a1_sources.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_tool_guards.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/postcheck_a1.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.1,
+    "log": "a1-tools-compile.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "a1-tools-mypy-final",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "mypy",
+      "--ignore-missing-imports",
+      "--follow-imports=skip",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/a1_r1_transition.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_a1_sources.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_tool_guards.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/postcheck_a1.py",
+      "--cache-dir",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/mypy-tools"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.35,
+    "log": "a1-tools-mypy-final.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "a1-tool-negative-guards-final",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_tool_guards.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.41,
+    "log": "a1-tool-negative-guards-final.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "a1-tools-ruff-final",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/a1_r1_transition.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_a1_sources.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_tool_guards.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/postcheck_a1.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.14,
+    "log": "a1-tools-ruff-final.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "a1-r1-transition",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/a1_r1_transition.py",
+      "run"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 15.39,
+    "log": "a1-r1-transition.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "a1-r1-audit-state-postcheck",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/postcheck_a1.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.1,
+    "log": "a1-r1-audit-state-postcheck.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  }
+]

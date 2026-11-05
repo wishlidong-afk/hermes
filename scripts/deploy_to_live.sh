@@ -5,7 +5,40 @@ set -uo pipefail  # failures are handled explicitly so rollback always runs
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 TEST_MODE="${HERMES_DEPLOY_TEST_MODE:-0}"
-MODE="${1:---main}"
+SOURCE_REPO_OPTION=""
+if [ "${1:-}" = "--source-repo" ]; then
+  [ "$#" -ge 2 ] && [ -n "$2" ] || { echo "!! --source-repo requires an absolute Git root" >&2; exit 64; }
+  case "$2" in
+    /*) ;;
+    *) echo "!! --source-repo requires an absolute Git root" >&2; exit 64 ;;
+  esac
+  SOURCE_REPO_OPTION=$(cd "$2" && pwd -P) || exit 64
+  source_top=$(git -C "$SOURCE_REPO_OPTION" rev-parse --show-toplevel 2>/dev/null) \
+    || { echo "!! --source-repo must name an existing Git root" >&2; exit 64; }
+  [ "$source_top" = "$SOURCE_REPO_OPTION" ] \
+    || { echo "!! --source-repo must name the Git root" >&2; exit 64; }
+  shift 2
+fi
+MODE="${1---main}"
+for argument in "$@"; do
+  case "$argument" in
+    --source-repo|--source-repo=*)
+      echo "!! unexpected deploy arguments; --source-repo must precede the mode" >&2
+      exit 64
+      ;;
+  esac
+done
+case "$MODE" in
+  --main)
+    [ "$#" -le 1 ] \
+      || { echo "!! unexpected deploy arguments; --source-repo must precede the mode" >&2; exit 64; }
+    ;;
+  --locked-swap|--locked-rollback)
+    [ "$#" -eq 4 ] \
+      || { echo "!! unexpected deploy arguments; internal mode requires STAMP HASH BACKUP only" >&2; exit 64; }
+    ;;
+  *) echo "!! unknown deploy mode: $MODE" >&2; exit 64 ;;
+esac
 
 # Test overrides are deliberately unavailable in production mode. A caller that
 # merely exports HERMES_DEPLOY_* cannot bypass a production guard or smoke gate.
@@ -60,6 +93,13 @@ else
   VERIFY_CMD=""
   FAIL_AT=""
   FAIL_ROLLBACK=0
+fi
+
+if [ -n "$SOURCE_REPO_OPTION" ]; then
+  REPO="$SOURCE_REPO_OPTION"
+  if [ "$TEST_MODE" != "1" ]; then
+    LOCK_PYTHONPATH="$REPO/src"
+  fi
 fi
 
 if [ "$MODE" = "--locked-swap" ] || [ "$MODE" = "--locked-rollback" ]; then
@@ -250,6 +290,9 @@ deploy_source_paths() {
 source_tree_matches_commit() {
   local observed paths=()
   [ -n "$SOURCE_COMMIT" ] || return 1
+  if [ -n "$SOURCE_REPO_OPTION" ]; then
+    cmp -s "$SCRIPT_PATH" "$REPO/scripts/deploy_to_live.sh" || return 1
+  fi
   observed=$(git -C "$REPO" rev-parse HEAD 2>/dev/null) || return 1
   [ "$observed" = "$SOURCE_COMMIT" ] || return 1
   while IFS= read -r path; do
@@ -400,6 +443,10 @@ run_verify_live() {
 run_with_pipeline_lock() {
   local internal_mode="$1"
   local archive_dir
+  local source_args=("$internal_mode" "$STAMP" "$HASH" "$BACKUP")
+  if [ -n "$SOURCE_REPO_OPTION" ]; then
+    source_args=(--source-repo "$REPO" "${source_args[@]}")
+  fi
   if [ -d "$SHARED_PKG/data/archive" ]; then
     archive_dir="$SHARED_PKG/data/archive"
   else
@@ -408,7 +455,7 @@ run_with_pipeline_lock() {
   PYTHONPATH="$LOCK_PYTHONPATH" "$PYTHON" \
     -m hermes_escape_top.scripts.pipeline_lock_exec \
     --archive-dir "$archive_dir" --timeout 600 -- \
-    /bin/bash "$SCRIPT_PATH" "$internal_mode" "$STAMP" "$HASH" "$BACKUP"
+    /bin/bash "$SCRIPT_PATH" "${source_args[@]}"
 }
 
 install_entry_atomic() {

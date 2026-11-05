@@ -19,14 +19,21 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack, contextmanager, redirect_stdout
 import hashlib
+import io
 import json
 import os
+import re
+import runpy
+import socket
+import stat
 import subprocess
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Iterator, Optional
+from unittest.mock import patch
 
 SCRIPT_PATH = Path(__file__).resolve()
 
@@ -393,15 +400,25 @@ def run_score_pipeline(
     run_type: str = "manual_rerun",
     market_admission_status: Dict[str, Any] | None = None,
     *,
+    capture_inputs: bool = False,
+    commit_observer: Optional[Callable[[Dict[str, Any]], None]] = None,
     _lease: Any,
+    include_ibkr: bool = True,
 ) -> Dict[str, Any]:
+    if commit_observer is not None and not capture_inputs:
+        raise ValueError("commit observation requires explicit capture")
+    capture_options: Dict[str, Any] = (
+        {"capture_inputs": True, "commit_observer": commit_observer} if capture_inputs else {}
+    )
     print(f"[M4-1] Running score_pipeline({as_of}, shadow={shadow}, run_type={run_type})…")
     payload = pipeline._score_pipeline_locked(
         as_of,
         shadow=shadow,
         run_type=run_type,
         market_admission_status=market_admission_status,
+        **capture_options,
         _lease=_lease,
+        **({"include_ibkr": False} if not include_ibkr else {}),
     )
     print(f"[M4-1] score_pipeline OK. Schema: {payload.get('schema_version')}")
     return payload
@@ -1235,10 +1252,21 @@ def _post_run_diff(payload: Dict[str, Any], as_of: str, shadow: bool) -> None:
     print(f"[M4-diff] written: {out_path}")
 
 
-def _refresh_next5_unlock() -> None:
+def _refresh_next5_unlock(*, offline: bool = False) -> None:
     """Refresh the NEXT-5 meta-model unlock progress (non-fatal). Keeps the unlock
     status file current as 20-day labels accumulate, so the gate isn't tracked off
     a stale snapshot."""
+    if offline:
+        output = io.StringIO()
+        with redirect_stdout(output):
+            try:
+                runpy.run_module("hermes_escape_top.scripts.check_next5_unlock", run_name="__main__")
+            except SystemExit as exc:
+                if exc.code not in (0, 1):
+                    raise
+        for line in output.getvalue().strip().splitlines()[-3:]:
+            print(f"[NEXT5] {line}")
+        return
     result = subprocess.run(
         [PYTHON, "-m", "hermes_escape_top.scripts.check_next5_unlock"],
         cwd=str(BASE_DIR), env=_subprocess_env(), capture_output=True, text=True, timeout=60,
@@ -1350,6 +1378,27 @@ def _attach_alpaca_flow_for_health(payload: Dict[str, Any], as_of: str) -> Dict[
         return payload
 
 
+def _validated_commit_observation(
+    value: Dict[str, Any], *, as_of: str, started_at: str,
+) -> Dict[str, Any]:
+    expected = {"schema_version", "protocol", "run_id", "capture_id", "as_of", "decision_id",
+                "input_hash", "journal_sha256", "committed_at"}
+    if (not isinstance(value, dict) or set(value) != expected
+            or value["schema_version"] != "hermes-score-commit-observation-v1"
+            or value["protocol"] != "recoverable-journal-v2" or value["as_of"] != as_of
+            or not isinstance(value["decision_id"], str) or not value["decision_id"]):
+        raise ValueError("invalid commit observation binding")
+    for key, length in (("run_id", 32), ("capture_id", 32), ("input_hash", 64), ("journal_sha256", 64)):
+        if not isinstance(value[key], str) or not re.fullmatch(rf"[0-9a-f]{{{length}}}", value[key]):
+            raise ValueError("invalid commit observation digest or identifier")
+    committed = datetime.fromisoformat(value["committed_at"])
+    started = datetime.fromisoformat(started_at)
+    if (committed.utcoffset() is None or started.utcoffset() is None
+            or not started <= committed <= datetime.now().astimezone()):
+        raise ValueError("commit observation is outside this invocation")
+    return dict(value)
+
+
 def _write_run_receipt(
     as_of: str,
     run_type: str,
@@ -1359,6 +1408,7 @@ def _write_run_receipt(
     status: Optional[str] = None,
     started_at: Optional[str] = None,
     failed_step: str = "",
+    commit_observation: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     """End-of-run self-attestation written by the scheduled daily run.
 
@@ -1381,8 +1431,14 @@ def _write_run_receipt(
         now = datetime.now().astimezone().isoformat(timespec="seconds")
         started_at = started_at or now
         requested_status = status or ("OK" if steps_ok else "FAILED")
+        if commit_observation is not None:
+            if run_type != "scheduled" or requested_status == "RUNNING":
+                raise ValueError("commit observation requires a finished scheduled receipt")
+            commit_observation = _validated_commit_observation(
+                commit_observation, as_of=str(as_of), started_at=started_at,
+            )
         if requested_status == "RUNNING":
-            receipt = {
+            receipt: Dict[str, Any] = {
                 "status": "RUNNING",
                 "run_at": now,
                 "started_at": started_at,
@@ -1432,6 +1488,8 @@ def _write_run_receipt(
             "error": step_error if final_status == "FAILED" else "",
             "checks": checks,
         }
+        if commit_observation is not None:
+            receipt["commit_observation"] = commit_observation
         _atomic_write_json(path, receipt)
         print(f"[receipt] self-check {'OK' if ok else 'FAIL'} -> {path.name}")
         return receipt
@@ -1592,17 +1650,103 @@ def _build_daily_parser() -> argparse.ArgumentParser:
                              "and shows manual_rerun separately as non-official preview.")
     parser.add_argument("--lock-timeout", type=float, default=600.0,
                         help=argparse.SUPPRESS)
+    parser.add_argument("--deploy-verify", action="store_true", help=argparse.SUPPRESS)
     return parser
 
 
-def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
+@contextmanager
+def _deploy_verification_guard(args: argparse.Namespace) -> Iterator[None]:
+    if not getattr(args, "deploy_verify", False):
+        yield
+        return
+    if not (args.live and args.run_type == "manual_rerun" and args.skip_refresh and not args.commit_state):
+        raise ValueError("deploy verification requires a cached-only, non-official preview")
+    raw_root = os.environ.get("HERMES_DEPLOY_VERIFY_ROOT", "")
+    root = Path(raw_root)
+    container = root.parent
+    marker = container / ".deploy-verify"
+    if (
+        not raw_root or not root.is_absolute() or root.name != "runtime"
+        or not container.name.startswith("hermes-deploy-verify.")
+        or not root.is_dir() or root.resolve() != root
+        or stat.S_IMODE(container.stat().st_mode) != 0o700
+        or not marker.is_file() or marker.read_text() != "hermes-deploy-verify-v1\n"
+        or Path(os.environ.get("HERMES_DATA_DIR", "")).resolve() != root
+        or Path.cwd().resolve() != root
+        or (Path.home() / ".hermes").resolve() in root.parents
+    ):
+        raise ValueError("deploy verification requires its private temporary data root")
+    config = load_config()
+    for key in config.get("paths", {}):
+        if not resolve_path(config, key).resolve().is_relative_to(container):
+            raise ValueError(f"deploy verification path escapes its private container: {key}")
+    valuation = (config.get("valuation") or {}).get("snapshot_path")
+    if valuation and not (root / str(valuation)).resolve().is_relative_to(container):
+        raise ValueError("deploy verification valuation path escapes its private container")
+    if any(path.is_symlink() for path in container.rglob("*")):
+        raise ValueError("deploy verification refuses symlinks in its private container")
+
+    # Refusals remain fatal even if a collector catches and suppresses the error.
+    attempts: list[str] = []
+
+    def forbidden(*_args: Any, **_kwargs: Any) -> Any:
+        attempts.append("network")
+        raise RuntimeError("deploy verification forbids network and unapproved child processes")
+
+    original_popen = subprocess.Popen
+
+    def local_copy_only(command: Any, *positional: Any, **kwargs: Any) -> Any:
+        # NumPy's optional CPU probe must not start a process in this mode.
+        if isinstance(command, str) and command == "lscpu":
+            raise FileNotFoundError("optional CPU probe disabled during deploy verification")
+        if (
+            isinstance(command, (list, tuple)) and len(command) == 4
+            and list(command[:2]) == ["/bin/cp", "-c"] and not positional
+            and kwargs == {"stdout": subprocess.PIPE, "stderr": subprocess.PIPE}
+            and all(isinstance(value, str) and Path(value).is_absolute()
+                    and Path(value).resolve().is_relative_to(container) for value in command[2:])
+        ):
+            return original_popen(command, **kwargs)
+        program = str(command[0]) if isinstance(command, (list, tuple)) and command else "unapproved command"
+        attempts.append(f"child process: {program}")
+        raise RuntimeError(f"deploy verification forbids child process: {program}")
+
+    with ExitStack() as stack:
+        for name in ("connect", "connect_ex", "sendto"):
+            stack.enter_context(patch.object(socket.socket, name, forbidden))
+        for name in ("create_connection", "getaddrinfo", "gethostbyname", "gethostbyname_ex"):
+            stack.enter_context(patch.object(socket, name, forbidden))
+        stack.enter_context(patch.object(subprocess, "Popen", local_copy_only))
+        yield
+        if attempts:
+            raise RuntimeError(f"deploy verification forbids suppressed attempts: {', '.join(attempts)}")
+    print("[deploy-verify] offline PASS network_attempts=0 include_ibkr=false refresh=false")
+
+
+def _run_daily_with_receipt(
+    args: argparse.Namespace, *, _lease: Any, capture_inputs: bool = False,
+) -> None:
     scheduled = bool(args.live and args.run_type == "scheduled")
-    context = {
+    if capture_inputs and not scheduled:
+        raise ValueError("capture requires a non-shadow scheduled invocation")
+    context: Dict[str, Any] = {
         "as_of": str(args.as_of or date.today().isoformat()),
         "step": "startup",
     }
     started_at = datetime.now().astimezone().isoformat(timespec="seconds")
     payload: Optional[Dict[str, Any]] = None
+    commit_observation: Optional[Dict[str, Any]] = None
+
+    def observe(value: Dict[str, Any]) -> None:
+        nonlocal commit_observation
+        if commit_observation is not None:
+            raise ValueError("duplicate commit observation in one invocation")
+        commit_observation = _validated_commit_observation(
+            value, as_of=context["as_of"], started_at=started_at,
+        )
+
+    capture_options: Dict[str, Any] = {"capture_inputs": True, "commit_observer": observe} if capture_inputs else {}
+    receipt_options: Dict[str, Any]
     if scheduled:
         running = _write_run_receipt(
             context["as_of"],
@@ -1613,16 +1757,29 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
         if running is None:
             raise RuntimeError("scheduled run cannot start without a RUNNING receipt")
     try:
-        payload = _execute_daily(args=args, _lease=_lease, _run_context=context)
+        payload = _execute_daily(
+            args=args, _lease=_lease, _run_context=context,
+            **capture_options,
+        )
+        if commit_observation is not None:
+            expected = {"as_of": payload["as_of"], "run_id": payload["persistence"]["run_id"],
+                        "capture_id": payload["persistence"].get("capture_id"),
+                        "decision_id": payload["decision_evidence"]["decision_id"],
+                        "input_hash": payload["input_hash"], "protocol": payload["persistence"]["protocol"]}
+            if any(commit_observation[key] != value for key, value in expected.items()):
+                commit_observation = None
+                raise ValueError("commit observation does not match this scoring result")
         if scheduled:
             context["step"] = "alpaca_flow"
             payload = _attach_alpaca_flow_for_health(payload, context["as_of"])
+            receipt_options = {"commit_observation": commit_observation} if commit_observation is not None else {}
             context["step"] = "run_receipt"
             finished = _write_run_receipt(
                 context["as_of"],
                 args.run_type,
                 status="OK",
                 started_at=started_at,
+                **receipt_options,
             )
             if finished is None or finished.get("status") != "OK":
                 raise RuntimeError("scheduled run end-state receipt failed")
@@ -1630,6 +1787,9 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
             _write_system_health_report(payload, context["as_of"], finished, shadow=False)
     except BaseException as exc:
         if scheduled:
+            if payload is None:
+                payload = context.get("score_payload")
+            receipt_options = {"commit_observation": commit_observation} if commit_observation is not None else {}
             failed = _write_run_receipt(
                 context["as_of"],
                 args.run_type,
@@ -1638,6 +1798,7 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
                 status="FAILED",
                 started_at=started_at,
                 failed_step=str(context.get("step") or "unknown"),
+                **receipt_options,
             )
             if payload is not None and failed is not None:
                 try:
@@ -1651,13 +1812,19 @@ def _execute_daily(
     *,
     args: argparse.Namespace,
     _lease: Any,
-    _run_context: Dict[str, str],
+    _run_context: Dict[str, Any],
+    capture_inputs: bool = False,
+    commit_observer: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Dict[str, Any]:
     shadow = not args.live
     refresh_end = args.as_of or date.today().isoformat()
     market_witness_status: Dict[str, Any] | None = None
     market_admission_status: Dict[str, Any] | None = None
     market_admission_session: MarketAdmissionSession | None = None
+    capture_options: Dict[str, Any] = (
+        {"capture_inputs": True, "commit_observer": commit_observer} if capture_inputs else {}
+    )
+    broker_options: Dict[str, Any] = {"include_ibkr": False} if getattr(args, "deploy_verify", False) else {}
 
     if shadow:
         print(f"[M4-1] SHADOW mode — writing to data/shadow/ (production untouched)")
@@ -1755,8 +1922,12 @@ def _execute_daily(
         shadow=shadow,
         run_type=args.run_type,
         market_admission_status=market_admission_status,
+        **capture_options,
         _lease=_lease,
+        **broker_options,
     )
+    # Keep this invocation's score available if a later wrapper step fails.
+    _run_context["score_payload"] = payload
     if market_witness_status is not None:
         payload["market_witness_status"] = market_witness_status
     if market_admission_status is not None:
@@ -1778,7 +1949,7 @@ def _execute_daily(
     _post_run_diff(payload, as_of, shadow)
     _run_context["step"] = "next5_refresh"
     try:
-        _refresh_next5_unlock()
+        _refresh_next5_unlock(**({"offline": True} if getattr(args, "deploy_verify", False) else {}))
     except Exception as exc:
         print(f"[NEXT5] WARNING: unlock scan failed ({exc!r}); continuing.")
     if not shadow:
@@ -1822,7 +1993,7 @@ def main() -> None:
     args = _build_daily_parser().parse_args()
     require_explicit_runtime_data_root("daily")
     try:
-        with pipeline_lock(blocking=True, timeout=max(float(args.lock_timeout), 0.0)) as lease:
+        with _deploy_verification_guard(args), pipeline_lock(blocking=True, timeout=max(float(args.lock_timeout), 0.0)) as lease:
             config = load_config()
             recover_incomplete_score_run(resolve_path(config, "archive_dir"), _lease=lease)
             _run_daily_with_receipt(args, _lease=lease)

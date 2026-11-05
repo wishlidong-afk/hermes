@@ -1,0 +1,19 @@
+{
+  "A2": "OPEN",
+  "DEPLOY": "HOLD",
+  "case": "committed_active",
+  "distinct_processes": 5,
+  "driver_sha256": "dd804e34ed7a59b3db23643b07b4701482053dc5d3b653513eadaec991cc06f4",
+  "live_config_data_proved": false,
+  "old_writer_outcome": "REVISION_BUDGET_REFUSAL",
+  "power_loss_proved": false,
+  "stages": [
+    "old_r1",
+    "capture_active",
+    "old_blocked",
+    "recover",
+    "old_budget"
+  ],
+  "status": "PASS",
+  "synthetic_only": true
+}

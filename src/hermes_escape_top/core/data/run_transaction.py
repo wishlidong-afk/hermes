@@ -23,7 +23,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, Literal, Mapping, Optional
+from typing import Any, Callable, Dict, Iterable, Literal, Mapping, Optional
 
 from ..safe_io import assert_pipeline_lease
 from .transaction_evidence import SCHEMA_V2, checked_path, validate_input_evidence, validate_inventory
@@ -130,6 +130,7 @@ def score_run_transaction(
     _lease: Any,
     evidence_artifacts: Optional[Iterable[Path]] = None,
     capture_id: Optional[str] = None,
+    commit_observer: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> "_ScoreRunTransactionContext":
     """Snapshot ``artifacts`` and commit or restore them as one score-run unit.
 
@@ -137,7 +138,9 @@ def score_run_transaction(
     validating its lock lease and before reading any state. This avoids hiding an
     unsafe recovery call inside code that cannot prove lock ownership.
     """
-    return _ScoreRunTransactionContext(archive_dir, artifacts, metadata, _lease, evidence_artifacts, capture_id)
+    return _ScoreRunTransactionContext(
+        archive_dir, artifacts, metadata, _lease, evidence_artifacts, capture_id, commit_observer,
+    )
 
 
 def bind_score_run_inputs(
@@ -238,6 +241,7 @@ class _ScoreRunTransactionContext:
         lease: Any,
         evidence_artifacts: Optional[Iterable[Path]],
         capture_id: Optional[str],
+        commit_observer: Optional[Callable[[Dict[str, Any]], None]],
     ) -> None:
         self.archive_dir = Path(archive_dir).resolve()
         self.artifacts = tuple(Path(path) for path in artifacts)
@@ -245,8 +249,14 @@ class _ScoreRunTransactionContext:
         self.lease = lease
         self.evidence_artifacts = None if evidence_artifacts is None else tuple(evidence_artifacts)
         self.capture_id = capture_id
+        self.commit_observer = commit_observer
         if (capture_id is None) != (evidence_artifacts is None):
             raise ValueError("capture_id and evidence_artifacts must be provided together")
+        if commit_observer is not None and (
+            not callable(commit_observer) or capture_id is None
+            or self.metadata.get("run_type") != "scheduled" or self.metadata.get("shadow") is not False
+        ):
+            raise ValueError("commit observation requires non-shadow scheduled v2 mode")
         self.record: Optional[Dict[str, Any]] = None
         self.transaction: Optional[ScoreRunTransaction] = None
 
@@ -291,7 +301,7 @@ class _ScoreRunTransactionContext:
         committed = dict(self.record)
         committed.update({"status": "COMMITTED", "committed_at": _now()})
         try:
-            _write_manifest(self.archive_dir, committed)
+            commit_sha256 = _write_manifest(self.archive_dir, committed)
         except BaseException as commit_exc:
             if self.capture_id is not None:
                 try:
@@ -301,6 +311,17 @@ class _ScoreRunTransactionContext:
                 if observed["status"] != "COMMITTED":
                     self._rollback(commit_exc)
             raise
+        # This notification is post-commit: an observer failure must never rewind business files.
+        if self.commit_observer is not None:
+            binding = committed["input_binding"]
+            self.commit_observer({
+                "schema_version": "hermes-score-commit-observation-v1",
+                "protocol": "recoverable-journal-v2",
+                "run_id": committed["run_id"], "capture_id": committed["capture_id"],
+                "as_of": committed["metadata"]["as_of"],
+                "decision_id": binding["decision_id"], "input_hash": binding["input_hash"],
+                "journal_sha256": commit_sha256, "committed_at": committed["committed_at"],
+            })
         _clear_active(_journal_root(self.archive_dir) / _ACTIVE_FILE)
         _remove_backups(self.archive_dir, self.transaction.run_id)
         return False
@@ -542,8 +563,8 @@ def _remove_sqlite_sidecars(path: Path) -> None:
             pass
 
 
-def _write_manifest(archive_dir: Path, record: Mapping[str, Any]) -> None:
-    _atomic_write_json(_manifest_path(archive_dir, str(record["run_id"])), dict(record))
+def _write_manifest(archive_dir: Path, record: Mapping[str, Any]) -> str:
+    return _atomic_write_json(_manifest_path(archive_dir, str(record["run_id"])), dict(record))
 
 
 def _read_json(path: Path, *, label: str) -> Dict[str, Any]:
@@ -558,18 +579,19 @@ def _read_json(path: Path, *, label: str) -> Dict[str, Any]:
     return value
 
 
-def _atomic_write_json(path: Path, value: Mapping[str, Any]) -> None:
+def _atomic_write_json(path: Path, value: Mapping[str, Any]) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
     temp = Path(temp_name)
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(value, handle, ensure_ascii=False, sort_keys=True, default=str)
-            handle.write("\n")
+        serialized = (json.dumps(value, ensure_ascii=False, sort_keys=True, default=str) + "\n").encode("utf-8")
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(serialized)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temp, path)
         _fsync_dir(path.parent)
+        return hashlib.sha256(serialized).hexdigest()
     except BaseException:
         try:
             os.close(fd)

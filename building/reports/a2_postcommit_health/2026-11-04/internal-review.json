@@ -1,0 +1,10 @@
+{
+  "reviewer": "Hubble",
+  "agent_id": "01a1a688-3647-7692-83ac-cab72737f111",
+  "scope": "static internal review; not independent external approval",
+  "source_sha256": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+  "new_actionable_findings": [],
+  "tests_executed_by_reviewer": false,
+  "boundary": "Existing six-field observation/result check runs only on normal return. No reachable mismatch found in real producer path; arbitrary corrupted payload rejection is not proved by this matrix.",
+  "closed": true
+}

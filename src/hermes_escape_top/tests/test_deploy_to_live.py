@@ -112,6 +112,7 @@ def deploy_fixture(tmp_path: Path) -> dict[str, object]:
     events = tmp_path / "deploy-events.log"
 
     _write(repo / "src/hermes_escape_top/core/keep.py", "VALUE = 'new'\n")
+    _write(repo / "scripts/deploy_to_live.sh", DEPLOY_SCRIPT.read_text())
     _write(repo / "src/hermes_escape_top/core/added.py", "ADDED = True\n")
     _write(repo / "src/hermes_escape_top/core/data/keep.py", "DATA_CODE = True\n")
     repo_config = {"features": {}, "ibkr": {"readonly": True}}
@@ -847,6 +848,138 @@ def test_production_mode_ignores_all_test_path_overrides(
     assert str(expected_repo) in result.stderr
     assert "injected failure" not in result.stderr
     assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
+
+
+def test_production_explicit_source_is_used_before_live_path_checks(
+    deploy_fixture: dict[str, object], tmp_path: Path,
+) -> None:
+    home = tmp_path / "explicit-source-home"
+    home.mkdir()
+    env = dict(deploy_fixture["env"])
+    env.update(HOME=str(home), HERMES_DEPLOY_TEST_MODE="0")
+    result = subprocess.run(
+        ["bash", str(DEPLOY_SCRIPT), "--source-repo", str(deploy_fixture["repo"])],
+        capture_output=True, text=True, env=env, timeout=10,
+    )
+    assert result.returncode == 64
+    assert "live package missing" in result.stderr
+    assert "repo package missing" not in result.stderr
+    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
+
+
+@pytest.mark.parametrize("production", [False, True])
+def test_source_option_after_mode_is_rejected_before_default_source_can_deploy(deploy_fixture, tmp_path, production):
+    env = dict(deploy_fixture["env"])
+    if production:
+        home = tmp_path / "empty-production-home"
+        home.mkdir()
+        env.update(HOME=str(home), HERMES_DEPLOY_TEST_MODE="0")
+    result = subprocess.run(
+        ["bash", str(DEPLOY_SCRIPT), "--main", "--source-repo", str(tmp_path / "not-a-source")],
+        input="N\n", capture_output=True, text=True, env=env, timeout=30,
+    )
+    assert result.returncode == 64, result.stdout + result.stderr
+    assert "unexpected deploy arguments" in result.stderr
+    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
+    assert not Path(deploy_fixture["events"]).exists()
+
+
+@pytest.mark.parametrize("arguments", [
+    ["--main", "--source-repo=/unselected"],
+    ["--main", "--unknown"],
+    ["--main", "--main"],
+    ["--locked-swap", "stamp", "hash", "/unused-backup", "--source-repo", "/unselected"],
+    ["--locked-rollback", "stamp", "hash", "/unused-backup", "--unknown"],
+    ["--locked-swap", "--source-repo", "/unselected", "/unused-backup"],
+    ["--locked-rollback", "stamp", "hash", "--source-repo=/unselected"],
+    ["--locked-swap"],
+    ["--locked-rollback", "stamp", "hash"],
+    ["--unknown"],
+    [""],
+])
+def test_extra_or_unknown_deploy_arguments_are_rejected_before_any_side_effect(deploy_fixture, arguments):
+    result = subprocess.run(
+        ["bash", str(DEPLOY_SCRIPT), *arguments],
+        capture_output=True, text=True, env=deploy_fixture["env"], timeout=10,
+    )
+    assert result.returncode == 64, result.stdout + result.stderr
+    assert "deploy arguments" in result.stderr or "unknown deploy mode" in result.stderr
+    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
+    assert not Path(deploy_fixture["events"]).exists()
+
+
+def test_duplicate_source_option_is_rejected_without_using_either_source(deploy_fixture):
+    source = str(deploy_fixture["repo"])
+    result = subprocess.run(
+        ["bash", str(DEPLOY_SCRIPT), "--source-repo", source, "--main", "--source-repo", source],
+        capture_output=True, text=True, env=deploy_fixture["env"], timeout=10,
+    )
+    assert result.returncode == 64
+    assert "unexpected deploy arguments" in result.stderr
+    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
+    assert not Path(deploy_fixture["events"]).exists()
+
+
+def test_explicit_source_survives_locked_swap_and_commits_selected_tree(deploy_fixture):
+    env = dict(deploy_fixture["env"])
+    env["HERMES_DEPLOY_REPO"] = "/nonexistent-unselected-source"
+    result = subprocess.run(
+        ["bash", str(DEPLOY_SCRIPT), "--source-repo", str(deploy_fixture["repo"])],
+        input="N\n", capture_output=True, text=True, env=env, timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "deploy OK" in result.stdout
+    live = Path(deploy_fixture["live"])
+    assert (live / "current/hermes_escape_top/core/keep.py").read_text() == "VALUE = 'new'\n"
+    events = Path(deploy_fixture["events"]).read_text().splitlines()
+    assert "smoke-locked" in events and "verify-" in events
+
+
+@pytest.mark.parametrize("fail_at,expected", [("post_sync", 1), ("verify_live", 3)])
+def test_explicit_source_survives_both_rollback_paths(deploy_fixture, fail_at, expected):
+    env = dict(deploy_fixture["env"])
+    env.update(HERMES_DEPLOY_REPO="/nonexistent-unselected-source", HERMES_DEPLOY_FAIL_AT=fail_at)
+    result = subprocess.run(
+        ["bash", str(DEPLOY_SCRIPT), "--source-repo", str(deploy_fixture["repo"])],
+        input="N\n", capture_output=True, text=True, env=env, timeout=30,
+    )
+    assert result.returncode == expected, result.stdout + result.stderr
+    assert "ROLLBACK" in result.stderr
+    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
+
+
+@pytest.mark.parametrize("path_kind", ["missing", "relative", "nested", "non_git"])
+def test_invalid_explicit_source_is_rejected_before_any_live_write(deploy_fixture, tmp_path, path_kind):
+    repo = Path(deploy_fixture["repo"])
+    paths = {"relative": "relative-repo", "nested": str(repo / "src"), "non_git": str(tmp_path)}
+    command = ["bash", str(DEPLOY_SCRIPT), "--source-repo"]
+    if path_kind != "missing":
+        command.append(paths[path_kind])
+    result = subprocess.run(command, capture_output=True, text=True, env=deploy_fixture["env"], timeout=10)
+    assert result.returncode == 64
+    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
+    assert not Path(deploy_fixture["events"]).exists()
+
+
+@pytest.mark.parametrize("source_change", ["dirty", "untracked", "different_tool"])
+def test_explicit_source_guard_precedes_runtime_prepare_and_dashboard_stop(deploy_fixture, source_change):
+    repo = Path(deploy_fixture["repo"])
+    if source_change == "dirty":
+        _write(repo / "src/hermes_escape_top/core/keep.py", "VALUE = 'dirty'\n")
+    elif source_change == "untracked":
+        _write(repo / "src/hermes_escape_top/core/untracked.py", "VALUE = 'untracked'\n")
+    else:
+        _write(repo / "scripts/deploy_to_live.sh", "#!/bin/bash\nexit 0\n")
+        _git(repo, "add", "scripts/deploy_to_live.sh")
+        _git(repo, "commit", "-qm", "different deployment tool")
+    result = subprocess.run(
+        ["bash", str(DEPLOY_SCRIPT), "--source-repo", str(repo)],
+        capture_output=True, text=True, env=deploy_fixture["env"], timeout=30,
+    )
+    assert result.returncode == 4, result.stdout + result.stderr
+    assert "source tree differs" in result.stderr
+    assert _snapshot(*deploy_fixture["roots"]) == deploy_fixture["before"]
+    assert not Path(deploy_fixture["events"]).exists()
 
 
 def test_pre_staged_allowlist_file_aborts_before_dashboard_stop(

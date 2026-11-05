@@ -1,0 +1,18 @@
+{
+  "local_full_suite": "2288 PASS",
+  "A1_r1_only": "MECHANISM_PASS",
+  "still_open": [
+    "old r2 transition rejection",
+    "new business-date chain",
+    "v2 pending/committed active-pointer rollback",
+    "final integrated external review",
+    "Git integration and CI",
+    "precise deployment authorization",
+    "live-config/data-bound release proof",
+    "natural ON/v2 observation",
+    "A2 closure"
+  ],
+  "DEPLOY": "HOLD",
+  "A2": "OPEN",
+  "Phase_B": "NOT_STARTED"
+}

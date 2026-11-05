@@ -1,0 +1,101 @@
+{
+  "baseline_commit": "c1f4b8fc1df23876fefeccd33bc08e0270627f9e",
+  "branch": "codex/a2-final-integration",
+  "candidate_manifest": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+  "source_files_verified": 512,
+  "source_changes": 54,
+  "docs": 21,
+  "packet_files": 267,
+  "packets": [
+    {
+      "name": "a2_release_integration",
+      "day": "2026-11-04",
+      "files": 39,
+      "manifest": "f90080bf62fcefc116b90c5623811d9a13336cc086cc360ed7bd7ca775ad84d0"
+    },
+    {
+      "name": "a2_postcommit_health",
+      "day": "2026-11-04",
+      "files": 25,
+      "manifest": "958ed44498c80000501fa7d8767866dca13bb1bfa43c9d1f7c112f84c82c6267"
+    },
+    {
+      "name": "a2_final_gates",
+      "day": "2026-11-04",
+      "files": 46,
+      "manifest": "e171778ffb5198da45f4b8d53c8fbbfa84e26ac83558e44e6ce738189ac386cb"
+    },
+    {
+      "name": "a2_a1_boundaries",
+      "day": "2026-11-04",
+      "files": 45,
+      "manifest": "91e97ee8a83f13f99a23d510af7ce34da4022323c0e50a128a0c793e2c134204"
+    },
+    {
+      "name": "a1_v2_rollback",
+      "day": "2026-11-04",
+      "files": 90,
+      "manifest": "abc36c9f30529c8b76d166dcb270ce2ae8dd6b484fc968d9a6c3c062bbf89767"
+    },
+    {
+      "name": "final_external_review_preflight",
+      "day": "2026-11-04",
+      "files": 7,
+      "manifest": "c44534768cd2ba0ea1e24ec53a95e6f5b89191b416f76c45e61a1740c705eaae"
+    },
+    {
+      "name": "final_integrated_external_audit",
+      "day": "2026-11-05",
+      "files": 8,
+      "manifest": "41e824a4958c16fcb9ae321c8abc7d8db4df26a62d4f1d0b268000104d7ba16b"
+    },
+    {
+      "name": "market_quarantine_followup",
+      "day": "2026-11-05",
+      "files": 2,
+      "manifest": "3691d0e069f6d9745575ad7231af0e6824e090ce80d7183efae9781281e8e0f0"
+    },
+    {
+      "name": "final_audit_reception",
+      "day": "2026-11-05",
+      "files": 5,
+      "manifest": "1e1f5c7a7b83b928fc26e4a699d6d00247e6a8223de192e5cf4039e76e0bc576"
+    }
+  ],
+  "executable_modes_match": true,
+  "private_captures_included": false,
+  "out_of_scope_September_plans_included": false,
+  "remote": "https://github.com/wishlidong-afk/hermes.git",
+  "schema_version": "hermes-final-git-integration-v1",
+  "repository": "/Users/liweishi/Documents/New project/hermes-a2-git-delivery-2026-11-05/isolated/repository",
+  "authorized_actions": [
+    "isolate",
+    "integrate exact source",
+    "commit",
+    "push review branch",
+    "inspect CI"
+  ],
+  "not_authorized": [
+    "merge default branch",
+    "deploy",
+    "install libexec",
+    "enable capture",
+    "daily/refresh/IBKR"
+  ],
+  "old_test_evidence_reused": "2288 full,499 focused,4-date strict; no product edits",
+  "new_source_sha_checks": 512,
+  "original_repositories_unchanged": true,
+  "safety_pattern_findings": [],
+  "test_collection": {
+    "count": 2288,
+    "exit": 0,
+    "seconds": 2.68,
+    "full_suite_not_rerun": true
+  },
+  "source_only_diff_check": 0,
+  "new_delivery_docs_diff_check": 0,
+  "whole_staged_diff_check": {
+    "exit": 2,
+    "scope": "Only unchanged frozen evidence/log/patch/archive text and an existing prompt EOF; preserve original hashes/CRLF, not a product source finding"
+  }
+}

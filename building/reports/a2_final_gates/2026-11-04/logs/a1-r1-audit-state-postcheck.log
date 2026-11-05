@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "synthetic_only": true,
+  "scope": "identity-v2 FINAL r1 transition with capture OFF only",
+  "revisions": [
+    1,
+    2,
+    2
+  ],
+  "audit_state_report_identity_equal": true,
+  "audit_rows": 3,
+  "budget": 2,
+  "old_writer_refused_without_legacy_reset": true,
+  "old_to_candidate_certification_difference_paths": [
+    "/certified_at",
+    "/decision_hash",
+    "/decision_id",
+    "/decision_revision",
+    "/market_admission_operation_id",
+    "/previous_decision_hash",
+    "/revision_reason",
+    "/scorer_release_hash",
+    "/semantic_hash",
+    "/semantic_identity/scoring_logic_hash",
+    "/snapshot_hash",
+    "/soft_input_evidence_hash",
+    "/supersedes_decision_id"
+  ],
+  "candidate_repeat_certification_difference_paths": [
+    "/certified_at",
+    "/market_admission_operation_id"
+  ],
+  "old_to_candidate_decision_output_difference_paths": [],
+  "candidate_repeat_decision_output_difference_paths": [],
+  "reports_sha256": {
+    "old_r1": "bab5aba06b6887eaf5b402695e5abe912f5ead349f2e40743cff885964b58859",
+    "candidate_r2": "3848b2a57cf05dfee161609ad01544787f25d9f95fa68ec9cbfcd08ced33ad58",
+    "candidate_repeat": "25c66663bf402123c8ce5b708db4cc3371d4e85c42b7b7a42f6c31658947abed",
+    "old_rollback": "5e8b84d7177e4139fd09ad7d5c39477f7751a0b3a38a16af79b521302ba3cf05"
+  },
+  "DEPLOY": "HOLD",
+  "A2": "OPEN",
+  "Phase_B": "NOT_STARTED"
+}

@@ -1,0 +1,73 @@
+{
+  "status": "PASS",
+  "cases": [
+    {
+      "case": "missing_full",
+      "refused": true,
+      "error_type": "RuntimeError",
+      "error": "the exact frozen candidate full-suite gate is not satisfied"
+    },
+    {
+      "case": "failed_full",
+      "refused": true,
+      "error_type": "RuntimeError",
+      "error": "the exact frozen candidate full-suite gate is not satisfied"
+    },
+    {
+      "case": "wrong_full_tree",
+      "refused": true,
+      "error_type": "RuntimeError",
+      "error": "the exact frozen candidate full-suite gate is not satisfied"
+    },
+    {
+      "case": "candidate_config_drift",
+      "refused": true,
+      "error_type": "AssertionError",
+      "error": "r6/releases/candidate_ac025f0f_OFFLINE/hermes_escape_top/config/config.json"
+    },
+    {
+      "case": "candidate_policy_drift",
+      "refused": true,
+      "error_type": "AssertionError",
+      "error": "r6/releases/candidate_ac025f0f_OFFLINE/hermes_escape_top/governance/approved_live_config.json"
+    },
+    {
+      "case": "candidate_lock_drift",
+      "refused": true,
+      "error_type": "AssertionError",
+      "error": "r6/releases/candidate_ac025f0f_OFFLINE/requirements.lock"
+    },
+    {
+      "case": "candidate_python_drift",
+      "refused": true,
+      "error_type": "AssertionError",
+      "error": "r6/releases/candidate_ac025f0f_OFFLINE/hermes_escape_top/pipeline.py"
+    },
+    {
+      "case": "direct_worker_without_parent",
+      "refused": true,
+      "exit_code": 1
+    },
+    {
+      "case": "wrong_parent",
+      "refused": true,
+      "error_type": "RuntimeError",
+      "error": "worker requires its controlled rehearsal parent"
+    },
+    {
+      "case": "wrong_step",
+      "refused": true,
+      "error_type": "RuntimeError",
+      "error": "worker requires its controlled rehearsal parent"
+    },
+    {
+      "case": "wrong_token",
+      "refused": true,
+      "error_type": "RuntimeError",
+      "error": "worker requires its controlled rehearsal parent"
+    }
+  ],
+  "prepared_artifacts_restored": true,
+  "scoring_invoked": false,
+  "synthetic_metadata_used_for_full_gate_negatives": true
+}

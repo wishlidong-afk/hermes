@@ -1,0 +1,19 @@
+{
+  "helper_sha256": "d3cf05c609caa56a0b36047f59ac3e6415c78fd86af15af91ec5435eff3c4b6c",
+  "not_proved": [
+    "old r2 transition",
+    "new business date",
+    "v2 active pointer recovery",
+    "natural observation",
+    "deployment"
+  ],
+  "old_writer": "FAIL_CLOSED_REVISION_BUDGET_SEVEN_ARTIFACTS_UNCHANGED",
+  "revisions": [
+    1,
+    2,
+    2
+  ],
+  "status": "PASS",
+  "synthetic_only": true
+}
+

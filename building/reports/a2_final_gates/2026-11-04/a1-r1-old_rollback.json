@@ -1,0 +1,26 @@
+{
+  "after": {
+    "audit_log.jsonl": "386f0da3eb9e4b89fe645c05890d2a2f69dd83bd023a54c677eec1cb32a8ea18",
+    "flow_reference.sqlite": "10af03873efd467c59d1aacb168493e4e9b3dc98bc0d60b2751fb5af9b6c466a",
+    "hermes_state.sqlite": "77f3c916708a59e91e0b14464aff58211886afe9f125cfbef2d18e9718f7a8ab",
+    "mirror_reference.sqlite": "2d0846fba61530e7a6954f4304e6e65c95a84cc255566609fb13d2d59749bb65",
+    "reentry_state.sqlite": "1bdad13fc20f5e1b20eed9100cb07b2d37c7c0bc6237a9d8ad09f6e646d4de67",
+    "signal_journal.jsonl": "7a88367628beb1449e4876d1c86c8c729620d60039f4342f43df35a2d6190e92",
+    "soft_adapter_snapshot_2026-05-29.json": "92bb988dd93769bea1f95ddc465929d0a84235d836b9b4a8b8dd6dcb69248160"
+  },
+  "before": {
+    "audit_log.jsonl": "386f0da3eb9e4b89fe645c05890d2a2f69dd83bd023a54c677eec1cb32a8ea18",
+    "flow_reference.sqlite": "10af03873efd467c59d1aacb168493e4e9b3dc98bc0d60b2751fb5af9b6c466a",
+    "hermes_state.sqlite": "77f3c916708a59e91e0b14464aff58211886afe9f125cfbef2d18e9718f7a8ab",
+    "mirror_reference.sqlite": "2d0846fba61530e7a6954f4304e6e65c95a84cc255566609fb13d2d59749bb65",
+    "reentry_state.sqlite": "1bdad13fc20f5e1b20eed9100cb07b2d37c7c0bc6237a9d8ad09f6e646d4de67",
+    "signal_journal.jsonl": "7a88367628beb1449e4876d1c86c8c729620d60039f4342f43df35a2d6190e92",
+    "soft_adapter_snapshot_2026-05-29.json": "92bb988dd93769bea1f95ddc465929d0a84235d836b9b4a8b8dd6dcb69248160"
+  },
+  "broker_cache_files": 0,
+  "error": "same-date decision revision budget exhausted for 2026-05-29: r2",
+  "network_attempts": 0,
+  "pid": 76666,
+  "scoring_logic_hash": "42d207d6b6c84001bf85324ea6af84b5947c7748b7217d72f0d715b21232ad8a",
+  "step": "old_rollback"
+}

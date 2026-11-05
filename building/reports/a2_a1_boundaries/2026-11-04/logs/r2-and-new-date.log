@@ -1,0 +1,38 @@
+old_r1: verified
+old_r2: verified
+candidate_blocked: verified
+old_repeat: verified
+new_date: verified
+new_release_repeat: verified
+{
+  "A2": "OPEN",
+  "DEPLOY": "HOLD",
+  "Phase_B": "NOT_STARTED",
+  "audit_rows": 5,
+  "audit_state_report_equal": true,
+  "capture_inputs": false,
+  "genuine_new_business_as_of": "2026-06-01",
+  "helper_sha256": "067572cc7931acf40026a0e044d4c380add3d97ff0561a4d771e97ec21462dd5",
+  "new_date_cross_release_r1_stable": true,
+  "not_proved": [
+    "v2 active pointer rollback",
+    "actual live config/data release proof",
+    "natural observation",
+    "deployment"
+  ],
+  "old_audit_prefix_preserved": true,
+  "old_r2_candidate_refused": true,
+  "old_r2_remains_repeatable": true,
+  "seven_artifacts_unchanged_on_refusal": true,
+  "status": "PASS",
+  "successful_revisions": [
+    1,
+    2,
+    2,
+    1,
+    1
+  ],
+  "synthetic_only": true,
+  "transaction_protocol": "v1"
+}
+

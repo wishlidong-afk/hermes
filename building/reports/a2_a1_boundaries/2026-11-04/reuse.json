@@ -1,0 +1,11 @@
+{
+  "candidate_manifest": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+  "bound_source_files": 512,
+  "prior_packet": "/Users/liweishi/Documents/github/hermes/building/reports/a2_final_gates/2026-11-04",
+  "prior_packet_manifest_sha256": "e171778ffb5198da45f4b8d53c8fbbfa84e26ac83558e44e6ce738189ac386cb",
+  "full_suite": "2288 passed; reused unchanged source/environment, not rerun",
+  "prior_helper_sha256": "d3cf05c609caa56a0b36047f59ac3e6415c78fd86af15af91ec5435eff3c4b6c",
+  "prior_guard_scope": "11 original full-suite/parent-token refusals reused; 11 new tool checks separately executed",
+  "intermediate_normal_run_summary_sha256": "bbe6553563237cc5ee3b6d5ef5fe6025ed14490a0027296dc0204b48e579343a",
+  "intermediate_normal_run": "Passed before hardening, not used as proof of hardened bytes"
+}

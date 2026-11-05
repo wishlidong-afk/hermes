@@ -1,0 +1,5 @@
+src/hermes_escape_top/scripts/run_daily_package.py:1163: error: Value of type "Any | None" is not indexable  [index]
+src/hermes_escape_top/scripts/run_daily_package.py:1601: error: Item "None" of "Any | dict[Any, Any] | None" has no attribute "get"  [union-attr]
+src/hermes_escape_top/scripts/run_daily_package.py:1602: error: Item "None" of "Any | dict[Any, Any] | None" has no attribute "get"  [union-attr]
+src/hermes_escape_top/scripts/run_daily_package.py:1603: error: Item "None" of "Any | dict[Any, Any] | None" has no attribute "get"  [union-attr]
+Found 4 errors in 1 file (checked 1 source file)

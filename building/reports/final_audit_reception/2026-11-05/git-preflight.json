@@ -1,0 +1,19 @@
+{
+  "operations_executed": "Read-only rev-parse/branch/remote reads with GIT_OPTIONAL_LOCKS=0; no stage/commit/push/fetch/branch/remote changes",
+  "main": {
+    "HEAD": "8d16ad8ba639341a38ca5c29e278d12b81bb8efe",
+    "branch": "hermes-docs",
+    "origin": "github.com/wishlidong-afk/hermes.git"
+  },
+  "hotfix_source": {
+    "HEAD": "c1f4b8fc1df23876fefeccd33bc08e0270627f9e",
+    "branch": "codex/r6-offline-deploy-tools",
+    "origin": "/Users/liweishi/Documents/New project/hermes-daily-failure-remediation-2026-10-23"
+  },
+  "integration_not_created": true,
+  "proposed_branch_prefix": "codex/",
+  "scope": "Frozen 54 source additions/modifications within512; approved public docs/evidence separately enumerated, no private captures or three September plans",
+  "publication_target_requires_explicit_setup": "Source repo origin is local, not GitHub; never blindly push from source/private candidate",
+  "user_Git_authorization": "NOT_GIVEN_FOR_THIS_FINAL_CANDIDATE",
+  "deployment_authorization": "NOT_GIVEN_FOR_THIS_FINAL_CANDIDATE"
+}

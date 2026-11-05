@@ -1,0 +1,16 @@
+{
+  "frozen_candidate_files_unchanged": 512,
+  "original_main_files_unchanged": 1370,
+  "original_git_head_index_config_unchanged": true,
+  "prepared_materials_per_case": {
+    "pending": 594,
+    "committed_active": 594,
+    "committed_clean": 594
+  },
+  "prior_packet_manifests": {
+    "a2_postcommit_health": "958ed44498c80000501fa7d8767866dca13bb1bfa43c9d1f7c112f84c82c6267",
+    "a2_final_gates": "e171778ffb5198da45f4b8d53c8fbbfa84e26ac83558e44e6ce738189ac386cb",
+    "a2_a1_boundaries": "91e97ee8a83f13f99a23d510af7ce34da4022323c0e50a128a0c793e2c134204"
+  },
+  "live_written": false
+}

@@ -1,0 +1,9 @@
+{
+  "schema_version": "hermes-final-audit-reception-v1",
+  "files": {
+    "dispositions.json": "b33821465aeb9a656301f8a41dcd19ac179a5afb6aa0f7463db3d75a6049ce00",
+    "git-preflight.json": "da006987543ce2e9660558d5d8bdcae5a3b25a077548687491d9e249c0c6d58a",
+    "report-binding.json": "183798cc9e082929f3ca19c2fa4ea36edd977d54f63a07766450954ec5dd0e91",
+    "verification.json": "8be47a5afa00060cf253a9871284fa3dfd7e1971c17e0fafba689fec4db12ce2"
+  }
+}

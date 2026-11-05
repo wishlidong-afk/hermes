@@ -1,0 +1,146 @@
+{
+  "active_absent": true,
+  "broker_cache_files": 0,
+  "business_after": {
+    "audit_log.jsonl": {
+      "digest": "9a7a57d60bdb8701533334cdd45ce7677f7482298936570e315e8a712b32c3d4",
+      "mode": 420
+    },
+    "flow_reference.sqlite": {
+      "digest": "fda7125b39c3aeff6ba2d0af51ee7c9eb1987d156241b4a6814f8c5c8623e228",
+      "mode": 436
+    },
+    "hermes_state.sqlite": {
+      "digest": "496c1b8bda85917addf3b4aa63bfc3606d9fa0eed70dec5ad77b0379d3f4eb61",
+      "mode": 420
+    },
+    "mirror_reference.sqlite": {
+      "digest": "1a31dff2763bdd42a987d8a110436eedfb2063fb38e3b071e39b086a801cfc34",
+      "mode": 420
+    },
+    "reentry_state.sqlite": {
+      "digest": "b33726833dc27b4f497aea4749def66beda818e32a9aa8904cc26f8a7ac1b669",
+      "mode": 420
+    },
+    "signal_journal.jsonl": {
+      "digest": "1c4936db56a3c0b980c745bfb0c70a3366b8458a363d6e63062fce4992008e98",
+      "mode": 420
+    },
+    "soft_adapter_snapshot_2026-05-29.json": {
+      "digest": "da4172ca6ce73aea67f46e333a3040c41d2863ba4aadf7cf147d67b95a45ec60",
+      "mode": 436
+    }
+  },
+  "business_before": {
+    "audit_log.jsonl": {
+      "digest": "5931665ec207b848e3eb839f47cf4659a26c3f08bcf8af550a8e21102736ba79",
+      "mode": 420
+    },
+    "flow_reference.sqlite": {
+      "digest": "efcd9e8ff80e29832431dad1ac36297d1788edc39f3f2c255bc9c0c4d53d2e83",
+      "mode": 436
+    },
+    "hermes_state.sqlite": {
+      "digest": "ff5fb8df2a687efd576e49266bd2e61f4c958bbdb28aaa30d1f1ce89eeb99a45",
+      "mode": 420
+    },
+    "mirror_reference.sqlite": {
+      "digest": "6f066b1012d3c93e3ae4a19507e0165497fe6fd16e25a463cd6e2c4ad44e4de6",
+      "mode": 420
+    },
+    "reentry_state.sqlite": {
+      "digest": "44bb8f28dade6f9eac5127675dcbdd012990f50028424c8bfb8cc4a0435eafb2",
+      "mode": 420
+    },
+    "signal_journal.jsonl": {
+      "digest": "9c56bf471b8c6c5632ad7f46dd5f7010eada0b68878272dce2e1c422713bddda",
+      "mode": 420
+    },
+    "soft_adapter_snapshot_2026-05-29.json": {
+      "digest": "8553ea3faf844cf48cf0ea5fed761cd190193977521a620ebd9c5ec1a1f4be3d",
+      "mode": 436
+    }
+  },
+  "decision_evidence": {
+    "as_of": "2026-05-29",
+    "bar_finality": "FINAL",
+    "canonical_market_evidence_hash": "b0a30764f990616c9f27008c43055808b38657a4e079f41d25062c78a3639ab7",
+    "certified_at": "2026-06-03T07:20:00+08:00",
+    "config_hash": "6d9cfc64adb214e2e0fbd8f067874fb17b94f09e165118d37817f25ceb7e3d30",
+    "decision_hash": "a57ad7c3246a666475b0cd24e8fa4e506fb9fff33cc5aaa2f64cc5313102b72a",
+    "decision_id": "decision-2026-05-29-r2-1faba4cfd8cb71521a85",
+    "decision_revision": 2,
+    "identity_schema_version": "hermes-decision-identity-v2",
+    "market_admission_completed_through": "",
+    "market_admission_operation_id": "",
+    "policy_hash": "8152c0d1a4adce45caceb413f9182f0de0b95918e70007b8140d16e9712a0aeb",
+    "previous_decision_hash": "08a60408397578fdd8c7171db1d3564f78cd6064d125ea53a7449e048dd6d6e2",
+    "revision_budget": 2,
+    "revision_reason": "CANONICAL_EVIDENCE_CHANGED",
+    "schema_version": "hermes-decision-certification-v1",
+    "scorer_release_hash": "OFFLINE_CANDIDATE_ac025f0f",
+    "semantic_hash": "a57ad7c3246a666475b0cd24e8fa4e506fb9fff33cc5aaa2f64cc5313102b72a",
+    "semantic_identity": {
+      "as_of": "2026-05-29",
+      "decision_outputs_hash": "f8619500a48f138d7b5cee9edc20ae2ea7a7497750cff240bddc74713d21d2cc",
+      "effective_config_hash": "f74aaef8d72ba7e2b4e25539b689da2567c1188e8dc60995e424e4987a5d3663",
+      "history_hashes": {
+        "AAPL": "d262723d724c8a1099e8c5f7591f737cb49622763831c01c8e64210af38cd651",
+        "AMAT": "3bfc6c6f18ee975a238c63ea7989eda817db030b0ee92093ab2b9e579ef77e94",
+        "AMD": "7a4a78d42ec4703c886dc8f87d512ccd715595334c225adf3ab58e66dcc7f7c5",
+        "AMZN": "eb92019b30eaf3fba49c07f4e2b1df4797367f5456dc8909a339c0409929b172",
+        "ASML": "a60ee6552afd9a6319c4bc9fe3359ef6d05b188eab93f694cc68a12ff4e22cc8",
+        "AVGO": "41bfbfaa260f04fce6c571a737f25b17060fd3bbe7744744c1a1c45c850a4dff",
+        "BOXX": "0dbd092eb37c07421abb17e2f05a12562cf9b7080111fc657b37c5feb83c8fdf",
+        "BRK.B": "e5b4f77d54ba7146574367d46fd7739903b23fa16bd88c44f0c72547ceaea9a6",
+        "BTC-USD": "925e320e6628c6f333fb1437de122b4a7c35f872aef46f2c9497dcb170090fd7",
+        "DBMF": "3866af887f29fcfccfffeab6b4b14c0c7211948bd3b90143799a6bdb794746bf",
+        "FNGS": "f57c8f7af6da6bc22a2db55921256228f1edee7dd2fc6506f6ef49e3b3920cf1",
+        "FNGU": "787b871a74c7c6d3c474cbfe0be3f0701e29934c9f6b109867439b4daa20114d",
+        "GOOGL": "9a1564c60141797bcd9048396a269692f9a96d147ce39d254305bff2cac2e4dc",
+        "IAU": "d4a6e37317b990c87ebce4ecdec2a2f2d711441e705b458fa57a4e3141971eb7",
+        "KLAC": "409ab76d04b2a25e39ebfd78321d62c20b2161d888c3a491ed751eda770f5972",
+        "LRCX": "779600071bb8f3df92b5f27d7739a1a21fb9e34fc502b0a69dd642e9c1518cd2",
+        "META": "45249883e0ab37cd32a03f57df4ccc73d6ecca6547400fd4a6aa733eb752457b",
+        "MSFT": "619bfd2ea7d3b50d6f66c20f7d206f6fef9134ea6b1cce1a4ca2eed21974435a",
+        "MSTR": "94e63a6cc9b53fb73a330270fd97ecb8efc27c04df20a63271bd5fa8f42a2289",
+        "MU": "dba893b0a983e1edb7b24e3e51f0353c774d162dde528719e6fbc3eb2d974720",
+        "NFLX": "0f42de53e059a9e6707a8b5f8ed75dda2928e43a4c44bef954b5f277be3509da",
+        "NVDA": "0e15a46ff1e3c0ab0cc30cbb57c1bcca01360713f98a51ae01e6cba72b18a8d5",
+        "QCOM": "745ae3e6af7ef69aed7612e766d1c1e2c3653756eb457eb7ddf8629b258ff399",
+        "QQQ": "8c9355be0d72d935f4ae33924993e44be1cc44628d616b62bb80af5694586384",
+        "SMH": "5af929e4a97a27c910638f81e4a2844e475aa5e273567e4f0ed91d9568c65d73",
+        "SOXL": "662071365781eefce1c69c13384af2f64f1cb34cbd9a4aa537da486a106c7e6e",
+        "SOXX": "de65944f76cbdb2e50496d767c951ca30f2a3bea435c95b2acdd6f7cc3cb3ed7",
+        "SPY": "5bc49c00c86b474eea0fa03bc3cfa8022bc527e7ea73c08a9b86d3e9b6dee02b",
+        "TSLA": "1135bbe3c900d9e33c566ba7dab56490c49259b34567ab59a3d14a17ad573edd",
+        "TSM": "68337ce5e52a47828f8c1a2f76fab086c392752a5875d7016b2de5a2f01ce519",
+        "^NYFANG": "630857c8ffbf78cfe68c2394b30e89a3ff6d84c35fe277fa17180b98c796441a",
+        "^SKEW": "f6d3423838c6d8b9a58c6b2360b3820126dca15b5af00beabb2fb06b9b342eff",
+        "^SOX": "07177bed2a1dcc3280fda069b6ff52ef52cac4e81207f12f20a09395cddc0b7a",
+        "^VIX": "5c869157eb0cf699b2fb11cefd52425ab5ce445525b956fb3a8c8c9ee170a985",
+        "^VIX3M": "06bc341217ed2a94cba46e3d04c43d2128efdf841a759543c89e7493035d3f16",
+        "^VIX9D": "0ecf0b2d84a545542197a752d7497b2e110cdf7f401254202c1fb0ae44fac3e3",
+        "^VVIX": "5f942e4aaab7bf4ed06a9da75828638b05039359a48df18cbabe6f8d29acdf4d"
+      },
+      "scored_snapshot_hash": "a186a47999322b674d2f4e627c523c3c488202c8cab8ba378317db43a9d80c62",
+      "scoring_logic_hash": "ac025f0f93d16ee3b97e1aaa8f7e70b49801032d81085453b7e5531eae8e7dad",
+      "soft_input_hash": "16dc3534c3088e89a1844bcf64b2d07ce1709d71558225c567f7cc54f9d20b1e"
+    },
+    "snapshot_hash": "ec9b167f106e815eb37d9cef2af8d11b0b862534508e3c1990e9ec305cf5d037",
+    "soft_input_evidence_hash": "d02584259a58e323e04e4326317318317622df16a7fc6d05e1bf43a24c6ab3dd",
+    "supersedes_decision_id": "decision-2026-05-29-r1-4bb58ceec3a5053c2ea2"
+  },
+  "network_attempts": 0,
+  "pid": 80639,
+  "raw_business": {
+    "audit_log.jsonl": "9a7a57d60bdb8701533334cdd45ce7677f7482298936570e315e8a712b32c3d4",
+    "flow_reference.sqlite": "867f11c0d33e9d03a0de9bc70f90e888894c11cf3514c57eb0fa851b6bb6b09b",
+    "hermes_state.sqlite": "71fad29f1441f25f5a1fedcc2a14c5144743673701693add69b45fd1cd295bb3",
+    "mirror_reference.sqlite": "20063c696a174ac7345985edaa322a794119e0107218985affbdeb6aa9606bb0",
+    "reentry_state.sqlite": "7b39b2bf16e3eca54b6c9972d80d3deb9830ee9c89118080f3a3ecc79a279245",
+    "signal_journal.jsonl": "1c4936db56a3c0b980c745bfb0c70a3366b8458a363d6e63062fce4992008e98",
+    "soft_adapter_snapshot_2026-05-29.json": "da4172ca6ce73aea67f46e333a3040c41d2863ba4aadf7cf147d67b95a45ec60"
+  },
+  "status": "COMMITTED"
+}

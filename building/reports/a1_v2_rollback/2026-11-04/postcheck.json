@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "cases": {
+    "pending": {
+      "status": "PASS",
+      "audit_revisions": [
+        1,
+        1
+      ],
+      "audit_state_identity_equal": true,
+      "actual_terminal_journal_status": "RECOVERED_ROLLBACK",
+      "active_absent": true,
+      "registered_business_roles": 7
+    },
+    "committed_active": {
+      "status": "PASS",
+      "audit_revisions": [
+        1,
+        2
+      ],
+      "audit_state_identity_equal": true,
+      "actual_terminal_journal_status": "COMMITTED",
+      "active_absent": true,
+      "registered_business_roles": 7
+    },
+    "committed_clean": {
+      "status": "PASS",
+      "audit_revisions": [
+        1,
+        2
+      ],
+      "audit_state_identity_equal": true,
+      "actual_terminal_journal_status": "COMMITTED",
+      "active_absent": true,
+      "registered_business_roles": 7
+    }
+  },
+  "distinct_processes": 13,
+  "synthetic_only": true,
+  "DEPLOY": "HOLD",
+  "A2": "OPEN",
+  "Phase_B": "NOT_STARTED"
+}
