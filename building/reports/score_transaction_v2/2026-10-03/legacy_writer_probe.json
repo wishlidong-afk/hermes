@@ -1,0 +1,18 @@
+{
+  "baseline_commit": "68e6b7fb5a4b36bd1a5638b8153df0b2d978fb2e",
+  "current_recovery": "RECOVERED_ROLLBACK",
+  "legacy_archive_unchanged": true,
+  "legacy_writer": {
+    "error": "cannot read score transaction V2_REQUIRES_UPGRADED_WRITER: /private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/hermes-v2-legacy-probe-749cj5zn/data/archive/.score_run_transactions/runs/V2_REQUIRES_UPGRADED_WRITER/manifest.json: [Errno 2] No such file or directory: '/private/var/folders/yk/n5fj9g0578n48lymg9q7wxwm0000gn/T/hermes-v2-legacy-probe-749cj5zn/data/archive/.score_run_transactions/runs/V2_REQUIRES_UPGRADED_WRITER/manifest.json'",
+    "pid": 71742,
+    "source": "/tmp/hermes-a2-prestate-baseline.y0hIEa/src/hermes_escape_top/core/data/run_transaction.py",
+    "status": "FAIL_CLOSED"
+  },
+  "live_data_touched": false,
+  "network_used": false,
+  "source_sha256": {
+    "baseline": "a12ffd574d1151d6d993db5c3ea3e6ff7bbc67048c08d88959014faf49cf69b6",
+    "candidate": "cbbe41f5b97413e8bc3e9486aff3cfebfc317dc1655d8a42f12e52d02005a855"
+  },
+  "status": "PASS"
+}
