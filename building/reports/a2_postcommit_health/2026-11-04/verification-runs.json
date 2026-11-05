@@ -1,0 +1,490 @@
+[
+  {
+    "stage": "red-translation",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "-m",
+      "pytest",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 1,
+    "seconds": 7.66,
+    "log": "red-translation.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "750895d04548896ff475e13e344cedd85a87bd7bae74c8ca47fe7e18cc9e9570",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "d26b3d5d5faa335b3c59a519b89be72c287f2ba19761dae7570c0d4269955c54"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "750895d04548896ff475e13e344cedd85a87bd7bae74c8ca47fe7e18cc9e9570",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "d26b3d5d5faa335b3c59a519b89be72c287f2ba19761dae7570c0d4269955c54"
+    }
+  },
+  {
+    "stage": "green-translation",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "-m",
+      "pytest",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 8.93,
+    "log": "green-translation.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "d26b3d5d5faa335b3c59a519b89be72c287f2ba19761dae7570c0d4269955c54"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "d26b3d5d5faa335b3c59a519b89be72c287f2ba19761dae7570c0d4269955c54"
+    }
+  },
+  {
+    "stage": "new-failure-matrix",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "-m",
+      "pytest",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 1,
+    "seconds": 63.21,
+    "log": "new-failure-matrix.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "bb493eab95da781761fb6d3d34eb1a0d4647606d3dfa953a1b36ada7309d2032"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "bb493eab95da781761fb6d3d34eb1a0d4647606d3dfa953a1b36ada7309d2032"
+    }
+  },
+  {
+    "stage": "failure-matrix-fixture-corrected",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "-m",
+      "pytest",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 61.48,
+    "log": "failure-matrix-fixture-corrected.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "combined-focused-499",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "-m",
+      "pytest",
+      "src/hermes_escape_top/tests/test_release_integration.py",
+      "src/hermes_escape_top/tests/test_commit_observation_receipt.py",
+      "src/hermes_escape_top/tests/test_daily_failure_evidence.py",
+      "src/hermes_escape_top/tests/test_deploy_offline_verification.py",
+      "src/hermes_escape_top/tests/test_market_conflict_counts.py",
+      "src/hermes_escape_top/tests/test_deploy_to_live.py",
+      "src/hermes_escape_top/tests/test_ops_entrypoints.py",
+      "src/hermes_escape_top/tests/test_commit_observation.py",
+      "src/hermes_escape_top/tests/test_scheduled_broker_publication.py",
+      "src/hermes_escape_top/tests/test_morning_publication_observation.py",
+      "src/hermes_escape_top/tests/test_morning_acceptance.py",
+      "src/hermes_escape_top/tests/test_transaction_v2_acceptance.py",
+      "src/hermes_escape_top/tests/test_run_receipt_writer.py",
+      "src/hermes_escape_top/tests/test_broker_publication_status.py",
+      "src/hermes_escape_top/tests/test_broker_publication_anchor_contract.py",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 217.62,
+    "log": "combined-focused-499.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "strict-four-date",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "scripts/compare_pipeline_persistence.py",
+      "--baseline-source",
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/candidate",
+      "--candidate-source",
+      "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+      "--seed-data",
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/candidate/src/hermes_escape_top/data",
+      "--python",
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "--contract",
+      "strict",
+      "--baseline-label",
+      "frozen-hotfix-a2-integrated-750895d",
+      "--candidate-label",
+      "postcommit-health-a897b2d",
+      "--output",
+      "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/equivalence.json",
+      "--as-of",
+      "2022-01-03",
+      "--as-of",
+      "2022-01-25",
+      "--as-of",
+      "2026-05-29",
+      "--as-of",
+      "2026-06-04"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 28.93,
+    "log": "strict-four-date.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "new-test-ruff",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.1,
+    "log": "new-test-ruff.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "ruff-severe",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "src/hermes_escape_top",
+      "scripts",
+      "ops",
+      "--select",
+      "E9,F63,F7,F82"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.09,
+    "log": "ruff-severe.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "governance",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "scripts/check_governance_consistency.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 1.67,
+    "log": "governance.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "dependency-check",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "pip",
+      "check"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.47,
+    "log": "dependency-check.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "mypy-15",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "mypy",
+      "--ignore-missing-imports",
+      "--follow-imports=skip",
+      "src/hermes_escape_top/core/data/market_witness.py",
+      "src/hermes_escape_top/core/data/market_admission.py",
+      "src/hermes_escape_top/core/backtest/formal_gate.py",
+      "src/hermes_escape_top/web/health.py",
+      "src/hermes_escape_top/core/data/decision_identity.py",
+      "src/hermes_escape_top/core/data/decision_revision.py",
+      "src/hermes_escape_top/core/reporting/runtime_capture.py",
+      "src/hermes_escape_top/core/reporting/broker_capture.py",
+      "src/hermes_escape_top/core/reporting/transaction_restore.py",
+      "src/hermes_escape_top/core/reporting/broker_publication_status.py",
+      "src/hermes_escape_top/core/data/run_transaction.py",
+      "src/hermes_escape_top/tests/test_a2_publication_crash.py",
+      "scripts/verify_a2_capture_crash.py",
+      "scripts/verify_a2_publication_crash.py",
+      "src/hermes_escape_top/core/reporting/scheduled_broker_publication.py",
+      "--cache-dir",
+      "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/mypy-cache"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 1.17,
+    "log": "mypy-15.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "wrapper-mypy-before",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "mypy",
+      "--ignore-missing-imports",
+      "--follow-imports=skip",
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/candidate/src/hermes_escape_top/scripts/run_daily_package.py",
+      "--cache-dir",
+      "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/mypy-before"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 1,
+    "seconds": 0.63,
+    "log": "wrapper-mypy-before.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "wrapper-mypy-current",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "mypy",
+      "--ignore-missing-imports",
+      "--follow-imports=skip",
+      "src/hermes_escape_top/scripts/run_daily_package.py",
+      "--cache-dir",
+      "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/mypy-current"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 1,
+    "seconds": 0.71,
+    "log": "wrapper-mypy-current.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "wrapper-ruff-before",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "--output-format",
+      "json",
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/candidate/src/hermes_escape_top/scripts/run_daily_package.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 1,
+    "seconds": 0.07,
+    "log": "wrapper-ruff-before.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "wrapper-ruff-current",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "--output-format",
+      "json",
+      "src/hermes_escape_top/scripts/run_daily_package.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 1,
+    "seconds": 0.07,
+    "log": "wrapper-ruff-current.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "compile",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-m",
+      "compileall",
+      "-q",
+      "src/hermes_escape_top",
+      "scripts",
+      "ops"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.51,
+    "log": "compile.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  },
+  {
+    "stage": "diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.58,
+    "log": "diff-check.log",
+    "source_before": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    "source_after": {
+      "src/hermes_escape_top/scripts/run_daily_package.py": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2",
+      "requirements.lock": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "src/hermes_escape_top/tests/test_postcommit_failure_health.py": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    }
+  }
+]

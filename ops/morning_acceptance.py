@@ -11,8 +11,10 @@ import sys
 import tempfile
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Tuple
 from urllib.request import Request, urlopen
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 
@@ -135,6 +137,7 @@ def collect_acceptance(
     acceptance_date = observed_at.date()
     base = root / ".hermes/skills/investment/escape-top"
     archive = base / "current/hermes_escape_top/data/archive"
+    publication_snapshot = _publication_snapshot(base, archive)
     checks = []
 
     release_check, release = _collect_release(base)
@@ -150,6 +153,7 @@ def collect_acceptance(
         archive,
         audit,
         require_soft_snapshot=release.get("policy_bound") == "true",
+        validator_path=base / "current/hermes_escape_top/core/data/transaction_evidence.py",
     )
     checks.append(transaction_check)
 
@@ -173,6 +177,14 @@ def collect_acceptance(
         archive,
         observed_at,
     )
+    publication = _collect_broker_publication(
+        base, archive, acceptance_date, release, publication_snapshot, audit,
+    )
+    operational_observations["broker_cache_publication"] = publication
+    if publication["status"] in {"WARN", "UNKNOWN"}:
+        operational_warnings.append(
+            f"broker publication: {publication['status']} {publication['reason']}"
+        )
 
     certification = _post_deploy_certification(
         release,
@@ -199,6 +211,8 @@ def collect_acceptance(
     )
     if failures:
         summary = "FAIL: " + ", ".join(row["id"] for row in failures)
+        if publication["status"] in {"WARN", "UNKNOWN"}:
+            summary += f"; broker publication: {publication['status']} {publication['reason']}"
     elif status == "PENDING_POST_DEPLOY":
         summary = (
             "PENDING_POST_DEPLOY: runtime is healthy, but the current release "
@@ -416,6 +430,7 @@ def _collect_transaction(
     audit: Mapping[str, Any],
     *,
     require_soft_snapshot: bool,
+    validator_path: Optional[Path] = None,
 ) -> Dict[str, str]:
     root = archive / ".score_run_transactions"
     try:
@@ -424,12 +439,16 @@ def _collect_transaction(
             raise ValueError("audit persistence evidence missing")
         protocol = str(persistence.get("protocol") or "")
         run_id = str(persistence.get("run_id") or "")
-        if protocol != "recoverable-journal-v1" or not run_id:
+        if protocol not in {"recoverable-journal-v1", "recoverable-journal-v2"} or not run_id:
             raise ValueError(f"protocol={protocol or 'missing'} run_id={run_id or 'missing'}")
+        if Path(run_id).name != run_id or run_id in {".", ".."}:
+            raise ValueError("invalid transaction run_id")
         active = root / "active.json"
-        if active.exists():
+        if active.exists() or active.is_symlink():
             raise ValueError(f"residual active transaction: {active}")
         manifest_path = root / "runs" / run_id / "manifest.json"
+        if any(path.is_symlink() for path in (root, root / "runs", manifest_path.parent, manifest_path)):
+            raise ValueError("transaction journal symlink is not allowed")
         manifest = _read_json(manifest_path)
         if str(manifest.get("run_id") or "") != run_id:
             raise ValueError(
@@ -449,13 +468,19 @@ def _collect_transaction(
             raise ValueError(
                 f"metadata mismatch observed={observed_metadata} expected={expected_metadata}"
             )
+        if protocol == "recoverable-journal-v2":
+            evidence_count = _verify_transaction_v2(archive, manifest, audit, validator_path)
+        else:
+            if manifest.get("schema_version") not in {None, "hermes-score-run-transaction-v1"}:
+                raise ValueError("transaction protocol/schema mismatch")
+            evidence_count = 0
         artifact_rows = [
             str(row.get("path") or "")
             for row in manifest.get("artifacts") or []
-            if isinstance(row, Mapping)
+            if isinstance(row, Mapping) and (protocol == "recoverable-journal-v1" or row.get("role") == "BUSINESS")
         ]
         expected_names = set(EXPECTED_ARTIFACTS)
-        if require_soft_snapshot:
+        if require_soft_snapshot or protocol == "recoverable-journal-v2":
             expected_names.add(
                 f"soft_adapter_snapshot_{str(audit.get('as_of') or '')[:10]}.json"
             )
@@ -469,11 +494,31 @@ def _collect_transaction(
             "persistence_transaction",
             "PASS",
             f"run_id={run_id} status=COMMITTED "
-            f"artifacts={len(expected_paths)} active=absent",
+            f"artifacts={len(expected_paths)} active=absent" + (f" evidence={evidence_count}" if evidence_count else ""),
             manifest_path,
         )
     except Exception as exc:
         return _check("persistence_transaction", "FAIL", str(exc), root)
+
+
+def _verify_transaction_v2(
+    archive: Path, manifest: Mapping[str, Any], audit: Mapping[str, Any], validator_path: Optional[Path],
+) -> int:
+    if validator_path is None or not validator_path.is_file():
+        raise ValueError("v2 transaction validator unavailable")
+    spec = importlib.util.spec_from_file_location("hermes_transaction_evidence", validator_path)
+    if spec is None or spec.loader is None:
+        raise ValueError("v2 transaction validator cannot load")
+    validator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(validator)
+    _business, evidence = validator.validate_inventory(manifest)
+    binding = manifest.get("input_binding") or {}
+    decision = audit.get("decision_evidence") or {}
+    if (not decision.get("decision_id") or binding.get("decision_id") != decision["decision_id"]
+            or binding.get("input_hash") != audit.get("input_hash")):
+        raise ValueError("transaction input binding does not match scheduled audit")
+    validator.validate_input_evidence(manifest, archive.resolve().parent)
+    return len(evidence)
 
 
 def _collect_bound_health(
@@ -723,6 +768,98 @@ def _collect_watchdog(root: Path, acceptance_date: date) -> Dict[str, str]:
         )
     except Exception as exc:
         return _check("watchdog", "FAIL", str(exc), path)
+
+
+def _read_publication(package: Path, archive: Path, day: date) -> Dict[str, Any]:
+    namespace = f"_hermes_morning_reader_{uuid4().hex}"
+    try:
+        if any(path.is_symlink() for path in (package, package.parent, package.parent.parent)):
+            raise ValueError("publication source root is redirected")
+        for suffix in ("", ".core", ".core.data", ".core.reporting"):
+            parent = ModuleType(namespace + suffix)
+            parent.__path__ = []
+            parent.__package__ = parent.__name__
+            sys.modules[parent.__name__] = parent
+        for relative in (
+            "core/data/transaction_evidence.py",
+            "core/reporting/broker_publication_status.py",
+            "core/reporting/scheduled_broker_publication.py",
+        ):
+            source = package
+            for part in Path(relative).parts:
+                source = source / part
+                if source.is_symlink():
+                    raise ValueError("publication source is redirected")
+            if not source.is_file():
+                raise ValueError("publication source must be a regular file")
+            name = namespace + "." + relative[:-3].replace("/", ".")
+            spec = importlib.util.spec_from_file_location(name, source)
+            if spec is None or spec.loader is None:
+                raise ValueError("publication reader cannot load")
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[name] = module
+            # Compile the selected source bytes, never a stale site/bytecode cache.
+            exec(compile(source.read_bytes(), str(source), "exec"), module.__dict__)
+        return module.read_scheduled_broker_publication(archive_dir=archive, acceptance_date=day)
+    finally:
+        for name in list(sys.modules):
+            if name == namespace or name.startswith(namespace + "."):
+                del sys.modules[name]
+
+
+def _publication_snapshot(base: Path, archive: Path) -> Optional[Tuple[str, ...]]:
+    try:
+        digests = []
+        pinned = archive.resolve(strict=True)
+        for name in ("run_receipt.json", "audit_log.jsonl"):
+            path = pinned / name
+            if path.is_symlink() or not path.is_file():
+                return None
+            digest = hashlib.sha256()
+            with path.open("rb") as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            digests.append(digest.hexdigest())
+        return (str((base / "current").resolve(strict=True)), str(pinned), *digests)
+    except (OSError, RuntimeError):
+        return None
+
+
+def _collect_broker_publication(
+    base: Path, archive: Path, day: date, release: Mapping[str, str],
+    snapshot: Optional[Tuple[str, ...]], audit: Mapping[str, Any],
+) -> Dict[str, Any]:
+    report: Dict[str, Any] = {
+        "status": "UNKNOWN", "publication_status": "UNVERIFIED", "reason": "READER_UNAVAILABLE",
+        "scope": "OPERATIONS", "strategy_blocking": False, "cache_contents_verified": False,
+        "anchor_source": None, "official_receipt_status": None,
+    }
+    try:
+        name = release.get("name")
+        if not name or Path(name).name != name or name in {".", ".."}:
+            report["reason"] = "RELEASE_UNVERIFIED"
+        elif snapshot is None:
+            report["reason"] = "EVIDENCE_UNAVAILABLE"
+        else:
+            package = base.resolve() / "releases" / name / "hermes_escape_top"
+            observed = _read_publication(package, Path(snapshot[1]), day)
+            persistence = audit.get("persistence") or {}
+            if (str(package.parent) != snapshot[0]
+                    or _publication_snapshot(base, archive) != snapshot
+                    or any(observed.get(key) and persistence.get(key)
+                           and observed[key] != persistence[key] for key in ("run_id", "capture_id"))):
+                report["reason"] = "EVIDENCE_CHANGED"
+            else:
+                report.update(observed)
+    except Exception:
+        pass
+    report["reader_release"] = release.get("name")
+    report["detail"] = "; ".join(
+        f"{key}={report.get(key) or 'UNKNOWN'}"
+        for key in ("status", "publication_status", "reason", "official_receipt_status", "anchor_source")
+    )
+    report["evidence"] = str(archive / "run_receipt.json")
+    return report
 
 
 def _collect_operational_observations(

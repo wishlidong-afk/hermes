@@ -1,0 +1,173 @@
+{
+  "python": "3.11.15 (main, Apr 14 2026, 14:45:51) [Clang 22.1.3 ]",
+  "executable": "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+  "runtime_lock_sha256": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+  "packages": [
+    {
+      "package": "beautifulsoup4",
+      "locked": "4.15.0",
+      "installed": "4.15.0"
+    },
+    {
+      "package": "certifi",
+      "locked": "2026.10.19",
+      "installed": "2026.10.19"
+    },
+    {
+      "package": "cffi",
+      "locked": "2.1.0",
+      "installed": "2.1.0"
+    },
+    {
+      "package": "charset-normalizer",
+      "locked": "3.4.9",
+      "installed": "3.4.9"
+    },
+    {
+      "package": "curl-cffi",
+      "locked": "0.15.0",
+      "installed": "0.15.0"
+    },
+    {
+      "package": "eventkit",
+      "locked": "1.0.3",
+      "installed": "1.0.3"
+    },
+    {
+      "package": "frozendict",
+      "locked": "2.4.7",
+      "installed": "2.4.7"
+    },
+    {
+      "package": "ib-insync",
+      "locked": "0.9.86",
+      "installed": "0.9.86"
+    },
+    {
+      "package": "idna",
+      "locked": "3.18",
+      "installed": "3.18"
+    },
+    {
+      "package": "markdown-it-py",
+      "locked": "4.2.0",
+      "installed": "4.2.0"
+    },
+    {
+      "package": "mdurl",
+      "locked": "0.1.2",
+      "installed": "0.1.2"
+    },
+    {
+      "package": "multitasking",
+      "locked": "0.0.13",
+      "installed": "0.0.13"
+    },
+    {
+      "package": "nest-asyncio",
+      "locked": "1.6.0",
+      "installed": "1.6.0"
+    },
+    {
+      "package": "numpy",
+      "locked": "2.0.2",
+      "installed": "2.0.2"
+    },
+    {
+      "package": "pandas",
+      "locked": "2.3.3",
+      "installed": "2.3.3"
+    },
+    {
+      "package": "peewee",
+      "locked": "4.2.3",
+      "installed": "4.2.3"
+    },
+    {
+      "package": "platformdirs",
+      "locked": "4.10.0",
+      "installed": "4.10.0"
+    },
+    {
+      "package": "protobuf",
+      "locked": "7.35.1",
+      "installed": "7.35.1"
+    },
+    {
+      "package": "pycparser",
+      "locked": "3.0",
+      "installed": "3.0"
+    },
+    {
+      "package": "pygments",
+      "locked": "2.20.0",
+      "installed": "2.20.0"
+    },
+    {
+      "package": "python-dateutil",
+      "locked": "2.9.0.post0",
+      "installed": "2.9.0.post0"
+    },
+    {
+      "package": "pytz",
+      "locked": "2026.2",
+      "installed": "2026.2"
+    },
+    {
+      "package": "requests",
+      "locked": "2.33.0",
+      "installed": "2.33.0"
+    },
+    {
+      "package": "rich",
+      "locked": "15.0.0",
+      "installed": "15.0.0"
+    },
+    {
+      "package": "scipy",
+      "locked": "1.13.1",
+      "installed": "1.13.1"
+    },
+    {
+      "package": "six",
+      "locked": "1.17.0",
+      "installed": "1.17.0"
+    },
+    {
+      "package": "soupsieve",
+      "locked": "2.9",
+      "installed": "2.9"
+    },
+    {
+      "package": "typing-extensions",
+      "locked": "4.16.0",
+      "installed": "4.16.0"
+    },
+    {
+      "package": "tzdata",
+      "locked": "2026.3",
+      "installed": "2026.3"
+    },
+    {
+      "package": "urllib3",
+      "locked": "2.8.0",
+      "installed": "2.8.0"
+    },
+    {
+      "package": "websockets",
+      "locked": "16.1",
+      "installed": "16.1"
+    },
+    {
+      "package": "yfinance",
+      "locked": "1.2.1",
+      "installed": "1.2.1"
+    }
+  ],
+  "development": {
+    "pytest": "9.1.1",
+    "ruff": "0.15.22",
+    "mypy": "2.3.0",
+    "pip": "26.2.2"
+  }
+}

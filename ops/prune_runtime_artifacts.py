@@ -46,9 +46,15 @@ def build_prune_plan(
     backup_root = Path(backup_root).resolve()
     archive_dir = Path(archive_dir).resolve()
     releases_root = live_root / "releases"
-    transaction_root = archive_dir / ".score_run_transactions" / "runs"
+    transaction_root = _transaction_root(archive_dir)
     protected_releases = _current_release_targets(live_root)
     active_transaction = _active_transaction_id(archive_dir)
+    transaction_entries = _transaction_entries(transaction_root)
+    protected_transactions = {
+        Path(row["path"]) for row in transaction_entries if row.get("protection_reason")
+    }
+    if active_transaction:
+        protected_transactions.add(transaction_root / active_transaction)
 
     groups = [
         (
@@ -74,9 +80,9 @@ def build_prune_plan(
         ),
         (
             "score_transaction",
-            _transaction_entries(transaction_root),
+            transaction_entries,
             max(0, int(keep_transactions)),
-            {transaction_root / active_transaction} if active_transaction else set(),
+            protected_transactions,
             max_transaction_bytes,
         ),
     ]
@@ -95,6 +101,15 @@ def build_prune_plan(
             "keep_count": keep_count,
             "max_bytes": max_bytes,
         }
+        if kind == "score_transaction":
+            selected_paths = {row["path"] for row in selected}
+            retained_bytes = sum(int(row["bytes"]) for row in entries if row["path"] not in selected_paths)
+            summaries[kind].update({
+                "protection_reasons": {row["path"]: row["protection_reason"] for row in entries
+                                       if row.get("protection_reason")},
+                "retained_bytes": retained_bytes,
+                "capacity_exceeded": max_bytes is not None and retained_bytes > max(0, int(max_bytes)),
+            })
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -189,17 +204,41 @@ def _transaction_entries(root: Path) -> list[dict[str, Any]]:
     for path in root.iterdir():
         if path.is_symlink() or not path.is_dir():
             continue
-        manifest = path / "manifest.json"
         try:
-            payload = json.loads(manifest.read_text(encoding="utf-8"))
+            payload = _read_transaction_manifest(path)
         except Exception:
             continue
         if str(payload.get("run_id") or "") != path.name:
             continue
         if str(payload.get("status") or "") not in TERMINAL_TRANSACTION_STATUSES:
             continue
-        rows.append(_entry(path))
+        row = _entry(path)
+        row["protection_reason"] = _transaction_protection_reason(payload)
+        rows.append(row)
     return rows
+
+
+def _read_transaction_manifest(run: Path) -> dict[str, Any]:
+    manifest = run / "manifest.json"
+    if manifest.is_symlink():
+        raise ValueError("transaction manifest symlink is not allowed")
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("transaction manifest must be an object")
+    return payload
+
+
+def _transaction_protection_reason(payload: dict[str, Any]) -> Optional[str]:
+    if payload.get("schema_version") == "hermes-score-run-transaction-v2":
+        return "decision_input_evidence_anchor"
+    if payload.get("schema_version") not in (None, "hermes-score-run-transaction-v1"):
+        return "unknown_transaction_protocol"
+    artifacts = payload.get("artifacts")
+    if ("capture_id" in payload or "input_binding" in payload
+            or isinstance(artifacts, list) and any(
+                isinstance(row, dict) and row.get("role") == "DECISION_INPUT_EVIDENCE" for row in artifacts)):
+        return "evidence_markers_on_legacy_record"
+    return None
 
 
 def _entry(path: Path) -> dict[str, Any]:
@@ -229,12 +268,25 @@ def _current_release_targets(live_root: Path) -> set[Path]:
     return targets
 
 
+def _transaction_root(archive_dir: Path) -> Path:
+    journal = archive_dir / ".score_run_transactions"
+    if journal.is_symlink() or (journal / "runs").is_symlink():
+        raise ValueError("score transaction namespace symlink is not allowed")
+    return journal / "runs"
+
+
 def _active_transaction_id(archive_dir: Path) -> Optional[str]:
     path = archive_dir / ".score_run_transactions" / "active.json"
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return None
+    if payload.get("schema_version") == "hermes-score-run-transaction-v2":
+        value = str(payload.get("v2_run_id") or "")
+        if (payload.get("run_id") != "V2_REQUIRES_UPGRADED_WRITER"
+                or re.fullmatch(r"[0-9a-f]{32}", value) is None):
+            raise ValueError("invalid v2 active transaction")
+        return value
     value = str(payload.get("run_id") or "")
     return value or None
 
@@ -263,9 +315,14 @@ def _validate_delete(kind: str, path: Path, plan: dict[str, Any]) -> None:
             raise ValueError("invalid audit archive candidate")
     else:
         archive_dir = Path(str(roots.get("audit_archive") or "")).resolve()
+        if root != _transaction_root(archive_dir).resolve():
+            raise ValueError("score transaction retention root mismatch")
         if path.name == _active_transaction_id(archive_dir):
             raise ValueError("score transaction is active")
-        manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
+        manifest = _read_transaction_manifest(path)
+        protection_reason = _transaction_protection_reason(manifest)
+        if protection_reason:
+            raise ValueError(f"score transaction is protected: {protection_reason}")
         if str(manifest.get("run_id") or "") != path.name:
             raise ValueError("transaction run_id mismatch")
         if str(manifest.get("status") or "") not in TERMINAL_TRANSACTION_STATUSES:

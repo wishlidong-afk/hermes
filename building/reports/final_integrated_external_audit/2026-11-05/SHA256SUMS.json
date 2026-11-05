@@ -1,0 +1,12 @@
+{
+  "schema_version": "hermes-final-integrated-audit-v1",
+  "files": {
+    "candidate-binding.json": "1d7344b684529ea02e3289e8eae8bf017d1ce60344bc336c75f83b7f1e194086",
+    "candidate-vs-live-source.json": "9932edc19dc33052e5575385bef16a01acf78c14251c9f25bcbcf6d5c8287594",
+    "equivalence-vs-c1f.json": "83cd03678f9edee2a6c00174eb6bab59131ec00bc533798e87b5e0388b9e32e0",
+    "prior-packets.json": "1d1ead30f56ec2d815d9eaf03ae2ba09ec8419aab1cd29a0b4bb54f902defc17",
+    "scope-and-proof.json": "9aadf5a59cdf0716a51dcaca26aa3c67fbc388e27d0f4a8c7f67a56fe64ec46a",
+    "strict-deployed-baseline.log": "4cc28e23e108776a0fcba61395c696cf20db690b418c9fb9b905ca8aa98b9dab",
+    "verification-runs.json": "48a01bc2b9e3ca9dbe2125e4955e9ecfd83586041525b3a61f092bfcd1fee259"
+  }
+}

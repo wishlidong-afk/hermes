@@ -1,0 +1,60 @@
+{
+  "exact_live_files": [
+    {
+      "path": "ops/run_daily.py",
+      "sha256": "7d36cd2b437ce4f00292688c435385b860c9be917bc611070e391ca9a4022685",
+      "live_equal": true
+    },
+    {
+      "path": "ops/verify_live.sh",
+      "sha256": "8b22844ee3634fa7f701c9edd4256e8483a2f0049baadb4f751a133ce6212f59",
+      "live_equal": true
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "037be4f24a13220684ec36939d37a7f11659a8711b281f2004d5148454f77931",
+      "live_equal": true
+    },
+    {
+      "path": "scripts/deploy_to_live.sh",
+      "sha256": "d5cc34022514857a5dbf99b7caaa2af1ccd2b3d055d9356b4671e4b5ff723fad",
+      "live_equal": true
+    },
+    {
+      "path": "src/hermes_escape_top/web/health.py",
+      "sha256": "211e9ffd327060221c7dd95555a1a662732b8b79577d4f02e839cff7718f57d7",
+      "live_equal": true
+    },
+    {
+      "path": "requirements.lock",
+      "sha256": "71fc586a3909e80ae3c3fcc600e17d1082f39bae7ececed59a1c32038ba73e62",
+      "live_equal": true
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_daily_failure_evidence.py",
+      "sha256": "362b877b028a14a0da2d3baa75ec9e94e645141b4146fa4ec23b14af52976a26",
+      "live_equal": true
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_deploy_offline_verification.py",
+      "sha256": "ecdc63e54eee6d224c1edd355ca4b308f5bf7cd721c22efd4f4690e062c30cb4",
+      "live_equal": true
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_market_conflict_counts.py",
+      "sha256": "5473f758d086d1668706181bf91a0c36f407d0df526ed48a31722fe955be9375",
+      "live_equal": true
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_deploy_to_live.py",
+      "sha256": "9ce333e60845fca5f83ee97fb8820061049b57f2b5495683978f9108aff785c7",
+      "live_equal": true
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_ops_entrypoints.py",
+      "sha256": "503c5a15b0b1e7943b7c664b824d526ad8384c4f857132efd1be723b39dc11de",
+      "live_equal": true
+    }
+  ],
+  "combined_daily": "750895d04548896ff475e13e344cedd85a87bd7bae74c8ca47fe7e18cc9e9570"
+}

@@ -1,0 +1,109 @@
+{
+  "checks": {
+    "baseline_metadata": "OK",
+    "config_invariants": "OK",
+    "context_snapshot": "OK",
+    "current_facts_docs": "OK",
+    "execution_open_quality": "OK",
+    "factor_capacity": "OK",
+    "flag_registry": "OK",
+    "live_config_policy": "OK"
+  },
+  "errors": [],
+  "ok": true,
+  "schema_version": "hermes-governance-check-v1",
+  "snapshot": {
+    "baseline": {
+      "effective_end": "2026-07-21",
+      "equity_timing": "next_open",
+      "evidence_status": "CURRENT_EXECUTION_EVIDENCE",
+      "git_commit": "b23cf124b5b906d897884f2774d354b8cae23d1a",
+      "metrics": {
+        "cagr": 0.155556,
+        "final_value": 342742.362508,
+        "max_drawdown": -0.208283,
+        "max_drawdown_end": "2019-10-08",
+        "max_drawdown_start": "2018-06-14",
+        "sharpe": 1.063621,
+        "sortino": 1.335373
+      }
+    },
+    "config_version": "escape-top-v3.0-greenfield",
+    "disabled_features": [
+      "data_cnn_fgi",
+      "data_concentration",
+      "data_cot_nq",
+      "data_credit_etf",
+      "data_financial_stress",
+      "data_gex",
+      "data_hy_oas",
+      "data_move",
+      "data_mstr_mnav",
+      "data_ndx_concentration",
+      "data_nfci",
+      "data_onchain_mstr",
+      "data_yield_curve",
+      "use_arm_then_fire",
+      "use_b6_mnav_valuation",
+      "use_btc_spot_witness",
+      "use_cboe_official_indices",
+      "use_cd_trend_dedup",
+      "use_close_confirmation",
+      "use_decision_stabilizer",
+      "use_fred_vintage_pit",
+      "use_hm2_buffer",
+      "use_indicator_cache",
+      "use_market_admission_gate",
+      "use_meta_label",
+      "use_portfolio_risk_budget",
+      "use_route_set_transition_buffer",
+      "use_status_hysteresis"
+    ],
+    "enabled_features": [
+      "data_aaii",
+      "data_cboe_pcr",
+      "data_component_breadth",
+      "data_defensive_rotation",
+      "data_dollar",
+      "data_naaim",
+      "data_net_liquidity",
+      "data_real_rate",
+      "data_skew_vvix",
+      "use_full_confidence_spine",
+      "use_no_advice_state",
+      "use_partial_factor_eval",
+      "use_regime_multipliers",
+      "use_scored_missing_weight",
+      "use_soft_data_max_age",
+      "use_suspect_valve_guard"
+    ],
+    "ibkr_readonly": true,
+    "module_caps": {
+      "A": 20,
+      "B": 25,
+      "C": 35,
+      "D": 20
+    },
+    "reentry_tranches": [
+      0.3,
+      0.3,
+      0.4
+    ],
+    "routing_defcon1": {
+      "BOXX": 0.5,
+      "TREND": 0.3,
+      "extra_legs": {
+        "IAU": 0.2
+      },
+      "trend_symbol": "DBMF"
+    },
+    "schema_version": "hermes-governance-snapshot-v1",
+    "status_thresholds": {
+      "DEFENSIVE_EXIT": 70,
+      "EXIT": 75,
+      "REDUCE": 50,
+      "TRIM": 35,
+      "WATCH": 20
+    }
+  }
+}

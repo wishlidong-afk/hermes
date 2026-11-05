@@ -1,0 +1,170 @@
+{
+  "observed_at": "2026-11-05T09:38:16.420976+08:00",
+  "scope": "read-only MU low-price quarantine investigation, not source-error attribution or policy change",
+  "symbol": "MU",
+  "bar_date": "2026-11-04",
+  "admission_operation_id": "6f3953db0f7049fc82fe4c7c0871cee1",
+  "admission_status": "BLOCKED",
+  "component_flow_rejected_rows": 1,
+  "strategy_blocking_rejected_rows": 0,
+  "rejection": {
+    "admitted": false,
+    "candidate_sha256": "b35415d12982e54b5f9c55dadd08608c5b3c1f18ea5e1f653c3b6d69e28bee32",
+    "close_diff_pct": 0.0,
+    "date": "2026-11-04",
+    "decision_impact": "COMPONENT_FLOW_ONLY",
+    "decision_roles": [
+      "component_flow"
+    ],
+    "max_ohlc_diff_pct": 1.1547,
+    "price_evidence_status": "MISMATCH",
+    "raw_comparison": {
+      "candidate": {
+        "auto_adjust": false,
+        "bar": {
+          "close": 795.22998046875,
+          "date": "2026-11-04",
+          "high": 853.3399047851562,
+          "low": 791.030029296875,
+          "open": 822.9949951171875,
+          "volume": 35210225.0
+        },
+        "sha256": "b35415d12982e54b5f9c55dadd08608c5b3c1f18ea5e1f653c3b6d69e28bee32",
+        "source": "YAHOO_FINANCE_1DAY"
+      },
+      "schema_version": "hermes-market-bar-comparison-evidence-v1",
+      "witness": {
+        "adjustment": "raw",
+        "bar": {
+          "close": 795.23,
+          "date": "2026-11-04",
+          "high": 853.3399,
+          "low": 782.0,
+          "open": 822.995,
+          "timestamp": "2026-11-04T05:00:00Z",
+          "volume": 35464905.0
+        },
+        "feed": "sip",
+        "sha256": "5a112750841aaa1f1a603cc14571b797fc18f59c43d091ae4927f06195e9820d",
+        "source": "ALPACA_SIP_1DAY",
+        "source_url": "https://data.alpaca.markets/v2/stocks/bars",
+        "timeframe": "1Day"
+      }
+    },
+    "reason": "raw OHLC difference exceeds witness policy",
+    "status": "PRICE_MISMATCH",
+    "symbol": "MU",
+    "volume_diff_pct": 0.7181,
+    "volume_evidence_status": "MATCH",
+    "warning_band": true,
+    "witness_sha256": "6ac66d8a39289dce100825c0b1fea122ec29adce0738d9f078b55c5b581198ab"
+  },
+  "field_diff_pct_recomputed": {
+    "open": 0.0,
+    "high": 0.0,
+    "low": 1.1547,
+    "close": 0.0,
+    "volume": 0.7181
+  },
+  "rejecting_field": "low",
+  "policy_price_limit_pct": 1.0,
+  "normalized_bar_sha_verified": true,
+  "third_source_matching_research_only": true,
+  "third_source_observation": {
+    "admission_status_unchanged": "PRICE_MISMATCH",
+    "candidate_vs_third": {
+      "close_diff_pct": 0.0,
+      "max_ohlc_diff_pct": 0.0055,
+      "price_evidence_status": "MATCH",
+      "reason": "raw OHLC and volume agree within witness policy",
+      "status": "MATCH",
+      "volume_diff_pct": 0.4794,
+      "volume_evidence_status": "MATCH"
+    },
+    "date": "2026-11-04",
+    "symbol": "MU",
+    "third_source": {
+      "bar": {
+        "close": 795.23,
+        "date": "2026-11-04",
+        "high": 853.3399,
+        "low": 791.0,
+        "open": 823.04,
+        "volume": 35379841.0
+      },
+      "bar_sha256": "1056e75fdf4e31a49ee0b7ea9767bf5e614111d6e4fb3e8f031a792055c819b3",
+      "requested_symbol": "MU",
+      "source": "ALPHA_VANTAGE_TIME_SERIES_DAILY",
+      "source_url": "https://www.alphavantage.co/query",
+      "vendor_symbol": "MU"
+    },
+    "third_source_support": "YAHOO_CANDIDATE",
+    "witness_vs_third": {
+      "close_diff_pct": 0.0,
+      "max_ohlc_diff_pct": 1.1378,
+      "price_evidence_status": "MISMATCH",
+      "reason": "raw OHLC difference exceeds witness policy",
+      "status": "PRICE_MISMATCH",
+      "volume_diff_pct": 0.2404,
+      "volume_evidence_status": "MATCH"
+    }
+  },
+  "canonical": {
+    "latest_as_of": "2026-11-03",
+    "Nov4_absent": true,
+    "sha256": "4e5cb74fb984cee7cc9c706a872550b4b0bf81bb6386e1cbb59577657d8bfc5b",
+    "admission_binding_matches": true
+  },
+  "actual_SOXL_component_flow_explanation": "SOXL component flow severe: 4/9 severe outflow [9/10 obs] (NVDA,AMAT,LRCX,KLAC)",
+  "bound_health_layers": {
+    "strategy_data": "OK",
+    "position_reconciliation": "INFO",
+    "auxiliary_flows": "DEGRADED",
+    "operations": "INFO"
+  },
+  "today_morning": {
+    "status": "PASS",
+    "runtime_integrity": "PASS",
+    "strategy_decision": "WARN",
+    "post_deploy_certification": "CERTIFIED",
+    "market_admission": {
+      "status": "WARN",
+      "detail": "latest market-admission status=BLOCKED",
+      "evidence": "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/market_admission_2026-11-05.json",
+      "consecutive_ok": 0,
+      "mature": false,
+      "target_days": 5,
+      "latest_completed_through": "2026-11-04"
+    }
+  },
+  "current_decision": {
+    "as_of": "2026-11-04",
+    "decision_revision": 1,
+    "bar_finality": "FINAL",
+    "scorer_release_hash": "c1f4b8f",
+    "decision_id": "decision-2026-11-04-r1-2cb0225f3343ce075a80",
+    "semantic_hash": "6090064460aebf5e9bd4d021f44d4070ce99432e62008fc7b5611b63cdecd746"
+  },
+  "source_hashes_stable_during_read": {
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/market_admission_2026-11-05.json": "21586a4aa236fbb08f5dbbbd1cbf128a601d3d6b74e2b9b828d6e95d67a55803",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/market_admission_third_source_2026-11-05.json": "151644f1517d02a19adbb48401e7530f4ae61d9875a7a6a6b9a053f8bc50d349",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/history/MU.csv": "4e5cb74fb984cee7cc9c706a872550b4b0bf81bb6386e1cbb59577657d8bfc5b",
+    "/Users/liweishi/.hermes/logs/acceptance/morning_acceptance_2026-11-05.json": "80e1bff06405ae016a8cd806683830994c72a65e4f8762c6c39401216d459165",
+    "/Users/liweishi/.hermes/logs/acceptance/morning_acceptance_2026-11-05.md": "236730e1663fcb8f3350428ff9330b2c9fbd44bdcb1bed2b3dd67b9c6e52d4c4",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/audit_log.jsonl": "973106021c48c298e077986e2374cc2f857a303b8d9c1f9de96e5514fd1fc975",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/VERSION": "e78e791e9df8f540e5c25242ccf5515a4c1296eb958ed4f97726529c698e7fcd",
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/config/config.json": "5cff823ecaec5a5e9b8595f102e7f25d888ab9d1b2f7efb5dc856ec832d67d09"
+  },
+  "bound_health_report_sha256": "b3028c7c563635df57d5640cb6e11ceb3c904954f6ee0511627d04969bfe4b21",
+  "not_proved": [
+    "which vendor is wrong",
+    "trade-level/session/aggregation cause",
+    "third-source authority to override canonical",
+    "candidate release authorization",
+    "A1/A2 closure"
+  ],
+  "no_daily_refresh_IBKR_live_config_or_Git_mutation": true,
+  "DEPLOY": "HOLD",
+  "A2": "OPEN",
+  "Phase_B": "NOT_STARTED"
+}

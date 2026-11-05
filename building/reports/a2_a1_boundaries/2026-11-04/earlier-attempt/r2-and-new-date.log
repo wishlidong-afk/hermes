@@ -1,0 +1,21 @@
+old_r1: verified
+Traceback (most recent call last):
+  File "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-2026-11-04/verify_boundaries.py", line 403, in <module>
+    {"prepare": prepare, "run": run, "worker": lambda: worker(args.step)}[args.mode]()
+  File "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-2026-11-04/verify_boundaries.py", line 390, in run
+    assert result.returncode == 0, result.stderr[-5000:]
+           ^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Traceback (most recent call last):
+  File "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-2026-11-04/verify_boundaries.py", line 403, in <module>
+    {"prepare": prepare, "run": run, "worker": lambda: worker(args.step)}[args.mode]()
+  File "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-2026-11-04/verify_boundaries.py", line 403, in <lambda>
+    {"prepare": prepare, "run": run, "worker": lambda: worker(args.step)}[args.mode]()
+                                                       ^^^^^^^^^^^^^^^^^
+  File "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-2026-11-04/verify_boundaries.py", line 167, in worker
+    matches = [row for row in rows if row["Date"][:10] == anchor.AS_OF]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-2026-11-04/verify_boundaries.py", line 167, in <listcomp>
+    matches = [row for row in rows if row["Date"][:10] == anchor.AS_OF]
+                                      ~~~^^^^^^^^
+KeyError: 'Date'
+

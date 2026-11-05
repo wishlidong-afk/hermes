@@ -1,0 +1,3 @@
+/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_tool_guards.py:37: error: Module has no attribute "ROOT"  [attr-defined]
+/Users/liweishi/Documents/New project/hermes-a2-final-gates-2026-11-04/check_tool_guards.py:46: error: Module has no attribute "ROOT"  [attr-defined]
+Found 2 errors in 1 file (checked 4 source files)

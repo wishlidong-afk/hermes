@@ -1,0 +1,41 @@
+[
+  {
+    "stage": "strict-deployed-baseline",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "scripts/compare_pipeline_persistence.py",
+      "--baseline-source",
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/live",
+      "--candidate-source",
+      "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+      "--seed-data",
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/candidate/src/hermes_escape_top/data",
+      "--python",
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "--contract",
+      "strict",
+      "--baseline-label",
+      "real-c1f4b8f-deployed-source",
+      "--candidate-label",
+      "final-integrated-ac025f0f",
+      "--output",
+      "/Users/liweishi/Documents/New project/hermes-final-review-preflight-2026-11-04/equivalence-vs-c1f.json",
+      "--as-of",
+      "2022-01-03",
+      "--as-of",
+      "2022-01-25",
+      "--as-of",
+      "2026-05-29",
+      "--as-of",
+      "2026-06-04"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 30.84,
+    "log": "strict-deployed-baseline.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  }
+]

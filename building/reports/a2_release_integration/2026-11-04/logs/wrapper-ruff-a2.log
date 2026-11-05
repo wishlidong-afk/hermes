@@ -1,0 +1,405 @@
+[
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 39,
+      "row": 96
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 96
+    },
+    "message": "Module level import not at top of file",
+    "name": "module-import-not-at-top-of-file",
+    "noqa_row": 96,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 63,
+      "row": 97
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 97
+    },
+    "message": "Module level import not at top of file",
+    "name": "module-import-not-at-top-of-file",
+    "noqa_row": 97,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 2,
+      "row": 101
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 98
+    },
+    "message": "Module level import not at top of file",
+    "name": "module-import-not-at-top-of-file",
+    "noqa_row": 98,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 2,
+      "row": 106
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 102
+    },
+    "message": "Module level import not at top of file",
+    "name": "module-import-not-at-top-of-file",
+    "noqa_row": 102,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 2,
+      "row": 110
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 107
+    },
+    "message": "Module level import not at top of file",
+    "name": "module-import-not-at-top-of-file",
+    "noqa_row": 107,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 2,
+      "row": 114
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 111
+    },
+    "message": "Module level import not at top of file",
+    "name": "module-import-not-at-top-of-file",
+    "noqa_row": 111,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 70,
+      "row": 115
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 115
+    },
+    "message": "Module level import not at top of file",
+    "name": "module-import-not-at-top-of-file",
+    "noqa_row": 115,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "F401",
+    "end_location": {
+      "column": 57,
+      "row": 115
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from hermes_escape_top.core.data.store import safe_symbol",
+          "end_location": {
+            "column": 70,
+            "row": 115
+          },
+          "location": {
+            "column": 1,
+            "row": 115
+          }
+        }
+      ],
+      "message": "Remove unused import: `hermes_escape_top.core.data.store.LocalStore`"
+    },
+    "location": {
+      "column": 47,
+      "row": 115
+    },
+    "message": "`hermes_escape_top.core.data.store.LocalStore` imported but unused",
+    "name": "unused-import",
+    "noqa_row": 115,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unused-import"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 85,
+      "row": 116
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 116
+    },
+    "message": "Module level import not at top of file",
+    "name": "module-import-not-at-top-of-file",
+    "noqa_row": 116,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 84,
+      "row": 117
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 117
+    },
+    "message": "Module level import not at top of file",
+    "name": "module-import-not-at-top-of-file",
+    "noqa_row": 117,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 2,
+      "row": 123
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 118
+    },
+    "message": "Module level import not at top of file",
+    "name": "module-import-not-at-top-of-file",
+    "noqa_row": 118,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "F401",
+    "end_location": {
+      "column": 60,
+      "row": 120
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from hermes_escape_top.core.reporting.system_health import (\n    build_system_health_audit_dimensions as _build_system_health_audit_dimensions,\n    render_system_health_markdown as _render_system_health_markdown,\n    system_health_run_stem as _system_health_run_stem,\n)",
+          "end_location": {
+            "column": 2,
+            "row": 123
+          },
+          "location": {
+            "column": 1,
+            "row": 118
+          }
+        }
+      ],
+      "message": "Remove unused import: `hermes_escape_top.core.reporting.system_health.factor_score_symbol_count`"
+    },
+    "location": {
+      "column": 34,
+      "row": 120
+    },
+    "message": "`hermes_escape_top.core.reporting.system_health.factor_score_symbol_count` imported but unused",
+    "name": "unused-import",
+    "noqa_row": 120,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unused-import"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 2,
+      "row": 129
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 124
+    },
+    "message": "Module level import not at top of file",
+    "name": "module-import-not-at-top-of-file",
+    "noqa_row": 124,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 55,
+      "row": 130
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 130
+    },
+    "message": "Module level import not at top of file",
+    "name": "module-import-not-at-top-of-file",
+    "noqa_row": 130,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "F541",
+    "end_location": {
+      "column": 62,
+      "row": 947
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "\"引擎: `hermes_escape_top` (optimize_targets_v1)\"",
+          "end_location": {
+            "column": 62,
+            "row": 947
+          },
+          "location": {
+            "column": 14,
+            "row": 947
+          }
+        }
+      ],
+      "message": "Remove extraneous `f` prefix"
+    },
+    "location": {
+      "column": 14,
+      "row": 947
+    },
+    "message": "f-string without any placeholders",
+    "name": "f-string-missing-placeholders",
+    "noqa_row": 947,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/f-string-missing-placeholders"
+  },
+  {
+    "cell": null,
+    "code": "F541",
+    "end_location": {
+      "column": 85,
+      "row": 1731
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "\"[M4-1] SHADOW mode — writing to data/shadow/ (production untouched)\"",
+          "end_location": {
+            "column": 85,
+            "row": 1731
+          },
+          "location": {
+            "column": 15,
+            "row": 1731
+          }
+        }
+      ],
+      "message": "Remove extraneous `f` prefix"
+    },
+    "location": {
+      "column": 15,
+      "row": 1731
+    },
+    "message": "f-string without any placeholders",
+    "name": "f-string-missing-placeholders",
+    "noqa_row": 1731,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/f-string-missing-placeholders"
+  },
+  {
+    "cell": null,
+    "code": "F541",
+    "end_location": {
+      "column": 57,
+      "row": 1733
+    },
+    "filename": "/Users/liweishi/Documents/github/hermes/src/hermes_escape_top/scripts/run_daily_package.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "\"[M4-1] LIVE mode — writing to live dirs\"",
+          "end_location": {
+            "column": 57,
+            "row": 1733
+          },
+          "location": {
+            "column": 15,
+            "row": 1733
+          }
+        }
+      ],
+      "message": "Remove extraneous `f` prefix"
+    },
+    "location": {
+      "column": 15,
+      "row": 1733
+    },
+    "message": "f-string without any placeholders",
+    "name": "f-string-missing-placeholders",
+    "noqa_row": 1733,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/f-string-missing-placeholders"
+  }
+]

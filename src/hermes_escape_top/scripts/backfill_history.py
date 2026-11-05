@@ -30,6 +30,7 @@ from ..core.data.external_sources.cboe_indices import CBOE_INDEX_SYMBOLS
 from ..core.data.store import safe_symbol
 from ..core.safe_io import atomic_write_csv
 from ..core.reporting.market_comparisons import MarketComparisonRecorder
+from ..core.reporting.history_versions import HistoryVersionRecorder, history_versions_root
 
 
 ROUTE_LEGS = ["BRK.B", "BOXX", "DBMF", "BIL", "SHV"]
@@ -115,7 +116,7 @@ def backfill(
     store = Path(store_dir)
     store.mkdir(parents=True, exist_ok=True)
     admission_archive_path = Path(admission_archive) if admission_archive is not None else None
-    allowed_roots = [store]
+    allowed_roots = [store, history_versions_root(store)]
     if (config.get("paths") or {}).get("archive_dir"):
         configured_archive_path = resolve_path(config, "archive_dir")
         if configured_archive_path not in allowed_roots:
@@ -164,6 +165,7 @@ def backfill(
         allowed_roots=allowed_roots,
         operation_id=(active_admission.operation_id if active_admission is not None else None),
     )
+    version_recorder = HistoryVersionRecorder(transaction)
     out: Dict[str, BackfillResult] = {}
     snapshots = {
         store / f"{safe_symbol(symbol)}.csv": _history_snapshot(
@@ -189,6 +191,7 @@ def backfill(
                 repair_history_head=repair_history_head,
                 history_transaction=transaction,
                 comparison_recorder=comparison_recorder,
+                version_recorder=version_recorder,
             )
         if active_admission is not None and admission_archive_path is not None:
             for evidence_path in market_admission_evidence_paths(
@@ -198,6 +201,7 @@ def backfill(
                 transaction.track_path(evidence_path)
         if comparison_recorder is not None:
             transaction.track_path(comparison_recorder.path)
+        version_recorder.stage_index()
         transaction.prepare()
         transaction.promote()
         if active_admission is not None:
@@ -209,6 +213,7 @@ def backfill(
             )
             if comparison_recorder is not None:
                 comparison_recorder.write(active_admission.payload())
+        version_recorder.seal()
         transaction.mark_committed()
     except BaseException as exc:
         rollback_error: BaseException | None = None
@@ -334,6 +339,7 @@ def _backfill_one(
     repair_history_head: bool = False,
     history_transaction: HistoryPromotionTransaction | None = None,
     comparison_recorder: MarketComparisonRecorder | None = None,
+    version_recorder: HistoryVersionRecorder | None = None,
 ) -> BackfillResult:
     path = store_dir / f"{safe_symbol(symbol)}.csv"
     existing = _read_existing(path)
@@ -411,7 +417,8 @@ def _backfill_one(
     combined = pd.concat([existing, normalized]).sort_index()
     if not combined.empty:
         combined = combined[~combined.index.duplicated(keep="last")]
-        _write_history(path, combined, history_transaction=history_transaction)
+        _write_history(path, combined, history_transaction=history_transaction,
+                       version_recorder=version_recorder, symbol=symbol)
     return _result(symbol, path, combined, updated=not normalized.empty, source_symbol=_yf_symbol(symbol), reason="; ".join(reasons))
 
 
@@ -587,6 +594,8 @@ def _write_history(
     frame: pd.DataFrame,
     *,
     history_transaction: HistoryPromotionTransaction | None = None,
+    version_recorder: HistoryVersionRecorder | None = None,
+    symbol: str | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     out = frame.copy()
@@ -595,7 +604,10 @@ def _write_history(
     out = out.rename(columns={"Open": "open", "High": "high", "Low": "low", "Close": "close", "Adj Close": "adj_close", "Volume": "volume"})
     canonical = out[["date", "open", "high", "low", "close", "adj_close", "volume"]]
     if history_transaction is not None:
-        history_transaction.stage_bytes(path, canonical.to_csv(index=False).encode("utf-8"))
+        content = canonical.to_csv(index=False).encode("utf-8")
+        history_transaction.stage_bytes(path, content)
+        if version_recorder is not None and symbol is not None:
+            version_recorder.capture(symbol, path, content, source_symbol=_yf_symbol(symbol))
     else:
         atomic_write_csv(canonical, path, index=False)
 

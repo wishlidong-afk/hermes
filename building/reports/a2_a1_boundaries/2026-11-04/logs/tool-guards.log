@@ -1,0 +1,52 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "case": "direct_worker_without_launch",
+      "refused": true
+    },
+    {
+      "case": "missing_prepared_binding",
+      "refused": true
+    },
+    {
+      "case": "wrong_helper_binding",
+      "refused": true
+    },
+    {
+      "case": "empty_replacement_inventory",
+      "refused": true
+    },
+    {
+      "case": "linked_output",
+      "refused": true
+    },
+    {
+      "case": "existing_output",
+      "refused": true
+    },
+    {
+      "case": "extra_importable_python",
+      "refused": true
+    },
+    {
+      "case": "private_parent_symlink_before_any_unlink",
+      "refused": true
+    },
+    {
+      "case": "second_release_config_drift",
+      "refused": true
+    },
+    {
+      "case": "second_release_version_drift",
+      "refused": true
+    },
+    {
+      "case": "old_source_drift",
+      "refused": true
+    }
+  ],
+  "scoring_invoked": false,
+  "tool_sha256": "067572cc7931acf40026a0e044d4c380add3d97ff0561a4d771e97ec21462dd5"
+}
+

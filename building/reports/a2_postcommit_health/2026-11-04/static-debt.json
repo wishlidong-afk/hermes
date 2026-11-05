@@ -1,0 +1,10 @@
+{
+  "wrapper_mypy_before": 4,
+  "wrapper_mypy_current": 4,
+  "mypy_message_multisets_equal": true,
+  "wrapper_ruff_before": 17,
+  "wrapper_ruff_current": 17,
+  "ruff_message_multisets_equal": true,
+  "specified_15_file_mypy_pass": true,
+  "all_modified_files_mypy_clean": false
+}

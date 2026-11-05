@@ -1,0 +1,18 @@
+{
+  "SIGKILL_sent": false,
+  "command": [
+    "/usr/bin/sandbox-exec",
+    "-p",
+    "(version 1) (allow default) (deny network*) (deny file-write*) (allow file-write* (subpath \"/Users/liweishi/Documents/New project/hermes-a1-v2-rollback-final-2026-11-04/cases/committed_active/private/r6/shared/hermes_escape_top/data\")) (allow file-write* (subpath \"/Users/liweishi/Documents/New project/hermes-a1-v2-rollback-final-2026-11-04/cases/committed_active/private/tmp\")) (allow file-write* (subpath \"/Users/liweishi/Documents/New project/hermes-a1-v2-rollback-final-2026-11-04/cases/committed_active/private/broker-caches\")) (allow file-write* (literal \"/Users/liweishi/Documents/New project/hermes-a1-v2-rollback-final-2026-11-04/cases/committed_active/recover.json\") (literal \"/dev/null\")) (deny file-read* (subpath \"/Users/liweishi/.hermes\"))",
+    "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+    "-B",
+    "/Users/liweishi/Documents/New project/hermes-a1-v2-rollback-final-2026-11-04/verify_v2_rollback.py",
+    "worker",
+    "committed_active",
+    "recover"
+  ],
+  "driver_sha256": "dd804e34ed7a59b3db23643b07b4701482053dc5d3b653513eadaec991cc06f4",
+  "expected_returncode": 0,
+  "pid": 80613,
+  "returncode": 0
+}

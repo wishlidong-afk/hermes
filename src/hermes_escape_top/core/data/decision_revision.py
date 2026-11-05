@@ -6,7 +6,7 @@ import sqlite3
 from collections.abc import Mapping
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -44,6 +44,7 @@ def build_scheduled_decision_evidence(
     package_root: Path,
     histories: Mapping[str, pd.DataFrame | None],
     certified_at: datetime | None = None,
+    input_observer: Callable[[Path, bytes | None], None] | None = None,
 ) -> dict[str, Any]:
     if str(payload.get("run_type") or "") != "scheduled":
         raise ValueError("decision certification requires run_type=scheduled")
@@ -68,10 +69,10 @@ def build_scheduled_decision_evidence(
         "as_of": as_of,
         "snapshot_hash": snapshot_hash,
         "soft_input_evidence_hash": _stable_hash(soft_records),
-        "canonical_market_evidence_hash": _market_manifest_id(archive_dir),
+        "canonical_market_evidence_hash": _market_manifest_id(archive_dir, input_observer),
         "config_hash": _stable_hash(config),
-        "policy_hash": _policy_hash(package_root),
-        "scorer_release_hash": _release_hash(package_root),
+        "policy_hash": _policy_hash(package_root, input_observer),
+        "scorer_release_hash": _release_hash(package_root, input_observer),
         "market_admission_operation_id": str(admission.get("operation_id") or ""),
         "market_admission_completed_through": str(admission.get("completed_through") or ""),
     }
@@ -319,10 +320,15 @@ def _reject_unavailable_audit(path: Path, as_of: str) -> None:
                 raise DecisionRevisionConflict("prior scheduled state exists but audit is unavailable")
 
 
-def _market_manifest_id(archive_dir: Path) -> str:
+def _market_manifest_id(archive_dir: Path, input_observer=None) -> str:
     path = archive_dir / "data_manifest_latest.json"
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        if input_observer is None:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        else:
+            content = path.read_bytes()
+            input_observer(path, content)
+            payload = json.loads(content.decode("utf-8"))
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise ValueError(f"canonical market manifest unavailable: {path}") from exc
     manifest_id = str(payload.get("manifest_id") or "")
@@ -331,20 +337,30 @@ def _market_manifest_id(archive_dir: Path) -> str:
     return manifest_id
 
 
-def _policy_hash(package_root: Path) -> str:
+def _policy_hash(package_root: Path, input_observer=None) -> str:
     path = package_root / "governance" / "approved_live_config.json"
     if not path.is_file():
         raise ValueError(f"approved live-config policy unavailable: {path}")
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    content = path.read_bytes()
+    if input_observer is not None:
+        input_observer(path, content)
+    return hashlib.sha256(content).hexdigest()
 
 
-def _release_hash(package_root: Path) -> str:
+def _release_hash(package_root: Path, input_observer=None) -> str:
     version_path = package_root / "VERSION"
     if version_path.is_file():
-        fields = version_path.read_text(encoding="utf-8").splitlines()[0].split()
+        if input_observer is None:
+            fields = version_path.read_text(encoding="utf-8").splitlines()[0].split()
+        else:
+            content = version_path.read_bytes()
+            input_observer(version_path, content)
+            fields = content.decode("utf-8").splitlines()[0].split()
         if fields and fields[0]:
             return fields[0]
         raise ValueError(f"invalid VERSION: {version_path}")
+    if input_observer is not None:
+        input_observer(version_path, None)
     digest = hashlib.sha256()
     source_files = sorted(
         path
@@ -358,6 +374,8 @@ def _release_hash(package_root: Path) -> str:
         digest.update(len(relative).to_bytes(4, "big"))
         digest.update(relative)
         content = path.read_bytes()
+        if input_observer is not None:
+            input_observer(path, content)
         digest.update(len(content).to_bytes(8, "big"))
         digest.update(content)
     return f"source-{digest.hexdigest()}"

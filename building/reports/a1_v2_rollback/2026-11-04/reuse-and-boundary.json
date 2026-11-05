@@ -1,0 +1,26 @@
+{
+  "full_suite": "2288 passed reused from unchanged source/environment, not rerun",
+  "candidate_manifest": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+  "candidate_logic": "ac025f0f93d16ee3b97e1aaa8f7e70b49801032d81085453b7e5531eae8e7dad",
+  "final_driver_sha256": "dd804e34ed7a59b3db23643b07b4701482053dc5d3b653513eadaec991cc06f4",
+  "synthetic_only": true,
+  "completed": [
+    "v2 PENDING rollback and old r1 repeat",
+    "COMMITTED stale pointer cleanup without rewind",
+    "cleaned COMMITTED old writer reaches revision-budget refusal"
+  ],
+  "not_proved": [
+    "power-loss durability",
+    "IBKR/cache execution paths",
+    "actual live config/data-bound release proof",
+    "final integrated external audit",
+    "Git/CI",
+    "deployment",
+    "natural ON/v2 observations",
+    "A1/A2 closure"
+  ],
+  "limitations": "Controlled local roots, local hashes are not signatures; not a same-user/concurrent ancestor replacement security boundary",
+  "DEPLOY": "HOLD",
+  "A2": "OPEN",
+  "Phase_B": "NOT_STARTED"
+}

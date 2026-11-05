@@ -1,0 +1,29 @@
+{
+  "schema_version": "hermes-postcommit-health-evidence-v1",
+  "files": {
+    "candidate-binding.json": "1d7344b684529ea02e3289e8eae8bf017d1ce60344bc336c75f83b7f1e194086",
+    "equivalence.json": "255025922b2b4ef41479def6be678f915055a29ead5f8c739ecee7cdcc12e481",
+    "increment.patch": "43b37c804e4cfaed504d60760d5bbf5e4e4323658bca35b0141ba521077a3756",
+    "internal-review.json": "74813b0946b8e80e616b2e3cf3a74a83815de1c22c6edf15c021cc3f608ff7d9",
+    "logs/combined-focused-499.log": "420d91c1cb0291820d3ba0ba805299389e63cc861b8982036c78b8de30629840",
+    "logs/compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/dependency-check.log": "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09",
+    "logs/diff-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/failure-matrix-fixture-corrected.log": "14248a60560511863bfba631e0dd6ddddebc50f21cb8237d443ea2be07fbb75a",
+    "logs/governance.log": "d43a27127324632362e873eb330a25006ed346e3262e3251967a5b63b2b80a86",
+    "logs/green-translation.log": "aaa00af78312dfc383c072e6e701ce3425fb50c894648b937a3197316da61445",
+    "logs/mypy-15.log": "fc409d91e6c781eb25a1ec1310b7fcb0086b74ed3aa2c415bcd73f884f23f07a",
+    "logs/new-failure-matrix.log": "8717e61293934a52e848b97414442ca74b935e340b0905e1c44f7ada0a2228c6",
+    "logs/new-test-ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "logs/red-translation.log": "8d5f6cc7d3125ab316184c35ae6de0150c9c5166fc9fe94c5c5dc05e8dd3ed11",
+    "logs/ruff-severe.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "logs/strict-four-date.log": "55eb7a26ec35431958d6cfb7335932c808a27f06029edc3b2d965d4516a79945",
+    "logs/wrapper-mypy-before.log": "b72cc2fea37f33c49859884abb10c3c4634b5e89e00ffc4185fd3ab01750a8be",
+    "logs/wrapper-mypy-current.log": "c22d4b5db5ffb75888fe528914cca378bd294ebb2448a90b7fd5877c2e85b05f",
+    "logs/wrapper-ruff-before.log": "48745e8da2dd6391bf4f16b5361413ac5a466f4b4196428de5071f126a98e1b6",
+    "logs/wrapper-ruff-current.log": "84dea2acb5c8c6b2a26d7f2a8f53c0aa08412d5fe482ea16f480ef1e6a4de958",
+    "preservation.json": "42558aa974c1f83495937d09f8cb92a8ad702e0bf1faf94147e50f7943c75eb0",
+    "static-debt.json": "5da3b64a54306dd3b02680f5c249925218674312c0a943418ed30d406379f0bc",
+    "verification-runs.json": "62d3b043c305b734b0edb68df876d41dee052c6ccbc766676f46ed6b519059c9"
+  }
+}

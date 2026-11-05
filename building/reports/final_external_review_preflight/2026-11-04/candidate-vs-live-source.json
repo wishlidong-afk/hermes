@@ -1,0 +1,333 @@
+{
+  "baseline_commit": "c1f4b8fc1df23876fefeccd33bc08e0270627f9e",
+  "candidate_source_manifest": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+  "bound_files": 512,
+  "changed_bound_files": 54,
+  "scope": "Only within the frozen 512-file source manifest, not all repository data/docs; raw live config is not replaced",
+  "files": [
+    {
+      "path": "ops/README.md",
+      "change": "MODIFIED",
+      "baseline_sha256": "cb751cc66f4bcc3f4503388ea40877aaa69b9b6d346efbf0903ec496113c3cb5",
+      "candidate_sha256": "9314b684779880810447aa5923e811cefcea59bc753aa883f0f591c97ff5cfea"
+    },
+    {
+      "path": "ops/morning_acceptance.py",
+      "change": "MODIFIED",
+      "baseline_sha256": "43c0e4d785a60a9636601c82deaa1e8d13723e6342af10f5d45811afec828bb6",
+      "candidate_sha256": "217857aa94632ba89db62db630864b56d231e1bc27dd371f9db022187b4698b9"
+    },
+    {
+      "path": "ops/prune_runtime_artifacts.py",
+      "change": "MODIFIED",
+      "baseline_sha256": "c9a6240e7e9aa583d918e83cf03fa9097d5436651fc97f19bfd0b5abc04bc379",
+      "candidate_sha256": "7d52be95fe428a621c84f9ef8f2eec795ac7a8d5b49d5dbea82bb2d0764d6888"
+    },
+    {
+      "path": "scripts/verify_a2_capture_crash.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "8302973de21c2752dd2d444f65ae0612b5b5a323b95da712dadcc173c75a58b7"
+    },
+    {
+      "path": "scripts/verify_a2_isolated_replay.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "082486c201e22696fb34f0814e2cc24b04e5285c2f6b1ee6ca3749551eb72f75"
+    },
+    {
+      "path": "scripts/verify_a2_publication_crash.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "58ecec9dba474c42242c28b487e90fbcfa03fb6a271a22be5476618a08238527"
+    },
+    {
+      "path": "scripts/verify_a2_runtime_replay.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "ab2af704736ec5182dec8e9af27278943fda1598eb74b45e216d9708ceeafa3a"
+    },
+    {
+      "path": "src/hermes_escape_top/core/data/decision_revision.py",
+      "change": "MODIFIED",
+      "baseline_sha256": "f1abb0818f7e4ef57c933bfe7ede92ae2b4af3cfcfb6942be02eb96a2d483089",
+      "candidate_sha256": "7769eb433f8241edda81a32aad4bc3b682656b2a408a5e4577e62df5e450daad"
+    },
+    {
+      "path": "src/hermes_escape_top/core/data/run_transaction.py",
+      "change": "MODIFIED",
+      "baseline_sha256": "a12ffd574d1151d6d993db5c3ea3e6ff7bbc67048c08d88959014faf49cf69b6",
+      "candidate_sha256": "72805884349080e92e424bbc13796f4b878ef332e60315445a030333f8fab857"
+    },
+    {
+      "path": "src/hermes_escape_top/core/data/sqlite_snapshot.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "c74574309686f8dc8753e7120a2cdabeb2cb437f0e5a47da230783133fbdfd74"
+    },
+    {
+      "path": "src/hermes_escape_top/core/data/transaction_evidence.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "b6cfe16221170f3bbae1ee10ac14a4d7059e5222a32ef8df6130376b418176be"
+    },
+    {
+      "path": "src/hermes_escape_top/core/reporting/broker_capture.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "60a9d49302cacd9bbe988d7df9b645464545460a87a0baeb95e8c1b84f3fc5ae"
+    },
+    {
+      "path": "src/hermes_escape_top/core/reporting/broker_publication_status.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "fbe8c13483a38efa9234be349a3554f03472dfef82d153fa74ce55bf0260d912"
+    },
+    {
+      "path": "src/hermes_escape_top/core/reporting/decision_inputs.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "73a9d9e4c6125196694d69a7ab864e55c7783ac5ddb0ea0242c8d1a4d9f5f3cc"
+    },
+    {
+      "path": "src/hermes_escape_top/core/reporting/history_versions.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "360e9647b18ffab64173e5c395e2d3b8470b8a681c40a8c383f4a381aa57ae78"
+    },
+    {
+      "path": "src/hermes_escape_top/core/reporting/runtime_capture.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "e39ad3b397c97e0364bd9296c1c7d6985eeb814d652af2350216e752c082d1b4"
+    },
+    {
+      "path": "src/hermes_escape_top/core/reporting/scheduled_broker_publication.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "e33a71b585be04a58f502e532cda9ff6c78ccd56a84e80b8b18e9efcaee065fa"
+    },
+    {
+      "path": "src/hermes_escape_top/core/reporting/transaction_restore.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "414a149fb97887c9539a1c50ab2b047433ecb4119ce1a957661c496687fa84a5"
+    },
+    {
+      "path": "src/hermes_escape_top/ibkr/executions.py",
+      "change": "MODIFIED",
+      "baseline_sha256": "8645a5e71497c144f8a3543ca98efe25fbab75557b7f4b0e6129af74f30ba8b7",
+      "candidate_sha256": "01eae4f0994a6d223f4dc7d31669d35c36c9682e473c1172a3c7c66110235052"
+    },
+    {
+      "path": "src/hermes_escape_top/ibkr/positions.py",
+      "change": "MODIFIED",
+      "baseline_sha256": "3e533a2ee207f7f399da18f0184d17cecb97f9a70b8b708735c563a8c17dc6ad",
+      "candidate_sha256": "6cb1d742366727b908cab68710ef5eb8fb587a251b787f65afbdca4bdb758fb4"
+    },
+    {
+      "path": "src/hermes_escape_top/pipeline.py",
+      "change": "MODIFIED",
+      "baseline_sha256": "0dacd386f498fdd7d3d9d8a1c02b66c96403f7bf37a39f6fd890b2ef7ff11cb0",
+      "candidate_sha256": "ff57e12a61d66138739f8b0acfdfffbc665e62401a2444c5f05eb6359d1884b4"
+    },
+    {
+      "path": "src/hermes_escape_top/scripts/backfill_history.py",
+      "change": "MODIFIED",
+      "baseline_sha256": "f473a0be14f1c9d52a6fc4885eb4dc86c0f660aad74eeefc22856eb1d20124ea",
+      "candidate_sha256": "d07f3b05fc0754e52589b0f046949ad7a769a64b0cb3355a9301246c552f07d3"
+    },
+    {
+      "path": "src/hermes_escape_top/scripts/run_daily_package.py",
+      "change": "MODIFIED",
+      "baseline_sha256": "2831d8cbfd114567656f56fd523e4b2683246f97992fe016c8363f8e2ac3151a",
+      "candidate_sha256": "a897b2dfcadcdac770d2c3a242db2e6661f06b8698b0854c03b4cfd0dd4ac8f2"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_a2_broker_capture_boundaries.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "2a18385c04324e0aa4e809870e4ac690684ea6d04f1e563aac46d1ce8f1f143e"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_a2_capture_boundaries.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "e150741fb9969c276df1e4d46b2c4bcb75b3a149a2f08dfbb95c3cff143f1202"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_a2_capture_crash.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "a42df8ef6f8f4c37d872f444eef21fea9de60cf0702bdeda2de7d91a3df2961b"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_a2_capture_replay.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "8e398d0d2cd8183dc5d3a9ddcda1155a4132a1f665e4c8717310c75df7c1c8da"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_a2_external_legacy_replay.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "8233febe94a2caf97f99fbc72e1ee113ffe17beb1c1edf2479d2771f5f6482dc"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_a2_isolated_replay.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "dbcf2d89df6e8032f5fd48ed9007bec5eee377f285c7c89e27920061b7dee9ef"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_a2_on_input_matrix.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "447267cd2067158cdb60eff5a889c2cd084da02eb33a4ab4a6d0a21f1d9edb02"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_a2_production_capture.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "999b0d5f67ec6ea48d1efe0430bb2d74ff07f7f565b36e40cda870bff83481fd"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_a2_publication_crash.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "9554ff9b96b3c131dd5eda742c4703069a69e7fa5bb2ad82f221815caacfb174"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_a2_runtime_replay.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "3fbf12b43c4742d852b057d8232abe9cdcd9fd046fe3302b414c4b905f821f1a"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_a2_selected_legacy_replay.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "b05c50b079e9a1c963b7e282f9f3ad705ba6d567b472eac37a5767e62449f2ea"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_broker_input_capture.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "ea2042c975545a39dcd504a1b67d39c6820c020c63b07355a8f4f8fc040747f2"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_broker_publication_anchor_contract.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "76a2590e7eb0daa70dc262efcf60022bfbb45efb3a1e04a614f95737a2580bd1"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_broker_publication_status.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "7146a16b3fdee87f2875c19930336c17f1d66b53fa8d8c554ba5d8b84b1aa420"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_commit_observation.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "e5e0df9a568c9ea4eb0c3695e8e9753acb93a721755a722e93ceb43921db3d35"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_commit_observation_receipt.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "0618c36aca09aa55c0ddced736cd898b8ab969a962dc28b7aa6727f97ee06c27"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_committed_before_image_restore.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "354e346f1c6406a4afc872b8c374cc963fc9b0b09e932105d667041894f44051"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_committed_runtime_input_restore.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "5f2a0ca1faba4e6f82c2a063cd1de258f1811ea52454f965bf61b83253dc7b75"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_decision_input_archive.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "baad0738126b6df1b526f7c993bd26bbf0c4b17a807d63c9d56a49b7eda6ed96"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_evidence_anchor_retention.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "170392908b7fffb16c4431ea97595f3e826873de7ba4dfcc37214541342808b8"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_history_versions.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "10e98bf5d51978b584fc465fea92bcdd2c01892d031a3d7ff1b98f68e7a26aff"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_morning_publication_observation.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "e42644e8726d783dbd3eb212e98459d4c3d9964222c9bc00755db40209331021"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_postcommit_failure_health.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "3b4a52d81148b8936043dbddbcd67d8a42dbee7f0a6fa25798b5aba3546f9634"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_pre_run_state_archive.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "0ad72d39123f6c78e9f1a74ec5fbe7bdea7956062bb297fb1282ecc66d8aa64a"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_release_integration.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "c0cf0eb443289694d8a959387dec9d7b4d8ae6166d1efaf54073464bf76088b7"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_runtime_capture.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "539a509228b3b04ba68340e81fbfefbce75a4d9837e1fce0b9e86da8949b83cc"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_runtime_retention.py",
+      "change": "MODIFIED",
+      "baseline_sha256": "8cb93edfac7915196f552e151ce603fd2525c40901321540978f14f6e3535757",
+      "candidate_sha256": "4216add92ce9be0bcb3ccae2af3c5b2512ce12a334372819956b35142a4b7384"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_scheduled_broker_publication.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "023f2646b026181b7106ec0251880d66aa4b4daa675b5f910c3dad9d74100f45"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_score_transaction_v2.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "f4751cb7b4d6b972a075a01f266d5eec08ce20e775b437d5aa426d51ae554ab0"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_transaction_before_images.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "39ec50fdea355327ec2548ac205141feb9d6856fef7a677253ccfab750ff0ea6"
+    },
+    {
+      "path": "src/hermes_escape_top/tests/test_transaction_v2_acceptance.py",
+      "change": "NEW",
+      "baseline_sha256": null,
+      "candidate_sha256": "be7f6e21db654d06e9fd3e45c34e1527c6aff2f654134afec5bc7374b25b4d3f"
+    }
+  ]
+}

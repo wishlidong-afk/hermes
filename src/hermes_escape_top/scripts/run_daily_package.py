@@ -24,6 +24,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import runpy
 import socket
 import stat
@@ -31,7 +32,7 @@ import subprocess
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Callable, Dict, Iterator, Optional
 from unittest.mock import patch
 
 SCRIPT_PATH = Path(__file__).resolve()
@@ -399,15 +400,23 @@ def run_score_pipeline(
     run_type: str = "manual_rerun",
     market_admission_status: Dict[str, Any] | None = None,
     *,
+    capture_inputs: bool = False,
+    commit_observer: Optional[Callable[[Dict[str, Any]], None]] = None,
     _lease: Any,
     include_ibkr: bool = True,
 ) -> Dict[str, Any]:
+    if commit_observer is not None and not capture_inputs:
+        raise ValueError("commit observation requires explicit capture")
+    capture_options: Dict[str, Any] = (
+        {"capture_inputs": True, "commit_observer": commit_observer} if capture_inputs else {}
+    )
     print(f"[M4-1] Running score_pipeline({as_of}, shadow={shadow}, run_type={run_type})…")
     payload = pipeline._score_pipeline_locked(
         as_of,
         shadow=shadow,
         run_type=run_type,
         market_admission_status=market_admission_status,
+        **capture_options,
         _lease=_lease,
         **({"include_ibkr": False} if not include_ibkr else {}),
     )
@@ -1369,6 +1378,27 @@ def _attach_alpaca_flow_for_health(payload: Dict[str, Any], as_of: str) -> Dict[
         return payload
 
 
+def _validated_commit_observation(
+    value: Dict[str, Any], *, as_of: str, started_at: str,
+) -> Dict[str, Any]:
+    expected = {"schema_version", "protocol", "run_id", "capture_id", "as_of", "decision_id",
+                "input_hash", "journal_sha256", "committed_at"}
+    if (not isinstance(value, dict) or set(value) != expected
+            or value["schema_version"] != "hermes-score-commit-observation-v1"
+            or value["protocol"] != "recoverable-journal-v2" or value["as_of"] != as_of
+            or not isinstance(value["decision_id"], str) or not value["decision_id"]):
+        raise ValueError("invalid commit observation binding")
+    for key, length in (("run_id", 32), ("capture_id", 32), ("input_hash", 64), ("journal_sha256", 64)):
+        if not isinstance(value[key], str) or not re.fullmatch(rf"[0-9a-f]{{{length}}}", value[key]):
+            raise ValueError("invalid commit observation digest or identifier")
+    committed = datetime.fromisoformat(value["committed_at"])
+    started = datetime.fromisoformat(started_at)
+    if (committed.utcoffset() is None or started.utcoffset() is None
+            or not started <= committed <= datetime.now().astimezone()):
+        raise ValueError("commit observation is outside this invocation")
+    return dict(value)
+
+
 def _write_run_receipt(
     as_of: str,
     run_type: str,
@@ -1378,6 +1408,7 @@ def _write_run_receipt(
     status: Optional[str] = None,
     started_at: Optional[str] = None,
     failed_step: str = "",
+    commit_observation: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     """End-of-run self-attestation written by the scheduled daily run.
 
@@ -1400,8 +1431,14 @@ def _write_run_receipt(
         now = datetime.now().astimezone().isoformat(timespec="seconds")
         started_at = started_at or now
         requested_status = status or ("OK" if steps_ok else "FAILED")
+        if commit_observation is not None:
+            if run_type != "scheduled" or requested_status == "RUNNING":
+                raise ValueError("commit observation requires a finished scheduled receipt")
+            commit_observation = _validated_commit_observation(
+                commit_observation, as_of=str(as_of), started_at=started_at,
+            )
         if requested_status == "RUNNING":
-            receipt = {
+            receipt: Dict[str, Any] = {
                 "status": "RUNNING",
                 "run_at": now,
                 "started_at": started_at,
@@ -1451,6 +1488,8 @@ def _write_run_receipt(
             "error": step_error if final_status == "FAILED" else "",
             "checks": checks,
         }
+        if commit_observation is not None:
+            receipt["commit_observation"] = commit_observation
         _atomic_write_json(path, receipt)
         print(f"[receipt] self-check {'OK' if ok else 'FAIL'} -> {path.name}")
         return receipt
@@ -1684,14 +1723,30 @@ def _deploy_verification_guard(args: argparse.Namespace) -> Iterator[None]:
     print("[deploy-verify] offline PASS network_attempts=0 include_ibkr=false refresh=false")
 
 
-def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
+def _run_daily_with_receipt(
+    args: argparse.Namespace, *, _lease: Any, capture_inputs: bool = False,
+) -> None:
     scheduled = bool(args.live and args.run_type == "scheduled")
-    context = {
+    if capture_inputs and not scheduled:
+        raise ValueError("capture requires a non-shadow scheduled invocation")
+    context: Dict[str, Any] = {
         "as_of": str(args.as_of or date.today().isoformat()),
         "step": "startup",
     }
     started_at = datetime.now().astimezone().isoformat(timespec="seconds")
     payload: Optional[Dict[str, Any]] = None
+    commit_observation: Optional[Dict[str, Any]] = None
+
+    def observe(value: Dict[str, Any]) -> None:
+        nonlocal commit_observation
+        if commit_observation is not None:
+            raise ValueError("duplicate commit observation in one invocation")
+        commit_observation = _validated_commit_observation(
+            value, as_of=context["as_of"], started_at=started_at,
+        )
+
+    capture_options: Dict[str, Any] = {"capture_inputs": True, "commit_observer": observe} if capture_inputs else {}
+    receipt_options: Dict[str, Any]
     if scheduled:
         running = _write_run_receipt(
             context["as_of"],
@@ -1702,16 +1757,29 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
         if running is None:
             raise RuntimeError("scheduled run cannot start without a RUNNING receipt")
     try:
-        payload = _execute_daily(args=args, _lease=_lease, _run_context=context)
+        payload = _execute_daily(
+            args=args, _lease=_lease, _run_context=context,
+            **capture_options,
+        )
+        if commit_observation is not None:
+            expected = {"as_of": payload["as_of"], "run_id": payload["persistence"]["run_id"],
+                        "capture_id": payload["persistence"].get("capture_id"),
+                        "decision_id": payload["decision_evidence"]["decision_id"],
+                        "input_hash": payload["input_hash"], "protocol": payload["persistence"]["protocol"]}
+            if any(commit_observation[key] != value for key, value in expected.items()):
+                commit_observation = None
+                raise ValueError("commit observation does not match this scoring result")
         if scheduled:
             context["step"] = "alpaca_flow"
             payload = _attach_alpaca_flow_for_health(payload, context["as_of"])
+            receipt_options = {"commit_observation": commit_observation} if commit_observation is not None else {}
             context["step"] = "run_receipt"
             finished = _write_run_receipt(
                 context["as_of"],
                 args.run_type,
                 status="OK",
                 started_at=started_at,
+                **receipt_options,
             )
             if finished is None or finished.get("status") != "OK":
                 raise RuntimeError("scheduled run end-state receipt failed")
@@ -1719,6 +1787,9 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
             _write_system_health_report(payload, context["as_of"], finished, shadow=False)
     except BaseException as exc:
         if scheduled:
+            if payload is None:
+                payload = context.get("score_payload")
+            receipt_options = {"commit_observation": commit_observation} if commit_observation is not None else {}
             failed = _write_run_receipt(
                 context["as_of"],
                 args.run_type,
@@ -1727,6 +1798,7 @@ def _run_daily_with_receipt(args: argparse.Namespace, *, _lease: Any) -> None:
                 status="FAILED",
                 started_at=started_at,
                 failed_step=str(context.get("step") or "unknown"),
+                **receipt_options,
             )
             if payload is not None and failed is not None:
                 try:
@@ -1740,13 +1812,19 @@ def _execute_daily(
     *,
     args: argparse.Namespace,
     _lease: Any,
-    _run_context: Dict[str, str],
+    _run_context: Dict[str, Any],
+    capture_inputs: bool = False,
+    commit_observer: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Dict[str, Any]:
     shadow = not args.live
     refresh_end = args.as_of or date.today().isoformat()
     market_witness_status: Dict[str, Any] | None = None
     market_admission_status: Dict[str, Any] | None = None
     market_admission_session: MarketAdmissionSession | None = None
+    capture_options: Dict[str, Any] = (
+        {"capture_inputs": True, "commit_observer": commit_observer} if capture_inputs else {}
+    )
+    broker_options: Dict[str, Any] = {"include_ibkr": False} if getattr(args, "deploy_verify", False) else {}
 
     if shadow:
         print(f"[M4-1] SHADOW mode — writing to data/shadow/ (production untouched)")
@@ -1844,9 +1922,12 @@ def _execute_daily(
         shadow=shadow,
         run_type=args.run_type,
         market_admission_status=market_admission_status,
+        **capture_options,
         _lease=_lease,
-        **({"include_ibkr": False} if getattr(args, "deploy_verify", False) else {}),
+        **broker_options,
     )
+    # Keep this invocation's score available if a later wrapper step fails.
+    _run_context["score_payload"] = payload
     if market_witness_status is not None:
         payload["market_witness_status"] = market_witness_status
     if market_admission_status is not None:

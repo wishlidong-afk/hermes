@@ -56,7 +56,7 @@ class ExecutionSnapshot:
         return cls(records=records, **data)
 
 
-def read_executions(config: Optional[Dict[str, Any]] = None) -> ExecutionSnapshot:
+def read_executions(config: Optional[Dict[str, Any]] = None, *, publish_cache: bool = True) -> ExecutionSnapshot:
     """Read recent executions from TWS/Gateway, falling back to local cache."""
     cfg = (config or {}).get("ibkr", {})
     if not bool(cfg.get("enabled", True)):
@@ -122,7 +122,8 @@ def read_executions(config: Optional[Dict[str, Any]] = None) -> ExecutionSnapsho
                 snapshot_stale=False,
                 client_id=connected_client_id,
             )
-            _save_cache(snap)
+            if publish_cache:
+                _save_cache(snap)
             return snap
         finally:
             try:
@@ -159,6 +160,13 @@ def _exec_time(value: Any) -> str:
             value = value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc).isoformat()
     return str(value)
+
+
+def publish_executions_cache(snapshot: ExecutionSnapshot) -> None:
+    """Publish an already-read live response without another broker request."""
+    if snapshot.source != "tws":
+        raise ValueError("only live executions may be published")
+    _save_cache(snapshot)
 
 
 def _save_cache(snapshot: ExecutionSnapshot) -> None:

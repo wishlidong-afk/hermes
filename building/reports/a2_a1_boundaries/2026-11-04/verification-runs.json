@@ -1,0 +1,98 @@
+[
+  {
+    "stage": "tool-guards",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-verified-2026-11-04/check_guards.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.53,
+    "log": "tool-guards.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "r2-and-new-date",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-verified-2026-11-04/verify_boundaries.py",
+      "run"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 22.62,
+    "log": "r2-and-new-date.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "independent-postcheck",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-verified-2026-11-04/postcheck.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.1,
+    "log": "independent-postcheck.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "tools-ruff-final",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "-m",
+      "ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "E,F,I",
+      "--line-length",
+      "120",
+      "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-verified-2026-11-04/verify_boundaries.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-verified-2026-11-04/check_guards.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-verified-2026-11-04/postcheck.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-verified-2026-11-04/publish.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.08,
+    "log": "tools-ruff-final.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  },
+  {
+    "stage": "tools-mypy",
+    "command": [
+      "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+      "-B",
+      "-m",
+      "mypy",
+      "--ignore-missing-imports",
+      "--follow-imports=skip",
+      "--cache-dir",
+      "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-verified-2026-11-04/mypy-cache",
+      "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-verified-2026-11-04/verify_boundaries.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-verified-2026-11-04/check_guards.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-verified-2026-11-04/postcheck.py",
+      "/Users/liweishi/Documents/New project/hermes-a2-a1-boundaries-verified-2026-11-04/publish.py"
+    ],
+    "cwd": "/Users/liweishi/Documents/New project/hermes-a2-postcommit-health-2026-11-04/candidate",
+    "exit_code": 0,
+    "seconds": 0.68,
+    "log": "tools-mypy.log",
+    "source_manifest_sha256": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+    "bound_source_files": 512,
+    "source_unchanged": true
+  }
+]

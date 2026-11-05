@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "original_a2_files_verified": 1358,
+  "hotfix_exact_files": 11,
+  "runtime_pins": 32,
+  "candidate_manifest_sha256": "385d6acec3919e8fe3806e807f79a035fd89e999f4d2211f3f574863d0c1fb24",
+  "scoring_logic_hash": "ac025f0f93d16ee3b97e1aaa8f7e70b49801032d81085453b7e5531eae8e7dad"
+}

@@ -1,0 +1,18 @@
+{
+  "source_sha256": "8e2a8f6b28fd325e961a57350f061b53b2eac401fb7fed7d39ac5e7c4365758c",
+  "interpreter": "/Users/liweishi/Documents/New project/hermes-a2-integration-2026-11-04/venv/bin/python",
+  "cwd": "/Users/liweishi/Documents/New project",
+  "OS_profile": "allow reads; deny network and file writes except this private work directory and /dev/null",
+  "execution": "Final collection exit 0, source/data hashes stable; metadata only; no Hermes imports or score/daily/refresh/API calls",
+  "sqlite": "mode=ro&immutable=1, only after WAL/SHM/journal absence verified; source byte hashes and absence rechecked afterward",
+  "initial_tool_assertion": "Initially assumed every feature diff was bool/bool; actual live omits four candidate-default-false keys. Revised collector distinguishes absence from false, then final collection passed. No production change.",
+  "static": "Ruff severe E9/F63/F7/F82 passed; collection tool is outside the 2288 product tests",
+  "not_copied": [
+    "full audit payload",
+    "SQLite DB",
+    "config values outside whitelisted flags",
+    "market CSV bytes",
+    "broker snapshot",
+    "account/holdings"
+  ]
+}

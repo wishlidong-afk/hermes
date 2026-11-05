@@ -1,0 +1,23 @@
+{
+  "reviewer": "Hume",
+  "agent_id": "01a1a6bb-3370-7da2-8ded-a4e3a470a537",
+  "scope": "internal targeted static tool review only; not independent external approval; reviewer did not run scores",
+  "initial_findings": [
+    "parent output symlink/overwrite",
+    "parent token does not itself prove OS isolation",
+    "replaceable/incomplete prepared inventory",
+    "missing predecessor-field assertions"
+  ],
+  "followup_finding": "PRIVATE symlink must be rejected before launch.unlink",
+  "disposition": [
+    "exclusive O_NOFOLLOW outputs and existing output refusal",
+    "OS network sandbox check and write-open refusal for tool/binding; constrained worker writes; exact mutation path",
+    "fixed 512 binding-file SHA plus 594-material canonical digest and exact PY inventory",
+    "explicit old r1 predecessor preservation and both new-date empty predecessors",
+    "ROOT/PRIVATE symlink rejection at gate and immediately before unlink"
+  ],
+  "followup_received": true,
+  "followup_result": "Last targeted P2 closed within agreed scope; no new finding",
+  "helper_sha256": "067572cc7931acf40026a0e044d4c380add3d97ff0561a4d771e97ec21462dd5",
+  "limitations": "Not an adversarial same-user/concurrent ancestor replacement security boundary; local hashes and token are not signatures"
+}

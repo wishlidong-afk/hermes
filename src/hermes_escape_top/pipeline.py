@@ -3,9 +3,11 @@ from __future__ import annotations
 import hashlib
 import json
 import warnings
+from contextlib import ExitStack
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
+from uuid import uuid4
 
 import numpy as np
 import pandas as pd
@@ -16,7 +18,11 @@ from .core.data.decision_as_of import resolve_decision_as_of
 from .core.data.decision_revision import build_scheduled_decision_evidence
 from .core.data.flow import basket_flow, money_flow_metrics
 from .core.data.flow_store import write_flow_snapshot
-from .core.data.run_transaction import recover_incomplete_score_run, score_run_transaction
+from .core.data.run_transaction import (
+    export_score_run_before_images,
+    recover_incomplete_score_run,
+    score_run_transaction,
+)
 from .core.data.market import MarketData
 from .core.data.audit import write_audit_record
 from .core.data.quality import analyze_missing_fields, quality_from_snapshots
@@ -55,7 +61,8 @@ from .mirror.strategy import build_mirror_plan
 from .mirror.store import write_mirror_snapshot
 from .core.scoring.scorer import score_symbol
 from .core.scoring.result import ScoreResult
-from .core.safe_io import assert_pipeline_lease, pipeline_lock
+from .core.safe_io import assert_pipeline_lease, atomic_write_json, pipeline_lock
+from .core.reporting.runtime_capture import RuntimeCapture, read_capture_config
 
 
 PERSISTENCE_CHECKPOINTS = (
@@ -151,6 +158,9 @@ def score_pipeline(
     include_ibkr: bool = True,
     run_type: str = "manual_rerun",
     market_admission_status: Optional[Dict[str, Any]] = None,
+    *,
+    capture_inputs: bool = False,
+    commit_observer: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Dict[str, Any]:
     """Run one complete score transaction under the per-data-dir mutex."""
     config = load_config(config_path)
@@ -163,6 +173,8 @@ def score_pipeline(
             include_ibkr=include_ibkr,
             run_type=run_type,
             market_admission_status=market_admission_status,
+            capture_inputs=capture_inputs,
+            **({"commit_observer": commit_observer} if commit_observer is not None else {}),
             _lease=lease,
         )
 
@@ -175,6 +187,8 @@ def _score_pipeline_locked(
     run_type: str = "manual_rerun",
     market_admission_status: Optional[Dict[str, Any]] = None,
     *,
+    capture_inputs: bool = False,
+    commit_observer: Optional[Callable[[Dict[str, Any]], None]] = None,
     _lease: Any,
 ) -> Dict[str, Any]:
     # run_type tags WHO triggered this run so the WebUI can tell the official
@@ -183,7 +197,13 @@ def _score_pipeline_locked(
     # EXIT into the audit log and the UI showed it as "today's advice" because
     # the UI just took the latest record. With this tag the UI pins the latest
     # SCHEDULED run as official and shows manual re-runs as non-official preview.
-    config = load_config(config_path)
+    if capture_inputs and (run_type != "scheduled" or shadow):
+        raise ValueError("capture requires non-shadow scheduled mode")
+    if commit_observer is not None and not capture_inputs:
+        raise ValueError("commit observation requires explicit capture")
+    captured_configuration = read_capture_config(config_path) if capture_inputs else None
+    config = captured_configuration[0] if captured_configuration is not None else load_config(config_path)
+    requested_as_of = as_of
     as_of = resolve_decision_as_of(as_of, config)
     assert_pipeline_lease(
         _lease,
@@ -191,114 +211,141 @@ def _score_pipeline_locked(
     )
     recovery = recover_incomplete_score_run(resolve_path(config, "archive_dir"), _lease=_lease)
     store = LocalStore(config)
-    market = MarketData(config=config, store=store)
-    symbols = _snapshot_universe(config)
-    snapshots = {symbol: market.snapshot(symbol, as_of) for symbol in symbols}
-    histories = {symbol: market.load_history(symbol) for symbol in symbols}
-    # PIT guard: a backdated run (as_of < latest bar) must not see future bars
-    # — same semantics as run_full._truncate_histories. No-op for live runs
-    # where as_of is already the newest bar.
-    _cutoff = pd.Timestamp(str(as_of)[:10])
-    histories = {
-        symbol: (frame.loc[frame.index <= _cutoff] if frame is not None and not getattr(frame, "empty", True) else frame)
-        for symbol, frame in histories.items()
+    metadata = {
+        "as_of": str(as_of)[:10],
+        "run_type": str(run_type),
+        "shadow": bool(shadow),
+        "include_ibkr": bool(include_ibkr),
     }
-    soft_data = build_soft_data(as_of, config, store)
-    snapshots["SOFT"] = _soft_snapshot(soft_data, as_of)
-    regime, regime_meta = _current_regime(snapshots, histories, as_of)
-    sanitize_cfg = config.get("sanitize", {})
-    # Suspect-bar hard-valve guard (F3): only run sanitize / pass suspect when the
-    # flag is on, so the default path is byte-identical and never delays a valve.
-    suspect_guard_on = bool(config.get("features", {}).get("use_suspect_valve_guard", False))
-    suspect_flags = (
-        {symbol: is_suspect_on(histories.get(symbol), as_of, sanitize_cfg) for symbol in trade_symbols(config)}
-        if suspect_guard_on
-        else {}
-    )
-    # Decision stabilizer (F1+F2): only read prior statuses when enabled, so the
-    # default path takes no extra DB read and is byte-identical. Either sub-flag
-    # (hysteresis / confirmation) also needs the prior status.
-    _sf = config.get("features", {})
-    stabilizer_on = bool(_sf.get("use_decision_stabilizer", False) or _sf.get("use_status_hysteresis", False) or _sf.get("use_close_confirmation", False))
-    previous_statuses = (
-        latest_decision_statuses(store.archive_dir / "hermes_state.sqlite") if stabilizer_on else {}
-    )
-    excluded_component_symbols = _market_admission_component_exclusions(
-        market_admission_status,
-        as_of,
-    )
-    bundles = {
-        symbol: score_symbol(
-            symbol,
-            snapshots,
-            config,
-            regime=regime,
-            histories=histories,
-            suspect=suspect_flags.get(symbol, False),
-            previous_status=previous_statuses.get(symbol),
-            excluded_component_symbols=excluded_component_symbols,
+    with ExitStack() as transactions:
+        persistence = None
+        capture = None
+        if capture_inputs:
+            artifacts = _score_persistence_artifacts(store, shadow, as_of)
+            capture_id = uuid4().hex
+            capture_root = store.archive_dir / "decision_inputs" / capture_id
+            capture = RuntimeCapture(
+                store=store, config=config, as_of=as_of, capture_id=capture_id,
+                config_path=config_path, package_root=Path(__file__).resolve().parent,
+                configuration=(captured_configuration[1], captured_configuration[2]),
+                parameters={**metadata, "requested_as_of": requested_as_of, "capture_inputs": True,
+                            "market_admission_status": market_admission_status},
+                symbols=_snapshot_universe(config), artifacts=artifacts,
+            )
+            evidence = capture.evidence_paths()
+            persistence = transactions.enter_context(score_run_transaction(
+                store.archive_dir, artifacts, metadata=metadata, _lease=_lease,
+                evidence_artifacts=evidence, capture_id=capture_id,
+                commit_observer=commit_observer,
+            ))
+            before_images = export_score_run_before_images(persistence, _lease=_lease)
+            atomic_write_json(capture_root / "pre_state.json", before_images)
+            (capture_root / "pre_state.json").chmod(0o400)
+            capture.start(_lease=_lease)
+
+        market = MarketData(config=config, store=store)
+        symbols = _snapshot_universe(config)
+        snapshots = {symbol: market.snapshot(symbol, as_of) for symbol in symbols}
+        histories = {symbol: market.load_history(symbol) for symbol in symbols}
+        # PIT guard: a backdated run (as_of < latest bar) must not see future bars
+        # — same semantics as run_full._truncate_histories. No-op for live runs
+        # where as_of is already the newest bar.
+        _cutoff = pd.Timestamp(str(as_of)[:10])
+        histories = {
+            symbol: (frame.loc[frame.index <= _cutoff] if frame is not None and not getattr(frame, "empty", True) else frame)
+            for symbol, frame in histories.items()
+        }
+        soft_data = build_soft_data(as_of, config, store)
+        snapshots["SOFT"] = _soft_snapshot(soft_data, as_of)
+        if capture is not None:
+            capture.record_inputs(snapshots=snapshots, histories=histories, soft_data=soft_data)
+        regime, regime_meta = _current_regime(snapshots, histories, as_of)
+        sanitize_cfg = config.get("sanitize", {})
+        # Suspect-bar hard-valve guard (F3): only run sanitize / pass suspect when the
+        # flag is on, so the default path is byte-identical and never delays a valve.
+        suspect_guard_on = bool(config.get("features", {}).get("use_suspect_valve_guard", False))
+        suspect_flags = (
+            {symbol: is_suspect_on(histories.get(symbol), as_of, sanitize_cfg) for symbol in trade_symbols(config)}
+            if suspect_guard_on
+            else {}
         )
-        for symbol in trade_symbols(config)
-    }
-    target_weights = _target_weights_after_verdict(config, bundles)
-    hard_excluded = {symbol for symbol, bundle in bundles.items() if bundle.result.hard_valve_hits or bundle.result.sell_fraction >= 1.0}
-    portfolio_risk = compute_portfolio_risk(histories, target_weights, config, excluded_symbols=hard_excluded)
-    signal_journal_path = store.archive_dir / "signal_journal.jsonl"
-    signal_journal_write_path = _signal_journal_write_path(store, shadow)
-    state_db_path = store.archive_dir / "hermes_state.sqlite"
-    sizing, sizing_extras = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of,
-                                             signal_journal_path=signal_journal_path)
-    routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=histories) for symbol, bundle in bundles.items()}
-    route_transition = None
-    portfolio_target_weights = None
-    if bool(config.get("features", {}).get("use_route_set_transition_buffer", False)):
-        sizing_dict = {symbol: decision.to_dict() for symbol, decision in sizing.items()}
-        routing_dict = {symbol: decision.to_dict() for symbol, decision in routing.items()}
-        raw_route_weights = route_leg_weights(config, sizing_dict, routing_dict)
-        previous_payload = latest_score_payload_before(state_db_path, as_of)
-        previous_route_weights = None
-        if previous_payload:
-            previous_route_weights = previous_payload.get("portfolio_target_weights")
-            if not previous_route_weights:
-                previous_route_weights = route_leg_weights(
-                    config,
-                    previous_payload.get("sizing") or {},
-                    previous_payload.get("routing") or {},
-                )
-        route_transition = apply_route_set_transition_buffer(
-            config,
-            raw_route_weights,
-            previous_route_weights,
+        # Decision stabilizer (F1+F2): only read prior statuses when enabled, so the
+        # default path takes no extra DB read and is byte-identical. Either sub-flag
+        # (hysteresis / confirmation) also needs the prior status.
+        _sf = config.get("features", {})
+        stabilizer_on = bool(_sf.get("use_decision_stabilizer", False) or _sf.get("use_status_hysteresis", False) or _sf.get("use_close_confirmation", False))
+        previous_statuses = (
+            latest_decision_statuses(store.archive_dir / "hermes_state.sqlite") if stabilizer_on else {}
         )
-        portfolio_target_weights = route_transition.weights
-    reentry_db_path = store.archive_dir / "reentry_state.sqlite"
-    reentry_states = read_reentry_states(reentry_db_path)
-    execution_confirmations = latest_execution_confirmations(state_db_path)
-    reentry = {
-        symbol: build_reentry_plan(
-            symbol,
-            bundle.result,
-            snapshots,
-            histories,
-            config,
-            days_since_last_sell=trading_days_since_last_sell(signal_journal_path, symbol, as_of),
-            t1_active=bool(reentry_states.get(symbol).t1_active) if reentry_states.get(symbol) else False,
-            t2_active=bool(reentry_states.get(symbol).t2_active) if reentry_states.get(symbol) else False,
+        excluded_component_symbols = _market_admission_component_exclusions(
+            market_admission_status,
+            as_of,
         )
-        for symbol, bundle in bundles.items()
-    }
-    artifacts = _score_persistence_artifacts(store, shadow, as_of)
-    with score_run_transaction(
-        store.archive_dir,
-        artifacts,
-        metadata={
-            "as_of": str(as_of)[:10],
-            "run_type": str(run_type),
-            "shadow": bool(shadow),
-            "include_ibkr": bool(include_ibkr),
-        },
-        _lease=_lease,
-    ) as persistence:
+        bundles = {
+            symbol: score_symbol(
+                symbol,
+                snapshots,
+                config,
+                regime=regime,
+                histories=histories,
+                suspect=suspect_flags.get(symbol, False),
+                previous_status=previous_statuses.get(symbol),
+                excluded_component_symbols=excluded_component_symbols,
+            )
+            for symbol in trade_symbols(config)
+        }
+        target_weights = _target_weights_after_verdict(config, bundles)
+        hard_excluded = {symbol for symbol, bundle in bundles.items() if bundle.result.hard_valve_hits or bundle.result.sell_fraction >= 1.0}
+        portfolio_risk = compute_portfolio_risk(histories, target_weights, config, excluded_symbols=hard_excluded)
+        signal_journal_path = store.archive_dir / "signal_journal.jsonl"
+        signal_journal_write_path = _signal_journal_write_path(store, shadow)
+        state_db_path = store.archive_dir / "hermes_state.sqlite"
+        sizing, sizing_extras = _optimize_sizing(bundles, histories, portfolio_risk, config, as_of=as_of,
+                                                 signal_journal_path=signal_journal_path)
+        routing = {symbol: route_capital(symbol, bundle.result, config, snapshots=snapshots, histories=histories) for symbol, bundle in bundles.items()}
+        route_transition = None
+        portfolio_target_weights = None
+        if bool(config.get("features", {}).get("use_route_set_transition_buffer", False)):
+            sizing_dict = {symbol: decision.to_dict() for symbol, decision in sizing.items()}
+            routing_dict = {symbol: decision.to_dict() for symbol, decision in routing.items()}
+            raw_route_weights = route_leg_weights(config, sizing_dict, routing_dict)
+            previous_payload = latest_score_payload_before(state_db_path, as_of)
+            previous_route_weights = None
+            if previous_payload:
+                previous_route_weights = previous_payload.get("portfolio_target_weights")
+                if not previous_route_weights:
+                    previous_route_weights = route_leg_weights(
+                        config,
+                        previous_payload.get("sizing") or {},
+                        previous_payload.get("routing") or {},
+                    )
+            route_transition = apply_route_set_transition_buffer(
+                config,
+                raw_route_weights,
+                previous_route_weights,
+            )
+            portfolio_target_weights = route_transition.weights
+        reentry_db_path = store.archive_dir / "reentry_state.sqlite"
+        reentry_states = read_reentry_states(reentry_db_path)
+        execution_confirmations = latest_execution_confirmations(state_db_path)
+        reentry = {
+            symbol: build_reentry_plan(
+                symbol,
+                bundle.result,
+                snapshots,
+                histories,
+                config,
+                days_since_last_sell=trading_days_since_last_sell(signal_journal_path, symbol, as_of),
+                t1_active=bool(reentry_states.get(symbol).t1_active) if reentry_states.get(symbol) else False,
+                t2_active=bool(reentry_states.get(symbol).t2_active) if reentry_states.get(symbol) else False,
+            )
+            for symbol, bundle in bundles.items()
+        }
+        if persistence is None:
+            artifacts = _score_persistence_artifacts(store, shadow, as_of)
+            persistence = transactions.enter_context(score_run_transaction(
+                store.archive_dir, artifacts, metadata=metadata, _lease=_lease,
+            ))
         persist_soft_data_snapshot(soft_data, store)
         _persistence_checkpoint("soft_adapter_snapshot")
         reentry_db = write_reentry_snapshot(reentry_db_path, str(as_of)[:10], reentry, reentry_states)
@@ -315,11 +362,15 @@ def _score_pipeline_locked(
             sizing,
             routing,
             portfolio_target_weights=portfolio_target_weights,
+            **({"broker": capture.broker} if capture is not None else {}),
         ) if include_ibkr else {
             "source": "disabled",
             "note": "IBKR disabled for offline replay/backtest.",
         }
-        execution_sync = _execution_sync(config, state_db_path, reentry, ibkr_payload, as_of, include_ibkr)
+        execution_sync = _execution_sync(
+            config, state_db_path, reentry, ibkr_payload, as_of, include_ibkr,
+            **({"broker": capture.broker} if capture is not None else {}),
+        )
         _persistence_checkpoint("execution_confirmations")
         execution_confirmations = execution_sync.get("latest_confirmations") or execution_confirmations
         portfolio_value = _portfolio_value(config, ibkr_payload)
@@ -339,7 +390,7 @@ def _score_pipeline_locked(
             "config_version": config["version"],
             "persistence": {
                 "run_id": persistence.run_id,
-                "protocol": "recoverable-journal-v1",
+                "protocol": "recoverable-journal-v2" if capture_inputs else "recoverable-journal-v1",
                 "recovered_run_id": (recovery or {}).get("run_id"),
             },
             "snapshots": {symbol: snap.to_dict() for symbol, snap in sorted(snapshots.items())},
@@ -375,6 +426,8 @@ def _score_pipeline_locked(
             "all_source_data_quality": all_source_quality,
             "ibkr": ibkr_payload,
         }
+        if capture_inputs:
+            payload["persistence"]["capture_id"] = persistence.capture_id
         if market_admission_status is not None:
             payload["market_admission_status"] = dict(market_admission_status)
         if portfolio_target_weights is not None and route_transition is not None:
@@ -389,6 +442,7 @@ def _score_pipeline_locked(
                 package_root=Path(__file__).resolve().parent,
                 histories=histories,
                 certified_at=datetime.fromisoformat(str(payload["run_ts"])),
+                **({"input_observer": capture.certification_read} if capture is not None else {}),
             )
         payload["data_quality_breakdown"] = _quality_breakdown(payload, snapshots, flow, config)
         payload.update(build_action_context(payload, snapshots))
@@ -414,7 +468,11 @@ def _score_pipeline_locked(
         _persistence_checkpoint("signal_journal")
         payload["audit_log_path"] = str(audit_path)
         payload["signal_journal_path"] = str(signal_path)
+        if capture is not None:
+            capture.finish(persistence, payload, _lease=_lease)
 
+    if capture is not None:
+        capture.broker.publish(persistence, _lease=_lease)
     return payload
 
 
@@ -507,14 +565,24 @@ def _ibkr_payload(
     routing: Dict[str, Any],
     *,
     portfolio_target_weights: Optional[Dict[str, float]] = None,
+    broker: Any = None,
 ) -> Dict[str, Any]:
     if not config.get("ibkr", {}).get("enabled", False):
+        if broker is not None:
+            broker.skipped("positions", "ibkr.enabled=false")
         return {"source": "disabled", "note": "set ibkr.enabled=true to activate"}
     try:
         from hermes_escape_top.ibkr.positions import read_positions
         from hermes_escape_top.ibkr.reconcile import reconcile as ibkr_reconcile
 
-        snap = read_positions(config)
+        snap = read_positions(config, **({"publish_cache": False} if broker is not None else {}))
+    except Exception as exc:
+        if broker is not None:
+            broker.failed("positions", exc)
+        return {"error": str(exc), "source": "unavailable"}
+    if broker is not None:
+        broker.observed("positions", snap)
+    try:
         sizing_for_recon = {s: d.to_dict() for s, d in sizing.items()}
         routing_for_recon = {s: d.to_dict() for s, d in routing.items()}
         return ibkr_reconcile(
@@ -534,22 +602,34 @@ def _execution_sync(
     ibkr_payload: Dict[str, Any],
     as_of: str,
     include_ibkr: bool,
+    *,
+    broker: Any = None,
 ) -> Dict[str, Any]:
     latest = latest_execution_confirmations(state_db_path)
     exec_cfg = config.get("ibkr", {}).get("executions", {})
     if not include_ibkr:
+        if broker is not None:
+            broker.skipped("executions", "include_ibkr=false")
         return {"status": "SKIPPED", "reason": "include_ibkr=false", "latest_confirmations": latest}
     if not config.get("ibkr", {}).get("enabled", False):
+        if broker is not None:
+            broker.skipped("executions", "ibkr.enabled=false")
         return {"status": "DISABLED", "reason": "ibkr.enabled=false", "latest_confirmations": latest}
     if isinstance(exec_cfg, dict) and not bool(exec_cfg.get("enabled", True)):
+        if broker is not None:
+            broker.skipped("executions", "ibkr.executions.enabled=false")
         return {"status": "DISABLED", "reason": "ibkr.executions.enabled=false", "latest_confirmations": latest}
     if ibkr_payload.get("source") != "tws":
+        if broker is not None:
+            broker.skipped("executions", "positions source is not tws")
         return {
             "status": "DEGRADED",
             "reason": f"IBKR positions source is {ibkr_payload.get('source', 'unknown')}; executions not trusted for auto-confirm.",
             "latest_confirmations": latest,
         }
     if not ibkr_payload.get("sync_time"):
+        if broker is not None:
+            broker.skipped("executions", "positions live payload lacks sync_time")
         return {
             "status": "SKIPPED",
             "reason": "IBKR live payload lacks sync_time; likely a mocked or incomplete live snapshot.",
@@ -558,7 +638,15 @@ def _execution_sync(
     try:
         from hermes_escape_top.ibkr.executions import read_executions
 
-        snapshot = read_executions(config).to_dict()
+        response = read_executions(config, **({"publish_cache": False} if broker is not None else {}))
+    except Exception as exc:
+        if broker is not None:
+            broker.failed("executions", exc)
+        return {"status": "ERROR", "reason": str(exc), "latest_confirmations": latest}
+    if broker is not None:
+        broker.observed("executions", response)
+    try:
+        snapshot = response.to_dict()
         allowed_sources = set((exec_cfg or {}).get("auto_confirm_sources", ["tws"]) if isinstance(exec_cfg, dict) else ["tws"])
         plan_payload = {symbol: plan.to_dict() for symbol, plan in reentry.items()}
         inferred = infer_execution_confirmations(

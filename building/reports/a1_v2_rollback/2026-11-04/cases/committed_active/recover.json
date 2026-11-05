@@ -1,0 +1,73 @@
+{
+  "active_absent": true,
+  "broker_cache_files": 0,
+  "business_after": {
+    "audit_log.jsonl": {
+      "digest": "0c4bebd2be34d77de2d01d2fe95b03937cfceebca7403261113e45e2c49d1482",
+      "mode": 420
+    },
+    "flow_reference.sqlite": {
+      "digest": "48d4efef0ec0f3882bc0b61db45c146acca3b7f6d620ce197715feb08354dd8c",
+      "mode": 436
+    },
+    "hermes_state.sqlite": {
+      "digest": "4adb91f651fd15b239141e6a8884225f3c1ad2fc6df5bd8628c2209bb5fb8d0a",
+      "mode": 420
+    },
+    "mirror_reference.sqlite": {
+      "digest": "1a31dff2763bdd42a987d8a110436eedfb2063fb38e3b071e39b086a801cfc34",
+      "mode": 420
+    },
+    "reentry_state.sqlite": {
+      "digest": "adc3ef2ea96186b7282458c9d43f71b1ac50403f5b61c2a99495083470a39a0c",
+      "mode": 420
+    },
+    "signal_journal.jsonl": {
+      "digest": "1c4936db56a3c0b980c745bfb0c70a3366b8458a363d6e63062fce4992008e98",
+      "mode": 420
+    },
+    "soft_adapter_snapshot_2026-05-29.json": {
+      "digest": "3226b84df3233d7eddf05bb12144a6c51b8450c873af9fced28f83d110e5355b",
+      "mode": 436
+    }
+  },
+  "business_before": {
+    "audit_log.jsonl": {
+      "digest": "0c4bebd2be34d77de2d01d2fe95b03937cfceebca7403261113e45e2c49d1482",
+      "mode": 420
+    },
+    "flow_reference.sqlite": {
+      "digest": "48d4efef0ec0f3882bc0b61db45c146acca3b7f6d620ce197715feb08354dd8c",
+      "mode": 436
+    },
+    "hermes_state.sqlite": {
+      "digest": "4adb91f651fd15b239141e6a8884225f3c1ad2fc6df5bd8628c2209bb5fb8d0a",
+      "mode": 420
+    },
+    "mirror_reference.sqlite": {
+      "digest": "1a31dff2763bdd42a987d8a110436eedfb2063fb38e3b071e39b086a801cfc34",
+      "mode": 420
+    },
+    "reentry_state.sqlite": {
+      "digest": "adc3ef2ea96186b7282458c9d43f71b1ac50403f5b61c2a99495083470a39a0c",
+      "mode": 420
+    },
+    "signal_journal.jsonl": {
+      "digest": "1c4936db56a3c0b980c745bfb0c70a3366b8458a363d6e63062fce4992008e98",
+      "mode": 420
+    },
+    "soft_adapter_snapshot_2026-05-29.json": {
+      "digest": "3226b84df3233d7eddf05bb12144a6c51b8450c873af9fced28f83d110e5355b",
+      "mode": 436
+    }
+  },
+  "evidence_preserved": true,
+  "evidence_removed": false,
+  "journal_after_sha256": "549306f14a27786a1c90b7482ebc102e2dbcf98a370d8c438bdc0d5dbf727ee1",
+  "journal_before_sha256": "549306f14a27786a1c90b7482ebc102e2dbcf98a370d8c438bdc0d5dbf727ee1",
+  "network_attempts": 0,
+  "pid": 80613,
+  "registered_evidence_files": 264,
+  "status_after": "COMMITTED",
+  "status_before": "COMMITTED"
+}

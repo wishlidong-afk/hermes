@@ -1,0 +1,34 @@
+{
+  "prepared_on": "2026-11-05",
+  "status": "READY_FOR_EXTERNAL_REVIEW_WITH_DEPLOY_HOLD",
+  "candidate_manifest": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+  "source_files": 512,
+  "baseline_commit": "c1f4b8fc1df23876fefeccd33bc08e0270627f9e",
+  "baseline_comparator_files_git_blob_verified": 344,
+  "candidate_comparator_files_sha_verified": 383,
+  "strict_dates": [
+    "2022-01-03",
+    "2022-01-25",
+    "2026-05-29",
+    "2026-06-04"
+  ],
+  "all_equal": true,
+  "strict_seconds": 30.84,
+  "source_unchanged": true,
+  "comparator_sha256": "19540147b21004355d0f54eb14c0455301bddb870b47a370b0a753178d5bd76d",
+  "scope": "Default config and tracked historical seed, capture OFF score_pipeline persistence; not current live config, official scheduled A1 or ON/v2 release proof",
+  "execution_isolation": {
+    "HOME": "/Users/liweishi/Documents/New project/hermes-final-review-preflight-2026-11-04/home",
+    "TMPDIR": "/Users/liweishi/Documents/New project/hermes-final-review-preflight-2026-11-04/tmp",
+    "OS_profile": "deny network; deny writes except this private root; deny reads of /Users/liweishi/.hermes",
+    "include_ibkr": false,
+    "live_calls": false
+  },
+  "live_observation": "Frozen separate packet from 2026-11-04 22:04+08:00; not a 2026-11-05 morning report",
+  "external_approval": false,
+  "git_stage_commit_push": false,
+  "DEPLOY": "HOLD",
+  "A1_production_proof": "OPEN",
+  "A2": "OPEN",
+  "Phase_B": "NOT_STARTED"
+}

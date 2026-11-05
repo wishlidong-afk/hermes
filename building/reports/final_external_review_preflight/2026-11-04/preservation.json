@@ -1,0 +1,7 @@
+{
+  "candidate_files_unchanged": 512,
+  "old_main_files_unchanged": 1370,
+  "original_git_unchanged": true,
+  "source_or_live_writes": false,
+  "Git_operations": "Only read-only ls-tree/rev-parse; no stage/commit/push/fetch/ref changes"
+}

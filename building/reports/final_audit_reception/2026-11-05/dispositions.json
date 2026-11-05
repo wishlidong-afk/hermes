@@ -1,0 +1,34 @@
+{
+  "external_conclusions_received": {
+    "candidate_correctness": "PASS, limited scope per reviewer",
+    "Git": "Recommendation to integrate/commit/push exact scope, not user authorization",
+    "A1": "Local mechanisms PASS; production proof OPEN",
+    "DEPLOY": "HOLD",
+    "A2": "OPEN",
+    "Phase_B": "NOT_STARTED"
+  },
+  "P3_health_diagnostic": "Accepted as deferred standalone diagnostic improvement; no modification of frozen candidate",
+  "citation_clarifications": [
+    {
+      "topic": "11-04 market streak",
+      "verified": "consecutive_ok=3,target_days=5; 11-05 consecutive_ok=0",
+      "disposition": "No evidence in the frozen files for an actual 5-streak; preserve report as written, cite exact fields in followup"
+    },
+    {
+      "topic": "two version axes",
+      "verified": "live identity-v2; transaction recoverable-journal-v1. Candidate transaction-v2 opt-in is distinct from identity-v2",
+      "disposition": "Never describe current live as old identity-v1"
+    },
+    {
+      "topic": "witness hashes",
+      "verified": "outer witness_sha256 hashes original vendor mapping; nested raw_comparison.witness.sha256 hashes normalized long-name/date/timestamp bar",
+      "disposition": "Different projections, not competing hashes for the same byte representation"
+    },
+    {
+      "topic": "tests/static findings",
+      "verified": "Author frozen full-suite log=2288/1620.79s; selected 15-file mypy PASS; wrapper4 mypy/17 Ruff",
+      "disposition": "Reviewer quotes 2288/1606.88s and broader15/19+ops4 from prior review; preserve as reviewer provenance, no claim of reproducing missing prior logs"
+    }
+  ],
+  "referenced_previous_full_tree_report": "Not located among the supplied attachment and named project report files. Request original/path for archival; no automatic request for another audit or extra approval stage."
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": "hermes-final-external-preflight-v1",
+  "files": {
+    "candidate-vs-live-source.json": "9932edc19dc33052e5575385bef16a01acf78c14251c9f25bcbcf6d5c8287594",
+    "collector-execution.json": "2d3be55220f0594e9e7dc740a665bc68a443e228338688af171b69ac882fb787",
+    "live-metadata-final.json": "491545d93fec8e81154568d0e8f9e74a02b18a7a9178d667c15bb65e8ef8ad39",
+    "preservation.json": "aff3cf2616c965f49904d304a68d5239f05236c6ef7631788af6d17b75b99faa",
+    "tools/collect_readonly.py": "8e2a8f6b28fd325e961a57350f061b53b2eac401fb7fed7d39ac5e7c4365758c",
+    "writer-observation.json": "9a82ab0fa003c1a1bace91504bdf6f17e8491e8d457b0202b25c4a14b0b62ea0"
+  }
+}

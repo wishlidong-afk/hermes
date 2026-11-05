@@ -1,0 +1,25 @@
+{
+  "candidate_manifest": "90842a116706bb48fa17f1b2c207649252073ac074db7f8110d0b87d775448aa",
+  "candidate_source_binding_sha256": "1d7344b684529ea02e3289e8eae8bf017d1ce60344bc336c75f83b7f1e194086",
+  "candidate_files_checked": 512,
+  "candidate_drift": [],
+  "MU_metadata_sha256": "1200bd416ba9de133f8e833d234d1e3c94754c6319699430d2408de233a3a64a",
+  "MU_manifest_sha256": "3691d0e069f6d9745575ad7231af0e6824e090ce80d7183efae9781281e8e0f0",
+  "MU_source_files_current_sha_match": {
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/market_admission_2026-11-05.json": true,
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/market_admission_third_source_2026-11-05.json": true,
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/history/MU.csv": true,
+    "/Users/liweishi/.hermes/logs/acceptance/morning_acceptance_2026-11-05.json": true,
+    "/Users/liweishi/.hermes/logs/acceptance/morning_acceptance_2026-11-05.md": true,
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/data/archive/audit_log.jsonl": true,
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/VERSION": true,
+    "/Users/liweishi/.hermes/skills/investment/escape-top/current/hermes_escape_top/config/config.json": true
+  },
+  "suite_rerun": false,
+  "product_source_changed": false,
+  "old_flags_thresholds_budget_changed": false,
+  "DEPLOY": "HOLD",
+  "A1_production_proof": "OPEN",
+  "A2": "OPEN",
+  "Phase_B": "NOT_STARTED"
+}

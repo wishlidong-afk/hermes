@@ -1,0 +1,2 @@
+/Users/liweishi/Documents/New project/hermes-a1-v2-rollback-final-2026-11-04/postcheck.py:47: error: Need type annotation for "all_pids" (hint: "all_pids: list[<type>] = ...")  [var-annotated]
+Found 1 error in 1 file (checked 4 source files)

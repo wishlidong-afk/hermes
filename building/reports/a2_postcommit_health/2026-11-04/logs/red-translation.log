@@ -1,0 +1,69 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_translation_failure_writes_current_health_without_undoing_commit _____
+
+health_run = namespace(args=namespace(live=True, run_type='scheduled', as_of='2026-05-29', skip_refresh=True, commit_state=False), ...m0000gn/T/pytest-of-liweishi/pytest-91/test_translation_failure_write0/capture-root/data/archive'), health_receipts=[])
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10de55210>
+
+    def test_translation_failure_writes_current_health_without_undoing_commit(health_run, monkeypatch):
+        before = {}
+        error = OSError("synthetic translation failure after score commit")
+    
+        def fail(_payload):
+            before.update(_business_bytes(health_run.archive))
+            raise error
+    
+        monkeypatch.setattr(daily, "translate", fail)
+        with pipeline_lock(path=health_run.archive / ".pipeline.lock") as lease:
+            with pytest.raises(OSError) as caught:
+                daily._run_daily_with_receipt(health_run.args, _lease=lease, capture_inputs=True)
+        assert caught.value is error
+>       _assert_failed_current_report(health_run, before, "translate")
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:89: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+run = namespace(args=namespace(live=True, run_type='scheduled', as_of='2026-05-29', skip_refresh=True, commit_state=False), ...m0000gn/T/pytest-of-liweishi/pytest-91/test_translation_failure_write0/capture-root/data/archive'), health_receipts=[])
+before = {'archive/reentry_state.sqlite': b'SQLite format 3\x00\x10\x00\x01\x01\x00@  \x00\x00\x00\x03\x00\x00\x00\x05\x00\x00\...\x18\x04!\x1f\x012026-05-29SOXL_SOXX\x03\x17\x04!\x1d\x012026-05-29FNGU_QQQ\x02\x16\x04!\x1d\t2026-05-29MSTR_QQQ', ...}
+failed_step = 'translate', capture = True
+
+    def _assert_failed_current_report(run, before, failed_step, *, capture=True):
+        receipt = json.loads((run.archive / "run_receipt.json").read_bytes())
+        payload = json.loads((run.archive / "audit_log.jsonl").read_text().splitlines()[-1])["payload"]
+        record = load_score_run_transaction(run.archive, payload["persistence"]["run_id"])
+        assert record["status"] == "COMMITTED"
+        assert len([row for row in record["artifacts"] if row["role"] == "BUSINESS"]) == 7
+        assert _business_bytes(run.archive) == before
+        assert not (run.archive / ".score_run_transactions/active.json").exists()
+        assert receipt["status"] == "FAILED" and receipt["ok"] is False
+        assert receipt["failed_step"] == failed_step
+        if capture:
+            observation = receipt["commit_observation"]
+            journal = run.archive / f".score_run_transactions/runs/{observation['run_id']}/manifest.json"
+            assert observation["journal_sha256"] == hashlib.sha256(journal.read_bytes()).hexdigest()
+            assert observation["run_id"] == payload["persistence"]["run_id"]
+            assert observation["capture_id"] == payload["persistence"]["capture_id"]
+            assert observation["input_hash"] == payload["input_hash"]
+            assert observation["decision_id"] == payload["decision_evidence"]["decision_id"]
+        else:
+            assert "commit_observation" not in receipt
+            assert payload["persistence"]["protocol"] == "recoverable-journal-v1"
+            assert not (run.archive / "decision_inputs").exists()
+        path = daily._system_health_report_dir() / f"system_health_{AS_OF}.json"
+        report = json.loads(path.read_bytes())
+>       assert report["input_hash"] == payload["input_hash"]
+E       AssertionError: assert 'previous-input' == '49f3787f85c0...f9d5df055297a'
+E         
+E         - 49f3787f85c0d4c704dd2ad5eee658058ebda55c0711b43f062f9d5df055297a
+E         + previous-input
+
+src/hermes_escape_top/tests/test_postcommit_failure_health.py:65: AssertionError
+----------------------------- Captured stdout call -----------------------------
+[receipt] RUNNING -> run_receipt.json
+[M4-1] LIVE mode — writing to live dirs
+[M4-1] Running score_pipeline(2026-05-29, shadow=False, run_type=scheduled)…
+[M4-1] score_pipeline OK. Schema: escape-top-greenfield-phase3-score-v1
+[receipt] self-check FAIL -> run_receipt.json
+=========================== short test summary info ============================
+FAILED src/hermes_escape_top/tests/test_postcommit_failure_health.py::test_translation_failure_writes_current_health_without_undoing_commit
+1 failed in 7.18s
