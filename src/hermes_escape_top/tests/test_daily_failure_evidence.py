@@ -68,6 +68,20 @@ def daily(monkeypatch, tmp_path):
     )
 
 
+def test_failed_history_receipt_names_only_checked_symbols(daily, monkeypatch):
+    monkeypatch.setattr(rdp, "_last_bar_dates", lambda: {
+        "SOXL": date.fromisoformat(AS_OF), "QQQ": date.fromisoformat(AS_OF),
+    })
+    rdp._write_run_receipt(AS_OF, "scheduled", steps_ok=False,
+                           step_error="SystemExit: 3", failed_step="history_integrity")
+    receipt = json.loads(daily.receipt.read_text())
+    check = next(row for row in receipt["checks"] if row["name"] == "as_of_latest")
+    assert receipt["status"] == "FAILED" and receipt["failed_step"] == "history_integrity"
+    assert check["ok"] is True
+    assert "已检查门控标的=QQQ,SOXL" in check["detail"]
+    assert "全标的齐平" not in check["detail"]
+
+
 def test_failed_end_state_identifies_receipt_not_successful_flow(daily):
     with pytest.raises(RuntimeError, match="scheduled run end-state receipt failed"):
         rdp._run_daily_with_receipt(daily.args, _lease=object())
@@ -119,23 +133,61 @@ def test_secondary_report_failure_preserves_original_error(daily, monkeypatch, c
     assert "health storage unavailable" in capsys.readouterr().out
 
 
-def test_failure_before_scoring_result_does_not_fabricate_report(daily, monkeypatch):
+@pytest.mark.parametrize("failed_step", ["history_integrity", "score_pipeline"])
+def test_failure_before_scoring_result_writes_run_only_report(daily, monkeypatch, failed_step):
     def fail_execute(*, _run_context, **_kwargs):
-        _run_context["step"] = "score_pipeline"
+        _run_context["as_of"] = AS_OF
+        _run_context["step"] = failed_step
         raise ValueError("scoring failed before returning inputs")
 
-    def unexpected_report(*_args, **_kwargs):
-        pytest.fail("must not manufacture a bound report without the current payload")
-
     monkeypatch.setattr(rdp, "_execute_daily", fail_execute)
-    monkeypatch.setattr(rdp, "_write_system_health_report", unexpected_report)
     with pytest.raises(ValueError, match="scoring failed before returning inputs"):
         rdp._run_daily_with_receipt(daily.args, _lease=object())
 
     receipt = json.loads(daily.receipt.read_text())
+    report_path = daily.root / f"reports/system_health_{AS_OF}.json"
+    report = json.loads(report_path.read_text())
     assert receipt["status"] == "FAILED"
-    assert receipt["failed_step"] == "score_pipeline"
+    assert receipt["failed_step"] == failed_step
+    assert report["report_scope"] == "RUN_FAILURE_ONLY"
+    assert report["run_receipt"] == receipt
+    assert report["run_type"] == "scheduled"
+    assert report["as_of"] == AS_OF
+    assert report["input_hash"] is None
+    assert report["decision_hash"] is None
+    assert report["decision_input_coverage"] is None
+    assert report["health"]["level"] == "CRITICAL"
+    cache = next(row for row in report["audit_dimensions"] if row["id"] == "scored_payload_cache")
+    assert cache["status"] == "FAIL"
+    assert "RUN_FAILURE_ONLY" in report_path.with_suffix(".md").read_text()
+    assert daily.flow_calls == []
+    assert {p.name for p in daily.receipt.parent.iterdir()} == {"run_receipt.json"}
+
+
+@pytest.mark.parametrize("status,ok", [("OK", True), ("RUNNING", None), ("FAILED", True)])
+def test_report_without_scores_requires_a_failed_receipt(daily, status, ok):
+    with pytest.raises(ValueError, match="requires a FAILED receipt"):
+        rdp._write_system_health_report(None, AS_OF, {"status": status, "ok": ok})
     assert not (daily.root / "reports").exists()
+
+
+def test_pre_score_report_storage_failure_preserves_original_system_exit(daily, monkeypatch, capsys):
+    def fail_execute(*, _run_context, **_kwargs):
+        _run_context["step"] = "history_integrity"
+        raise SystemExit(3)
+
+    def fail_report(*_args, **_kwargs):
+        raise OSError("failure report storage unavailable")
+
+    monkeypatch.setattr(rdp, "_execute_daily", fail_execute)
+    monkeypatch.setattr(rdp, "_write_system_health_report", fail_report)
+    with pytest.raises(SystemExit) as error:
+        rdp._run_daily_with_receipt(daily.args, _lease=object())
+    assert error.value.code == 3
+    receipt = json.loads(daily.receipt.read_text())
+    assert receipt["failed_step"] == "history_integrity"
+    assert receipt["error"] == "SystemExit: 3"
+    assert "failure report storage unavailable" in capsys.readouterr().out
 
 
 def test_missing_failed_receipt_cannot_be_replaced_by_synthetic_health(daily, monkeypatch):

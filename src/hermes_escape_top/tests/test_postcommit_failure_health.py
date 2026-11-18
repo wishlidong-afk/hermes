@@ -198,22 +198,32 @@ def test_next_failure_before_score_does_not_reuse_the_previous_result(health_run
     with pipeline_lock(path=health_run.archive / ".pipeline.lock") as lease:
         daily._run_daily_with_receipt(health_run.args, _lease=lease, capture_inputs=True)
         report = daily._system_health_report_dir() / f"system_health_{AS_OF}.json"
-        previous = report.read_bytes()
-        audit = (health_run.archive / "audit_log.jsonl").read_bytes()
+        previous = {
+            path: path.read_bytes() for path in (report.parent / "system_health_runs").glob("*.json")
+        }
+        business = _business_bytes(health_run.archive)
 
         def fail_score(*_args, **_kwargs):
             raise OSError("synthetic next invocation before result")
 
+        def write_run_failure(payload, *args, **kwargs):
+            assert payload is None, "must not reuse the previous score"
+            return _WRITE_HEALTH(payload, *args, **kwargs)
+
         monkeypatch.setattr(daily, "run_score_pipeline", fail_score)
-        monkeypatch.setattr(daily, "_write_system_health_report",
-                            lambda *_args, **_kwargs: pytest.fail("must not reuse the previous score"))
+        monkeypatch.setattr(daily, "_write_system_health_report", write_run_failure)
         with pytest.raises(OSError, match="synthetic next invocation before result"):
             daily._run_daily_with_receipt(health_run.args, _lease=lease, capture_inputs=True)
     receipt = json.loads((health_run.archive / "run_receipt.json").read_bytes())
     assert receipt["status"] == "FAILED" and receipt["failed_step"] == "score_pipeline"
     assert "commit_observation" not in receipt
-    assert report.read_bytes() == previous
-    assert (health_run.archive / "audit_log.jsonl").read_bytes() == audit
+    current = json.loads(report.read_bytes())
+    assert current["report_scope"] == "RUN_FAILURE_ONLY"
+    assert current["input_hash"] is None and current["decision_hash"] is None
+    assert current["run_receipt"] == receipt
+    assert all(path.read_bytes() == content for path, content in previous.items())
+    assert len(list((report.parent / "system_health_runs").glob("*.json"))) == len(previous) + 1
+    assert _business_bytes(health_run.archive) == business
 
 
 def test_unofficial_post_score_failure_does_not_publish_official_health(health_run, monkeypatch):

@@ -414,7 +414,8 @@ def _backfill_one(
                 source_symbol=_yf_symbol(symbol),
                 reason="; ".join(reasons),
             )
-    combined = pd.concat([existing, normalized]).sort_index()
+    # Preserve old-before-new order for equal dates so admitted revisions win.
+    combined = pd.concat([existing, normalized]).sort_index(kind="stable")
     if not combined.empty:
         combined = combined[~combined.index.duplicated(keep="last")]
         _write_history(path, combined, history_transaction=history_transaction,

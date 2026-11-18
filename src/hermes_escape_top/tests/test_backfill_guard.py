@@ -277,6 +277,51 @@ def test_backfill_market_admission_appends_matching_candidate(tmp_path):
     assert session.canonical_files["QQQ.csv"]["latest_as_of"] == "2026-07-13"
 
 
+def test_backfill_persists_admitted_revisions_and_preserves_rejected_overlap(tmp_path):
+    history = tmp_path / "history"
+    history.mkdir()
+    path = history / "QQQ.csv"
+    old_days = pd.bdate_range(end="2026-06-11", periods=11, name="date")
+    old = pd.DataFrame(
+        {"open": 100, "high": 101, "low": 99, "close": 100, "adj_close": 100, "volume": 1000},
+        index=old_days,
+    )
+    old.to_csv(path, index_label="date")
+    new_days = pd.bdate_range("2026-06-08", periods=7, name="date")
+    incoming = pd.DataFrame(
+        {"Open": 105, "High": 106, "Low": 104, "Close": 105, "Adj Close": 105, "Volume": 1100},
+        index=new_days,
+    )
+    witness = [
+        {"t": day.date().isoformat() + "T04:00:00Z", "o": 105, "h": 106, "l": 104, "c": 105, "v": 1100}
+        for day in new_days
+    ]
+    witness[0].update(o=80, h=81, l=79, c=80)
+    session = MarketAdmissionSession(enabled=True, witness_bars={"QQQ": witness})
+
+    backfill(
+        ["QQQ"],
+        end="2026-06-17",
+        store_dir=history,
+        downloader=lambda *_args: incoming,
+        repair_overlap_days=3,
+        admission_session=session,
+        admission_archive=tmp_path / "archive",
+    )
+
+    evidence = json.loads((tmp_path / "archive/market_admission_latest.json").read_text())
+    assert [(row["status"], row["admitted"]) for row in evidence["rows"]] == [
+        ("PRICE_MISMATCH", False), *[("MATCH", True)] * 6,
+    ]
+    saved = pd.read_csv(path, index_col="date", parse_dates=True)
+    assert saved.index.is_unique and saved.index.is_monotonic_increasing
+    pd.testing.assert_frame_equal(saved.loc[:new_days[0]], old.loc[:new_days[0]], check_freq=False)
+    pd.testing.assert_frame_equal(saved.loc[new_days[1]:], incoming.iloc[1:].rename(
+        columns={"Open": "open", "High": "high", "Low": "low", "Close": "close",
+                 "Adj Close": "adj_close", "Volume": "volume"},
+    ), check_freq=False)
+
+
 def test_btc_spot_witness_fetches_and_admits_weekend_calendar_days(tmp_path):
     path = tmp_path / "BTC_USD.csv"
     path.write_text(

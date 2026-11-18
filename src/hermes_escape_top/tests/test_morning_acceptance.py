@@ -501,6 +501,145 @@ def test_post_deploy_pending_never_masks_strategy_or_runtime_failures(tmp_path):
         assert report["post_deploy_certification"]["status"] != "PENDING_POST_DEPLOY", kind
 
 
+@pytest.mark.parametrize("has_prior_audit", [False, True])
+def test_pre_score_failure_retains_current_receipt_without_certifying_a_decision(tmp_path, has_prior_audit):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    base = home / ".hermes/skills/investment/escape-top"
+    archive = base / "shared/hermes_escape_top/data/archive"
+    receipt_path = archive / "run_receipt.json"
+    receipt = json.loads(receipt_path.read_text())
+    receipt.update(status="FAILED", ok=False, failed_step="history_integrity", error="SystemExit: 3")
+    _write_json(receipt_path, receipt)
+    if not has_prior_audit:
+        (archive / "audit_log.jsonl").write_text("")
+    path = base / "reports/system_health_2026-07-10.json"
+    health_report = json.loads(path.read_text())
+    if has_prior_audit:
+        old_report = json.loads(path.read_text())
+        old_report["run_receipt"]["finished_at"] = "2026-07-13T07:10:50+08:00"
+        _write_json(base / "reports/system_health_runs/system_health_2026-07-10_old.json", old_report)
+    health_report.update(
+        report_scope="RUN_FAILURE_ONLY", input_hash=None, decision_hash=None,
+        run_receipt=receipt,
+    )
+    _write_json(path, health_report)
+
+    report = module.collect_acceptance(
+        home=home, now=now, dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    assert report["status"] == "FAIL"
+    assert report["scheduled"]["as_of"] == "2026-07-10"
+    assert report["scheduled"]["input_hash"] == ("input-hash-1" if has_prior_audit else None)
+    checks = {row["id"]: row for row in report["checks"]}
+    assert checks["scheduled_receipt"]["status"] == "FAIL"
+    assert "history_integrity" in checks["scheduled_receipt"]["detail"]
+    assert "SystemExit: 3" in checks["scheduled_receipt"]["detail"]
+    assert checks["scheduled_audit"]["status"] == ("PASS" if has_prior_audit else "FAIL")
+    assert checks["persistence_transaction"]["status"] == ("PASS" if has_prior_audit else "FAIL")
+    assert checks["bound_health_report"]["status"] == "FAIL"
+    assert "RUN_FAILURE_ONLY" in checks["bound_health_report"]["detail"]
+    assert report["post_deploy_certification"]["status"] == "RUN_FAILURE_ONLY"
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"finished_at": "2026-07-12T07:11:05+08:00"},
+        {"finished_at": "not-a-timestamp"},
+        {"run_type": "manual_rerun"},
+        {"status": "RUNNING"},
+    ],
+)
+def test_failed_receipt_reuse_does_not_accept_stale_or_unofficial_runs(tmp_path, changes):
+    module = _load_module()
+    archive = tmp_path / "archive"
+    receipt = {
+        "status": "FAILED", "ok": False, "run_type": "scheduled",
+        "finished_at": "2026-07-13T07:11:05+08:00", "as_of": "2026-07-10",
+        **changes,
+    }
+    _write_json(archive / "run_receipt.json", receipt)
+    check, reusable = module._collect_receipt(archive, datetime(2026, 7, 13).date())
+    assert check["status"] == "FAIL"
+    assert reusable == {}
+
+
+@pytest.mark.parametrize("current_report", ["missing", "corrupt"])
+def test_failed_current_run_cannot_be_certified_by_an_old_success_report(tmp_path, current_report):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    base = home / ".hermes/skills/investment/escape-top"
+    receipt_path = base / "shared/hermes_escape_top/data/archive/run_receipt.json"
+    receipt = json.loads(receipt_path.read_text())
+    receipt.update(status="FAILED", ok=False, failed_step="history_integrity", error="SystemExit: 3")
+    _write_json(receipt_path, receipt)
+    path = base / "reports/system_health_2026-07-10.json"
+    old_report = json.loads(path.read_text())
+    old_report["run_receipt"]["finished_at"] = "2026-07-13T07:10:50+08:00"
+    _write_json(base / "reports/system_health_runs/system_health_2026-07-10_old.json", old_report)
+    if current_report == "missing":
+        path.unlink()
+    else:
+        path.write_text("{")
+
+    report = module.collect_acceptance(
+        home=home, now=now, dashboard_reader=lambda _url: (200, dashboard_health),
+    )
+
+    assert report["status"] == "FAIL"
+    assert report["post_deploy_certification"]["status"] == "VALIDATION_FAILED"
+    assert report["post_deploy_certification"]["runtime_integrity_ok"] is False
+
+
+@pytest.mark.parametrize("change", ["receipt", "as_of", "generated_at", "run_type", "input_hash"])
+def test_misbound_report_is_not_the_current_failure_diagnostic(tmp_path, change):
+    module = _load_module()
+    home, now, dashboard_health = _acceptance_fixture(tmp_path)
+    base = home / ".hermes/skills/investment/escape-top"
+    archive = base / "shared/hermes_escape_top/data/archive"
+    receipt_path = archive / "run_receipt.json"
+    receipt = json.loads(receipt_path.read_text())
+    receipt.update(status="FAILED", ok=False, failed_step="history_integrity", error="SystemExit: 3")
+    _write_json(receipt_path, receipt)
+    (archive / "audit_log.jsonl").write_text("")
+    path = base / "reports/system_health_2026-07-10.json"
+    prior = json.loads(path.read_text())
+    prior.update(report_scope="RUN_FAILURE_ONLY", input_hash=None, decision_hash=None,
+                 run_receipt=receipt)
+    if change == "receipt":
+        prior["run_receipt"] = {**receipt, "finished_at": "2026-07-13T07:10:50+08:00"}
+    else:
+        prior[change] = {"as_of": "2026-07-09", "generated_at": "2026-07-14T07:11:00+08:00",
+                         "run_type": "manual_rerun", "input_hash": "old-score"}[change]
+    _write_json(path, prior)
+    report = module.collect_acceptance(home=home, now=now, dashboard_reader=lambda _: (200, dashboard_health))
+    assert report["status"] == "FAIL"
+    assert report["post_deploy_certification"]["status"] != "RUN_FAILURE_ONLY"
+    bound = next(check for check in report["checks"] if check["id"] == "bound_health_report")
+    assert bound["status"] == "FAIL"
+    assert change in bound["detail"]
+
+
+def test_inventory_without_comparison_is_reported_without_inventing_rejection(tmp_path):
+    module = _load_module()
+    path = tmp_path / "market_admission_2026-11-18.json"
+    payload = {"status": "OK", "completed_through": "2026-11-17",
+               "rows": [{"symbol": "BTC-USD"}, {"symbol": "^SOX"}],
+               "canonical_files": {name: {"latest_as_of": day} for name, day in [
+                   ("BTC_USD.csv", "2026-11-17"), ("_SOX.csv", "2026-11-17"), ("SOXX.csv", "2026-11-05")]}}
+    enabled = {"live_enabled_features": ["use_market_admission_gate"]}
+    _write_json(path, payload)
+    observation = module._market_admission_observation(tmp_path, enabled)
+    assert observation["status"] == "OBSERVING"
+    assert observation["inventory_without_comparison_rows"] == {"SOXX.csv": "2026-11-05"}
+    assert "SOXX.csv=2026-11-05" in observation["detail"]
+    del payload["rows"]
+    _write_json(path, payload)
+    assert module._market_admission_observation(tmp_path, enabled)["inventory_without_comparison_rows"] is None
+
+
 def test_same_hash_redeploy_requires_a_report_after_the_new_attestation():
     module = _load_module()
     checks = [

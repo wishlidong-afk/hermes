@@ -391,6 +391,16 @@ def _collect_receipt(
         if finished_at is None or _local_datetime(finished_at).date() != acceptance_date:
             failures.append(f"finished_at={receipt.get('finished_at') or receipt.get('run_at')}")
         if failures:
+            if (
+                receipt.get("status") == "FAILED" and receipt.get("ok") is False
+                and receipt.get("run_type") == "scheduled"
+                and finished_at is not None
+                and _local_datetime(finished_at).date() == acceptance_date
+            ):
+                detail = "; ".join(failures) + (
+                    f"; failed_step={receipt.get('failed_step')}; error={receipt.get('error')}"
+                )
+                return _check("scheduled_receipt", "FAIL", detail, path), receipt
             raise ValueError("; ".join(failures))
         detail = f"OK as_of={receipt.get('as_of')} finished_at={finished_at.isoformat()}"
         return _check("scheduled_receipt", "PASS", detail, path), receipt
@@ -563,7 +573,15 @@ def _collect_bound_health(
                 else str(item[1].get("input_hash") or "") == expected_hash
             )
         ]
-        if matching:
+        current_failures = [
+            item for item in reports
+            if receipt.get("status") == "FAILED"
+            and item[1].get("report_scope") == "RUN_FAILURE_ONLY"
+            and item[1].get("run_receipt") == dict(receipt)
+        ]
+        if current_failures:
+            path, report = max(current_failures, key=lambda item: str(item[1].get("generated_at") or ""))
+        elif matching:
             path, report = max(
                 matching,
                 key=lambda item: str(item[1].get("generated_at") or ""),
@@ -574,6 +592,19 @@ def _collect_bound_health(
             raise FileNotFoundError(f"no system health report candidates for {as_of}")
         generated_at = _parse_timestamp(report.get("generated_at"))
         failures = []
+        if report.get("report_scope") == "RUN_FAILURE_ONLY":
+            if not current_failures:
+                failures.append("failure diagnostic does not match current failed receipt")
+            if report.get("as_of") != receipt.get("as_of"):
+                failures.append("failure diagnostic as_of mismatch")
+            if report.get("run_type") != "scheduled":
+                failures.append("failure diagnostic run_type is not scheduled")
+            if generated_at is None or _local_datetime(generated_at).date() != acceptance_date:
+                failures.append("failure diagnostic generated_at mismatch")
+            if report.get("input_hash") is not None or report.get("decision_hash") is not None:
+                failures.append("failure diagnostic carries input_hash or decision_hash")
+            detail = "; ".join(failures) or "RUN_FAILURE_ONLY: no scoring result or decision certification"
+            return _check("bound_health_report", "FAIL", detail, path), unreadable, {} if failures else report
         if generated_at is None or _local_datetime(generated_at).date() != acceptance_date:
             failures.append(f"generated_at={report.get('generated_at')}")
         if str(report.get("as_of") or "") != as_of:
@@ -696,6 +727,16 @@ def _post_deploy_certification(
         and report_time >= next_scheduled_at
         and generator_matches
     ):
+        if health_report.get("report_scope") == "RUN_FAILURE_ONLY":
+            return {"status": "RUN_FAILURE_ONLY", **base}
+        if not (runtime_ok and bound_ok and dashboard_ok):
+            return {
+                "status": "VALIDATION_FAILED",
+                "runtime_integrity_ok": runtime_ok,
+                "bound_report_ok": bound_ok,
+                "dashboard_ok": dashboard_ok,
+                **base,
+            }
         return {"status": "CERTIFIED", **base}
     awaiting_natural_run = bool(
         predates_deploy
@@ -1239,6 +1280,21 @@ def _market_admission_observation(
     else:
         status = "PASS"
         detail = f"consecutive OK evidence {consecutive}; 3-day minimum met, 5-day target"
+    inventory, comparisons = latest.get("canonical_files"), latest.get("rows")
+    without_rows = None
+    if (isinstance(inventory, dict) and isinstance(comparisons, list)
+            and all(isinstance(meta, dict) for meta in inventory.values())
+            and all(isinstance(row, dict) and isinstance(row.get("symbol"), str)
+                    and row["symbol"] for row in comparisons)):
+        # Same filename convention as core.data.store; this reader is deployed standalone.
+        seen = {row["symbol"].translate(str.maketrans("^/-", "___")) + ".csv" for row in comparisons}
+        without_rows = {name: inventory[name].get("latest_as_of") for name in sorted(inventory.keys() - seen)}
+        if without_rows:
+            detail += "; inventory without comparison rows (cached through): " + ", ".join(
+                f"{name}={day or 'unknown'}" for name, day in without_rows.items()
+            )
+    else:
+        detail += "; inventory comparison coverage unknown"
     return {
         "status": status,
         "detail": detail,
@@ -1247,6 +1303,7 @@ def _market_admission_observation(
         "mature": consecutive >= 3,
         "target_days": 5,
         "latest_completed_through": str(latest.get("completed_through") or "")[:10],
+        "inventory_without_comparison_rows": without_rows,
     }
 
 
