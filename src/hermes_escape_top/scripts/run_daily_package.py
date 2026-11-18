@@ -1466,7 +1466,8 @@ def _write_run_receipt(
                 "name": "as_of_latest",
                 "ok": not laggards,
                 "detail": f"as_of={as_of} · 最新K线={latest_bar}"
-                          + (f" · 掉队 {laggards}" if laggards else " · 全标的齐平"),
+                          + f" · 已检查门控标的={','.join(sorted(dates))}"
+                          + (f" · 掉队 {laggards}" if laggards else " · 已检查标的齐平"),
             })
         try:
             from hermes_escape_top.web.refresh import manifest_status
@@ -1557,7 +1558,7 @@ def _system_health_generator_identity() -> Dict[str, str]:
 
 
 def _write_system_health_report(
-    payload: Dict[str, Any],
+    payload: Optional[Dict[str, Any]],
     as_of: str,
     receipt: Dict[str, Any],
     shadow: bool = False,
@@ -1566,16 +1567,21 @@ def _write_system_health_report(
     from hermes_escape_top.web.refresh import manifest_status
     from hermes_escape_top.core.data.quality import decision_input_coverage
 
+    run_failure_only = payload is None
+    if run_failure_only and (receipt.get("status") != "FAILED" or receipt.get("ok") is not False):
+        raise ValueError("a report without a scoring payload requires a FAILED receipt")
+    payload = payload or {}
     config = load_config()
     report_payload = dict(payload)
-    report_payload.setdefault(
-        "cache_status",
-        {"hit": True, "source": "scheduled_run_payload"},
-    )
+    if not run_failure_only:
+        report_payload.setdefault(
+            "cache_status",
+            {"hit": True, "source": "scheduled_run_payload"},
+        )
     report_payload["run_receipt"] = receipt
     manifest = manifest_status(config)
     health = compute_health(report_payload, manifest)
-    coverage = decision_input_coverage(payload.get("scores"))
+    coverage = None if run_failure_only else decision_input_coverage(payload.get("scores"))
     quality = payload.get("data_quality") if isinstance(payload.get("data_quality"), dict) else {}
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
     generator_identity = _system_health_generator_identity()
@@ -1592,7 +1598,7 @@ def _write_system_health_report(
         "as_of": as_of,
         "input_hash": payload.get("input_hash"),
         "decision_hash": decision_hash,
-        "run_type": payload.get("run_type"),
+        "run_type": receipt.get("run_type") if run_failure_only else payload.get("run_type"),
         "manifest_status": manifest,
         "run_receipt": receipt,
         "health": health,
@@ -1601,10 +1607,12 @@ def _write_system_health_report(
             "market_completeness": quality.get("completeness_score"),
             "provenance": quality.get("quality_score"),
             "timeliness": quality.get("latency_score"),
-            "decision_input_coverage": coverage.get("coverage_score"),
+            "decision_input_coverage": (coverage or {}).get("coverage_score"),
         },
         "market_witness_status": payload.get("market_witness_status"),
     }
+    if run_failure_only:
+        report["report_scope"] = "RUN_FAILURE_ONLY"
     report["audit_dimensions"] = _build_system_health_audit_dimensions(report_payload, report)
     report_dir = _system_health_report_dir(shadow=shadow)
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -1616,6 +1624,8 @@ def _write_system_health_report(
     run_json_path = run_dir / f"{run_stem}.json"
     run_md_path = run_dir / f"{run_stem}.md"
     markdown = _render_system_health_markdown(report)
+    if run_failure_only:
+        markdown = "Report scope: RUN_FAILURE_ONLY (no scoring result).\n\n" + markdown
     _atomic_write_json(run_json_path, report)
     atomic_write_text(run_md_path, markdown)
     _atomic_write_json(json_path, report)
@@ -1800,7 +1810,7 @@ def _run_daily_with_receipt(
                 failed_step=str(context.get("step") or "unknown"),
                 **receipt_options,
             )
-            if payload is not None and failed is not None:
+            if failed is not None:
                 try:
                     _write_system_health_report(payload, context["as_of"], failed, shadow=False)
                 except Exception as health_exc:
